@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">fi</title>
+  <desc id="desc">A minimal lowercase fi monogram.</desc>
+  <defs>
+    <linearGradient id="background" x1="112" y1="72" x2="912" y2="952" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#172554"/>
+      <stop offset="0.52" stop-color="#111827"/>
+      <stop offset="1" stop-color="#05070B"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="310" y1="262" x2="718" y2="762" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#CBD5E1"/>
+    </linearGradient>
+  </defs>
+  <rect x="32" y="32" width="960" height="960" rx="220" fill="url(#background)"/>
+  <path fill="url(#mark)" d="M530 252c-98 0-170 65-170 171v43h-70v116h70v224h126V582h104V466H486v-34c0-47 24-68 67-68h37V252h-60Z"/>
+  <rect x="624" y="466" width="126" height="340" rx="34" fill="url(#mark)"/>
+  <circle cx="687" cy="332" r="67" fill="#60A5FA"/>
+</svg>

@@ -1,13 +1,13 @@
 {
   "name": "@deepseek-ai/dsh-tool-fs-search",
   "description": "Model-facing filesystem discovery tools (glob, grep) backed by the packaged ripgrep binary (@vscode/ripgrep)",
-  "version": "0.1.5-rc.2",
+  "version": "0.1.6-alpha.1",
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "url": "git+https://github.com/OJamals/fi.git",
     "directory": "packages/fs/tool-fs-search"
   },
   "type": "module",

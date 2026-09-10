@@ -179,6 +179,28 @@ afterEach(() => {
 })
 
 describe('AppFrame', () => {
+  it('adds the desktop drag strip as a continuation of the sidebar and main surfaces', () => {
+    const descriptor = Object.getOwnPropertyDescriptor(window, 'dshDesktop')
+    restoreProperties.push(() => {
+      if (descriptor === undefined) Reflect.deleteProperty(window, 'dshDesktop')
+      else Object.defineProperty(window, 'dshDesktop', descriptor)
+    })
+    Object.defineProperty(window, 'dshDesktop', {
+      configurable: true,
+      value: { protocolVersion: 1 },
+    })
+    const { frame } = mountFrame()
+    expect(frame.getAttribute('data-desktop-frame')).toBe('true')
+    expect(frame.querySelector('[data-desktop-titlebar="sidebar"]')).not.toBeNull()
+    expect(frame.querySelector('[data-desktop-titlebar="main"]')).not.toBeNull()
+  })
+
+  it('omits the desktop drag strip in the browser client', () => {
+    const { frame } = mountFrame()
+    expect(frame.hasAttribute('data-desktop-frame')).toBe(false)
+    expect(frame.querySelector('[data-desktop-titlebar]')).toBeNull()
+  })
+
   it('localizes the product title without a configured build title', () => {
     mountFrame()
     expect(document.title).toBe('DSH Local Build')

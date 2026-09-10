@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  resolveDesktopAppId,
+  DESKTOP_APP_ID,
   resolveMacOSNotarizationEnvironment,
   resolveMacOSSigningEnvironment,
 } from './scripts/desktop-release-environment.mjs'
@@ -26,7 +26,6 @@ export function createElectronBuilderConfig(
   hostPlatform = process.platform,
   hostArch = process.arch,
 ) {
-  const appId = resolveDesktopAppId(env)
   const targetPlatform = env.DSH_DESKTOP_TARGET_PLATFORM
   const resolvedPlatform = targetPlatform ?? hostPlatform
   const resolvedArch = env.DSH_DESKTOP_TARGET_ARCH ?? hostArch
@@ -53,10 +52,15 @@ export function createElectronBuilderConfig(
   const update = unsigned ? undefined : resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
   const buildPaths = desktopTargetBuildPaths(resolveDesktopBuildTarget(env, hostPlatform, hostArch))
   return {
-    appId,
-    productName: 'DeepSeek Harness',
-    artifactName: 'deepseek-harness-${version}-${os}-${arch}.${ext}',
-    directories: { output: unsigned ? join(buildPaths.root, 'unsigned-artifacts') : buildPaths.artifacts },
+    appId: DESKTOP_APP_ID,
+    productName: 'fi',
+    executableName: 'fi',
+    artifactName: 'fi-${version}-${os}-${arch}.${ext}',
+    directories: {
+      output: unsigned ? join(buildPaths.root, 'unsigned-artifacts') : buildPaths.artifacts,
+      buildResources: fileURLToPath(new URL('./build', import.meta.url)),
+    },
+    icon: fileURLToPath(new URL('./build/icon.png', import.meta.url)),
     asar: true,
     files: [
       'lib/*.js',
@@ -122,7 +126,7 @@ export function createElectronBuilderConfig(
       allowToChangeInstallationDirectory: true,
       differentialPackage: true,
     },
-    publish: update === undefined ? null : [{ provider: 'generic', url: update.publicUrl }],
+    publish: update === undefined ? null : [update.publish],
   }
 }
 

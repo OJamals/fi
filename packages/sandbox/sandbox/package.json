@@ -1,13 +1,13 @@
 {
   "name": "@deepseek-ai/dsh-sandbox",
   "description": "Abstract process-sandbox seam (ctx.sandbox) for the DeepSeek Harness: same-world confinement vocabulary and the SandboxProvider contract",
-  "version": "0.1.5-rc.2",
+  "version": "0.1.6-alpha.1",
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "url": "git+https://github.com/OJamals/fi.git",
     "directory": "packages/sandbox/sandbox"
   },
   "type": "module",

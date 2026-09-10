@@ -1,23 +1,45 @@
 /** Environment variable that selects the Desktop update deployment. */
 export const DESKTOP_AUTO_UPDATE_ENV: 'DSH_DESKTOP_AUTO_UPDATE_ENV'
 
+/** Source-owned GitHub repository used by every production Desktop build. */
+export const DESKTOP_RELEASE_REPOSITORY: {
+  readonly owner: 'OJamals'
+  readonly repo: 'fi'
+}
+
 /** Supported Desktop update deployment. */
 export type DesktopAutoUpdateEnvironment = 'test' | 'production'
 
 /** Directory name of one supported Desktop release target. */
 export type DesktopAutoUpdateTarget = 'mac-arm64' | 'mac-x64' | 'win-x64'
 
-/** Public updater URL for one release target. */
-export interface DesktopAutoUpdateConfig {
-  readonly environment: DesktopAutoUpdateEnvironment
+/** Generic test-feed publication configuration. */
+export interface DesktopTestAutoUpdateConfig {
+  readonly environment: 'test'
   readonly target: DesktopAutoUpdateTarget
   readonly origin: string
   readonly publicUrl: string
   readonly keyPrefix: string
+  readonly publish: { readonly provider: 'generic', readonly url: string }
 }
 
-/** Public updater URL and private COS destination for one upload target. */
-export interface DesktopUploadConfig extends DesktopAutoUpdateConfig {
+/** GitHub Releases production-feed configuration. */
+export interface DesktopProductionAutoUpdateConfig {
+  readonly environment: 'production'
+  readonly target: DesktopAutoUpdateTarget
+  readonly publicUrl: string
+  readonly publish: {
+    readonly provider: 'github'
+    readonly owner: 'OJamals'
+    readonly repo: 'fi'
+  }
+}
+
+/** Public updater configuration selected for one release target. */
+export type DesktopAutoUpdateConfig = DesktopTestAutoUpdateConfig | DesktopProductionAutoUpdateConfig
+
+/** Public updater URL and private COS destination for one test upload target. */
+export interface DesktopUploadConfig extends DesktopTestAutoUpdateConfig {
   readonly bucket: string
   readonly secretIdEnvName: string
   readonly secretKeyEnvName: string
@@ -81,7 +103,7 @@ export function resolveDesktopAutoUpdateConfig(
  * @param platform - Target Node.js platform.
  * @param arch - Target Node.js architecture.
  * @returns Resolved upload configuration.
- * @throws When the selected deployment lacks a required origin or bucket, or the test origin is not HTTPS.
+ * @throws When production is selected or the test deployment lacks a required origin or bucket.
  */
 export function resolveDesktopUploadConfig(
   env: NodeJS.ProcessEnv,

@@ -535,8 +535,10 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     hookContext: '',
     slotInject: '',
     declaredBy: 'an entry in \'main.conversation\' (client-ui-conversation), so it exists while that entry is mounted',
-    occupants: [],
-    replaceRisk: 'none',
+    occupants: [
+      'client-ui-brand-official OfficialBrandMark',
+    ],
+    replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'conversation.hero.brand.mark\', () => ctx.slots.register(\n      { name: \'conversation.hero.brand.mark\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
     source: 'packages/client/ui-conversation/src/client/contract/slots.ts:162',
   },
@@ -2075,7 +2077,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     doc: 'Brand mark rendered in the expanded brand row and collapsed rail.\nDeclared by this package\'s `sidebar` entry; deployments may replace\nthe shell\'s fish fallback without replacing the surrounding controls.',
     registerOptions: [],
     ownerProps: [
-      '/** Geometry supplied to the sidebar brand-mark occupant. */\nexport interface SidebarBrandMarkOwnerProps {\n  /** Requested square edge in pixels. */\n  size: number\n}',
+      '/** Geometry supplied to the sidebar brand-mark occupant. */\nexport interface SidebarBrandMarkOwnerProps {\n  /** Requested square edge in pixels. */\n  size: number\n  /** Complete build identifier rendered beneath an expanded product mark. */\n  version?: string | undefined\n}',
     ],
     ownerPropsReferences: [],
     standardProps: [

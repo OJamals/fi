@@ -13,11 +13,10 @@ afterEach(() => {
 })
 
 const HOLES = [
+  'conversation.hero.brand.mark',
   'sidebar.brand.mark',
   'sidebar.brand.name',
 ] as const
-
-const HERO_HOLE = 'conversation.hero.brand.mark'
 
 async function bench(declare = true) {
   const ctx = new Context()
@@ -25,7 +24,7 @@ async function bench(declare = true) {
   const slots = ctx.get('slots') as SlotRegistry
   const declareHoles = () => slots.register({
     name: 'root',
-    children: Object.fromEntries([...HOLES, HERO_HOLE].map(name => [name, { kind: 'single', scope: 'root' }])),
+    children: Object.fromEntries(HOLES.map(name => [name, { kind: 'single', scope: 'root' }])),
   } as never, () => null)
   const disposeHoles = declare ? declareHoles() : undefined
   return { ctx, slots, declareHoles, disposeHoles }
@@ -71,21 +70,22 @@ describe('official browser-brand plugin', () => {
     for (const hole of HOLES) expect(after.slots.entries(hole)).toHaveLength(1)
   })
 
-  it('leaves the conversation hero on its declaring fallback even in official builds', async () => {
-    vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', 'official')
-    const subject = await bench()
-    await subject.ctx.plugin({ inject: [...inject], apply }).await()
-    expect(subject.slots.entries(HERO_HOLE)).toHaveLength(0)
-  })
-
-  it('renders the official name independently from both requested mark sizes', () => {
+  it('uses only the self-lettered mark and renders build metadata beneath it', () => {
     const name = render(<OfficialBrandName />)
-    expect(name.container.querySelector('svg')?.getAttribute('viewBox')).toBe('26 0 156 24')
+    expect(name.container.childElementCount).toBe(0)
     name.unmount()
 
-    const mark = render(<OfficialBrandMark size={34} />)
-    expect(mark.container.querySelector('svg')?.getAttribute('width')).toBe('34')
-    mark.rerender(<OfficialBrandMark size={24} />)
-    expect(mark.container.querySelector('svg')?.getAttribute('width')).toBe('24')
+    const mark = render(<OfficialBrandMark size={34} version="0.1.6-alpha.1" />)
+    const image = mark.getByRole('presentation')
+    expect(image.getAttribute('src')).toContain('/fi-logo.png')
+    expect(image.getAttribute('width')).toBe('34')
+    expect(image.getAttribute('height')).toBe('34')
+    expect(mark.getByText('0.1.6-alpha.1')).toBeTruthy()
+    mark.rerender(<OfficialBrandMark size={24} className="hero-mark" />)
+    const resizedImage = mark.getByRole('presentation')
+    expect(resizedImage.getAttribute('width')).toBe('24')
+    expect(resizedImage.getAttribute('height')).toBe('24')
+    expect(resizedImage.getAttribute('class')).toBe('hero-mark')
+    expect(mark.queryByText('0.1.6-alpha.1')).toBeNull()
   })
 })

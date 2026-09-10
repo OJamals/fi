@@ -1,8 +1,16 @@
 {
   "name": "@deepseek-ai/dsh-root",
-  "version": "0.1.5-rc.2",
+  "version": "0.1.6-alpha.1",
   "license": "MIT",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OJamals/fi.git"
+  },
+  "bugs": {
+    "url": "https://github.com/OJamals/fi/issues"
+  },
+  "homepage": "https://github.com/OJamals/fi#readme",
   "type": "module",
   "packageManager": "pnpm@11.7.0",
   "engines": {

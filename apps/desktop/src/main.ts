@@ -11,6 +11,7 @@ import {
   Menu,
   protocol,
   type IpcMainInvokeEvent,
+  type MenuItemConstructorOptions,
 } from 'electron'
 import { resolveDesktopPaths } from './paths.ts'
 import { DesktopProjectManager, type DesktopProjectHooks } from './project-manager.ts'
@@ -87,13 +88,23 @@ function developmentHostInspectPort(enabled: boolean): number | undefined {
   return port
 }
 
-function createWindow(preload: string, show = false): BrowserWindow {
+interface DesktopWindowOptions {
+  readonly show?: boolean
+  readonly integratedTitlebar?: boolean
+}
+
+function createWindow(preload: string, options: DesktopWindowOptions = {}): BrowserWindow {
+  const show = options.show ?? false
+  const integratedTitlebar = options.integratedTitlebar === true && process.platform === 'darwin'
   const window = new BrowserWindow({
     width: 1280,
     height: 840,
     minWidth: 880,
     minHeight: 600,
     show,
+    ...(integratedTitlebar
+      ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 14, y: 4 } }
+      : {}),
     webPreferences: {
       preload,
       nodeIntegration: false,
@@ -103,6 +114,20 @@ function createWindow(preload: string, show = false): BrowserWindow {
     },
   })
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  window.webContents.on('context-menu', (_event, params) => {
+    const messages = resolveDesktopLocale(app.getLocale()).messages
+    const items: MenuItemConstructorOptions[] = []
+    if (params.isEditable) {
+      if (params.editFlags.canCut) items.push({ role: 'cut', label: messages.cut })
+      if (params.editFlags.canPaste) items.push({ role: 'paste', label: messages.paste })
+    }
+    if (params.selectionText.trim() !== '' && params.editFlags.canCopy) {
+      items.push({ role: 'copy', label: messages.copy })
+    }
+    if (params.isEditable && params.editFlags.canSelectAll) items.push({ role: 'selectAll', label: messages.selectAll })
+    if (items.length === 0) return
+    Menu.buildFromTemplate(items).popup({ window })
+  })
   window.webContents.on('will-navigate', (event, url) => {
     if (new URL(url).protocol !== `${SCHEME}:`) event.preventDefault()
     const page = emergencyPages.get(window)
@@ -447,10 +472,21 @@ async function main(): Promise<void> {
       { type: 'separator' },
       { role: 'quit' },
     ],
+  }, {
+    label: messages.editMenu,
+    submenu: [
+      { role: 'undo', label: messages.undo },
+      { role: 'redo', label: messages.redo },
+      { type: 'separator' },
+      { role: 'cut', label: messages.cut },
+      { role: 'copy', label: messages.copy },
+      { role: 'paste', label: messages.paste },
+      { role: 'selectAll', label: messages.selectAll },
+    ],
   }]))
 
   const createMainWindow = (): BrowserWindow => {
-    const window = createWindow(appPreload, true)
+    const window = createWindow(appPreload, { show: true, integratedTitlebar: true })
     mainWindow = window
     window.on('closed', () => { if (mainWindow === window) mainWindow = undefined })
     window.webContents.on('preload-error', (_event, _path, error) => {
@@ -512,7 +548,8 @@ if (ownsDesktopInstance) void app.whenReady().then(main).catch(async (error: unk
   if (diagnosticFile !== undefined) {
     await writeFile(diagnosticFile, `${error instanceof Error ? error.stack ?? message : message}\n`).catch(() => undefined)
   }
-  const window = BrowserWindow.getAllWindows()[0] ?? createWindow(fileURLToPath(new URL('./preload-app.cjs', import.meta.url)), true)
+  const window = BrowserWindow.getAllWindows()[0]
+    ?? createWindow(fileURLToPath(new URL('./preload-app.cjs', import.meta.url)), { show: true, integratedTitlebar: true })
   window.once('closed', () => { app.quit() })
   await showEmergencyDocument(window, message)
 }).catch((error: unknown) => {

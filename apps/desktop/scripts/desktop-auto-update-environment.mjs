@@ -1,9 +1,12 @@
-/** Resolve the Desktop auto-update channel and its Tencent COS destination. */
+/** Resolve the Desktop auto-update channel and its publication destination. */
 
 import { prerelease, valid } from 'semver'
 
 /** Environment variable that selects the Desktop update deployment. */
 export const DESKTOP_AUTO_UPDATE_ENV = 'DSH_DESKTOP_AUTO_UPDATE_ENV'
+
+/** Source-owned GitHub repository used by every production Desktop build. */
+export const DESKTOP_RELEASE_REPOSITORY = Object.freeze({ owner: 'OJamals', repo: 'fi' })
 
 const UPDATE_ENVIRONMENTS = {
   test: {
@@ -12,13 +15,6 @@ const UPDATE_ENVIRONMENTS = {
     bucketEnvName: 'DOWNLOAD_TEST_COS_BUCKET',
     secretIdEnvName: 'DOWNLOAD_TEST_COS_SECRET_ID',
     secretKeyEnvName: 'DOWNLOAD_TEST_COS_SECRET_KEY',
-  },
-  production: {
-    originEnvName: undefined,
-    fixedOrigin: 'https://download.deepseek.com',
-    bucketEnvName: 'DOWNLOAD_PROD_COS_BUCKET',
-    secretIdEnvName: 'DOWNLOAD_PROD_COS_SECRET_ID',
-    secretKeyEnvName: 'DOWNLOAD_PROD_COS_SECRET_KEY',
   },
 }
 
@@ -126,13 +122,22 @@ function httpsOrigin(value, name) {
  * @param {NodeJS.ProcessEnv} env - Packaging or upload environment.
  * @param {NodeJS.Platform} platform - Target Node.js platform.
  * @param {string} arch - Target Node.js architecture.
- * @returns {{ environment: 'test' | 'production', target: 'mac-arm64' | 'mac-x64' | 'win-x64', origin: string, publicUrl: string, keyPrefix: string }} Resolved updater configuration.
+ * @returns {{ environment: 'test' | 'production', target: 'mac-arm64' | 'mac-x64' | 'win-x64', publicUrl: string, publish: { provider: 'generic', url: string } | { provider: 'github', owner: 'OJamals', repo: 'fi' }, origin?: string, keyPrefix?: string }} Resolved updater configuration.
  * @throws {Error} When the test deployment lacks a valid HTTPS origin.
  */
 export function resolveDesktopAutoUpdateConfig(env, platform, arch) {
   const environment = resolveDesktopAutoUpdateEnvironment(env)
   const target = resolveDesktopAutoUpdateTarget(platform, arch)
-  const deployment = UPDATE_ENVIRONMENTS[environment]
+  if (environment === 'production') {
+    const { owner, repo } = DESKTOP_RELEASE_REPOSITORY
+    return {
+      environment,
+      target,
+      publicUrl: `https://github.com/${owner}/${repo}/releases`,
+      publish: { provider: 'github', owner, repo },
+    }
+  }
+  const deployment = UPDATE_ENVIRONMENTS.test
   let origin = deployment.fixedOrigin
   if (origin === undefined) {
     const { originEnvName } = deployment
@@ -140,12 +145,14 @@ export function resolveDesktopAutoUpdateConfig(env, platform, arch) {
     origin = httpsOrigin(requiredEnvironmentValue(env, originEnvName), originEnvName)
   }
   const keyPrefix = `_/harness/desktop/stable/${target}`
+  const publicUrl = `${origin}/${keyPrefix}/`
   return {
     environment,
     target,
     origin,
     keyPrefix,
-    publicUrl: `${origin}/${keyPrefix}/`,
+    publicUrl,
+    publish: { provider: 'generic', url: publicUrl },
   }
 }
 
@@ -154,12 +161,15 @@ export function resolveDesktopAutoUpdateConfig(env, platform, arch) {
  * @param {NodeJS.ProcessEnv} env - Upload environment.
  * @param {NodeJS.Platform} platform - Target Node.js platform.
  * @param {string} arch - Target Node.js architecture.
- * @returns {{ environment: 'test' | 'production', target: 'mac-arm64' | 'mac-x64' | 'win-x64', origin: string, publicUrl: string, keyPrefix: string, bucket: string, secretIdEnvName: string, secretKeyEnvName: string }} Resolved upload configuration.
- * @throws {Error} When the selected deployment lacks a required origin or bucket, or the test origin is not HTTPS.
+ * @returns {{ environment: 'test', target: 'mac-arm64' | 'mac-x64' | 'win-x64', origin: string, publicUrl: string, keyPrefix: string, publish: { provider: 'generic', url: string }, bucket: string, secretIdEnvName: string, secretKeyEnvName: string }} Resolved upload configuration.
+ * @throws {Error} When production is selected or the test deployment lacks a required origin or bucket.
  */
 export function resolveDesktopUploadConfig(env, platform, arch) {
+  if (resolveDesktopAutoUpdateEnvironment(env) === 'production') {
+    throw new Error('desktop auto-update: production releases publish through GitHub Releases')
+  }
   const update = resolveDesktopAutoUpdateConfig(env, platform, arch)
-  const deployment = UPDATE_ENVIRONMENTS[update.environment]
+  const deployment = UPDATE_ENVIRONMENTS.test
   return {
     ...update,
     bucket: requiredEnvironmentValue(env, deployment.bucketEnvName),

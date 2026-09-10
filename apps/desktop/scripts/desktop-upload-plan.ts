@@ -37,7 +37,7 @@ export interface DesktopUploadArtifact {
 
 /** A fully validated upload operation with channel metadata ordered last. */
 export interface DesktopUploadPlan {
-  readonly environment: 'test' | 'production'
+  readonly environment: 'test'
   readonly target: DesktopPackageTargetName
   readonly version: string
   readonly publicUrl: string
@@ -218,7 +218,7 @@ export async function createDesktopUploadPlan(
     throw new Error(`desktop upload: ${metadataFilename}.files must contain exactly one target update file`)
   }
 
-  const base = `deepseek-harness-${dshVersion}-${target.os}-${target.arch}`
+  const base = `fi-${dshVersion}-${target.os}-${target.arch}`
   const updaterExtension = target.platform === 'darwin' ? 'zip' : 'exe'
   const updaterInfo = updateFileInfo(metadata.files[0], `${metadataFilename}.files[0]`, `${base}.${updaterExtension}`)
   const updaterPath = await verifyChecksummedArtifact(artifactsRoot, updaterInfo)

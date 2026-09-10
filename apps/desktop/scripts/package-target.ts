@@ -23,8 +23,6 @@ const WINDOWS_SIGNING_ENV_NAMES = [
 const DESKTOP_UPLOAD_CREDENTIAL_ENV_NAMES = new Set([
   'DOWNLOAD_TEST_COS_SECRET_ID',
   'DOWNLOAD_TEST_COS_SECRET_KEY',
-  'DOWNLOAD_PROD_COS_SECRET_ID',
-  'DOWNLOAD_PROD_COS_SECRET_KEY',
 ])
 
 /** Fixed platform and architecture identifiers exposed by package scripts. */

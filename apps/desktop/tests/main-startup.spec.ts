@@ -155,6 +155,20 @@ afterEach(async () => {
 })
 
 describe('desktop main startup', () => {
+  it('integrates macOS traffic lights into the main application surface', async () => {
+    await import('../src/main.ts')
+    await harness.preparing.promise
+    const options = harness.windows[0]!.options as Record<string, unknown>
+    expect(options.show).toBe(true)
+    if (process.platform === 'darwin') {
+      expect(options.titleBarStyle).toBe('hiddenInset')
+      expect(options.trafficLightPosition).toEqual({ x: 14, y: 4 })
+    } else {
+      expect(options).not.toHaveProperty('titleBarStyle')
+      expect(options).not.toHaveProperty('trafficLightPosition')
+    }
+  })
+
   it('exits with a diagnostic when both initialization and emergency navigation fail', async () => {
     const exited = Promise.withResolvers<undefined>()
     vi.spyOn(harness.app, 'getLocale').mockImplementationOnce(() => { throw new Error('locale unavailable') })

@@ -23,7 +23,10 @@ export interface DesktopElectronBuilderConfig {
     readonly include: string
   }
   readonly artifactBuildCompleted: (artifact: { readonly file: string }) => Promise<void> | undefined
-  readonly publish: readonly [{ readonly provider: 'generic', readonly url: string }] | null
+  readonly publish: readonly [
+    | { readonly provider: 'generic', readonly url: string }
+    | { readonly provider: 'github', readonly owner: 'OJamals', readonly repo: 'fi' },
+  ] | null
 }
 
 /**

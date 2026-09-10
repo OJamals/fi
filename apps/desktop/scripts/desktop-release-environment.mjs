@@ -1,7 +1,7 @@
 /** Resolve public release identifiers supplied by the packaging environment. */
 
-/** Environment variable that supplies the Electron application identifier. */
-export const DESKTOP_APP_ID_ENV = 'DSH_DESKTOP_APP_ID'
+/** Reverse-DNS identifier owned by the fi desktop application. */
+export const DESKTOP_APP_ID = 'com.fi.app'
 
 /** Environment variable that supplies electron-builder's macOS certificate qualifier. */
 export const MACOS_SIGNING_IDENTITY_ENV = 'DSH_DESKTOP_MACOS_SIGNING_IDENTITY'
@@ -30,19 +30,6 @@ function requireEnvironmentValue(env, name) {
     throw new Error(`desktop release environment: ${name} must be set to a non-empty value`)
   }
   return value
-}
-
-/**
- * Resolve and validate the application identifier shared by every platform target.
- * @param {NodeJS.ProcessEnv} env - Packaging environment.
- * @returns {string} Reverse-DNS application identifier.
- */
-export function resolveDesktopAppId(env) {
-  const appId = requireEnvironmentValue(env, DESKTOP_APP_ID_ENV)
-  if (!/^[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/u.test(appId)) {
-    throw new Error(`desktop release environment: ${DESKTOP_APP_ID_ENV} must be a reverse-DNS identifier`)
-  }
-  return appId
 }
 
 /**

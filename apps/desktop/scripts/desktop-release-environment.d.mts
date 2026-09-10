@@ -1,5 +1,5 @@
-/** Environment variable that supplies the Electron application identifier. */
-export const DESKTOP_APP_ID_ENV: 'DSH_DESKTOP_APP_ID'
+/** Reverse-DNS identifier owned by the fi desktop application. */
+export const DESKTOP_APP_ID: 'com.fi.app'
 
 /** Environment variable that supplies electron-builder's macOS certificate qualifier. */
 export const MACOS_SIGNING_IDENTITY_ENV: 'DSH_DESKTOP_MACOS_SIGNING_IDENTITY'
@@ -38,13 +38,6 @@ export type MacOSNotarizationEnvironment =
   | MacOSAppleIdNotarizationEnvironment
   | MacOSApiKeyNotarizationEnvironment
   | MacOSKeychainNotarizationEnvironment
-
-/**
- * Resolve and validate the application identifier shared by every platform target.
- * @param env - Packaging environment.
- * @returns Reverse-DNS application identifier.
- */
-export function resolveDesktopAppId(env: NodeJS.ProcessEnv): string
 
 /**
  * Resolve and validate the public identity expected on a macOS release.

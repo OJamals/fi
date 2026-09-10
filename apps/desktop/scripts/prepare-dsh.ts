@@ -18,7 +18,7 @@ import {
 import { smokeDesktopRuntime } from './smoke-runtime.ts'
 import { writeDesktopRuntime, verifyDesktopRuntime } from '../src/runtime-tree.ts'
 import {
-  resolveDesktopAppId,
+  DESKTOP_APP_ID,
   resolveMacOSSigningEnvironment,
 } from './desktop-release-environment.mjs'
 import {
@@ -134,7 +134,7 @@ async function main(): Promise<void> {
       }
     }
     if (process.platform === 'darwin') {
-      await signMacOSRuntime(DSH_OUTPUT_ROOT, resolveDesktopAppId(process.env), resolveMacOSSigningEnvironment(process.env))
+      await signMacOSRuntime(DSH_OUTPUT_ROOT, DESKTOP_APP_ID, resolveMacOSSigningEnvironment(process.env))
     }
     writeDesktopRuntime(DSH_OUTPUT_ROOT, release, packageSet.packages.map(entry => entry.name), target)
     const descriptor = await verifyDesktopRuntime(DSH_OUTPUT_ROOT, release.version, target)

@@ -14,7 +14,10 @@ describe('BootPage', () => {
   it('draws the loading skeleton before any plugin state arrives', () => {
     const { el } = mount()
     expect(el.firstElementChild?.getAttribute('data-dsh-boot')).toBe('')
-    expect(el.textContent).toContain('HARNESS')
+    const logo = el.querySelector<HTMLImageElement>('img')
+    expect(logo?.getAttribute('src')).toBe('/fi-logo.png')
+    expect(logo?.alt).toBe('fi')
+    expect(el.textContent).not.toContain('HARNESS')
     expect(el.textContent).toContain('Loading plugins…')
   })
 
@@ -42,6 +45,7 @@ describe('BootPage', () => {
     expect(el.textContent).toContain('@deepseek-ai/dsh-client-ui-tool')
     expect(el.textContent).not.toContain('ok')
     expect(el.textContent).not.toContain('Loading plugins…')
+    expect(el.querySelector('img')?.getAttribute('src')).toBe('/fi-logo.png')
   })
 
   it('shows the complete sweep report', () => {

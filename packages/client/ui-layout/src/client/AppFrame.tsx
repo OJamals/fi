@@ -198,6 +198,7 @@ export function AppFrame({
     <MainPanel usePanelInfo={usePanelInfo} renderSlot={renderSlot} />
   ), [usePanelInfo, renderSlot])
   const overlays = useMemo(() => renderSlot('shell.overlay', {}), [renderSlot])
+  const desktopFrame = 'dshDesktop' in window
 
   return (
     <div
@@ -212,12 +213,19 @@ export function AppFrame({
       data-rightbar-fullscreen={layoutInfo.rightbarFullscreen || undefined}
       data-rightbar-instant={layoutInfo.rightbarInstant || undefined}
       data-dragging={dragging || undefined}
+      data-desktop-frame={desktopFrame || undefined}
     >
       <DocumentTitle
         productTitle={productTitle}
         useSessions={useSessions}
         usePanelInfo={usePanelInfo}
       />
+      {desktopFrame && (
+        <>
+          <div className={css.desktopSidebarTitlebar} data-desktop-titlebar="sidebar" aria-hidden="true" />
+          <div className={css.desktopMainTitlebar} data-desktop-titlebar="main" aria-hidden="true" />
+        </>
+      )}
       <div className={css.sidebarCol}>
         {sidebar}
       </div>

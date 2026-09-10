@@ -1,15 +1,15 @@
 {
   "id": "/",
-  "name": "DeepSeek Harness",
-  "short_name": "DSH",
+  "name": "fi",
+  "short_name": "fi",
   "start_url": "/",
   "scope": "/",
   "display": "fullscreen",
   "icons": [
     {
-      "src": "/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/fi-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any"
     }
   ]

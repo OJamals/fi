@@ -14,11 +14,20 @@ function div(className: string | undefined, text?: string): HTMLDivElement {
   return el
 }
 
+/** Create an image with one module class and accessible alternate text. */
+function image(className: string | undefined, src: string, alt: string): HTMLImageElement {
+  const el = document.createElement('img')
+  el.className = className ?? ''
+  el.src = src
+  el.alt = alt
+  return el
+}
+
 /** Kernel-owned page mounted below the application's root element. */
 export class BootPage {
   private readonly root: HTMLDivElement
   private readonly card: HTMLDivElement
-  private readonly wordmark: HTMLDivElement
+  private readonly brandMark: HTMLImageElement
   private readonly spinner: HTMLDivElement
   private readonly hint: HTMLDivElement
   private readonly states = new Map<string, LoaderEntryState>()
@@ -34,11 +43,11 @@ export class BootPage {
     this.root = div(css.boot)
     this.root.dataset.dshBoot = ''
     this.card = div(css.card)
-    this.wordmark = div(css.wordmark, 'HARNESS')
+    this.brandMark = image(css.brandMark, '/fi-logo.png', 'fi')
     this.spinner = div(css.spinner)
     this.spinner.dataset.dshBootSpinner = ''
     this.hint = div(css.hint, 'Loading plugins…')
-    this.card.append(this.wordmark, this.spinner, this.hint)
+    this.card.append(this.brandMark, this.spinner, this.hint)
     this.root.append(this.card)
     container.append(this.root)
     this.updateProgress()
@@ -79,12 +88,12 @@ export class BootPage {
     this.root.remove()
   }
 
-  /** Redraw the state-dependent content below the wordmark. */
+  /** Redraw the state-dependent content below the brand mark. */
   private render(): void {
     const failed = [...this.states].filter(([, state]) => state === 'failed').map(([id]) => id)
     if (this.failure === undefined && failed.length === 0) {
       if (this.spinner.parentElement !== this.card) {
-        this.card.replaceChildren(this.wordmark, this.spinner, this.hint)
+        this.card.replaceChildren(this.brandMark, this.spinner, this.hint)
       }
       return
     }
@@ -92,7 +101,7 @@ export class BootPage {
     report.append(div(css.failedTitle, 'Failed to load plugins'))
     for (const id of failed) report.append(div(css.failedItem, id))
     if (this.failure !== undefined) report.append(div(css.failedItem, this.failure))
-    this.card.replaceChildren(this.wordmark, report)
+    this.card.replaceChildren(this.brandMark, report)
   }
 
   /** Grow the rotating arc monotonically as loader entries activate. */

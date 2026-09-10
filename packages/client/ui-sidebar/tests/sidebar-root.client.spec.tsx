@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import type {
-  SidebarFooterActionOwnerProps, SidebarRootComponentProps, SidebarSectionOwnerProps,
+  SidebarBrandMarkOwnerProps, SidebarFooterActionOwnerProps, SidebarRootComponentProps, SidebarSectionOwnerProps,
   SidebarSettingsOwnerProps,
 } from '../src/client/contract/slots.ts'
 import { SidebarRoot } from '../src/client/SidebarRoot.tsx'
@@ -39,6 +39,7 @@ function mountShell({ collapsed = false, width = 300 }: { collapsed?: boolean; w
   let regionOwner: SidebarSectionOwnerProps | undefined
   let settingsOwner: SidebarSettingsOwnerProps | undefined
   let footerActionOwner: SidebarFooterActionOwnerProps | undefined
+  let brandMarkOwner: SidebarBrandMarkOwnerProps | undefined
   const brandMark = <span data-testid="custom-brand-mark">M</span>
   const brandName = <span data-testid="custom-brand-name">Custom Brand</span>
   let current = { collapsed, width }
@@ -53,7 +54,10 @@ function mountShell({ collapsed = false, width = 300 }: { collapsed?: boolean; w
         key: string,
         owner: SidebarFooterActionOwnerProps | SidebarSectionOwnerProps | SidebarSettingsOwnerProps,
       ) => {
-        if (key === 'sidebar.brand.mark') return brandMark
+        if (key === 'sidebar.brand.mark') {
+          brandMarkOwner = owner as unknown as SidebarBrandMarkOwnerProps
+          return brandMark
+        }
         if (key === 'sidebar.brand.name') return brandName
         if (key === 'sidebar.settings') {
           settingsOwner = owner
@@ -72,6 +76,10 @@ function mountShell({ collapsed = false, width = 300 }: { collapsed?: boolean; w
   return {
     startSession,
     toggleSidebar,
+    brandMarkOwner: () => {
+      if (brandMarkOwner === undefined) throw new Error('brand mark owner not rendered')
+      return brandMarkOwner
+    },
     regionOwner: () => {
       if (regionOwner === undefined) throw new Error('region owner not rendered')
       return regionOwner
@@ -103,6 +111,14 @@ describe('SidebarRoot shell', () => {
     expect(b.startSession).toHaveBeenCalledTimes(2)
     fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }))
     expect(b.toggleSidebar).toHaveBeenCalledOnce()
+  })
+
+  it('hands complete build metadata to the expanded brand mark', () => {
+    vi.stubEnv('DSH_CLIENT_COMMIT_HASH', '0123456')
+    vi.stubEnv('DSH_CLIENT_GIT_DIRTY', 'true')
+    vi.stubEnv('DSH_CLIENT_VERSION', '0.1.6-alpha.1')
+    const b = mountShell()
+    expect(b.brandMarkOwner()).toEqual({ size: 24, version: '0.1.6-alpha.1-0123456-dirty' })
   })
 
   it('renders generic brand fallbacks when no package fills the slots', () => {

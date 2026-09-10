@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   desktopBuildRecordFilename,
   desktopUpdateMetadataFilename,
+  DESKTOP_RELEASE_REPOSITORY,
   resolveDesktopAutoUpdateConfig,
   resolveDesktopAutoUpdateEnvironment,
   resolveDesktopAutoUpdateTarget,
@@ -19,6 +20,10 @@ describe('desktop auto-update environment', () => {
       origin: 'https://desktop-updates.example.com',
       publicUrl: 'https://desktop-updates.example.com/_/harness/desktop/stable/mac-arm64/',
       keyPrefix: '_/harness/desktop/stable/mac-arm64',
+      publish: {
+        provider: 'generic',
+        url: 'https://desktop-updates.example.com/_/harness/desktop/stable/mac-arm64/',
+      },
     })
     expect(resolveDesktopUploadConfig({
       DOWNLOAD_TEST_ORIGIN: 'https://desktop-updates.example.com/',
@@ -30,22 +35,18 @@ describe('desktop auto-update environment', () => {
     })
   })
 
-  it('selects the production URL for packages and bucket for uploads', () => {
+  it('pins production packages to the public fi GitHub release feed', () => {
     expect(resolveDesktopAutoUpdateConfig({
       DSH_DESKTOP_AUTO_UPDATE_ENV: 'production',
-    }, 'win32', 'x64')).toMatchObject({
+    }, 'win32', 'x64')).toEqual({
       environment: 'production',
       target: 'win-x64',
-      publicUrl: 'https://download.deepseek.com/_/harness/desktop/stable/win-x64/',
+      publicUrl: 'https://github.com/OJamals/fi/releases',
+      publish: { provider: 'github', ...DESKTOP_RELEASE_REPOSITORY },
     })
-    expect(resolveDesktopUploadConfig({
+    expect(() => resolveDesktopUploadConfig({
       DSH_DESKTOP_AUTO_UPDATE_ENV: 'production',
-      DOWNLOAD_PROD_COS_BUCKET: 'production-download-bucket',
-    }, 'win32', 'x64')).toMatchObject({
-      bucket: 'production-download-bucket',
-      secretIdEnvName: 'DOWNLOAD_PROD_COS_SECRET_ID',
-      secretKeyEnvName: 'DOWNLOAD_PROD_COS_SECRET_KEY',
-    })
+    }, 'win32', 'x64')).toThrow(/GitHub Releases/u)
   })
 
   it('requires the selected deployment origin for packages and bucket only for uploads', () => {
@@ -57,9 +58,6 @@ describe('desktop auto-update environment', () => {
     expect(() => resolveDesktopUploadConfig({
       DOWNLOAD_TEST_ORIGIN: 'https://desktop-updates.example.com',
     }, 'darwin', 'arm64')).toThrow(/DOWNLOAD_TEST_COS_BUCKET/u)
-    expect(() => resolveDesktopUploadConfig({
-      DSH_DESKTOP_AUTO_UPDATE_ENV: 'production',
-    }, 'win32', 'x64')).toThrow(/DOWNLOAD_PROD_COS_BUCKET/u)
   })
 
   it('rejects a test download URL that is not an HTTPS origin', () => {
