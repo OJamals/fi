@@ -23,6 +23,11 @@ export const API_REMOTE_FORWARDED_EVENTS = [
   { event: 'api-session/status', mode: 'emit' },
   { event: 'commands/change', mode: 'emit' },
   { event: 'credentials/reference-updated', mode: 'emit' },
+  // fi delta: grants are records, not references. The fi subscription
+  // sign-in section must hear a grant's deletion from any surface (its own
+  // Remove button, another tab, a CLI) or it keeps hiding the provider's
+  // sign-in offer behind the stale stored flag.
+  { event: 'credentials/record-updated', mode: 'emit' },
   { event: 'goal/activation-changed', mode: 'emit' },
   { event: 'cordis/request-run', mode: 'emit' },
   { event: 'cordis/request-run-resolved', mode: 'emit' },

@@ -80,6 +80,18 @@ xAI 的设备码 OAuth（“Sign in with SuperGrok or X Premium”）随同一�
 
 随页脚到来的两个 Host 调用——`listAdoptable()` 与 `adopt(key)`——是该 seam 两个半部的读取侧（哪些凭据 scope 携带 settings 路由，以及已登录者接下来还需要什么）。`adopt` 读取已存储的授权而非重跑 OAuth，因此表层无需第二次交互；只提交凭据而从不 `revoke` 的流程采用是幂等的，这正是为什么当模型区块自身的 `document-updated` 刷新重渲染该行时，相同的路由写入可以干净地重复。
 
+## 阶段 6 2026-09-11：统一为单一区块，并补上 record-updated 缺口
+
+实际使用暴露了三个缺陷，由同一次重构一并修复。
+
+**Antigravity adopt 崩溃。** 独立的 Antigravity 卡片 store 调用 `remote.authorization.adopt(key)` 后直接对结果取 `adopted.models.join(...)`。每个一元 Remote 动词返回的都是 `{ok, value}` 信封而非裸值——这与早先 `list()` 修复所钉住的教训相同，现在推广为：每个一元调用都必须解包或检查 `.ok`；只有流式动词（`begin`）例外。TypeError 抛出时授权其实已经提交，因此用户在一次成功的登录之下看到了“登录失败”。独立卡片包（`@fi/client-ui-model-signin-antigravity`）已删除；统一区块让 Antigravity 走与 pi-ai 提供方相同的 store 路径，那里始终正确解包信封。
+
+**重新登录按钮不重现。** 删除授权发出的是 `credentials/record-updated`（授权是记录），而区块只监听 `credentials/reference-updated`（API 密钥引用）——因此任何表层上的撤销都会让区块继续渲染过期的已存储标记，登录按钮永远不会重现。`packages/api/remotes/src/remote-events.ts` 中的 `API_REMOTE_FORWARDED_EVENTS` 增加一行带标记的增量（`{ event: 'credentials/record-updated', mode: 'emit' }`）——这是 fi 对上游运行时文件的第一处增量，其正当性在于：该允许列表是 Host 事件到达浏览器的唯一合法途径，而替代方案（轮询）显然更差。store 的 `remove()` 也在 `finally` 中重新加载，因此撤销被拒绝或失败同样不会让表层停留在过期状态。
+
+**底部两个区块、且凭据 UI 夹在模型行之间。** `selectOfferedRows` 中的白名单连接在结构上排除了 `fi-antigravity/antigravity`，迫使 Antigravity 独占一个页脚区块；而逐行登录卡片（`settings.models.provider-card`）把凭据 UI 夹进了模型行之间，观感杂乱。现在该区块是唯一的登录界面：`OFFERED` 增加 Antigravity 键（provider id 从键通用派生，而非按 pi-ai scope 截取），页脚行在 stored 标记的两个方向上都渲染——未登录提供“添加”，已登录显示状态并提供“重新登录”与“移除登录”——`provider-card` 注册已移除。模型列表中的提供方行恢复为纯路由行；路由本身保留，因为 settings 路由是提供方可供服务的前提，由页面自行管理。
+
+用户看到的夹在模型行之间的 Anthropic/Codex/Antigravity 已登录行是 adopt 创建的路由而非凭据——这部分是设计使然（路由存在才能提供模型），而区块现在镜像它们的登录状态，使管理集中于一处。
+
 ## Consequences
 
 只要 composition 在 `@deepseek-ai/dsh-base` 之后列出 `@fi/authorization-bundle`，该 seam 即被挂载，`dsh-llm-pi-ai` 随即注册其登录流程，无需其他配置。pi-ai 仍是其自身凭据记录的唯一写入方——流程通过它自己的 store 适配器提交，由 seam 确认写入，因此刷新仍在该 store 的跨进程锁下工作，且已存储的授权在任何 `apiKeyEnv` 覆盖之下为其路由提供认证。没有任何密钥经由新命名空间双向传输。

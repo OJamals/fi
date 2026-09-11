@@ -66,7 +66,7 @@
   white-space: nowrap;
 }
 
-/* Mirrors the per-row sign-in card's state dot: status is carried by a solid
+/* Mirrors the Models page's own credential dots: state is carried by a solid
    fill with an accessible label, never color alone. */
 .dot {
   flex: none;
@@ -75,6 +75,37 @@
   border-radius: 50%;
   corner-shape: round;
   background: var(--dsw-alias-border-l2);
+}
+
+.dotSignedIn {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-status-success);
+}
+
+.dotSignedOut {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-border-l2);
+}
+
+.stateText {
+  font-size: 12px;
+  color: var(--dsw-alias-text-l2);
+  white-space: nowrap;
+}
+
+.actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
 }
 
 .attempting {

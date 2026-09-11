@@ -32,7 +32,6 @@ describe('the bundle layer', () => {
           { id: 'fi-authorization-controller', name: '@fi/api-authorization-controller' },
           { id: 'fi-ui-model-signin', name: '@fi/client-ui-model-signin' },
           { id: 'fi-llm-antigravity', name: '@fi/llm-antigravity' },
-          { id: 'fi-ui-model-signin-antigravity', name: '@fi/client-ui-model-signin-antigravity' },
         ],
       },
     ])

@@ -1,22 +1,16 @@
 /**
- * The subscription sign-in card: an extension area inside every pi-ai
- * provider card on the Models page, offering OAuth sign-in for the providers
- * whose value is a subscription the user already holds.
- *
- * It renders through the `settings.models.provider-card` slot, which the
- * Models section declares for exactly this purpose — "a plugin distributed
- * outside this repository adds UI to the Models settings section without
- * editing it". The section dispatches the slot keyed by the row's settings
- * namespace, so this card sees every pi-ai row and nothing else; it renders
- * only for the handful of rows an OAuth flow is registered for.
+ * The attempt conversation view shared by this package's sign-in surfaces:
+ * notices (the URL to open, the device code to type), the live prompt form,
+ * and the settled outcome. It is its own module because the footer's
+ * subscription section renders it below the provider list while an earlier
+ * revision rendered it inside per-row cards — the conversation component is
+ * identical either way, and keeping it here keeps that history visible.
  */
 
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
-import type { ProviderCardExtrasOwnerProps } from '@deepseek-ai/dsh-client-ui-settings-models/client'
-import type { SignInAttempt, SignInRow, SignInStore } from './store.ts'
+import type { SignInAttempt, SignInStore } from './store.ts'
 import type { en } from './locales.ts'
 import styles from './SignInCard.module.css'
 
@@ -31,12 +25,6 @@ export interface SignInCardInjected {
   /** Card copy. */
   t: (key: keyof typeof en, params?: Record<string, string>) => string
 }
-
-/**
- * Props delivered by the slot outlet: the owner share the Models section
- * dispatches, plus this plugin's inject face spread flat.
- */
-export type SignInCardProps = ProviderCardExtrasOwnerProps & Partial<InjectFace<SignInCardInjected>>
 
 /** The question form, which owns its own draft so a keystroke never re-renders the page. */
 function PromptForm({ attempt, controller, t }: {
@@ -143,92 +131,6 @@ export function AttemptView({ attempt, controller, t }: {
         )}
       <PromptForm attempt={attempt} controller={controller} t={t} />
       <Button variant="ghost" onClick={() => { controller.dismiss() }}>{t('cancel')}</Button>
-    </div>
-  )
-}
-
-/** One offered provider's sign-in row. */
-function SignInRowView({ row, attempt, controller, t }: {
-  row: SignInRow
-  attempt: SignInAttempt | null
-  controller: SignInStore
-  t: SignInCardInjected['t']
-}): ReactNode {
-  const mine = attempt !== null && attempt.key === row.key
-  return (
-    <div className={styles['row']}>
-      <div className={styles['head']}>
-        <span className={styles['identity']}>
-          <span
-            className={`${styles['dot']} ${row.stored ? styles['dotSignedIn'] : styles['dotSignedOut']}`}
-            role="img"
-            aria-label={row.stored ? t('stateSignedIn') : t('stateSignedOut')}
-            title={row.stored ? t('stateSignedIn') : t('stateSignedOut')}
-          />
-          <span className={styles['label']}>
-            {row.stored ? t('stateSignedIn') : t('subscriptionHint')}
-          </span>
-        </span>
-        {mine
-          ? null
-          : row.methods.map(method => (
-            <Button
-              key={method.id}
-              variant={row.stored ? 'ghost' : 'outline'}
-              /* An attempt elsewhere — a second browser tab — holds the key,
-                 and the seam refuses a second one rather than joining it. */
-              disabled={attempt !== null || row.inFlight}
-              onClick={() => { void controller.begin(row.key, method.id) }}
-            >
-              {row.stored ? t('signInAgain', { method: method.label }) : method.label}
-            </Button>
-          ))}
-        {mine || !row.stored
-          ? null
-          : (
-            <Button
-              variant="ghost"
-              disabled={attempt !== null || row.inFlight}
-              onClick={() => { void controller.remove(row.key) }}
-            >
-              {t('removeSignIn')}
-            </Button>
-          )}
-      </div>
-      {mine ? <AttemptView attempt={attempt} controller={controller} t={t} /> : null}
-    </div>
-  )
-}
-
-/**
- * The sign-in area of one provider card. Renders nothing unless this exact
- * provider has an OAuth flow registered — every other pi-ai row (and the
- * add-provider draft, which has no route yet) sees an empty area and keeps
- * the layout the Models page already had.
- * @param props - the owner's provider row plus this plugin's inject face.
- * @returns the sign-in area, or nothing.
- */
-export function SignInCard(props: SignInCardProps): ReactNode {
-  const { provider, controller, useSignIn, t } = props
-  /* v8 ignore next -- the renderer always binds the inject face at the render
-     call; the guard keeps a direct render without it from throwing. */
-  if (controller === undefined || useSignIn === undefined || t === undefined) return null
-  return <Bound provider={provider} controller={controller} useSignIn={useSignIn} t={t} />
-}
-
-/** The bound half, split so the snapshot hook runs after the inject-face guard. */
-function Bound({ provider, controller, useSignIn, t }: {
-  provider: ProviderCardExtrasOwnerProps['provider']
-  controller: SignInStore
-  useSignIn: InjectFace<SignInCardInjected>['useSignIn']
-  t: SignInCardInjected['t']
-}): ReactNode {
-  const state = useSignIn(snapshot => snapshot)
-  const row = state.rows.find(candidate => candidate.provider === provider.provider)
-  if (row === undefined) return null
-  return (
-    <div className={styles['card']}>
-      <SignInRowView row={row} attempt={state.attempt} controller={controller} t={t} />
     </div>
   )
 }

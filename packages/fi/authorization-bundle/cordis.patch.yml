@@ -49,6 +49,3 @@
 
     - id: fi-llm-antigravity
       name: '@fi/llm-antigravity'
-
-    - id: fi-ui-model-signin-antigravity
-      name: '@fi/client-ui-model-signin-antigravity'

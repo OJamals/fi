@@ -1,12 +1,16 @@
 /**
- * Subscription sign-in plugin, browser half. It adds OAuth sign-in to the
- * Models page for the providers whose value is a subscription the user
- * already holds — Claude Pro/Max and ChatGPT Plus/Pro — by registering into
- * the Models section's own `settings.models.provider-card` extension slot.
+ * Subscription sign-in plugin, browser half. It adds one OAuth sign-in
+ * section to the Models page for the providers whose value is a
+ * subscription the user already holds — Claude Pro/Max, ChatGPT Plus/Pro,
+ * SuperGrok/X Premium, and Antigravity — by registering into the Models
+ * section's own `settings.models.footer` extension slot.
  *
  * The Models section is not modified: the slot exists precisely so a plugin
- * can add to a provider card from outside, and it is dispatched keyed by the
- * row's settings namespace, which for every pi-ai route is `llm-pi-ai`.
+ * can add to the page from outside. The section is the only sign-in surface
+ * this plugin renders — an earlier revision also extended each provider row
+ * through `settings.models.provider-card`, which interleaved credential UI
+ * with the model rows and split Antigravity into a second section; one
+ * section now carries all four providers and their states.
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
@@ -21,14 +25,11 @@ import type {} from '@deepseek-ai/dsh-api-remotes/client'
 // The generated Remote contribution this plugin mounts for itself, and
 // type-only the ctx.remote namespace augmentation it brings.
 import fiAuthorizationRemote from '@fi/api-authorization-controller/remote'
-import { SignInCard } from './SignInCard.tsx'
-import type { SignInCardInjected } from './SignInCard.tsx'
 import { SignInFooter } from './SignInFooter.tsx'
 import type { SignInFooterInjected } from './SignInFooter.tsx'
 import { SignInStore } from './store.ts'
 import { en, zh, type SignInKey } from './locales.ts'
 
-export type { SignInCardInjected, SignInCardProps } from './SignInCard.tsx'
 export type { SignInFooterInjected, SignInFooterProps } from './SignInFooter.tsx'
 export type { SignInAttempt, SignInPrompt, SignInRow, SignInState } from './store.ts'
 export type { SignInKey } from './locales.ts'
@@ -43,13 +44,6 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 
 /** Dictionary namespace owned by this plugin. */
 const NS = 'fi.settings.model-signin'
-
-/**
- * The settings namespace whose provider cards this plugin extends. The
- * Models section dispatches the slot with `entryKey = settingsNs`, and every
- * route the pi-ai adapter family owns reports this one.
- */
-const PI_AI_NS = 'llm-pi-ai'
 
 /**
  * Required services (cordis fiber inject). `remote.authorization` is NOT
@@ -78,12 +72,7 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
     ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'fi-model-signin: copy dictionaries')
 
     const controller = new SignInStore(ctx)
-    const t = ctx.locale.bind(NS) as SignInCardInjected['t']
-    const injected = (): SignInCardInjected => ({
-      controller,
-      hooks: { signIn: controller.store },
-      t,
-    })
+    const t = ctx.locale.bind(NS) as SignInFooterInjected['t']
 
     // A grant committed anywhere — this card, a second tab, a CLI login —
     // moves the stored state these rows render, and the credential seam
@@ -92,6 +81,11 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
       const refresh = (): void => { void controller.load() }
       const disposers = [
         ctx.remote.$on('credentials/reference-updated', refresh),
+        // Grants are records, not references: a revoke — this surface's own,
+        // another tab's, a CLI's — announces itself on this event, and
+        // without it the section would keep hiding a deleted provider's
+        // sign-in button behind the stale stored flag.
+        ctx.remote.$on('credentials/record-updated', refresh),
         ctx.on('connection/reset', refresh),
       ]
       return () => {
@@ -111,14 +105,6 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
       t,
     })
     void controller.load()
-    ctx.slots.inject('settings.models.provider-card', () => ctx.slots.register({
-      name: 'settings.models.provider-card',
-      key: PI_AI_NS,
-      inject: injected,
-    }, SignInCard))
-    // The footer carries the subscription providers when no route exists
-    // for them yet: the row card needs a row to extend, and the footer
-    // section is where "sign in and add the provider" lives before one.
     ctx.slots.inject('settings.models.footer', () => ctx.slots.register({
       name: 'settings.models.footer',
       id: NS,

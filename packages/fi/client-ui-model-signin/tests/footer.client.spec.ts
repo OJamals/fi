@@ -88,6 +88,26 @@ describe('footer store', () => {
     store.dispose()
   })
 
+  it('remove reloads the rows even when the revoke itself rejects', async () => {
+    const { ctx, calls } = scriptedCtx({
+      list: [{ key: KEY, label: 'Anthropic', methods: [{ id: 'oauth', label: 'Anthropic' }], stored: false, inFlight: false }],
+      adoptEntries: [{ key: KEY, label: 'Anthropic', routeId: 'anthropic' }],
+      frames: [],
+      adoptResult: { route: 'created', models: [] },
+    })
+    ;(ctx.remote as unknown as { authorization: { revoke: unknown } }).authorization.revoke = async () => {
+      calls.push('revoke')
+      throw new Error('authorization/in-flight')
+    }
+    const store = new SignInStore(ctx)
+    await store.remove(KEY).catch(() => undefined)
+
+    // The reload is the point: a failed revoke must not leave the section
+    // rendering the stale stored state the user just tried to clear.
+    expect(calls).toEqual(['revoke', 'list', 'listAdoptable'])
+    store.dispose()
+  })
+
   it('a refused adopt surfaces as an error, not an adoption', async () => {
     const { ctx } = scriptedCtx({
       list: [{ key: KEY, label: 'Anthropic', methods: [{ id: 'oauth', label: 'Anthropic' }], stored: false, inFlight: false }],

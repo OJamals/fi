@@ -50,7 +50,7 @@ The add command reconciles the profile and activates the layer; it resolves the 
 
 ### What you get
 
-Three rows enter the composition. `@deepseek-ai/dsh-authorization` mounts `ctx.authorization`, the seam plugin sign-in flows register with. `@fi/api-authorization-controller` owns the `authorization` Remote namespace, so a browser surface can list flows, run an attempt, answer its questions, and cancel it; after a successful sign-in it offers `adopt(key)` to upsert the absent settings route and enumerate the models the route then serves. `@fi/client-ui-model-signin` adds the sign-in row to every Models provider card whose provider has a registered OAuth flow — Claude Pro/Max, ChatGPT Plus/Pro, and SuperGrok/X Premium today, per the pi-ai catalog — with the flow's notices, device codes, and prompts rendered live, and its **footer card** offers those providers even when no route for them exists yet, so a click runs the whole chain (sign-in, then adopt). `@fi/llm-antigravity` registers the Antigravity OAuth flow (Google PKCE → Cloud Code project discovery) and its transport; `@fi/client-ui-model-signin-antigravity` adds the matching sign-in row and footer entry for Antigravity. A grant a flow commits authenticates that provider's route under the ordinary settings the Models page already manages.
+Four rows enter the composition. `@deepseek-ai/dsh-authorization` mounts `ctx.authorization`, the seam plugin sign-in flows register with. `@fi/api-authorization-controller` owns the `authorization` Remote namespace, so a browser surface can list flows, run an attempt, answer its questions, and cancel it; after a successful sign-in it offers `adopt(key)` to upsert the absent settings route and enumerate the models the route then serves. `@fi/client-ui-model-signin` renders the Models page's single subscription sign-in section — Claude Pro/Max, ChatGPT Plus/Pro, SuperGrok/X Premium per the pi-ai catalog, plus Antigravity — with each provider's state, the flow's notices, device codes, and prompts rendered live, and a click runs the whole chain (sign-in, then adopt). `@fi/llm-antigravity` registers the Antigravity OAuth flow (Google PKCE → Cloud Code project discovery) and its transport. A grant a flow commits authenticates that provider's route under the ordinary settings the Models page already manages.
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
@@ -58,7 +58,7 @@ Three rows enter the composition. `@deepseek-ai/dsh-authorization` mounts `ctx.a
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The patch document is `cordis.patch.yml`: one row for the seam, plus an `insert` block for the Remote owner, the pi-ai browser card, the Antigravity adapter, and the Antigravity browser card. Row ids are prefixed `fi-`, following the repository's convention for fi-owned rows. Ordering needs no manual sequencing: `AuthorizationService` declares `static inject = ['credentials']`, so Cordis holds it until the base layer's `credentials` row resolves. The browser rows are `dsh.client` packages, so the client-modules node half scans them into `window.__DSH_BOOT__` like any upstream browser plugin.
+The patch document is `cordis.patch.yml`: one row for the seam, plus an `insert` block for the Remote owner, the browser sign-in section, and the Antigravity adapter. Row ids are prefixed `fi-`, following the repository's convention for fi-owned rows. Ordering needs no manual sequencing: `AuthorizationService` declares `static inject = ['credentials']`, so Cordis holds it until the base layer's `credentials` row resolves. The browser rows are `dsh.client` packages, so the client-modules node half scans them into `window.__DSH_BOOT__` like any upstream browser plugin.
 
 </details>
 
@@ -67,9 +67,8 @@ The patch document is `cordis.patch.yml`: one row for the seam, plus an `insert`
 
 - [`@deepseek-ai/dsh-authorization`](../../credentials/authorization/README.md) — the seam this layer mounts.
 - [`@fi/api-authorization-controller`](../api-authorization-controller/README.md) — the Remote namespace that drives the seam from a browser.
-- [`@fi/client-ui-model-signin`](../client-ui-model-signin/README.md) — the Models-page card for pi-ai providers this layer ships.
+- [`@fi/client-ui-model-signin`](../client-ui-model-signin/README.md) — the Models-page subscription sign-in section this layer ships.
 - [`@fi/llm-antigravity`](../llm-antigravity/README.md) — the Antigravity OAuth adapter and transport this layer ships.
-- [`@fi/client-ui-model-signin-antigravity`](../client-ui-model-signin-antigravity/README.md) — the Models-page card for Antigravity this layer ships.
 - [Agent Note: Subscription OAuth sign-in in Models settings](../../../.agents/notes/implemented/feature/2026-09-11-subscription-oauth-sign-in.md)
 
 -----

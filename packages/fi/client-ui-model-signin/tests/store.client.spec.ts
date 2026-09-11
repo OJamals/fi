@@ -54,6 +54,15 @@ describe('selectOfferedRows', () => {
     expect(rows).toEqual([])
   })
 
+  it('includes the Antigravity adapter family scope, deriving its provider id generically', () => {
+    const rows = selectOfferedRows([
+      entry({ key: 'fi-antigravity/antigravity', label: 'Antigravity' }),
+      entry({ key: 'llm-pi-ai/anthropic', label: 'Anthropic' }),
+    ])
+
+    expect(rows.map(r => r.provider)).toEqual(['anthropic', 'antigravity'])
+  })
+
   it('carries the stored and in-flight facts through', () => {
     const rows = selectOfferedRows([
       entry({ key: 'llm-pi-ai/anthropic', stored: true, inFlight: true }),

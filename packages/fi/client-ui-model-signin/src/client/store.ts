@@ -31,12 +31,20 @@ const PI_AI_SCOPE = 'llm-pi-ai'
  * behind a wall of rows the Models page already handles as API-key fields.
  * These are the ones whose value is a subscription the user already pays
  * for and cannot otherwise reach: an OAuth grant, not a key they could type.
+ * The fourth entry is the Antigravity adapter family's own scope; one
+ * section renders every subscription sign-in, so no provider gets a second
+ * section of its own.
  *
  * Adding a provider is a one-line change here, and a flow absent from the
  * Host (an older pi-ai, a composition without the adapter) simply does not
  * appear — the join below keeps this list advisory, never authoritative.
  */
-const OFFERED = [`${PI_AI_SCOPE}/anthropic`, `${PI_AI_SCOPE}/openai-codex`, `${PI_AI_SCOPE}/xai`] as const
+const OFFERED = [
+  `${PI_AI_SCOPE}/anthropic`,
+  `${PI_AI_SCOPE}/openai-codex`,
+  `${PI_AI_SCOPE}/xai`,
+  'fi-antigravity/antigravity',
+] as const
 
 /** One question the running attempt is waiting on. */
 export interface SignInPrompt {
@@ -130,7 +138,7 @@ export function selectOfferedRows(entries: readonly AuthorizationEntryView[]): S
     if (methods.length === 0) continue
     rows.push({
       key: entry.key,
-      provider: key.slice(PI_AI_SCOPE.length + 1),
+      provider: entry.key.slice(entry.key.indexOf('/') + 1),
       label: entry.label,
       methods: methods.map(method => ({ id: method.id, label: method.label })),
       stored: entry.stored,
@@ -368,12 +376,17 @@ export class SignInStore {
   /**
    * Reset one provider's sign-in: the stored grant is revoked on the Host,
    * the route stays (deleting it is the Models page's own action), and the
-   * rows reload to show the provider offers a sign-in again.
+   * rows reload to show the provider offers a sign-in again. The reload is
+   * in a `finally` so a refused or failed revoke never leaves this surface
+   * rendering the stale stored state it just asked the user to act on.
    * @param key - the credential record to revoke.
    */
   async remove(key: string): Promise<void> {
-    await this.ctx.remote.authorization.revoke(key)
-    await this.load()
+    try {
+      await this.ctx.remote.authorization.revoke(key)
+    } finally {
+      await this.load()
+    }
   }
 
   /** Dismiss the attempt card, withdrawing it if it is still running. */
