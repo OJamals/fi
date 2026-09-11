@@ -119,12 +119,15 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/client/ui-settings-general': { kind: 'none', reason: 'Browser-side UI plugin layer; registers nothing model-facing.' },
   'packages/client/ui-settings-models': { kind: 'none', reason: 'Browser-side UI plugin layer; registers nothing model-facing.' },
   'packages/client/ui-settings-plugin-inventory': { kind: 'none', reason: 'Browser-side inventory projection; registers nothing model-facing.' },
-  // fi delta: the subscription sign-in layer. All three are configuration-plane
-  // only — a composition patch, a configuration-surface Remote owner, and a
-  // browser settings card — so none of them reaches a model request.
+  // fi delta: the subscription sign-in layer. All five are configuration-plane
+  // only — a composition patch, a configuration-surface Remote owner, two
+  // browser settings cards, and a host OAuth-flow adapter that mounts no model
+  // adapter — so none of them reaches a model request.
   'packages/fi/authorization-bundle': { kind: 'none', reason: 'Composition patch document; registers nothing model-facing.' },
   'packages/fi/api-authorization-controller': { kind: 'none', reason: 'Configuration-surface Remote owner; registers nothing model-facing.' },
   'packages/fi/client-ui-model-signin': { kind: 'none', reason: 'Browser-side UI plugin layer; registers nothing model-facing.' },
+  'packages/fi/llm-antigravity': { kind: 'none', reason: 'Host OAuth-flow and grant adapter; mounts no model adapter and assembles no request.' },
+  'packages/fi/client-ui-model-signin-antigravity': { kind: 'none', reason: 'Browser-side UI plugin layer; registers nothing model-facing.' },
   'packages/client/locale': { kind: 'none', reason: 'Browser-side UI plugin layer; registers nothing model-facing.' },
   'packages/client/web': { kind: 'none', reason: 'Browser-side UI plugin layer; registers nothing model-facing.' },
   'packages/context/file-reference': { kind: 'indirect', reason: 'The discovery seam and grammar delegate model guidance to the composed provider.' },

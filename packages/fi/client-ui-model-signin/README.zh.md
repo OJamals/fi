@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`@fi/client-ui-model-signin` 为模型设置页面添加 OAuth 登录，服务于那些价值在于用户已持有订阅的提供方——Claude Pro/Max、ChatGPT Plus/Pro 与 SuperGrok/X Premium。它通过模型区块自有的扩展槽位渲染在每个 pi-ai 提供方卡片内部，因此该区块本身不被修改。只有当 Host 确实为该提供方注册了 OAuth 流程时，对应行才会出现，这使得展示具备自我修正能力：缺少该适配器的 composition，或移除了某个登录的 pi-ai 版本，都只会什么都不显示。当提供方以密钥认证时，请使用模型页面已提供的 API 密钥字段。
+`@fi/client-ui-model-signin` 为模型设置页面添加 OAuth 登录，服务于那些价值在于用户已持有订阅的提供方——Claude Pro/Max、ChatGPT Plus/Pro 与 SuperGrok/X Premium。它通过模型区块自有的扩展槽位渲染在每个 pi-ai 提供方卡片内部，因此该区块本身不被修改。只有当 Host 确实为该提供方注册了 OAuth 流程时，对应行才会出现，这使得展示具备自我修正能力：缺少该适配器的 composition，或移除了某个登录的 pi-ai 版本，都只会什么都不显示。当提供方以密钥认证时，请使用 API 密钥字段。
 
 ## 目录
 

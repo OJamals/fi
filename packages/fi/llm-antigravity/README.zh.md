@@ -29,9 +29,15 @@ OAuth 流程使用 Antigravity 桌面应用的公共客户端 id，回环重定�
 
 传输将 Gemini `contents`/`generationConfig` 包装进 Cloud Code envelope（`{project, model, request, userAgent: "antigravity", requestId, requestType: "agent"}`），并 POST 到 `v1internal:streamGenerateContent?alt=sse`。
 
+**运行时不变量：** 未发布 invariant companion。流程每次尝试的 PKCE verifier 与回环服务器在该次尝试自身的运行内创建并拆除；只有已提交的授权会持久保留。
+
 ## Model Experience
 
-该适配器使模型页面能够提供 Antigravity 登录。登录后，提供方出现并列出其模型，推理请求通过付费的 Cloud Code 端点路由。
+无，因为该包仅注册 OAuth 流程与授权，未挂载模型适配器，也不组装请求。
+
+#### KV Cache 影响
+
+无；传输模块尚未接入请求路径，因此不会发送推理请求。
 
 ## Known Limitations and Deferred Work
 

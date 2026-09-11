@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@fi/client-ui-model-signin` adds OAuth sign-in to the Models settings page for providers whose value is a subscription the user already holds — Claude Pro/Max, ChatGPT Plus/Pro, and SuperGrok/X Premium. It renders inside each pi-ai provider card through the Models section's own extension slot, so the section is not modified. A row appears only when the Host has actually registered an OAuth flow for that provider, which makes the offer self-correcting: a composition without the adapter, or a pi-ai release that drops a login, simply shows nothing. Choose the API-key field the Models page already provides when the provider authenticates with a key instead.
+`@fi/client-ui-model-signin` adds OAuth sign-in to the Models settings page for providers whose value is a subscription the user already holds — Claude Pro/Max, ChatGPT Plus/Pro, and SuperGrok/X Premium. It renders inside each pi-ai provider card through the Models section's own extension slot, so the section is not modified. A row appears only when the Host has actually registered an OAuth flow for that provider, which makes the offer self-correcting: a composition without the adapter, or a pi-ai release that drops a login, simply shows nothing. Choose the API-key field when the provider authenticates with a key instead.
 
 ## Table of Contents
 

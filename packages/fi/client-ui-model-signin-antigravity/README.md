@@ -28,9 +28,15 @@ Models-page Antigravity sign-in card for fi. Adds a footer section to the Models
 
 The plugin mounts the `authorization` Remote namespace itself (the application Remote owner's client side mounts only a curated namespace list), then enters a scoped fiber that lists the namespace in its inject. It registers into the `settings.models.footer` slot through `slots.inject()`, which waits for the Models section to declare the slot.
 
+**Runtime invariant:** No companion is published. The Host is the single fact source; the card's state is rebuilt from `list` and from the frames of the attempt it started.
+
 ## Model Experience
 
-The user sees a footer section on the Models page offering Antigravity sign-in. Clicking it opens the Google OAuth URL in a browser, waits for the loopback callback, and on success shows the route outcome and the models the route now serves.
+None, as the package is a browser-side UI plugin layer that registers nothing model-facing.
+
+#### KV Cache effect
+
+None; this package neither assembles nor sends a provider request.
 
 ## Known Limitations and Deferred Work
 

@@ -28,9 +28,15 @@
 
 该插件自行挂载 `authorization` Remote 命名空间（应用 Remote 拥有方的客户端仅挂载精选命名空间列表），然后进入一个在 inject 中列出该命名空间的作用域 fiber。它通过 `slots.inject()` 注册到 `settings.models.footer` 槽位，等待模型区块声明该槽位。
 
+**运行时不变量：** 未发布 invariant companion。Host 是唯一事实来源；卡片状态由 `list` 以及它自己发起的尝试的帧重建。
+
 ## Model Experience
 
-用户在模型页面看到提供 Antigravity 登录的页脚区域。单击后在浏览器中打开 Google OAuth URL，等待回环回调，成功后显示路由结果以及该路由现在提供的模型。
+无，因为该包是浏览器端 UI 插件层，不注册任何面向模型的内容。
+
+#### KV Cache 影响
+
+无；该包既不组装也不发送提供方请求。
 
 ## Known Limitations and Deferred Work
 

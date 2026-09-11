@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/fi/client-ui-model-signin-antigravity/README.md
-README.md: dca3a99407dd4ca715ffc03afd57bd0895f3ab5b
-README.zh.md: fb239e225b2bda0119e72824cacb673e54024b55
+README.md: 7ab134ddaa65a96811244cc62cbbfb8ecb1e9d8c
+README.zh.md: 5331b9321a4dd326e5e2b8009f3b1b85d3030544

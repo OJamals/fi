@@ -29,9 +29,15 @@ The OAuth flow uses the Antigravity desktop app's public client id, a loopback r
 
 The transport wraps Gemini `contents`/`generationConfig` in the Cloud Code envelope (`{project, model, request, userAgent: "antigravity", requestId, requestType: "agent"}`) and POSTs to `v1internal:streamGenerateContent?alt=sse`.
 
+**Runtime invariant:** No companion is published. The flow's per-attempt PKCE verifier and loopback server are created and torn down inside that attempt's own run; only the committed grant persists.
+
 ## Model Experience
 
-The adapter enables the Models page to offer Antigravity sign-in. Once signed in, the provider appears with its models listed, and inference requests route through the paid Cloud Code endpoint.
+None, as the package registers an OAuth flow and grant but mounts no model adapter and assembles no request.
+
+#### KV Cache effect
+
+None; the transport module is not wired into a request path yet, so no inference request is sent.
 
 ## Known Limitations and Deferred Work
 
