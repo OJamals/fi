@@ -56,6 +56,18 @@ and the sign-in card inside the row carries the truth ("Signed in" / "Not signed
 now silent about them rather than wrong.
 
 
+## Phase 4 2026-09-11: SuperGrok/X Premium joins with one line
+
+xAI's device-code OAuth ("Sign in with SuperGrok or X Premium") ships in the same installed pi-ai
+catalog (`auth/oauth/xai.js`), and `registerPiAiFlows` already registers `llm-pi-ai/xai` like the
+other two. The warranted change was therefore exactly the extension point the card documented
+from day one: one row in `OFFERED` in the client store. Route semantics needed no change — the
+Host's scope-to-namespace rule covers `llm-pi-ai/xai` the same way, and `adopt('llm-pi-ai/xai')`
+upserts `providers.xai` and enumerates Grok models through the same `llm.discoverModels` path.
+The integration test now asserts all three catalog flows against the installed pi-ai build, so a
+pi-ai release that renames or drops the xAI login fails the suite instead of silently trimming
+the strip.
+
 ## The footer: add a provider with no route yet
 
 The row card needs a provider card to extend, and on a fresh install no pi-ai route exists at all. The Models section reserves a second slot, `settings.models.footer`, for exactly that gap, so a second registration lands the same store and conversation below the provider rows: a one-line "Sign in with your subscription" area that lists Claude Pro/Max and ChatGPT Plus/Pro with the same OAuth buttons, runs the same conversation through the same `AttemptView`, and then chains the Host's `adopt(key)` — upserting the settings route and enumerating the models the route now serves. The store's `signInAndAdopt(key)` folds `begin('oauth')` and the adopt into one intent, gated on the attempt's own `authorized` settlement; `revoke` on the same row re-opens the button. A stored-grant provider reads as subscribed, not adoptable, so the list re-offers only genuinely new providers and the banner keeps the last adoption's evidence. The Models section's own `settings/document-updated` refresh brings the new row in without extra wiring, which is why a successful adoption needs no further UI: the route the user asked for lands in the same section the provider-card rows render.

@@ -20,12 +20,13 @@ const FRESH: SignInAttempt = { key: 'llm-pi-ai/anthropic', notice: null, prompt:
 describe('selectOfferedRows', () => {
   it('keeps only the offered providers, in the offered order', () => {
     const rows = selectOfferedRows([
+      entry({ key: 'llm-pi-ai/xai', label: 'xAI' }),
       entry({ key: 'llm-pi-ai/openai-codex', label: 'OpenAI Codex' }),
       entry({ key: 'llm-pi-ai/groq', label: 'Groq' }),
       entry({ key: 'llm-pi-ai/anthropic', label: 'Anthropic' }),
     ])
 
-    expect(rows.map(row => row.provider)).toEqual(['anthropic', 'openai-codex'])
+    expect(rows.map(row => row.provider)).toEqual(['anthropic', 'openai-codex', 'xai'])
   })
 
   it('skips an offered provider the Host did not register', () => {

@@ -1,5 +1,5 @@
 ---
-description: "The Models-page subscription sign-in card for users reaching Claude Pro/Max and ChatGPT Plus/Pro inference, and maintainers extending which providers it offers."
+description: "The Models-page subscription sign-in card for users reaching Claude Pro/Max, ChatGPT Plus/Pro, and SuperGrok/X Premium inference, and maintainers extending which providers it offers."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@fi/client-ui-model-signin` adds OAuth sign-in to the Models settings page for providers whose value is a subscription the user already holds — Claude Pro/Max and ChatGPT Plus/Pro. It renders inside each pi-ai provider card through the Models section's own extension slot, so the section is not modified. A row appears only when the Host has actually registered an OAuth flow for that provider, which makes the offer self-correcting: a composition without the adapter, or a pi-ai release that drops a login, simply shows nothing. Choose the API-key field the Models page already provides when the provider authenticates with a key instead.
+`@fi/client-ui-model-signin` adds OAuth sign-in to the Models settings page for providers whose value is a subscription the user already holds — Claude Pro/Max, ChatGPT Plus/Pro, and SuperGrok/X Premium. It renders inside each pi-ai provider card through the Models section's own extension slot, so the section is not modified. A row appears only when the Host has actually registered an OAuth flow for that provider, which makes the offer self-correcting: a composition without the adapter, or a pi-ai release that drops a login, simply shows nothing. Choose the API-key field the Models page already provides when the provider authenticates with a key instead.
 
 ## Table of Contents
 
@@ -29,11 +29,11 @@ Mount it in a browser composition that also mounts the Models page and [`@fi/api
 
 ### What the user sees
 
-Each pi-ai provider card with a registered OAuth flow gains a sign-in row: a state dot with an accessible label, and a button carrying the flow's own label ("Anthropic (Claude Pro/Max)", "OpenAI (ChatGPT Plus/Pro)"). Starting one replaces the button with the live conversation — the page to open, the device code to type, any question the flow asks — and ends in a terminal message the user dismisses. A successful sign-in also writes the provider's settings route when none exists, so the card reports what the attempt left behind. A provider already signed in still offers a re-sign-in, which is how an expired refresh token is replaced, and a **Remove sign-in** action, which revokes the stored grant (Host verb `revoke`, the Remote client's namespace service owning `remove`) and returns the row to sign-in-offered without touching the route.
+Each pi-ai provider card with a registered OAuth flow gains a sign-in row: a state dot with an accessible label, and a button carrying the flow's own label ("Anthropic (Claude Pro/Max)", "OpenAI (ChatGPT Plus/Pro)", "Sign in with SuperGrok or X Premium"). Starting one replaces the button with the live conversation — the page to open, the device code to type, any question the flow asks — and ends in a terminal message the user dismisses. A successful sign-in also writes the provider's settings route when none exists, so the card reports what the attempt left behind. A provider already signed in still offers a re-sign-in, which is how an expired refresh token is replaced, and a **Remove sign-in** action, which revokes the stored grant (Host verb `revoke`, the Remote client's namespace service owning `remove`) and returns the row to sign-in-offered without touching the route.
 
 ### The footer: add a provider with no route yet
 
-The row card needs a provider card to extend, and on a fresh install no pi-ai route exists at all. The Models section has a second slot, `settings.models.footer`, for exactly that gap: a one-line "Sign in with your subscription" area that lists Claude Pro/Max and ChatGPT Plus/Pro with the same OAuth buttons, runs the same conversation, and then chains the Host's `adopt(key)` — upserting the settings route and reading back the models it now serves. The adoption banner reports the route outcome (created or already present) and lists every model id the selected provider makes available, in the installed catalog's order; the Models section's own `settings/document-updated` refresh brings the new row in beside the rows the page already managed.
+The row card needs a provider card to extend, and on a fresh install no pi-ai route exists at all. The Models section has a second slot, `settings.models.footer`, for exactly that gap: a one-line "Sign in with your subscription" area that lists Claude Pro/Max, ChatGPT Plus/Pro, and SuperGrok/X Premium with the same OAuth buttons, runs the same conversation, and then chains the Host's `adopt(key)` — upserting the settings route and reading back the models it now serves. The adoption banner reports the route outcome (created or already present) and lists every model id the selected provider makes available, in the installed catalog's order; the Models section's own `settings/document-updated` refresh brings the new row in beside the rows the page already managed.
 
 A stored-grant provider (an earlier sign-in finished) reads as subscribed rather than adoptable, so the footer list re-grows only when a second provider is added, while its own seat's adopt banner stays the evidence of the last adoption.
 

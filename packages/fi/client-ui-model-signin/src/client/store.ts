@@ -27,16 +27,16 @@ const PI_AI_SCOPE = 'llm-pi-ai'
  *
  * Scoped deliberately. The pi-ai catalog registers a flow for every installed
  * provider — about forty, most of them api-key-only — and surfacing all of
- * them here would bury the two subscription logins this card exists for
+ * them here would bury the subscription logins this card exists for
  * behind a wall of rows the Models page already handles as API-key fields.
- * These two are the ones whose value is a subscription the user already pays
+ * These are the ones whose value is a subscription the user already pays
  * for and cannot otherwise reach: an OAuth grant, not a key they could type.
  *
  * Adding a provider is a one-line change here, and a flow absent from the
  * Host (an older pi-ai, a composition without the adapter) simply does not
  * appear — the join below keeps this list advisory, never authoritative.
  */
-const OFFERED = [`${PI_AI_SCOPE}/anthropic`, `${PI_AI_SCOPE}/openai-codex`] as const
+const OFFERED = [`${PI_AI_SCOPE}/anthropic`, `${PI_AI_SCOPE}/openai-codex`, `${PI_AI_SCOPE}/xai`] as const
 
 /** One question the running attempt is waiting on. */
 export interface SignInPrompt {

@@ -44,6 +44,10 @@ Status: implemented
 正确的终点就是上游已经实现的那个：OAuth 行不显示任何 API-key 状态，行内的登录卡片承载事实（“Signed in / Not signed in / Remove sign-in”）。OAuth 确实不使用典型的 API key 或 base URL，页面现在对它们保持沉默而非错误。
 
 
+## Phase 4 2026-09-11：SuperGrok/X Premium 以一行加入
+
+xAI 的设备码 OAuth（“Sign in with SuperGrok or X Premium”）随同一个已安装的 pi-ai 目录发布（`auth/oauth/xai.js`），而 `registerPiAiFlows` 早已像另外两个提供方一样注册了 `llm-pi-ai/xai`。因此必要的改动恰好是卡片从第一天起就文档化的扩展点：客户端 store 中 `OFFERED` 增加一行。路由语义无需改动——Host 的 scope→命名空间规则以同样方式覆盖 `llm-pi-ai/xai`，且 `adopt('llm-pi-ai/xai')` 通过同一条 `llm.discoverModels` 路径 upsert `providers.xai` 并枚举 Grok 模型。集成测试现在针对已安装的 pi-ai 构建断言全部三个目录流程，因此 pi-ai 若重命名或移除 xAI 登录，套件会失败，而不是悄悄缩减页脚。
+
 ## 页脚：为尚无路由的提供方添加
 
 行卡片需要有一张提供方卡片可扩展，而在全新安装中根本不存在任何 pi-ai 路由。模型区块为这一场景保留了第二个槽位 `settings.models.footer`，因此第二个注册把同一个 store 与对话放到了提供方行之下：一条“使用您的订阅登录”区域，以相同的 OAuth 按钮列出 Claude Pro/Max 与 ChatGPT Plus/Pro，通过同一个 `AttemptView` 运行相同的对话，随后链接 Host 的 `adopt(key)`——在 settings 路由缺失时 upsert 该路由，并枚举该路由接着提供的模型。store 中的 `signInAndAdopt(key)` 将 `begin('oauth')` 与采用折叠为一次意图，以尝试自身的 `authorized` 结束为门槛；同一行上的 `revoke` 重新打开该按钮。已存储授权的提供方显示为已订阅而非可采用，因此列表只对真正新的提供方重新出现该按钮，而横幅保留最后一次采用的证据。模型区块自身的 `settings/document-updated` 刷新无需额外接线即可将该新行带入，这正是成功采用为何无需其他 UI 的原因：用户请求的路由落在承载提供方卡片的同一个区块里。

@@ -1,5 +1,5 @@
 ---
-description: "模型页面的订阅登录卡片，面向使用 Claude Pro/Max 与 ChatGPT Plus/Pro 推理的用户，以及扩展其所提供提供方的维护者。"
+description: "模型页面的订阅登录卡片，面向使用 Claude Pro/Max、ChatGPT Plus/Pro 与 SuperGrok/X Premium 推理的用户，以及扩展其所提供提供方的维护者。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`@fi/client-ui-model-signin` 为模型设置页面添加 OAuth 登录，服务于那些价值在于用户已持有订阅的提供方——Claude Pro/Max 与 ChatGPT Plus/Pro。它通过模型区块自有的扩展槽位渲染在每个 pi-ai 提供方卡片内部，因此该区块本身不被修改。只有当 Host 确实为该提供方注册了 OAuth 流程时，对应行才会出现，这使得展示具备自我修正能力：缺少该适配器的 composition，或移除了某个登录的 pi-ai 版本，都只会什么都不显示。当提供方以密钥认证时，请使用模型页面已提供的 API 密钥字段。
+`@fi/client-ui-model-signin` 为模型设置页面添加 OAuth 登录，服务于那些价值在于用户已持有订阅的提供方——Claude Pro/Max、ChatGPT Plus/Pro 与 SuperGrok/X Premium。它通过模型区块自有的扩展槽位渲染在每个 pi-ai 提供方卡片内部，因此该区块本身不被修改。只有当 Host 确实为该提供方注册了 OAuth 流程时，对应行才会出现，这使得展示具备自我修正能力：缺少该适配器的 composition，或移除了某个登录的 pi-ai 版本，都只会什么都不显示。当提供方以密钥认证时，请使用模型页面已提供的 API 密钥字段。
 
 ## 目录
 
@@ -29,11 +29,11 @@ kind: "package-reference"
 
 ### 用户看到什么
 
-每个已注册 OAuth 流程的 pi-ai 提供方卡片都会新增一行登录区：一个带无障碍标签的状态点，以及一个带有该流程自身标签的按钮（“Anthropic (Claude Pro/Max)”、“OpenAI (ChatGPT Plus/Pro)”）。开始登录后，按钮会被实时对话替换——需要打开的页面、需要输入的设备码、流程提出的任何问题——并以一条由用户关闭的终态信息结束。成功的登录还会在路由不存在时写入该提供方的 settings 路由，因此卡片会汇报这次尝试留下了什么。已登录的提供方仍会提供重新登录入口（替换过期 refresh token 的方式）与“移除登录”动作：后者在 Host 侧以 `revoke` 动词撤销已存储的授权（因 Remote 客户端的命名空间服务占用了 `remove` 一词），把该行恢复为可登录状态，而不触碰路由。
+每个已注册 OAuth 流程的 pi-ai 提供方卡片都会新增一行登录区：一个带无障碍标签的状态点，以及一个带有该流程自身标签的按钮（“Anthropic (Claude Pro/Max)”、“OpenAI (ChatGPT Plus/Pro)”、“Sign in with SuperGrok or X Premium”）。开始登录后，按钮会被实时对话替换——需要打开的页面、需要输入的设备码、流程提出的任何问题——并以一条由用户关闭的终态信息结束。成功的登录还会在路由不存在时写入该提供方的 settings 路由，因此卡片会汇报这次尝试留下了什么。已登录的提供方仍会提供重新登录入口（替换过期 refresh token 的方式）与“移除登录”动作：后者在 Host 侧以 `revoke` 动词撤销已存储的授权（因 Remote 客户端的命名空间服务占用了 `remove` 一词），把该行恢复为可登录状态，而不触碰路由。
 
 ### 页脚：为尚无路由的提供方添加
 
-行卡片需要有一张提供方卡片可扩展，而在全新安装中根本不存在任何 pi-ai 路由。模型区块为此准备了第二个槽位 `settings.models.footer`：一条"使用您的订阅登录"区域，列出 Claude Pro/Max 与 ChatGPT Plus/Pro，使用相同的 OAuth 按钮运行相同对话，随后链接 Host 的 `adopt(key)`——upset settings 路由并回读它随后提供的模型。采用横幅报告路由结果（created 或 already present），并按已安装目录顺序列出所选提供方可用的每个模型 id；模型区块自身的 `settings/document-updated` 刷新把新行插入到页面已有行旁边。
+行卡片需要有一张提供方卡片可扩展，而在全新安装中根本不存在任何 pi-ai 路由。模型区块为此准备了第二个槽位 `settings.models.footer`：一条"使用您的订阅登录"区域，列出 Claude Pro/Max 与 ChatGPT Plus/Pro，使用相同的 OAuth 按钮运行相同对话，随后链接 Host 的 `adopt(key)`——upsert settings 路由并回读它随后提供的模型。采用横幅报告路由结果（created 或 already present），并按已安装目录顺序列出所选提供方可用的每个模型 id；模型区块自身的 `settings/document-updated` 刷新把新行插入到页面已有行旁边。
 
 已存储授权的提供方（早先登录完成）显示为已订阅而非可采用，因此页脚列表仅在添加第二个提供方时重新增大，而其自身席位的采用横幅仍保留最后一次采用的证据。
 

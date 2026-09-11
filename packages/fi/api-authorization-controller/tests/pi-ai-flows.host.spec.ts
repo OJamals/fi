@@ -26,7 +26,7 @@ afterEach(async () => {
   for (const dir of dirs.splice(0)) await rm(dir, { recursive: true, force: true })
 })
 
-it('offers Claude Pro/Max and ChatGPT Plus/Pro over the Remote namespace', async () => {
+it('offers Claude Pro/Max, ChatGPT Plus/Pro, and SuperGrok over the Remote namespace', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'fi-auth-pi-'))
   dirs.push(dir)
   const ctx = new Context()
@@ -47,4 +47,9 @@ it('offers Claude Pro/Max and ChatGPT Plus/Pro over the Remote namespace', async
   expect(codex?.label).toBe('OpenAI Codex')
   expect(codex?.methods.some(method => method.id === 'oauth')).toBe(true)
   expect(codex?.stored).toBe(false)
+
+  const xai = byKey.get('llm-pi-ai/xai')
+  expect(xai?.label).toBe('xAI')
+  expect(xai?.methods.some(method => method.id === 'oauth')).toBe(true)
+  expect(xai?.stored).toBe(false)
 })

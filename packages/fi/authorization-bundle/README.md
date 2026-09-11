@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@fi/authorization-bundle` adds subscription sign-in to any base-backed `dsh --profile` surface: it mounts the authorization seam, its Remote namespace, and a sign-in card inside the Models settings page, so users holding a Claude Pro/Max or ChatGPT Plus/Pro subscription reach the inference they already pay for. No profile ships with it — a profile that wants the sign-ins lists it after `@deepseek-ai/dsh-base`. The layer is inert until a sign-in runs: it registers no model route and obtains no credential by itself. It is not a library to import.
+`@fi/authorization-bundle` adds subscription sign-in to any base-backed `dsh --profile` surface: it mounts the authorization seam, its Remote namespace, and a sign-in card inside the Models settings page, so users holding a Claude Pro/Max, ChatGPT Plus/Pro, or SuperGrok/X Premium subscription reach the inference they already pay for. No profile ships with it — a profile that wants the sign-ins lists it after `@deepseek-ai/dsh-base`. The layer is inert until a sign-in runs: it registers no model route and obtains no credential by itself. It is not a library to import.
 
 ## Table of Contents
 
@@ -50,7 +50,7 @@ The add command reconciles the profile and activates the layer; it resolves the 
 
 ### What you get
 
-Three rows enter the composition. `@deepseek-ai/dsh-authorization` mounts `ctx.authorization`, the seam plugin sign-in flows register with. `@fi/api-authorization-controller` owns the `authorization` Remote namespace, so a browser surface can list flows, run an attempt, answer its questions, and cancel it; after a successful sign-in it offers `adopt(key)` to upsert the absent settings route and enumerate the models the route then serves. `@fi/client-ui-model-signin` adds the sign-in row to every Models provider card whose provider has a registered OAuth flow — Claude Pro/Max and ChatGPT Plus/Pro today, per the pi-ai catalog — with the flow's notices, device codes, and prompts rendered live, and its **footer card** offers those providers even when no route for them exists yet, so a click runs the whole chain (sign-in, then adopt). A grant a flow commits authenticates that provider's route under the ordinary settings the Models page already manages.
+Three rows enter the composition. `@deepseek-ai/dsh-authorization` mounts `ctx.authorization`, the seam plugin sign-in flows register with. `@fi/api-authorization-controller` owns the `authorization` Remote namespace, so a browser surface can list flows, run an attempt, answer its questions, and cancel it; after a successful sign-in it offers `adopt(key)` to upsert the absent settings route and enumerate the models the route then serves. `@fi/client-ui-model-signin` adds the sign-in row to every Models provider card whose provider has a registered OAuth flow — Claude Pro/Max, ChatGPT Plus/Pro, and SuperGrok/X Premium today, per the pi-ai catalog — with the flow's notices, device codes, and prompts rendered live, and its **footer card** offers those providers even when no route for them exists yet, so a click runs the whole chain (sign-in, then adopt). A grant a flow commits authenticates that provider's route under the ordinary settings the Models page already manages.
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
