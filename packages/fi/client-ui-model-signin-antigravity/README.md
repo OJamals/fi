@@ -2,7 +2,7 @@
 
 [English](README.zh.md) | 中文
 
-Models-page Antigravity sign-in card for fi. Adds a footer section to the Models settings page offering "Sign in with Antigravity (Gemini Code Assist)" when the Host has registered the flow and no grant is stored.
+Models-page Antigravity sign-in card for fi. Adds a footer section to the Models settings page offering "Sign in with Antigravity" when the Host has registered the flow and no grant is stored.
 
 ## Table of Contents
 
@@ -19,7 +19,7 @@ Models-page Antigravity sign-in card for fi. Adds a footer section to the Models
 ## What it does
 
 - Registers into the `settings.models.footer` slot
-- Offers "Sign in with Antigravity (Gemini Code Assist)" when the flow is registered and no grant is stored
+- Offers "Sign in with Antigravity" when the flow is registered and no grant is stored
 - Runs the OAuth conversation: notices (URL to open), prompts (paste code), settled outcome
 - Chains `adopt('fi-antigravity/antigravity')` on success to create the route and list models
 - Shows "Remove sign-in" when a grant is stored, using `revoke`

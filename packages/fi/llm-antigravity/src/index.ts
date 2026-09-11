@@ -64,7 +64,7 @@ export function registerAntigravityFlow(ctx: Context): void {
   ctx.authorization.registerFlow({
     key: credentialKey(ANTIGRAVITY_CREDENTIAL_SCOPE, ANTIGRAVITY_CREDENTIAL_ID),
     label: ANTIGRAVITY_FLOW_LABEL,
-    methods: [{ id: 'oauth', label: 'Sign in with Antigravity (Gemini Code Assist)' }],
+    methods: [{ id: 'oauth', label: 'Sign in with Antigravity' }],
     async run(session) {
       const pkce = generateAntigravityPKCE()
       const state = randomUUID()

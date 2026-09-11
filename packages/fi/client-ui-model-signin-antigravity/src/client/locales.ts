@@ -10,7 +10,7 @@
 export const en = {
   title: 'Sign in with Antigravity',
   hint: 'Use your Google account to access Gemini and Claude models through Antigravity Cloud Code.',
-  signIn: 'Sign in with Antigravity (Gemini Code Assist)',
+  signIn: 'Sign in with Antigravity',
   starting: 'Starting sign-in…',
   submit: 'Submit',
   cancel: 'Cancel',
@@ -32,7 +32,7 @@ export const en = {
 export const zh: Record<keyof typeof en, string> = {
   title: '使用 Antigravity 登录',
   hint: '使用您的 Google 账户通过 Antigravity Cloud Code 访问 Gemini 和 Claude 模型。',
-  signIn: '使用 Antigravity (Gemini Code Assist) 登录',
+  signIn: '使用 Antigravity 登录',
   starting: '正在开始登录…',
   submit: '提交',
   cancel: '取消',

@@ -19,7 +19,7 @@
 ## What it does
 
 - 注册到 `settings.models.footer` 槽位
-- 当流程已注册且无存储授权时，提供“使用 Antigravity (Gemini Code Assist) 登录”
+- 当流程已注册且无存储授权时，提供“使用 Antigravity 登录”
 - 运行 OAuth 对话：通知（待打开的 URL）、提示（粘贴代码）、终态结果
 - 成功后链接 `adopt('fi-antigravity/antigravity')` 以创建路由并列出模型
 - 当授权已存储时显示“移除登录”，使用 `revoke`
