@@ -49,13 +49,25 @@ const NS = 'fi.settings.model-signin-antigravity'
 export const inject = ['slots', 'locale', 'remote']
 
 /**
- * Enter a fiber scoped on `remote.authorization` and register the
- * Antigravity footer card. The namespace is already mounted by the pi-ai
- * card in the same bundle; this plugin does not mount it again.
+ * Mount the `authorization` Remote namespace if it isn't already mounted,
+ * then in a fiber scoped on it register the Antigravity footer card and keep
+ * its state fresh on credential invalidations.
+ *
+ * The pi-ai sign-in card mounts the same namespace; the try-catch absorbs the
+ * "already mounted" conflict so both cards can ship in the same bundle
+ * regardless of their apply order.
  * @param ctx - client root context.
- * @returns disposal of the scoped fiber.
+ * @returns disposal of the scoped fiber and the mounted namespace.
  */
 export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
+  let disposeRemote: (() => Promise<void>) | undefined
+  try {
+    const { default: fiAuthorizationRemote } = await import('@fi/api-authorization-controller/remote')
+    disposeRemote = await ctx.remote.$mount(fiAuthorizationRemote)
+  } catch (error) {
+    // Already mounted by the pi-ai card — proceed without owning the namespace.
+    if (!String(error).includes('already mounted')) throw error
+  }
   const scoped = ctx.inject(['slots', 'locale', 'remote.authorization'], (ctx) => {
     ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'fi-model-signin-antigravity: copy dictionaries')
 
@@ -97,9 +109,11 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
     await scoped
   } catch (error) {
     await scoped.dispose()
+    await disposeRemote?.()
     throw error
   }
   return async (): Promise<void> => {
     await scoped.dispose()
+    await disposeRemote?.()
   }
 }
