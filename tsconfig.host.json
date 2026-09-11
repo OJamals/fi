@@ -195,6 +195,10 @@
     { "path": "./packages/credentials/credentials" },
     { "path": "./packages/credentials/credentials-local" },
     { "path": "./packages/credentials/authorization" },
+    // fi delta: the authorization seam's Remote owner and the bundle layer
+    // that mounts the seam. Additive — no upstream project is modified.
+    { "path": "./packages/fi/api-authorization-controller" },
+    { "path": "./packages/fi/authorization-bundle" },
     { "path": "./packages/session-query/tool-session-query" },
     { "path": "./packages/storage/storage" },
     { "path": "./packages/storage/storage-json" },

@@ -70,6 +70,9 @@ export const SERVICE_PAGE: Record<string, string> = {
   authorization: 'credentials.md',
   credentials: 'credentials.md',
   credentialsController: 'credentials.md',
+  // fi delta: the sign-in layer's Remote owner joins the page that documents
+  // the seam it exposes.
+  fiAuthorizationController: 'credentials.md',
   settingsController: 'settings.md',
   directoryPicker: 'workspace.md',
   deepseekLlmApiExtensions: 'llm-streaming.md',
@@ -688,6 +691,10 @@ export const FOUNDATION_TYPE_NAMES: ReadonlySet<string> = new Set([
 /** Project types deliberately documented outside the subsystems catalog. */
 export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   z: 'schemastery schema constructor is owned by vendor/schemastery (vendored upstream)',
+  // fi delta: the sign-in layer's wire views are transport contracts owned by
+  // its Remote package, not catalog page types.
+  AuthorizationEntryView: 'wire view of a registered flow is owned by packages/fi/api-authorization-controller/src/types.ts',
+  AuthorizationFrameView: 'wire frame of one authorization attempt is owned by packages/fi/api-authorization-controller/src/types.ts',
   BeginCommandRequest: 'event-local request contract is owned by packages/client/ui-input-trigger/src/types.ts',
   InsertReferenceRequest: 'event-local request contract is owned by packages/client/ui-input-trigger/src/types.ts',
   ConsumeTokenRequest: 'event-local request contract is owned by packages/client/ui-input-trigger/src/types.ts',

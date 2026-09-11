@@ -1,0 +1,126 @@
+/* The sign-in area inside a provider card. It sits below the card's own
+   controls, so it owns a top rule rather than a full border: the Models page
+   already drew the card. */
+
+.card {
+  border-top: 0.5px solid var(--dsw-alias-border-l4);
+  padding-top: 10px;
+  margin-top: 2px;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.label {
+  font-size: 13px;
+  color: var(--dsw-alias-text-l2);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Matches the Models page's own credential dots: state is carried by a solid
+   fill with an accessible label, never by color alone. */
+.dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  corner-shape: round;
+}
+
+.dotSignedIn {
+  background: var(--dsw-alias-status-success);
+}
+
+.dotSignedOut {
+  background: var(--dsw-alias-border-l2);
+}
+
+.attempt {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-l2);
+}
+
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--dsw-alias-text-l1);
+}
+
+.noticeMessage {
+  margin: 0;
+}
+
+.noticeLink {
+  word-break: break-all;
+  color: var(--dsw-alias-text-link);
+}
+
+/* A device code is read off the screen and typed somewhere else, so it is
+   spaced and sized for transcription rather than for density. */
+.noticeCode {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: 0.18em;
+  font-variant-numeric: tabular-nums;
+}
+
+.prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.promptMessage {
+  margin: 0;
+  font-size: 13px;
+  color: var(--dsw-alias-text-l1);
+}
+
+.promptRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.promptOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settled {
+  margin: 0;
+  font-size: 13px;
+  color: var(--dsw-alias-text-l1);
+}

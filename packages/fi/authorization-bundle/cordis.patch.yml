@@ -1,0 +1,48 @@
+# The @fi/authorization-bundle patch: mount the authorization seam.
+#
+# WHY THIS LAYER EXISTS AT ALL
+# `ctx.authorization` (packages/credentials/authorization) is a complete seam
+# upstream, but no upstream bundle mounts it. Plugins that already know how to
+# obtain their own credential — `dsh-llm-pi-ai`'s `registerPiAiFlows`, which
+# registers one flow per installed pi-ai provider that ships a login — call
+# `ctx.authorization.registerFlow` and find nothing there, so their sign-in
+# flows never appear. Mounting the service is the whole of what this layer does.
+#
+# Adding the row here rather than in `packages/bundle/base/cordis.patch.yml`
+# keeps fi's upstream delta additive: the base patch stays byte-identical to
+# upstream, and this layer composes after it. fi profiles list this bundle
+# after `@deepseek-ai/dsh-base`.
+#
+# ORDERING: `AuthorizationService` declares `static inject = ['credentials']`,
+# so it activates only once a credential provider is mounted. The base layer's
+# `credentials` row (`dsh-credentials-local`) is that provider, and this layer
+# applies after base, so the dependency is satisfied by construction. Cordis
+# parks the service until the injection resolves, so the order is enforced by
+# the framework rather than by this row's position.
+#
+# The seam is inert on its own: it registers no flow and obtains no credential.
+# It is a registry that lets a mounted plugin offer one, and a surface start
+# one. Mounting it changes no existing behavior — a composition with no flow
+# registered answers an empty `list()`.
+
+# The Remote owner that lets a browser configuration surface drive the seam,
+# and the browser roster row that renders the sign-in card inside the Models
+# page. Both are inert without the seam above: the controller refuses with an
+# actionable diagnostic, and the card offers nothing because no flow is
+# registered.
+#
+# Every row here is an `insert`: an overlay layer may only disable or
+# configure rows an earlier layer declared, so this layer's own rows are
+# additions by construction. The client row is a `dsh.client` package, so the
+# modules node half scans it into window.__DSH_BOOT__ alongside the upstream
+# browser plugins — which is what makes this layer enough on its own, with no
+# edit to packages/bundle/web-app/cordis.patch.yml.
+- insert:
+    - id: fi-authorization
+      name: '@deepseek-ai/dsh-authorization'
+
+    - id: fi-authorization-controller
+      name: '@fi/api-authorization-controller'
+
+    - id: fi-ui-model-signin
+      name: '@fi/client-ui-model-signin'

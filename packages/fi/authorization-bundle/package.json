@@ -1,0 +1,43 @@
+{
+  "name": "@fi/authorization-bundle",
+  "description": "fi bundle layer mounting the authorization seam (ctx.authorization) over the base composition, so plugin-owned sign-in flows register",
+  "version": "0.1.0-preview.1",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "cordis.patch.yml",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-authorization": "workspace:^",
+    "@fi/api-authorization-controller": "workspace:^",
+    "@fi/client-ui-model-signin": "workspace:^"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-authorization": "workspace:^",
+    "@deepseek-ai/dsh-credentials-local": "workspace:^",
+    "yaml": "^2.6.1"
+  }
+}

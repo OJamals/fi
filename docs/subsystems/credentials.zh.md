@@ -253,6 +253,75 @@ Host service backing the generated `ctx.remote.credentials` namespace. It carrie
 
 Source: [`packages/api/settings-controller/src/credentials.ts`](../../packages/api/settings-controller/src/credentials.ts)
 
+<a id="ctxfiauthorizationcontroller--fiauthorizationcontroller"></a>
+
+### `ctx.fiAuthorizationController` — `FiAuthorizationController`
+
+Host service backing `ctx.remote.authorization`. It carries the wire obligations the seam does not: the key grammar guard, the view projection, the push-to-pull buffer, and the refusal mapping. No secret crosses in either direction — a flow's grant is written by the flow itself, through `ctx.credentials`, and is never handed to the surface.
+
+```ts cordis-catalog
+/**
+ * Every registered flow, for a surface listing what can be signed into.
+ *
+ * `stored` joins the credential seam so a page can render "signed in"
+ * without a second round trip. A composition with no credential provider
+ * reports everything unstored rather than failing: the flows are still
+ * offerable, and attempting one is what surfaces the missing store.
+ * @returns one entry per flow, in registration order.
+ */
+@Remote async list(): Promise<AuthorizationEntryView[]>
+
+/**
+ * Run one attempt and stream its conversation.
+ *
+ * The stream ends with exactly one `settled` frame, failures included: a
+ * surface renders the terminal state from the frame rather than inferring
+ * it from the carrier closing, so a dropped connection and a refused login
+ * never look alike.
+ * @param request - the key to authorize and the method to run.
+ * @param signal - cancellation owned by the Remote stream carrier; the
+ *   surface navigating away withdraws the attempt.
+ * @returns the notices, questions, and settlement of one attempt.
+ */
+@Remote({ mode: 'stream' }) begin(request: { key: string; method?: string }, signal: AbortSignal): AsyncIterable<AuthorizationFrameView>
+
+/**
+ * Answer one question a running attempt asked.
+ * @param key - the attempt's credential key.
+ * @param id - the prompt id the `prompt` frame carried.
+ * @param value - what the human supplied; the empty string means they declined.
+ * @throws RemoteError when no attempt or no such question is waiting.
+ */
+@Remote answer(key: string, id: number, value: string): void
+
+/**
+ * Withdraw the attempt running for a key, if any. Separate from the stream's
+ * own signal because a Cancel button answers on a second call, with no
+ * handle on the first one's carrier.
+ * @param key - the credential record whose attempt should stop.
+ */
+@Remote cancel(key: string): void
+
+/**
+ * Revoke one stored credential record — the sign-in "reset": the grant is
+ * gone, the next request on the route fails its authentication again, and a
+ * fresh `begin` is how the record comes back. Deliberately route-preserving:
+ * the settings route is user configuration, and the Models page already owns
+ * deleting it; tying the two sentences together would make an expired-token
+ * reset rewrite the user's provider configuration as a side effect.
+ *
+ * The verb is `revoke`, not `remove`: the client-side namespace service
+ * owns an instance method named `remove`, and the Remote client refuses a
+ * method whose name collides with its namespace service.
+ * @param key - the credential record to revoke.
+ * @throws RemoteError when an attempt for that key is running, when no
+ *   credential provider is mounted, or when the provider refuses the write.
+ */
+@Remote async revoke(key: string): Promise<void>
+```
+
+Source: [`packages/fi/api-authorization-controller/src/index.ts`](../../packages/fi/api-authorization-controller/src/index.ts)
+
 <a id="authorization-events"></a>
 
 ### `authorization/*` events

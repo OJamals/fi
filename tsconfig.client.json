@@ -108,6 +108,9 @@
     { "path": "./packages/client/ui-settings" },
     { "path": "./packages/client/ui-settings-general" },
     { "path": "./packages/client/ui-settings-models" },
+    // fi delta: the subscription sign-in card, which extends the Models page
+    // through its own provider-card slot. Additive.
+    { "path": "./packages/fi/client-ui-model-signin" },
     { "path": "./packages/client/ui-settings-plugin-inventory" },
     { "path": "./packages/client/locale" },
     { "path": "./packages/client/ui-renderer" },

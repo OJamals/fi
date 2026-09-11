@@ -1,0 +1,110 @@
+/**
+ * Subscription sign-in plugin, browser half. It adds OAuth sign-in to the
+ * Models page for the providers whose value is a subscription the user
+ * already holds — Claude Pro/Max and ChatGPT Plus/Pro — by registering into
+ * the Models section's own `settings.models.provider-card` extension slot.
+ *
+ * The Models section is not modified: the slot exists precisely so a plugin
+ * can add to a provider card from outside, and it is dispatched keyed by the
+ * row's settings namespace, which for every pi-ai route is `llm-pi-ai`.
+ */
+
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
+// Type-only: pulls the Models page's SlotMap merge (the provider-card slot)
+// and its owner-props declaration into this program.
+import type {} from '@deepseek-ai/dsh-client-ui-settings-models/client'
+// Type-only: pulls the locale plugin's Context merge (ctx.locale).
+import type {} from '@deepseek-ai/dsh-client-locale/client'
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
+// Type-only: pulls the ctx.remote merge into this program.
+import type {} from '@deepseek-ai/dsh-api-remotes/client'
+// The generated Remote contribution this plugin mounts for itself, and
+// type-only the ctx.remote namespace augmentation it brings.
+import fiAuthorizationRemote from '@fi/api-authorization-controller/remote'
+import { SignInCard } from './SignInCard.tsx'
+import type { SignInCardInjected } from './SignInCard.tsx'
+import { SignInStore } from './store.ts'
+import { en, zh, type SignInKey } from './locales.ts'
+
+export type { SignInCardInjected, SignInCardProps } from './SignInCard.tsx'
+export type { SignInAttempt, SignInPrompt, SignInRow, SignInState } from './store.ts'
+export type { SignInKey } from './locales.ts'
+export { applyFrame, selectOfferedRows, SignInStore } from './store.ts'
+
+declare module '@deepseek-ai/dsh-client-ui-slots' {
+  interface LocaleNamespaceMap {
+    /** The subscription sign-in card copy. */
+    'fi.settings.model-signin': SignInKey
+  }
+}
+
+/** Dictionary namespace owned by this plugin. */
+const NS = 'fi.settings.model-signin'
+
+/**
+ * The settings namespace whose provider cards this plugin extends. The
+ * Models section dispatches the slot with `entryKey = settingsNs`, and every
+ * route the pi-ai adapter family owns reports this one.
+ */
+const PI_AI_NS = 'llm-pi-ai'
+
+/**
+ * Required services (cordis fiber inject). `remote.authorization` is NOT
+ * listed: the application Remote owner's client side mounts only a curated
+ * namespace list, so this plugin $mounts its own namespace in apply() first
+ * (the same pattern `client-ui-agent-team` uses), and only then registers
+ * anything that reads it. The target slot is declared by the Models page's
+ * own apply, whose activation order relative to this one is NOT constrained;
+ * registration depends on it through `slots.register()`'s own keying.
+ */
+export const inject = ['slots', 'locale', 'remote']
+
+/**
+ * Mount the `authorization` Remote namespace, then register the sign-in card
+ * once the Models page's provider-card slot is on the ledger, and keep its
+ * flow list fresh on credential invalidations.
+ * @param ctx - client root context.
+ * @returns disposal of the mounted namespace; registrations unwind through ctx.effects.
+ */
+export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
+  const disposeRemote = await ctx.remote.$mount(fiAuthorizationRemote)
+  try {
+    ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'fi-model-signin: copy dictionaries')
+
+    const controller = new SignInStore(ctx)
+    const t = ctx.locale.bind(NS) as SignInCardInjected['t']
+    const injected = (): SignInCardInjected => ({
+      controller,
+      hooks: { signIn: controller.store },
+      t,
+    })
+
+    // A grant committed anywhere — this card, a second tab, a CLI login —
+    // moves the stored state these rows render, and the credential seam
+    // announces exactly that. The card's own attempts refresh themselves.
+    ctx.effect(() => {
+      const refresh = (): void => { void controller.load() }
+      const disposers = [
+        ctx.remote.$on('credentials/reference-updated', refresh),
+        ctx.on('connection/reset', refresh),
+      ]
+      return () => {
+        controller.dispose()
+        for (const dispose of disposers) dispose()
+      }
+    }, 'fi-model-signin: pushed invalidations')
+
+    ctx.effect(() => {
+      void controller.load()
+      return ctx.slots.register({
+        name: 'settings.models.provider-card',
+        key: PI_AI_NS,
+        inject: injected,
+      }, SignInCard)
+    }, 'fi-model-signin: provider-card registration')
+  } catch (error) {
+    await disposeRemote()
+    throw error
+  }
+  return disposeRemote
+}
