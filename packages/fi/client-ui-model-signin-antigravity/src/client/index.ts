@@ -42,6 +42,21 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 const NS = 'fi.settings.model-signin-antigravity'
 
 /**
+ * Required services (cordis fiber inject). `remote.authorization` is NOT
+ * listed here: the application Remote owner's client side mounts only a
+ * curated namespace list, and this plugin expects the pi-ai sign-in card
+ * (`@fi/client-ui-model-signin`) to have already mounted it. The two cards
+ * ship in the same bundle, so the namespace is live by the time this
+ * plugin's scoped fiber runs.
+ *
+ * ORDERING: the bundle's patch lists `@fi/client-ui-model-signin` before
+ * `@fi/client-ui-model-signin-antigravity`, so the pi-ai card's `apply()`
+ * runs first and mounts the namespace. This plugin's `ctx.inject` parks
+ * until that happens.
+ */
+export const inject = ['slots', 'locale', 'remote']
+
+/**
  * Mount the `authorization` Remote namespace if it isn't already mounted,
  * then in a fiber scoped on it register the Antigravity footer card and keep
  * its state fresh on credential invalidations.
