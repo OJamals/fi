@@ -29,7 +29,7 @@ dsh Web 客户端的侧边栏让用户识别当前构建、启动新会话、将
 
 ### 品牌与 New Session
 
-展开的品牌行把 `sidebar.brand.mark` 与 `sidebar.brand.name` 渲染为两个独立的 single slot；收起轨道则渲染同一个 mark slot。展开的 mark owner 请求 48px 方形，并让其左边缘与 New Session 边框和 macOS 原生红黄绿按钮对齐；其占位者让构建元数据与同一边缘对齐。收起时的 owner 请求 24px。展开的 mark 接收完整构建元数据：它使用 `DSH_CLIENT_VERSION`、可选的 7 位 `DSH_CLIENT_COMMIT_HASH` 与 `DSH_CLIENT_GIT_DIRTY=true` 组装成 `version[-commit][-dirty]`；缺少版本元数据时不提供该值。没有占位者时，外壳使用鱼形标记，并把该元数据放在本地化的本地构建标签下方。New Session 优先使用作用域操作明确指定的 Workspace，否则使用当前 Session 所属 Workspace，再否则使用最近活跃 Workspace；一个 Workspace 都没有时则清空选择，进入空白 New Session 页面。
+展开的品牌行把 `sidebar.brand.mark` 与 `sidebar.brand.name` 渲染为两个独立的 single slot；收起轨道则渲染同一个 mark slot。展开的 mark owner 请求 44px 方形，并让图稿与构建元数据相对 New Session 边框及 macOS 原生红黄绿按钮坐标向内缩进 4px，以获得视觉对齐。其上下外侧间距均为 12px，图稿与元数据则保持为紧密的一组。收起时的 owner 请求 24px。展开的 mark 接收完整构建元数据：它使用 `DSH_CLIENT_VERSION`、可选的 7 位 `DSH_CLIENT_COMMIT_HASH` 与 `DSH_CLIENT_GIT_DIRTY=true` 组装成 `version[-commit][-dirty]`；缺少版本元数据时不提供该值。没有占位者时，外壳使用鱼形标记，并把该元数据放在本地化的本地构建标签下方。New Session 优先使用作用域操作明确指定的 Workspace，否则使用当前 Session 所属 Workspace，再否则使用最近活跃 Workspace；一个 Workspace 都没有时则清空选择，进入空白 New Session 页面。
 
 ### 全局面板入口
 

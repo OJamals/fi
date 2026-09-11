@@ -65,9 +65,9 @@ describe('SidebarRoot.module.css', () => {
   })
 
   it('keeps the slotted brand row at the full artwork height', () => {
-    expect(declarations('.logoRow')?.get('height')).toBe('68px')
-    expect(declarations('.logoRow')?.get('padding')).toBe('4px 0 4px 2px')
-    expect(declarations('.brandIdentity')?.get('height')).toBe('60px')
+    expect(declarations('.logoRow')?.get('height')).toBe('62px')
+    expect(declarations('.logoRow')?.get('padding')).toBe('4px 0 4px 6px')
+    expect(declarations('.brandIdentity')?.get('height')).toBe('54px')
     expect(declarations('.brandName')?.get('height')).toBe('36px')
     expect(declarations('.brandName')?.get('line-height')).toBe('24px')
     expect(declarations('.brandName')?.get('font-size')).toBe('18px')
