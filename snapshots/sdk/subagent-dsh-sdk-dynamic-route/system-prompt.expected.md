@@ -1,4 +1,4 @@
-You are an AI agent powered by DeepSeek Harness.
+You are an AI agent powered by fi.
 
 You are a coding agent powered by the mock-delegate model.
 
