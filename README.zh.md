@@ -4,6 +4,8 @@
 
 <img src="apps/web/public/fi-logo.png" alt="fi" width="88">
 
+品牌资源包括[默认 fi 标志](apps/desktop/build/fi-logo-source.png)以及用于深色背景的[透明白色版本](apps/desktop/build/fi-logo-dark-background.png)。
+
 fi 是面向 macOS 与 Windows 的 alpha 阶段 coding agent 应用。它将原生桌面壳与插件化 agent 运行时组合在一起。
 
 当前版本：`0.1.0-alpha.1`（`fi alpha 1`）

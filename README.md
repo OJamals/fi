@@ -4,6 +4,8 @@ English | [中文](README.zh.md)
 
 <img src="apps/web/public/fi-logo.png" alt="fi" width="88">
 
+Brand assets include the [default fi logo](apps/desktop/build/fi-logo-source.png) and a [transparent white variant for dark backgrounds](apps/desktop/build/fi-logo-dark-background.png).
+
 fi is an alpha coding agent application for macOS and Windows. It combines a native desktop shell with a plugin-based agent runtime.
 
 Current version: `0.1.0-alpha.1` (`fi alpha 1`)

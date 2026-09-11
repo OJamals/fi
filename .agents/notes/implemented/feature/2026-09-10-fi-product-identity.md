@@ -12,7 +12,7 @@ Official builds exposed several unrelated product identities: desktop packaging 
 
 The official product name is `fi`. The official client build environment supplies that browser title, `dsh-client-ui-brand-official` fills the sidebar and conversation-hero slots with the self-lettered fi artwork, and the Web manifest, favicon, and framework-free boot page use the same artwork. The sidebar shows complete build metadata beneath the artwork and suppresses redundant adjacent fi text. The first-run notice also names fi.
 
-Desktop packaging uses `fi` for the product, executable, application bundle, and artifact filename. Its PNG and ICNS files derive from `apps/desktop/build/fi-logo-source.png`, while the browser consumes the size-appropriate copy at `apps/web/public/fi-logo.png`.
+Desktop packaging uses `fi` for the product, executable, application bundle, and artifact filename. Its PNG and ICNS files derive from `apps/desktop/build/fi-logo-source.png`, while the browser consumes the size-appropriate copy at `apps/web/public/fi-logo.png`. `apps/desktop/build/fi-logo-dark-background.png` is the transparent brand variant for dark surfaces; it preserves the cyan and purple accents and replaces the source artwork's dark fill with white.
 
 On macOS, the main BrowserWindow uses Electron's `hiddenInset` title-bar style and positions native traffic lights in a 20px draggable application row. AppFrame continues the sidebar fill beneath the controls and the main background across the remaining row. The startup document provides the same draggable height before the application renderer loads; auxiliary windows retain standard native chrome.
 

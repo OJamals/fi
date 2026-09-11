@@ -12,7 +12,7 @@ Status: implemented
 
 官方产品名称为 `fi`。官方客户端构建环境提供这一浏览器标题，`dsh-client-ui-brand-official` 用自带 fi 字样的图稿填充侧栏和会话首屏 slot，Web manifest、favicon 与无框架启动页使用同一图稿。侧栏在图稿下方显示完整构建元数据，并抑制重复的相邻 fi 文本。首次运行通知也使用 fi 名称。
 
-桌面打包使用 `fi` 作为产品、可执行文件、应用 bundle 与产物文件名。其 PNG 与 ICNS 文件源自 `apps/desktop/build/fi-logo-source.png`，浏览器则使用 `apps/web/public/fi-logo.png` 中适合其尺寸的副本。
+桌面打包使用 `fi` 作为产品、可执行文件、应用 bundle 与产物文件名。其 PNG 与 ICNS 文件源自 `apps/desktop/build/fi-logo-source.png`，浏览器则使用 `apps/web/public/fi-logo.png` 中适合其尺寸的副本。`apps/desktop/build/fi-logo-dark-background.png` 是用于深色界面的透明品牌版本；它保留青色与紫色强调色，并把源图稿中的深色填充替换为白色。
 
 在 macOS 上，主 BrowserWindow 使用 Electron 的 `hiddenInset` 标题栏样式，并把原生红黄绿按钮放在 20px 可拖动应用行内。AppFrame 让侧边栏填充延伸到这些按钮下方，并让主区背景覆盖该行其余部分。启动文档在应用渲染进程加载前提供相同的可拖动高度；辅助窗口保留标准原生外观。
 

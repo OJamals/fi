@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-10-fi-product-identity.md
-2026-09-10-fi-product-identity.md: 7a5d4cc20b3cbdcac75970aa6b045830105432cd
-2026-09-10-fi-product-identity.zh.md: bd2abd3be850aee7226624553e54d74bd9638875
+2026-09-10-fi-product-identity.md: ff2dc7c29de2546ab449ba27d6ebc6c1839d1c69
+2026-09-10-fi-product-identity.zh.md: 1eb73d588abf5214641cad84c01400607a031cc6
