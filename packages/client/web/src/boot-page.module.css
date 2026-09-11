@@ -37,6 +37,10 @@
   object-fit: contain;
 }
 
+:global(body[data-ds-dark-theme]) .brandMark {
+  content: url('/fi-logo-dark-background.png');
+}
+
 .hint {
   font-size: 12px;
   line-height: 18px;

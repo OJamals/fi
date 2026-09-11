@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from '@testing-library/react'
@@ -6,6 +8,8 @@ import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { apply, inject } from '../src/client/index.ts'
 import { OfficialBrandMark, OfficialBrandName } from '../src/client/Brand.tsx'
 import { apply as hostApply } from '../src/index.ts'
+
+const brandCss = readFileSync(resolve(import.meta.dirname, '../src/client/Brand.module.css'), 'utf8')
 
 afterEach(() => {
   cleanup()
@@ -78,6 +82,7 @@ describe('official browser-brand plugin', () => {
     const mark = render(<OfficialBrandMark size={34} version="0.1.6-alpha.1" />)
     const image = mark.getByRole('presentation')
     expect(image.getAttribute('src')).toContain('/fi-logo.png')
+    expect(image.getAttribute('class')).toBeTruthy()
     expect(image.getAttribute('width')).toBe('34')
     expect(image.getAttribute('height')).toBe('34')
     expect(mark.getByText('0.1.6-alpha.1')).toBeTruthy()
@@ -85,7 +90,13 @@ describe('official browser-brand plugin', () => {
     const resizedImage = mark.getByRole('presentation')
     expect(resizedImage.getAttribute('width')).toBe('24')
     expect(resizedImage.getAttribute('height')).toBe('24')
-    expect(resizedImage.getAttribute('class')).toBe('hero-mark')
+    expect(resizedImage.classList.contains('hero-mark')).toBe(true)
     expect(mark.queryByText('0.1.6-alpha.1')).toBeNull()
+  })
+
+  it('uses the white artwork asset when the shared theme owner marks the body dark', () => {
+    expect(brandCss).toMatch(
+      /:global\(body\[data-ds-dark-theme\]\) \.artwork\s*\{[^}]*content:\s*url\('\/fi-logo-dark-background\.png'\)/s,
+    )
   })
 })

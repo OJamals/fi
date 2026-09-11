@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { BootPage } from '../src/boot-page.ts'
+
+const bootCss = readFileSync(resolve(import.meta.dirname, '../src/boot-page.module.css'), 'utf8')
 
 afterEach(() => { document.body.innerHTML = '' })
 
@@ -19,6 +23,12 @@ describe('BootPage', () => {
     expect(logo?.alt).toBe('fi')
     expect(el.textContent).not.toContain('HARNESS')
     expect(el.textContent).toContain('Loading plugins…')
+  })
+
+  it('uses the white artwork asset while the shared theme owner marks the body dark', () => {
+    expect(bootCss).toMatch(
+      /:global\(body\[data-ds-dark-theme\]\) \.brandMark\s*\{[^}]*content:\s*url\('\/fi-logo-dark-background\.png'\)/s,
+    )
   })
 
   it('keeps loading while entries are active or loading', () => {

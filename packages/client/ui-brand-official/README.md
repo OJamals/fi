@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package gives an `official` client build the self-lettered fi artwork in the sidebar and new-session hero. The sidebar places complete build metadata beneath the artwork without repeating fi as adjacent text. Other build profiles keep the shell's fish mark and local-build label. Choose it for deployments branded as fi; deployments with another identity provide a replacement brand package. It has no runtime state and does not affect model requests.
+This package gives an `official` client build the self-lettered fi artwork in the sidebar and new-session hero. Light mode uses the default artwork; dark mode replaces its dark fill with white while preserving the cyan and purple accents. The sidebar places complete build metadata beneath the artwork without repeating fi as adjacent text. Other build profiles keep the shell's fish mark and local-build label. Choose it for deployments branded as fi; deployments with another identity provide a replacement brand package. It has no runtime state and does not affect model requests.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ Mount this plugin in the browser roster of a deployment branded as fi, then buil
 
 ### Choosing the profile
 
-`DSH_CLIENT_BUILD_PROFILE` selects which brand renders. An `official` build shows the self-lettered fi artwork with build metadata beneath it in the sidebar and the same artwork without metadata in the conversation hero; any other value leaves the shell fallbacks — the fish marks and the local-build label — in place. The plugin still loads and validates in both cases; only the registration is profile-gated.
+`DSH_CLIENT_BUILD_PROFILE` selects which brand renders. An `official` build shows the self-lettered fi artwork with build metadata beneath it in the sidebar and the same artwork without metadata in the conversation hero. Both surfaces follow the shared `body[data-ds-dark-theme]` state: light mode reads `/fi-logo.png`, while dark mode reads `/fi-logo-dark-background.png`. Any other profile leaves the shell fallbacks — the fish marks and the local-build label — in place. The plugin still loads and validates in both cases; only the registration is profile-gated.
 
 ### Replacing the brand
 

@@ -1,3 +1,11 @@
+.artwork {
+  display: block;
+}
+
+:global(body[data-ds-dark-theme]) .artwork {
+  content: url('/fi-logo-dark-background.png');
+}
+
 .markWithVersion {
   display: inline-flex;
   flex-direction: column;
@@ -5,10 +13,6 @@
   justify-content: center;
   gap: 1px;
   white-space: nowrap;
-}
-
-.markWithVersion img {
-  display: block;
 }
 
 .version {

@@ -14,7 +14,7 @@ function div(className: string | undefined, text?: string): HTMLDivElement {
   return el
 }
 
-/** Create an image with one module class and accessible alternate text. */
+/** Create an image whose module class may replace its source for the active theme. */
 function image(className: string | undefined, src: string, alt: string): HTMLImageElement {
   const el = document.createElement('img')
   el.className = className ?? ''
