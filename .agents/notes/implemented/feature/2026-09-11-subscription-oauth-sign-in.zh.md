@@ -37,6 +37,13 @@ Status: implemented
 - **挂载命名空间并不等于获得访问权。** Cordis 会拒绝从未声明它的 fiber 读取 `ctx.remote.authorization`（报 `cannot get property "remote.authorization" without inject`，在客户端启动时以 pageerror 出现，导致插件未挂载、其 UI 缺席）。完整模式是两步：在 `apply()` 中先 `$mount` contribution，再 `ctx.inject(['slots', 'locale', 'remote.authorization'], (scoped) => ...)`，并把全部实际工作放进该作用域 fiber 中（agent-team 的 `mountAgentTeamUi` 形态）。静态 `inject` 条目无法做到——fiber 会在 `apply()` 挂上命名空间之前就一直等待。
 - **注册进子槽位必须等待声明。** children 表中的槽位只在声明它的条目（模型区块）挂载期间存在；兄弟插件若先调用 `ctx.slots.register` 会抛 `slot ... is not declared`。用 `ctx.slots.inject('settings.models.provider-card', () => ctx.slots.register(...))` 包裹注册——这是 packages/extensions/cordis-client-runner/src/client/slot-catalog.ts:70 记录的书面约定，并会在所有者重挂载时重跑。
 
+## 密钥徽标 2026-09-11 — 已调研并明确不实现
+
+早期一轮针对 OAuth 徽标问题的尝试在模型页面派生的 `<ROUTE>_API_KEY` 引用处停放标记值（`oauth-grant:<key>`），使已登录提供方的行不再显示缺少密钥。在将上游点状逻辑读到底之后，该实现于提交前被回滚：可见的行圆点要求**命名了** `apiKeyEnv`（仅对命名引用判定 `credential?.configured === true`），而路由未命名 `apiKeyEnv` 时**完全不显示**密钥圆点——绝不会显示误导性的“缺失”（`credentialMissing` 额外要求 `apiKeyEnv !== undefined`）。因此该标记只会喂给槽位座位的 `keyConfigured` 属性，而登录卡片根本没有读取该属性；同时带来真实隐患：此后若用户或编辑器在路由上写入 `apiKeyEnv: <DERIVED_REF>`，标记会被解析为 Bearer token，使请求时的授权被垃圾串替换。
+
+正确的终点就是上游已经实现的那个：OAuth 行不显示任何 API-key 状态，行内的登录卡片承载事实（“Signed in / Not signed in / Remove sign-in”）。OAuth 确实不使用典型的 API key 或 base URL，页面现在对它们保持沉默而非错误。
+
+
 ## 页脚：为尚无路由的提供方添加
 
 行卡片需要有一张提供方卡片可扩展，而在全新安装中根本不存在任何 pi-ai 路由。模型区块为这一场景保留了第二个槽位 `settings.models.footer`，因此第二个注册把同一个 store 与对话放到了提供方行之下：一条“使用您的订阅登录”区域，以相同的 OAuth 按钮列出 Claude Pro/Max 与 ChatGPT Plus/Pro，通过同一个 `AttemptView` 运行相同的对话，随后链接 Host 的 `adopt(key)`——在 settings 路由缺失时 upsert 该路由，并枚举该路由接着提供的模型。store 中的 `signInAndAdopt(key)` 将 `begin('oauth')` 与采用折叠为一次意图，以尝试自身的 `authorized` 结束为门槛；同一行上的 `revoke` 重新打开该按钮。已存储授权的提供方显示为已订阅而非可采用，因此列表只对真正新的提供方重新出现该按钮，而横幅保留最后一次采用的证据。模型区块自身的 `settings/document-updated` 刷新无需额外接线即可将该新行带入，这正是成功采用为何无需其他 UI 的原因：用户请求的路由落在承载提供方卡片的同一个区块里。

@@ -37,6 +37,25 @@ Two rules this work pinned down, worth keeping close when adding Remote methods:
 - **Mounting a namespace does not grant access to it.** Cordis refuses `ctx.remote.authorization` property reads from any fiber that never declared it (`cannot get property "remote.authorization" without inject` — surfaced as a pageerror at client boot, leaving the plugin unmounted and its UI absent). The full pattern is the two-step: `$mount` the contribution in `apply()`, then `ctx.inject(['slots', 'locale', 'remote.authorization'], (scoped) => ...)` and do ALL real work inside that scoped fiber (the agent-team `mountAgentTeamUi` shape). A static `inject` entry for the namespace cannot work — the fiber would park before `apply()` ever mounts the namespace.
 - **Registering into a child slot must wait for its declaration.** A children-table slot exists only while the declaring entry (the Models section) is mounted; a sibling plugin that calls `ctx.slots.register` first throws `slot ... is not declared`. Wrap registration in `ctx.slots.inject('settings.models.provider-card', () => ctx.slots.register(...))` — the documented contract in packages/extensions/cordis-client-runner/src/client/slot-catalog.ts:70. It re-runs on owner remount.
 
+## The key badge 2026-09-11 — investigated and deliberately NOT built
+
+An early pass at the OAuth badge problem parked a marker value (`oauth-grant:<key>`) at the Models
+page's derived `<ROUTE>_API_KEY` reference so a signed-in provider's row would stop reading as
+missing a key. It was reverted before commit once the upstream dot logic was read to the bottom:
+the visible row dot requires a **named** `apiKeyEnv` (`credential?.configured === true` on the
+named ref only), and a route with no `apiKeyEnv` shows **no key dot at all** — never a misleading
+"missing" one (`credentialMissing` additionally requires `apiKeyEnv !== undefined`). The marker
+therefore fed only the slot-seat `keyConfigured` prop, which the sign-in card does not even read,
+while creating a genuine hazard: a user or editor that later writes `apiKeyEnv:
+<DERIVED_REF>` on the route would resolve the marker as the Bearer token, replacing the grant
+with garbage at request time.
+
+The correct endpoint is the one upstream already implements: OAuth rows show no API-key state,
+and the sign-in card inside the row carries the truth ("Signed in" / "Not signed in" /
+"Remove sign-in"). OAuth genuinely does not use typical API keys or base URLs, and the page is
+now silent about them rather than wrong.
+
+
 ## The footer: add a provider with no route yet
 
 The row card needs a provider card to extend, and on a fresh install no pi-ai route exists at all. The Models section reserves a second slot, `settings.models.footer`, for exactly that gap, so a second registration lands the same store and conversation below the provider rows: a one-line "Sign in with your subscription" area that lists Claude Pro/Max and ChatGPT Plus/Pro with the same OAuth buttons, runs the same conversation through the same `AttemptView`, and then chains the Host's `adopt(key)` — upserting the settings route and enumerating the models the route now serves. The store's `signInAndAdopt(key)` folds `begin('oauth')` and the adopt into one intent, gated on the attempt's own `authorized` settlement; `revoke` on the same row re-opens the button. A stored-grant provider reads as subscribed, not adoptable, so the list re-offers only genuinely new providers and the banner keeps the last adoption's evidence. The Models section's own `settings/document-updated` refresh brings the new row in without extra wiring, which is why a successful adoption needs no further UI: the route the user asked for lands in the same section the provider-card rows render.
