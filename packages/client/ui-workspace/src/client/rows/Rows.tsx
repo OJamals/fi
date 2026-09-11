@@ -3,7 +3,8 @@
  * all data and callbacks arrive via props. Hover swaps (folder->chevron,
  * time->ellipsis, action buttons) are CSS-only. Row ... menus are visual-only
  * except workspace Rename/Delete and session Rename/Fork/Archive; the session
- * and workspace hover cards are suppressed while a menu is open.
+ * and workspace hover cards are suppressed while a menu is open. Right-click
+ * opens the same row menu at the pointer wherever the ... button would.
  */
 import { useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
@@ -126,6 +127,13 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
   const label = row.workspaceId === undefined ? t('group.ungrouped') : row.label
   const active = group.expanded && group.containsCurrent
   const [menuOpen, setMenuOpen] = useState(false)
+  // Right-click opens the same menu at the pointer: the point lives until the
+  // menu closes, so the ... button keeps its measured-anchor placement.
+  const contextPoint = useRef<{ x: number; y: number } | null>(null)
+  const closeMenu = (): void => {
+    contextPoint.current = null
+    setMenuOpen(false)
+  }
   const workspaceMenuItems = [
     { id: 'rename', label: t('rename'), icon: <IconEditOutline16 /> },
     { id: 'delete', label: t('delete.workspace'), icon: <IconTrashOutline16 />, danger: true },
@@ -136,6 +144,11 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
       role="treeitem"
       aria-expanded={row.expanded}
       onClick={onToggle}
+      onContextMenu={actions === undefined ? undefined : (e) => {
+        e.preventDefault()
+        contextPoint.current = { x: e.clientX, y: e.clientY }
+        setMenuOpen(true)
+      }}
       draggable={drag !== undefined}
       onDragStart={drag === undefined
         ? undefined
@@ -159,10 +172,10 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
         {actions !== undefined && (
           <Menu
             open={menuOpen}
-            onClose={() => { setMenuOpen(false) }}
+            onClose={closeMenu}
             items={workspaceMenuItems}
             onSelect={(id) => {
-              setMenuOpen(false)
+              closeMenu()
               // Unknown ids leave before the dispatch: a future menu row must
               // not inherit the destructive branch as an else fallback.
               /* v8 ignore next -- Menu can emit only the rename and delete rows supplied above. */
@@ -172,12 +185,18 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
             }}
             portal
             closeOnPointerLeave
+            {...contextPoint.current === null ? {} : {
+              getAnchorRect: () => {
+                const point = contextPoint.current
+                return point === null ? null : new DOMRect(point.x, point.y, 0, 0)
+              },
+            }}
             anchor={(
               <button
                 type="button"
                 className={css.iconButton}
                 aria-label={t('actions.workspace.aria', { name: label })}
-                onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v) }}
+                onClick={(e) => { e.stopPropagation(); contextPoint.current = null; setMenuOpen(v => !v) }}
               >
                 <IconEllipsisOutline16 />
               </button>
@@ -404,6 +423,13 @@ export function SessionNodeItem({
   const primaryStatus = statuses[0]
   const showStatus = primaryStatus.state !== 'done' || row.completed
   const [menuOpen, setMenuOpen] = useState(false)
+  // Right-click opens the same menu at the pointer: the point lives until the
+  // menu closes, so the ... button keeps its measured-anchor placement.
+  const contextPoint = useRef<{ x: number; y: number } | null>(null)
+  const closeMenu = (): void => {
+    contextPoint.current = null
+    setMenuOpen(false)
+  }
   const rowRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (onReveal === undefined) return
@@ -431,6 +457,11 @@ export function SessionNodeItem({
       role="treeitem"
       aria-selected={selected}
       onClick={() => { onOpen(node.id) }}
+      onContextMenu={row.blank ? undefined : (e) => {
+        e.preventDefault()
+        contextPoint.current = { x: e.clientX, y: e.clientY }
+        setMenuOpen(true)
+      }}
       draggable={drag !== undefined}
       onDragStart={drag === undefined
         ? undefined
@@ -475,22 +506,28 @@ export function SessionNodeItem({
         <span className={css.rowActions}>
           <Menu
             open={menuOpen}
-            onClose={() => { setMenuOpen(false) }}
+            onClose={closeMenu}
             items={sessionMenuItems}
             onSelect={(id) => {
-              setMenuOpen(false)
+              closeMenu()
               if (id === 'rename') onRename(node.id, row.title)
               if (id === 'fork') onFork(node.id)
               if (id === 'archive') onArchive(node.id)
             }}
             portal
             closeOnPointerLeave
+            {...contextPoint.current === null ? {} : {
+              getAnchorRect: () => {
+                const point = contextPoint.current
+                return point === null ? null : new DOMRect(point.x, point.y, 0, 0)
+              },
+            }}
             anchor={(
               <button
                 type="button"
                 className={css.iconButton}
                 aria-label={t('actions.session.aria', { name: title })}
-                onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v) }}
+                onClick={(e) => { e.stopPropagation(); contextPoint.current = null; setMenuOpen(v => !v) }}
               >
                 <IconEllipsisOutline16 />
               </button>
