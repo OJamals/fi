@@ -18,9 +18,6 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 // Type-only: pulls the ctx.remote merge into this program.
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
-// The generated Remote contribution this plugin mounts for itself, and
-// type-only the ctx.remote namespace augmentation it brings.
-import fiAuthorizationRemote from '@fi/api-authorization-controller/remote'
 import { SignInFooter } from './SignInFooter.tsx'
 import type { SignInFooterInjected } from './SignInFooter.tsx'
 import { SignInStore } from './store.ts'
@@ -44,26 +41,21 @@ const NS = 'fi.settings.model-signin-antigravity'
 /**
  * Required services (cordis fiber inject). `remote.authorization` is NOT
  * listed here: the application Remote owner's client side mounts only a
- * curated namespace list, so this plugin must mount its own namespace
- * itself. It does so in `apply()` and then enters a scoped fiber that lists
- * the namespace in its inject — the same two-step the pi-ai sign-in card
- * uses, because Cordis refuses `ctx.remote.authorization` property access
- * from any fiber that never declared it.
+ * curated namespace list, and this plugin expects the pi-ai sign-in card
+ * (`@fi/client-ui-model-signin`) to have already mounted it. The two cards
+ * ship in the same bundle, so the namespace is live by the time this
+ * plugin's scoped fiber runs.
  */
 export const inject = ['slots', 'locale', 'remote']
 
 /**
- * Mount the `authorization` Remote namespace, then in a fiber scoped on it
- * register the Antigravity footer card and keep its state fresh on credential
- * invalidations.
+ * Enter a fiber scoped on `remote.authorization` and register the
+ * Antigravity footer card. The namespace is already mounted by the pi-ai
+ * card in the same bundle; this plugin does not mount it again.
  * @param ctx - client root context.
- * @returns disposal of the scoped fiber and the mounted namespace.
+ * @returns disposal of the scoped fiber.
  */
 export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
-  // $mount installs the namespace service synchronously as part of its
-  // group before resolving, so the scoped fiber below starts with
-  // `remote.authorization` already live rather than parking.
-  const disposeRemote = await ctx.remote.$mount(fiAuthorizationRemote)
   const scoped = ctx.inject(['slots', 'locale', 'remote.authorization'], (ctx) => {
     ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'fi-model-signin-antigravity: copy dictionaries')
 
@@ -105,11 +97,9 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
     await scoped
   } catch (error) {
     await scoped.dispose()
-    await disposeRemote()
     throw error
   }
   return async (): Promise<void> => {
     await scoped.dispose()
-    await disposeRemote()
   }
 }
