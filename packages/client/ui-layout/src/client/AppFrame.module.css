@@ -11,7 +11,7 @@
 }
 
 .frame[data-desktop-frame] {
-  grid-template-rows: 20px minmax(0, 1fr);
+  grid-template-rows: 32px minmax(0, 1fr);
 }
 
 /* Dragging writes widths at pointer cadence; easing them would detach the
@@ -94,7 +94,7 @@
 }
 
 .frame[data-desktop-frame] .handle {
-  top: 20px;
+  top: 32px;
 }
 
 .frame[data-dragging] .handle {

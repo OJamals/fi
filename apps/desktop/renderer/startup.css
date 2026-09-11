@@ -1,5 +1,5 @@
 :root { color-scheme: light dark; font-family: system-ui, sans-serif; color: #202124; background: #fafafa; }
-body { margin: 0; min-height: 100vh; display: grid; grid-template-rows: 20px minmax(0, 1fr); }
+body { margin: 0; min-height: 100vh; display: grid; grid-template-rows: 32px minmax(0, 1fr); }
 #titlebar { width: 100%; app-region: drag; user-select: none; }
 main { place-self: center; width: min(560px, calc(100vw - 64px)); padding: 40px 0; text-align: center; }
 h1 { margin: 24px 0 12px; font-size: 22px; font-weight: 600; }

@@ -98,5 +98,6 @@ describe('official browser-brand plugin', () => {
     expect(brandCss).toMatch(
       /:global\(body\[data-ds-dark-theme\]\) \.artwork\s*\{[^}]*content:\s*url\('\/fi-logo-dark-background\.png'\)/s,
     )
+    expect(brandCss).toMatch(/\.markWithVersion\s*\{[^}]*align-items:\s*flex-start;/s)
   })
 })

@@ -8,6 +8,8 @@ import type { DshDesktopStartupApi } from '../src/ipc.ts'
 import { resolveDesktopLocale } from '../src/locale.ts'
 import { startupFailureDocument } from '../src/startup-document.ts'
 
+const startupCss = readFileSync(new URL('../renderer/startup.css', import.meta.url), 'utf8')
+
 function startup(locale = 'en', status: Promise<DesktopBackendState> = Promise.resolve({ phase: 'starting' })) {
   const dom = new JSDOM(readFileSync(new URL('../renderer/startup.html', import.meta.url), 'utf8'), { runScripts: 'outside-only' })
   onTestFinished(() => {
@@ -84,6 +86,10 @@ it('shows English loading and recovery actions without a Host document', async (
   expect(page.element('#actions').hidden).toBe(true)
   expect(page.element('#error').textContent).toBe('')
   expect(page.element('main').getAttribute('aria-busy')).toBe('true')
+})
+
+it('reserves the full native-control drag row while loading', () => {
+  expect(startupCss).toMatch(/grid-template-rows:\s*32px minmax\(0, 1fr\)/)
 })
 
 it('shows Chinese loading and recovery copy', async () => {

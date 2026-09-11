@@ -103,7 +103,7 @@ function createWindow(preload: string, options: DesktopWindowOptions = {}): Brow
     minHeight: 600,
     show,
     ...(integratedTitlebar
-      ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 14, y: 4 } }
+      ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 14, y: 16 } }
       : {}),
     webPreferences: {
       preload,

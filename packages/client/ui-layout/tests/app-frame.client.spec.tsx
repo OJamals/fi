@@ -2,6 +2,8 @@
 /** Frame interactions with a real store and explicitly driven browser measurements. */
 import type { GlobalStandardProps, RenderOpts } from '@deepseek-ai/dsh-client-ui-slots'
 import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, render } from '@testing-library/react'
 import { AppFrame } from '../src/client/AppFrame.tsx'
@@ -10,6 +12,8 @@ import type { MainPanelId, RightbarOwnerProps, SidebarOwnerProps } from '../src/
 import { createLayoutStore } from '../src/client/stores.ts'
 import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+
+const frameCss = readFileSync(resolve(import.meta.dirname, '../src/client/AppFrame.module.css'), 'utf8')
 
 const useResource = (() => ({ status: 'none' as const, value: undefined, failure: undefined })) as GlobalStandardProps['useResource']
 let selectedSession: SessionId | undefined
@@ -193,6 +197,8 @@ describe('AppFrame', () => {
     expect(frame.getAttribute('data-desktop-frame')).toBe('true')
     expect(frame.querySelector('[data-desktop-titlebar="sidebar"]')).not.toBeNull()
     expect(frame.querySelector('[data-desktop-titlebar="main"]')).not.toBeNull()
+    expect(frameCss).toMatch(/grid-template-rows:\s*32px minmax\(0, 1fr\)/)
+    expect(frameCss).toMatch(/\.frame\[data-desktop-frame\] \.handle\s*\{[^}]*top:\s*32px;/s)
   })
 
   it('omits the desktop drag strip in the browser client', () => {

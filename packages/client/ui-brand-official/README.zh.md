@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 选择 profile
 
-`DSH_CLIENT_BUILD_PROFILE` 决定渲染哪个品牌。`official` 构建在侧栏显示自带 fi 字样的图稿，并把构建元数据放在图稿下方；会话首屏显示不带元数据的同一图稿。两个界面都跟随共享的 `body[data-ds-dark-theme]` 状态：浅色模式读取 `/fi-logo.png`，深色模式读取 `/fi-logo-dark-background.png`。任何其他 profile 都让外壳回退——鱼形标志与本地构建标签——保持原样。两种情况下插件都会照常加载并通过校验；只有注册受 profile 门控。
+`DSH_CLIENT_BUILD_PROFILE` 决定渲染哪个品牌。`official` 构建按侧栏请求的 48px 方形显示自带 fi 字样的图稿，并把构建元数据放在图稿下方；会话首屏显示不带元数据的同一图稿。图稿与元数据徽标共用侧栏的左侧锚点；徽标保持白底黑字。两个界面都跟随共享的 `body[data-ds-dark-theme]` 状态：浅色模式读取 `/fi-logo.png`，深色模式读取比例匹配且透明的 `/fi-logo-dark-background.png`。任何其他 profile 都让外壳回退——鱼形标志与本地构建标签——保持原样。两种情况下插件都会照常加载并通过校验；只有注册受 profile 门控。
 
 ### 替换品牌
 

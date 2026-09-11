@@ -162,7 +162,7 @@ describe('desktop main startup', () => {
     expect(options.show).toBe(true)
     if (process.platform === 'darwin') {
       expect(options.titleBarStyle).toBe('hiddenInset')
-      expect(options.trafficLightPosition).toEqual({ x: 14, y: 4 })
+      expect(options.trafficLightPosition).toEqual({ x: 14, y: 16 })
     } else {
       expect(options).not.toHaveProperty('titleBarStyle')
       expect(options).not.toHaveProperty('trafficLightPosition')
