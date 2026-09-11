@@ -8,7 +8,7 @@
 
 fi 是面向 macOS 与 Windows 的预发布 coding agent 应用。它将原生桌面壳与插件化 agent 运行时组合在一起。
 
-当前 release：`fi Preview 02`（package 版本 `0.1.0-preview.2`）
+当前 release：`fi Preview 03`（package 版本 `0.1.0-preview.3`）
 
 首个公开 release 提供面向 Apple 芯片 Mac 的签名并公证 macOS 构建。
 
