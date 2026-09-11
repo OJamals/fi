@@ -34,6 +34,8 @@ Status: implemented
 
 - **方法名与命名空间服务是线上保留关系。** 客户端 `RemoteNamespaceService`（packages/api/gateway/src/client/index.ts）拥有名为 `remove` 的实例方法（用于卸载方法）。Remote 客户端会拒绝任何与命名空间服务自身 API 冲突的命名空间方法（`assertMethodAvailable`），对任何命名空间都如此。这是线上保留名规则，不是构建过期问题——重新构建永远无法解决它。原动词为 `remove`，线上动词改为 `revoke`（`authorization.revoke(key)`）。客户端 store 保留其公开名 `remove(key)` 作为 UI 动作，但线上调用为 `remote.authorization.revoke(key)`。
 - **浏览器插件必须自行 `$mount` 其 Remote contribution。** 应用级 api-remotes 客户端目录只挂载其精选的命名空间列表；没有任何组件为浏览器插件安装 `remote.authorization`。遵循 `client-ui-agent-team` 模式——在 `apply()` 中先 `ctx.remote.$mount(fiAuthorizationRemote)`，返回其 disposer，然后注册槽位。`inject` 仅列出 `['slots', 'locale', 'remote']`。
+- **挂载命名空间并不等于获得访问权。** Cordis 会拒绝从未声明它的 fiber 读取 `ctx.remote.authorization`（报 `cannot get property "remote.authorization" without inject`，在客户端启动时以 pageerror 出现，导致插件未挂载、其 UI 缺席）。完整模式是两步：在 `apply()` 中先 `$mount` contribution，再 `ctx.inject(['slots', 'locale', 'remote.authorization'], (scoped) => ...)`，并把全部实际工作放进该作用域 fiber 中（agent-team 的 `mountAgentTeamUi` 形态）。静态 `inject` 条目无法做到——fiber 会在 `apply()` 挂上命名空间之前就一直等待。
+- **注册进子槽位必须等待声明。** children 表中的槽位只在声明它的条目（模型区块）挂载期间存在；兄弟插件若先调用 `ctx.slots.register` 会抛 `slot ... is not declared`。用 `ctx.slots.inject('settings.models.provider-card', () => ctx.slots.register(...))` 包裹注册——这是 packages/extensions/cordis-client-runner/src/client/slot-catalog.ts:70 记录的书面约定，并会在所有者重挂载时重跑。
 
 ## Consequences
 

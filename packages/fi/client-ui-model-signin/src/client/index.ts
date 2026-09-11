@@ -50,25 +50,28 @@ const PI_AI_NS = 'llm-pi-ai'
 
 /**
  * Required services (cordis fiber inject). `remote.authorization` is NOT
- * listed: the application Remote owner's client side mounts only a curated
- * namespace list, so this plugin $mounts its own namespace in apply() first
- * (the same pattern `client-ui-agent-team` uses), and only then registers
- * anything that reads it. The target slot is declared by the Models page's
- * own apply, whose activation order relative to this one is NOT constrained;
- * registration depends on it through `slots.register()`'s own keying.
+ * listed here: the application Remote owner's client side mounts only a
+ * curated namespace list, so this plugin must mount its own namespace
+ * itself. It does so in `apply()` and then enters a scoped fiber that lists
+ * the namespace in its inject — the same two-step `client-ui-agent-team`
+ * uses, because Cordis refuses `ctx.remote.authorization` property access
+ * from any fiber that never declared it.
  */
 export const inject = ['slots', 'locale', 'remote']
 
 /**
- * Mount the `authorization` Remote namespace, then register the sign-in card
- * once the Models page's provider-card slot is on the ledger, and keep its
- * flow list fresh on credential invalidations.
+ * Mount the `authorization` Remote namespace, then in a fiber scoped on it
+ * register the sign-in card and keep its flow list fresh on credential
+ * invalidations.
  * @param ctx - client root context.
- * @returns disposal of the mounted namespace; registrations unwind through ctx.effects.
+ * @returns disposal of the scoped fiber and the mounted namespace.
  */
 export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
+  // $mount installs the namespace service synchronously as part of its
+  // group before resolving, so the scoped fiber below starts with
+  // `remote.authorization` already live rather than parking.
   const disposeRemote = await ctx.remote.$mount(fiAuthorizationRemote)
-  try {
+  const scoped = ctx.inject(['slots', 'locale', 'remote.authorization'], (ctx) => {
     ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'fi-model-signin: copy dictionaries')
 
     const controller = new SignInStore(ctx)
@@ -94,17 +97,27 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
       }
     }, 'fi-model-signin: pushed invalidations')
 
-    ctx.effect(() => {
-      void controller.load()
-      return ctx.slots.register({
-        name: 'settings.models.provider-card',
-        key: PI_AI_NS,
-        inject: injected,
-      }, SignInCard)
-    }, 'fi-model-signin: provider-card registration')
+    // The Models section declares this child slot in its own registration.
+    // Registration order is unconstrained, and registering into an
+    // undeclared slot throws, so the registration waits for the declaration
+    // through slots.inject() — the same contract the Models page's own apply
+    // uses for its parent slots. It re-runs if the owner remounts.
+    void controller.load()
+    ctx.slots.inject('settings.models.provider-card', () => ctx.slots.register({
+      name: 'settings.models.provider-card',
+      key: PI_AI_NS,
+      inject: injected,
+    }, SignInCard))
+  })
+  try {
+    await scoped
   } catch (error) {
+    await scoped.dispose()
     await disposeRemote()
     throw error
   }
-  return disposeRemote
+  return async (): Promise<void> => {
+    await scoped.dispose()
+    await disposeRemote()
+  }
 }
