@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-10-english-first-locale-order.md
+2026-09-10-english-first-locale-order.md: b15d8b03fc1eeb37686ff7f72896466456339cbf
+2026-09-10-english-first-locale-order.zh.md: 9594295fee7eab94fca710c2a8b2ae0cc1b2d727
