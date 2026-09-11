@@ -113,12 +113,12 @@ describe('SidebarRoot shell', () => {
     expect(b.toggleSidebar).toHaveBeenCalledOnce()
   })
 
-  it('hands complete build metadata to the expanded brand mark', () => {
+  it('requests the expanded brand-mark geometry without build metadata', () => {
     vi.stubEnv('DSH_CLIENT_COMMIT_HASH', '0123456')
     vi.stubEnv('DSH_CLIENT_GIT_DIRTY', 'true')
     vi.stubEnv('DSH_CLIENT_VERSION', '0.1.6-alpha.1')
     const b = mountShell()
-    expect(b.brandMarkOwner()).toEqual({ size: 44, version: '0.1.6-alpha.1-0123456-dirty' })
+    expect(b.brandMarkOwner()).toEqual({ size: 40 })
   })
 
   it('renders generic brand fallbacks when no package fills the slots', () => {

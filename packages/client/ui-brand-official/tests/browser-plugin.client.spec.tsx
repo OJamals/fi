@@ -74,30 +74,27 @@ describe('official browser-brand plugin', () => {
     for (const hole of HOLES) expect(after.slots.entries(hole)).toHaveLength(1)
   })
 
-  it('uses only the self-lettered mark and renders build metadata beneath it', () => {
+  it('uses only the self-lettered mark', () => {
     const name = render(<OfficialBrandName />)
     expect(name.container.childElementCount).toBe(0)
     name.unmount()
 
-    const mark = render(<OfficialBrandMark size={34} version="0.1.6-alpha.1" />)
+    const mark = render(<OfficialBrandMark size={34} />)
     const image = mark.getByRole('presentation')
     expect(image.getAttribute('src')).toContain('/fi-logo.png')
     expect(image.getAttribute('class')).toBeTruthy()
     expect(image.getAttribute('width')).toBe('34')
     expect(image.getAttribute('height')).toBe('34')
-    expect(mark.getByText('0.1.6-alpha.1')).toBeTruthy()
     mark.rerender(<OfficialBrandMark size={24} className="hero-mark" />)
     const resizedImage = mark.getByRole('presentation')
     expect(resizedImage.getAttribute('width')).toBe('24')
     expect(resizedImage.getAttribute('height')).toBe('24')
     expect(resizedImage.classList.contains('hero-mark')).toBe(true)
-    expect(mark.queryByText('0.1.6-alpha.1')).toBeNull()
   })
 
   it('uses the white artwork asset when the shared theme owner marks the body dark', () => {
     expect(brandCss).toMatch(
       /:global\(body\[data-ds-dark-theme\]\) \.artwork\s*\{[^}]*content:\s*url\('\/fi-logo-dark-background\.png'\)/s,
     )
-    expect(brandCss).toMatch(/\.markWithVersion\s*\{[^}]*align-items:\s*flex-start;[^}]*gap:\s*0;/s)
   })
 })

@@ -86,16 +86,16 @@
 }
 
 /* The expanded logo uses a 4px optical inset from the native traffic lights
-   and New Session border. The 12px vertical clearances around its linked
-   artwork-and-badge stack match. The rail keeps one base left anchor before
-   the shared entry translation is applied. */
+   and New Session border. Equal 4px block padding plus the trailing 8px margin
+   leaves 12px between the mark and each neighboring control group. The rail
+   keeps one base left anchor before the shared entry translation is applied. */
 .logoRow {
   flex: none;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  height: 62px;
+  height: 48px;
   padding: 4px 0 4px 6px;
   margin-bottom: 8px;
   box-sizing: border-box;
@@ -132,7 +132,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 54px;
+  height: 40px;
   min-width: 0;
 }
 

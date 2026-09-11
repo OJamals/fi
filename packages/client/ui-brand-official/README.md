@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package gives an `official` client build the self-lettered fi artwork in the sidebar and new-session hero. Light mode uses the default artwork; dark mode replaces its dark fill with white while preserving the cyan and purple accents. The sidebar places complete build metadata beneath the artwork without repeating fi as adjacent text. Other build profiles keep the shell's fish mark and local-build label. Choose it for deployments branded as fi; deployments with another identity provide a replacement brand package. It has no runtime state and does not affect model requests.
+This package gives an `official` client build the self-lettered fi artwork in the sidebar and new-session hero. Light mode uses the default artwork; dark mode replaces its dark fill with white while preserving the cyan and purple accents. The sidebar renders the artwork alone, without adjacent fi text or a build-version badge. Other build profiles keep the shell's fish mark and local-build label. Choose it for deployments branded as fi; deployments with another identity provide a replacement brand package. It has no runtime state and does not affect model requests.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ Mount this plugin in the browser roster of a deployment branded as fi, then buil
 
 ### Choosing the profile
 
-`DSH_CLIENT_BUILD_PROFILE` selects which brand renders. An `official` build shows the self-lettered fi artwork at the sidebar's requested 44px square with build metadata directly beneath it and the same artwork without metadata in the conversation hero. The artwork and metadata badge share the sidebar's optical left inset with no layout gap between them; the badge retains its white fill and black text. Both surfaces follow the shared `body[data-ds-dark-theme]` state: light mode reads `/fi-logo.png`, while dark mode reads the scale-matched transparent `/fi-logo-dark-background.png`. Any other profile leaves the shell fallbacks — the fish marks and the local-build label — in place. The plugin still loads and validates in both cases; only the registration is profile-gated.
+`DSH_CLIENT_BUILD_PROFILE` selects which brand renders. An `official` build shows the self-lettered fi artwork alone at the sidebar's requested 40px square and shows the same artwork in the conversation hero. Both surfaces follow the shared `body[data-ds-dark-theme]` state: light mode reads `/fi-logo.png`, while dark mode reads the scale-matched transparent `/fi-logo-dark-background.png`. Any other profile leaves the shell fallbacks — the fish marks and the local-build label — in place. The plugin still loads and validates in both cases; only the registration is profile-gated.
 
 ### Replacing the brand
 
@@ -43,7 +43,7 @@ A deployment with its own identity leaves this package out and composes another 
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The three occupants install as one declaration-aware registration set: nested `ctx.slots.inject()` calls wait on the sidebar and conversation-hero declarations, so the set works whether this row activates before or after the declarers, withdraws every occupant when a declaration collapses, and leaves no partial brand mix during HMR. The sidebar name occupant intentionally renders nothing, which suppresses the generic adjacent label because the artwork already spells fi. The sidebar mark receives build metadata from its owner and renders it beneath the image. The browser half is [`src/client/index.ts`](src/client/index.ts); the node half is an empty Loader seat. The browser title is a build-environment concern (`DSH_CLIENT_TITLE`), outside the slot system.
+The three occupants install as one declaration-aware registration set: nested `ctx.slots.inject()` calls wait on the sidebar and conversation-hero declarations, so the set works whether this row activates before or after the declarers, withdraws every occupant when a declaration collapses, and leaves no partial brand mix during HMR. The sidebar name occupant intentionally renders nothing, which suppresses the generic adjacent label because the artwork already spells fi. The browser half is [`src/client/index.ts`](src/client/index.ts); the node half is an empty Loader seat. The browser title is a build-environment concern (`DSH_CLIENT_TITLE`), outside the slot system.
 
 </details>
 

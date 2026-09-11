@@ -10,11 +10,11 @@ Status: implemented
 
 ## 决策
 
-官方产品名称为 `fi`。官方客户端构建环境提供这一浏览器标题，`dsh-client-ui-brand-official` 用自带 fi 字样的图稿填充侧栏和会话首屏 slot，Web manifest、favicon 与无框架启动页使用同一图稿。侧栏在图稿下方显示完整构建元数据，并抑制重复的相邻 fi 文本。首次运行通知也使用 fi 名称。
+官方产品名称为 `fi`。官方客户端构建环境提供这一浏览器标题，`dsh-client-ui-brand-official` 用自带 fi 字样的图稿填充侧栏和会话首屏 slot，Web manifest、favicon 与无框架启动页使用同一图稿。侧栏只渲染图稿，不显示相邻 fi 文本或构建版本徽标。首次运行通知也使用 fi 名称。
 
 桌面打包使用 `fi` 作为产品、可执行文件、应用 bundle 与产物文件名。其 PNG 与 ICNS 文件源自 `apps/desktop/build/fi-logo-source.png`，浏览器则使用 `apps/web/public/fi-logo.png` 中适合其尺寸的副本。`apps/desktop/build/fi-logo-dark-background.png` 是用于深色界面的透明品牌版本；它保留青色与紫色强调色，并把源图稿中的深色填充替换为白色。浏览器使用 `apps/web/public/fi-logo-dark-background.png` 中适合其尺寸的副本；当共享主题所有者启用深色模式时，无框架启动页、会话首屏、侧栏与深色浏览器外观都会用它替换默认图稿。安装图标与操作系统应用图标继续使用默认图稿，因为它们不跟随运行中应用的主题。
 
-在 macOS 上，主 BrowserWindow 使用 Electron 的 `hiddenInset` 标题栏样式，并把原生红黄绿按钮放在 32px 可拖动应用行内，距顶部 16px。AppFrame 让侧边栏填充延伸到这些按钮下方，并让主区背景覆盖该行其余部分。启动文档在应用渲染进程加载前提供相同的可拖动高度；辅助窗口保留标准原生外观。展开的侧栏请求 44px 品牌标记，并把相连的图稿与元数据组放在距窗口左侧 18px 的坐标，相对原生红黄绿按钮及 New Session 边框形成 4px 视觉缩进。原生红黄绿按钮下方的 12px 间距与元数据徽标和 New Session 控件之间的间距相同；图稿与徽标之间没有布局间距。收起轨道保留 24px 标记。
+在 macOS 上，主 BrowserWindow 使用 Electron 的 `hiddenInset` 标题栏样式，并把原生红黄绿按钮放在 32px 可拖动应用行内，距顶部 16px。AppFrame 让侧边栏填充延伸到这些按钮下方，并让主区背景覆盖该行其余部分。启动文档在应用渲染进程加载前提供相同的可拖动高度；辅助窗口保留标准原生外观。展开的侧栏把 40px 品牌标记放在距窗口左侧 18px 的坐标，相对原生红黄绿按钮及 New Session 边框形成 4px 视觉缩进。标记上下方均保留 4px 内边距，再加上末尾 8px 外边距，使标记与上下相邻控件组均保持 12px 间距。收起轨道保留 24px 标记。
 
 桌面应用 ID 是源码拥有的 `com.fi.app`，发布环境无法替换它。打包后的应用元数据使用 `fi` 作为 package 名称，也由此拥有 electron-builder 的 `fi-updater` 缓存目录。生产包写入 electron-builder 的 GitHub provider，并由源码明确固定仓库 `OJamals/fi`。已发布的 GitHub release 是官方更新来源；preview 安装跟随已发布的 preview prerelease，稳定安装跟随已发布的稳定 release，草稿则不可见。测试包保留独立的通用 HTTPS 更新流与 COS 上传路径。macOS 发布流水线先让 electron-builder 生成已签名目录，同时禁用自动发布；这种组合会跳过 electron-builder 的标准 updater 配置写入器。因此 Desktop `afterPack` 钩子会在签名前把已解析的 provider、根据版本得出的频道以及 builder 拥有的缓存目录写入 `Contents/Resources/app-update.yml`；写入失败会使打包失败。fi 预发布版本依次使用公开标签 `fi Preview 01`、`fi Preview 02` 等，并对应 package 版本 `0.1.0-preview.1`、`0.1.0-preview.2` 等。首个公开 fi 预发布版本使用 release 标题 `fi Preview 01` 与 electron-builder 的 `preview` 更新频道。它仅发布已签名并公证的 macOS arm64 产物，更新元数据也只引用该架构。
 
