@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/fi/llm-antigravity/README.md
-README.md: ae4bcefefec8feded880c28a02b507151354a6d3
-README.zh.md: 8b3ad1050870090c57cbd3a01d82ee498fed9d7a
+README.md: aee87444ff28ffebca92247929542d71d2392cbc
+README.zh.md: 81131c583e7aba554259fc14d63ff4fae5fddd5f

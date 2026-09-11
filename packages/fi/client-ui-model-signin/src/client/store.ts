@@ -275,12 +275,20 @@ export class SignInStore {
    * @param settle - hook invoked once the attempt has settled (may be a noop).
    */
   private async drive(key: string, method: string | undefined, settle: (() => Promise<void>) | undefined): Promise<void> {
-    if (this.store.getSnapshot().attempt !== null) return
+    // A running attempt locks the surface. A settled one does not: the next
+    // action supersedes it, exactly as its Close button would — otherwise a
+    // completed sign-in would leave every other provider's button dead.
+    const standing = this.store.getSnapshot().attempt
+    if (standing !== null && standing.settled === null) return
     const controller = new AbortController()
     this.running = controller
     this.store.set({
       ...this.store.getSnapshot(),
       attempt: { key, notice: null, prompt: null, settled: null },
+      // A new attempt supersedes whatever an earlier provider's adopt left
+      // on screen: keeping it would read as this attempt's outcome.
+      adopted: null,
+      error: null,
     })
     try {
       const stream = this.ctx.remote.authorization.begin(
@@ -308,13 +316,11 @@ export class SignInStore {
       })
     } finally {
       if (this.running === controller) this.running = undefined
-      // The hook runs before the rows re-load because adoption does not move
-      // credential facts — it only writes a route and models list — while a
-      // load would otherwise erase the settled frame the footer shows.
-      if (settle !== undefined) await settle()
-      // Whatever happened, the stored/in-flight facts moved; the page's own
-      // credential join refreshes from the Host rather than from this state.
+      // Reload first, settle second: the stored/in-flight facts moved, so the
+      // rows refresh from the Host, and only then does the hook's outcome —
+      // an adoption banner or its error — land, so the reload cannot wipe it.
       await this.load()
+      if (settle !== undefined) await settle()
     }
   }
 
@@ -356,6 +362,9 @@ export class SignInStore {
       this.store.set({
         ...this.store.getSnapshot(),
         status: 'ready',
+        // A failed adopt must not leave an earlier provider's banner behind:
+        // it would read as this provider's model list.
+        adopted: null,
         error: response.error.message,
       })
       return

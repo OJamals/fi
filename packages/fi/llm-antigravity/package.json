@@ -21,8 +21,10 @@
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-authorization": "workspace:^",
     "@deepseek-ai/dsh-credentials": "workspace:^",
+    "@deepseek-ai/dsh-llm": "workspace:^",
     "@deepseek-ai/dsh-settings": "workspace:^",
     "@deepseek-ai/dsh-typert-protocol": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^",
     "zod": "^4.4.3"
   },
   "devDependencies": {

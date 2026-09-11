@@ -20,10 +20,15 @@
 import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 
 import { Context, Service } from '@deepseek-ai/cordis'
-// Type-only: pulls the authorization seam's Context merge (ctx.authorization)
-// into this program.
+// Type-only: pulls the seams' Context merges into this program
+// (ctx.authorization, ctx.credentials, ctx.llm, ctx.settings).
 import type {} from '@deepseek-ai/dsh-authorization'
+import type {} from '@deepseek-ai/dsh-llm'
+import type {} from '@deepseek-ai/dsh-settings'
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
+import type { CredentialRecord } from '@deepseek-ai/dsh-credentials'
+import type { AdapterRegistrationHandle } from '@deepseek-ai/dsh-llm'
+import z from '@deepseek-ai/schemastery'
 
 import {
   ANTIGRAVITY_CREDENTIAL_ID,
@@ -37,9 +42,12 @@ import {
   generateAntigravityAuthURL,
   generateAntigravityPKCE,
   getAntigravityOAuthCallback,
+  refreshAntigravityTokens,
   waitForAntigravityCallback,
 } from './auth/oauth.ts'
 import type { AntigravityTokenData } from './auth/oauth.ts'
+import { AntigravityAdapter } from './adapter.ts'
+import type { AntigravityGrant } from './adapter.ts'
 
 export {
   ANTIGRAVITY_CREDENTIAL_ID,
@@ -49,6 +57,10 @@ export {
   ANTIGRAVITY_PROVIDER_ID,
 }
 export type { AntigravityTokenData }
+export { AntigravityAdapter } from './adapter.ts'
+export type { AntigravityGrant, AntigravityGrantResolver } from './adapter.ts'
+export { ANTIGRAVITY_STATIC_CATALOG, antigravityModelName } from './catalog.ts'
+export type { AntigravityCatalogEntry } from './catalog.ts'
 
 /**
  * Register the Antigravity sign-in flow on the authorization seam.
@@ -109,17 +121,152 @@ export function registerAntigravityFlow(ctx: Context): void {
 }
 
 /**
- * The Cordis plugin that mounts the Antigravity adapter.
+ * The settings section this plugin owns: one profile per Antigravity route.
+ * The profile is deliberately thin — the grant, not the profile, picks the
+ * account — so the schema carries presentation fields only and the Models
+ * page's editor shows nothing to mistype.
+ */
+interface FiAntigravityProfile {
+  displayName?: string
+}
+
+/** The section shape: profiles keyed by route id. */
+interface FiAntigravityConfig {
+  providers: Record<string, FiAntigravityProfile>
+}
+
+const Profile = z.object({
+  displayName: z.string(),
+})
+const Config = z.object({
+  providers: z.dict(Profile),
+}) as unknown as z<FiAntigravityConfig>
+
+/** The grant payload as the sign-in flow commits it. */
+interface StoredGrantPayload {
+  access: string
+  refresh?: string
+  expires?: number
+  projectId?: string
+}
+
+/**
+ * Narrow one credential record to this adapter's grant payload. The record
+ * key is already scoped to this plugin's own flow, so the check is
+ * structural only: an access token string is the grant, and the project id
+ * rides whichever of the three historical keys carried it
+ * (`antigravityProjectId` from the flow, `accountUuid` from auth2api's
+ * shape, or `projectId` from a record written before the flow carried the
+ * profile fields through). Anything without an access token answers
+ * `undefined`, which reads downstream as signed out rather than mis-shapen.
+ */
+function grantPayload(record: CredentialRecord | undefined): StoredGrantPayload | undefined {
+  if (record?.kind !== 'grant' || record.payload === null || typeof record.payload !== 'object') {
+    return undefined
+  }
+  const payload = record.payload as Record<string, unknown>
+  if (typeof payload.access !== 'string' || payload.access.length === 0) return undefined
+  const project = payload.antigravityProjectId ?? payload.accountUuid ?? payload.projectId
+  return {
+    access: payload.access,
+    ...typeof payload.refresh === 'string' ? { refresh: payload.refresh } : {},
+    ...typeof payload.expires === 'number' ? { expires: payload.expires } : {},
+    ...typeof project === 'string' ? { projectId: project } : {},
+  }
+}
+
+/** Refresh margin: near-expiry tokens rotate before a call strands mid-stream. */
+const REFRESH_MARGIN_MS = 120_000
+
+/**
+ * Resolve the current Antigravity grant for adapter calls. A near-expiry
+ * token with a refresh token rotates inside the seam's serialized
+ * `modifyRecord`, so concurrent calls and processes cannot lose each other's
+ * rotation; the refresh response omits the profile fields, so the stored
+ * payload's email/account/project ride through untouched.
+ */
+function makeGrantResolver(ctx: Context): (signal?: AbortSignal) => Promise<AntigravityGrant | undefined> {
+  const key = credentialKey(ANTIGRAVITY_CREDENTIAL_SCOPE, ANTIGRAVITY_CREDENTIAL_ID)
+  return async (signal) => {
+    let record = await ctx.credentials.readRecord(key)
+    let payload = grantPayload(record)
+    if (payload === undefined) return undefined
+    if (payload.expires !== undefined && payload.expires - Date.now() < REFRESH_MARGIN_MS
+      && payload.refresh !== undefined) {
+      record = await ctx.credentials.modifyRecord(key, async (current) => {
+        const currentPayload = grantPayload(current)
+        // Another caller may have rotated while this read was in flight.
+        if (currentPayload === undefined || currentPayload.refresh === undefined) return current
+        if (currentPayload.expires !== undefined
+          && currentPayload.expires - Date.now() >= REFRESH_MARGIN_MS) return current
+        const token = await refreshAntigravityTokens(currentPayload.refresh, signal)
+        return {
+          kind: 'grant',
+          payload: {
+            ...currentPayload,
+            access: token.accessToken,
+            refresh: token.refreshToken,
+            expires: new Date(token.expiresAt).getTime(),
+          },
+        } as CredentialRecord
+      })
+      payload = grantPayload(record) ?? payload
+    }
+    return { accessToken: payload.access, projectId: payload.projectId }
+  }
+}
+
+/**
+ * The Cordis plugin that mounts the Antigravity adapter family.
  *
- * It registers the sign-in flow on the authorization seam. The transport
- * functions are exported separately for callers that already hold a grant.
+ * Beyond the sign-in flow it wires the serving half: a `fi-antigravity`
+ * settings section whose profiles name routes, one `LlmAdapter` instance
+ * serving those routes through the Cloud Code transport, a directory entry
+ * so the Models page offers Antigravity natively, and model discovery so
+ * adoption can enumerate what the route serves. A bare mount is dormant —
+ * no routes register until the section declares a profile, matching the
+ * pi-ai plugin's posture.
  */
 export class FiAntigravityService extends Service {
-  static inject = ['authorization', 'credentials']
+  static inject = ['authorization', 'credentials', 'llm', 'settings']
 
   constructor(ctx: Context) {
     super(ctx, 'fi-antigravity')
     registerAntigravityFlow(this.ctx)
+
+    const adapter = new AntigravityAdapter(makeGrantResolver(this.ctx))
+    let source: () => FiAntigravityConfig = () => ({ providers: {} })
+    let registration: AdapterRegistrationHandle | undefined
+    const sync = (): void => {
+      const routes = Object.keys(source().providers ?? {})
+      if (registration === undefined) {
+        // Dormant bare mount: nothing registers until a section supplies a
+        // profile, and an emptied section drops every route.
+        if (routes.length === 0) return
+        registration = this.ctx.llm.registerAdapter(routes, adapter)
+      } else {
+        registration.replace(routes)
+      }
+    }
+    this.ctx.settings.installSection(this.ctx, ANTIGRAVITY_CREDENTIAL_SCOPE, Config, { providers: {} }, {
+      setSource: (current) => { source = current },
+      onChange: sync,
+    })
+    // The Models page's add-provider catalog draws from these entries, so
+    // Antigravity appears there before any route exists — the same way the
+    // pi-ai plugin surfaces its whole installed catalog.
+    this.ctx.llm.registerConfigurableProviders([{
+      provider: ANTIGRAVITY_PROVIDER_ID,
+      displayName: ANTIGRAVITY_FLOW_LABEL,
+      settingsNs: ANTIGRAVITY_CREDENTIAL_SCOPE,
+      settingsPath: ['providers', ANTIGRAVITY_PROVIDER_ID],
+    }])
+    // Discovery serves the adopt flow's model enumeration: the live
+    // projected catalog when a grant is stored, the static list otherwise.
+    this.ctx.llm.registerModelDiscovery(ANTIGRAVITY_CREDENTIAL_SCOPE, async (request) => {
+      const models = await adapter.listModels(request.provider ?? ANTIGRAVITY_PROVIDER_ID)
+      return models.map(model => ({ id: model.id, name: model.name }))
+    })
   }
 }
 

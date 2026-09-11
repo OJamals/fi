@@ -28,6 +28,7 @@ export const en = {
   footerModelsTitle: 'Models this route now serves',
   adoptAction: 'Add {provider}',
   footerRouteCreated: 'created',
+  footerError: 'Sign-in finished, but the provider could not be added: {message}',
   footerRouteAlready: 'already present',
   footerRouteSkipped: 'blocked',
 } as const
@@ -54,6 +55,7 @@ export const zh: Record<keyof typeof en, string> = {
   footerModelsTitle: '该路由现在提供的模型',
   adoptAction: '添加 {provider}',
   footerRouteCreated: '创建',
+  footerError: '登录已完成，但无法添加提供方：{message}',
   footerRouteAlready: '已存在',
   footerRouteSkipped: '受阻',
 }

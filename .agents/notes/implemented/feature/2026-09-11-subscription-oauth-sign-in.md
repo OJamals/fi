@@ -39,61 +39,24 @@ Two rules this work pinned down, worth keeping close when adding Remote methods:
 
 ## Phase 5 2026-09-11: Antigravity — the second adapter family
 
-The first non-pi-ai adapter proves the seam design holds. `@fi/llm-antigravity` registers the
-Antigravity OAuth flow (`fi-antigravity/antigravity`) on the same `ctx.authorization` seam pi-ai
-uses, and its transport serves Gemini/Claude models through the paid Cloud Code endpoint. The
-Host controller's `ROUTE_NAMESPACE_BY_SCOPE` gains one row (`fi-antigravity` → `llm-pi-ai`), so
-an Antigravity grant upserts `providers.antigravity` into the same settings namespace the Models
-page manages — the route appears beside pi-ai routes without the page knowing the difference.
+The first non-pi-ai adapter proves the seam design holds. `@fi/llm-antigravity` registers the Antigravity OAuth flow (`fi-antigravity/antigravity`) on the same `ctx.authorization` seam pi-ai uses, and its transport serves Gemini/Claude models through the paid Cloud Code endpoint. The Host controller's `ROUTE_NAMESPACE_BY_SCOPE` gains one row (`fi-antigravity` → `llm-pi-ai`), so an Antigravity grant upserts `providers.antigravity` into the same settings namespace the Models page manages — the route appears beside pi-ai routes without the page knowing the difference.
 
-The OAuth flow is Google PKCE with the Antigravity desktop app's public client id, loopback
-redirect `127.0.0.1:54545/callback` (not `localhost:3000` — browser service workers hijack that
-origin), and five scopes including `cloud-platform` and `cclog`. After exchange it discovers the
-`cloudaicompanionProject` via `loadCodeAssist`, which becomes the billing project every inference
-request names. The transport wraps Gemini `contents`/`generationConfig` in the Cloud Code envelope
-(`{project, model, request, userAgent: "antigravity", requestId, requestType: "agent"}`) and POSTs
-to `v1internal:streamGenerateContent?alt=sse`.
+The OAuth flow is Google PKCE with the Antigravity desktop app's public client id, loopback redirect `127.0.0.1:54545/callback` (not `localhost:3000` — browser service workers hijack that origin), and five scopes including `cloud-platform` and `cclog`. After exchange it discovers the `cloudaicompanionProject` via `loadCodeAssist`, which becomes the billing project every inference request names. The transport wraps Gemini `contents`/`generationConfig` in the Cloud Code envelope (`{project, model, request, userAgent: "antigravity", requestId, requestType: "agent"}`) and POSTs to `v1internal:streamGenerateContent?alt=sse`.
 
-The Models-page card is `@fi/client-ui-model-signin-antigravity`, a parallel package to the pi-ai
-card, registering into the same two slots. The strip offers "Sign in with Antigravity (Gemini Code
-Assist)" when the flow is registered and no grant is stored; the row card appears inside any
-provider card whose id is `antigravity`.
+The Models-page card is `@fi/client-ui-model-signin-antigravity`, a parallel package to the pi-ai card, registering into the same two slots. The strip offers "Sign in with Antigravity (Gemini Code Assist)" when the flow is registered and no grant is stored; the row card appears inside any provider card whose id is `antigravity`.
 
-Stealth is deliberately minimal: the UA string and `ideType: "ANTIGRAVITY"` in discovery are the
-only identity claims, both capture-derived. No billing-header fingerprint (Anthropic), no
-originator header (Codex), no plan=generic (Grok) — Antigravity's OAuth is standard Google
-installed-app flow, and the transport's envelope is the sanctioned shape.
+Stealth is deliberately minimal: the UA string and `ideType: "ANTIGRAVITY"` in discovery are the only identity claims, both capture-derived. No billing-header fingerprint (Anthropic), no originator header (Codex), no plan=generic (Grok) — Antigravity's OAuth is standard Google installed-app flow, and the transport's envelope is the sanctioned shape.
 
 ## The key badge 2026-09-11 — investigated and deliberately NOT built
 
-An early pass at the OAuth badge problem parked a marker value (`oauth-grant:<key>`) at the Models
-page's derived `<ROUTE>_API_KEY` reference so a signed-in provider's row would stop reading as
-missing a key. It was reverted before commit once the upstream dot logic was read to the bottom:
-the visible row dot requires a **named** `apiKeyEnv` (`credential?.configured === true` on the
-named ref only), and a route with no `apiKeyEnv` shows **no key dot at all** — never a misleading
-"missing" one (`credentialMissing` additionally requires `apiKeyEnv !== undefined`). The marker
-therefore fed only the slot-seat `keyConfigured` prop, which the sign-in card does not even read,
-while creating a genuine hazard: a user or editor that later writes `apiKeyEnv:
-<DERIVED_REF>` on the route would resolve the marker as the Bearer token, replacing the grant
-with garbage at request time.
+An early pass at the OAuth badge problem parked a marker value (`oauth-grant:<key>`) at the Models page's derived `<ROUTE>_API_KEY` reference so a signed-in provider's row would stop reading as missing a key. It was reverted before commit once the upstream dot logic was read to the bottom: the visible row dot requires a **named** `apiKeyEnv` (`credential?.configured === true` on the named ref only), and a route with no `apiKeyEnv` shows **no key dot at all** — never a misleading "missing" one (`credentialMissing` additionally requires `apiKeyEnv !== undefined`). The marker therefore fed only the slot-seat `keyConfigured` prop, which the sign-in card does not even read, while creating a genuine hazard: a user or editor that later writes `apiKeyEnv: <DERIVED_REF>` on the route would resolve the marker as the Bearer token, replacing the grant with garbage at request time.
 
-The correct endpoint is the one upstream already implements: OAuth rows show no API-key state,
-and the sign-in card inside the row carries the truth ("Signed in" / "Not signed in" /
-"Remove sign-in"). OAuth genuinely does not use typical API keys or base URLs, and the page is
-now silent about them rather than wrong.
+The correct endpoint is the one upstream already implements: OAuth rows show no API-key state, and the sign-in card inside the row carries the truth ("Signed in" / "Not signed in" / "Remove sign-in"). OAuth genuinely does not use typical API keys or base URLs, and the page is now silent about them rather than wrong.
 
 
 ## Phase 4 2026-09-11: SuperGrok/X Premium joins with one line
 
-xAI's device-code OAuth ("Sign in with SuperGrok or X Premium") ships in the same installed pi-ai
-catalog (`auth/oauth/xai.js`), and `registerPiAiFlows` already registers `llm-pi-ai/xai` like the
-other two. The warranted change was therefore exactly the extension point the card documented
-from day one: one row in `OFFERED` in the client store. Route semantics needed no change — the
-Host's scope-to-namespace rule covers `llm-pi-ai/xai` the same way, and `adopt('llm-pi-ai/xai')`
-upserts `providers.xai` and enumerates Grok models through the same `llm.discoverModels` path.
-The integration test now asserts all three catalog flows against the installed pi-ai build, so a
-pi-ai release that renames or drops the xAI login fails the suite instead of silently trimming
-the strip.
+xAI's device-code OAuth ("Sign in with SuperGrok or X Premium") ships in the same installed pi-ai catalog (`auth/oauth/xai.js`), and `registerPiAiFlows` already registers `llm-pi-ai/xai` like the other two. The warranted change was therefore exactly the extension point the card documented from day one: one row in `OFFERED` in the client store. Route semantics needed no change — the Host's scope-to-namespace rule covers `llm-pi-ai/xai` the same way, and `adopt('llm-pi-ai/xai')` upserts `providers.xai` and enumerates Grok models through the same `llm.discoverModels` path. The integration test now asserts all three catalog flows against the installed pi-ai build, so a pi-ai release that renames or drops the xAI login fails the suite instead of silently trimming the strip.
 
 ## The footer: add a provider with no route yet
 
@@ -112,6 +75,22 @@ Live use surfaced three defects, all fixed by one restructuring.
 **Two bottom sections, and rows interleaved with models.** The whitelist join in `selectOfferedRows` structurally excluded `fi-antigravity/antigravity`, which forced Antigravity into its own footer section; and the per-row sign-in card (`settings.models.provider-card`) put credential UI between the model rows, which read as clutter. The section is now the only sign-in surface: `OFFERED` gains the Antigravity key (provider id derived generically from the key, not by slicing the pi-ai scope), the footer's rows render in both directions of the stored flag — unsigned offers Add, signed-in shows its state with Sign in again and Remove sign-in — and the `provider-card` registration is gone. Provider rows in the Models list are plain route rows again; the routes themselves stay, because the settings route is what makes a provider servable and the page owns it.
 
 The signed-in Anthropic/Codex/Antigravity rows the user saw between the model rows were the adopt-created routes, not credentials — that part is by design (a route must exist to serve models), and the section now mirrors their sign-in state so management lives in one place.
+
+## Phase 7 2026-09-11: the native Antigravity adapter, and the stale-banner bug
+
+Live use found the sharpest defect yet: signing in with Antigravity succeeded, but the section kept showing the xAI model list from an earlier adoption. Three stacked causes, three fixes.
+
+**The route could never be served.** The adopt path mapped the `fi-antigravity` credential scope onto the `llm-pi-ai` settings namespace, but pi-ai's catalog has no `antigravity` provider — the settings write was refused by pi-ai's own section validation (verified: the live settings file carries no stray entry), `ensureRoute` answered `skipped`, and `adopt` threw `adopt-blocked`. The fix is the fi-native adapter: `@fi/llm-antigravity` now owns the `fi-antigravity` settings namespace (one profile per route, dormant bare mount, the pi-ai plugin's own posture), mounts an `LlmAdapter` that serves those routes through the already-ported Cloud Code transport, declares the directory entry the Models page's add-provider catalog reads, and answers model discovery for its namespace — the live projected catalog when a grant reaches it, the static list otherwise. The controller's scope→namespace map gains `fi-antigravity → fi-antigravity`, so `adopt` writes a route that actually serves and enumerates.
+
+**The banner never cleared.** The store's `adopt()` failure path set `error` but left `adopted` — and the section never rendered `state.error` at all, so the previous provider's model list stayed on screen reading as the new sign-in's outcome. Now: starting any attempt clears the banner, a failed adopt clears it again and sets the error, and the section renders the error as an inline alert naming the Host's diagnostic. One subtlety cost a test cycle: `drive()`'s finally ran the settle hook (adopt) before `load()`, and `load()` clears `error` on success — the order is now load-then-settle so the banner and the error are the last write.
+
+**A settled attempt deadlocked the surface.** `drive()` refused to start while ANY attempt occupied the snapshot — including a settled one — so after completing one sign-in, every other provider's button was silently dead until the user dismissed the card. A settled attempt is now superseded by the next action, exactly as its Close button would; only a running attempt locks the surface.
+
+**Grant payloads need structural narrowing, not shape dogma.** The live store's Antigravity record was found carrying `{access, refresh, expires, projectId}` — no `type: 'oauth'` tag and a different project key than the flow writes. The resolver's first narrowing required the tag and read only `antigravityProjectId`/`accountUuid`, so every resolution failed: discovery served the static catalog and streams ended `no-grant`, under a grant that was actually present and valid. The check is now structural — the record key is already scoped to this plugin's flow, so an access-token string is the grant, and the project id is read from any of the three historical keys. Live verification then ran the whole chain against the real store (on a copy): expired token refreshed through Google, `fetchAvailableModels` answered the projected live catalog in the account's own sort order, and a real streamed request returned text with a stop finish. The regression test pins the pre-profile shape.
+
+**The provider editor cannot create a grant-only route.** `ProviderEditor`'s `layoutOf` knows only the `llm-deepseek` and `llm-pi-ai` namespaces; any other namespace gets layout `unknown`, which renders the "fields live in settings.yaml" hint and hard-disables Apply. Antigravity's directory entry therefore shows in Add provider but cannot be applied there — a dead end the user must not mistake for the path. The directory entry stays because provider rows join the directory with live routes (removing it would hide the adopted route); the section's sign-in → adopt chain is the intended path, and a grant-aware editor layout is upstream's to design.
+
+The adapter is deliberately honest about capability: it does not resolve `ImageBlock`/`FileBlock` bytes from the attachment service, so its models declare `inputModalities: ['text']` and surfaces refuse attachments rather than silently drop them. Token refresh rotates through the credentials seam's serialized `modifyRecord` with a double-check inside the lock, so concurrent calls never lose each other's rotation.
 
 ## Consequences
 

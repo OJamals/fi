@@ -14,6 +14,8 @@ interface Script {
   adoptEntries: AuthorizationAdoptEntry[]
   frames: AuthorizationFrameView[]
   adoptResult: { route: 'created' | 'already' | 'skipped'; models: string[] }
+  /** When set, the scripted adopt refuses with this diagnostic. */
+  adoptError?: string
 }
 
 function scriptedCtx(script: Script): { ctx: ClientContext; calls: string[] } {
@@ -26,7 +28,13 @@ function scriptedCtx(script: Script): { ctx: ClientContext; calls: string[] } {
       list: vi.fn(async () => { calls.push('list'); return { ok: true as const, value: script.list } }),
       listAdoptable: vi.fn(async () => { calls.push('listAdoptable'); return { ok: true as const, value: script.adoptEntries } }),
       begin: vi.fn(() => { calls.push('begin'); return stream() }),
-      adopt: vi.fn(async (key: string) => { calls.push(`adopt:${key}`); return { ok: true as const, value: script.adoptResult } }),
+      adopt: vi.fn(async (key: string) => {
+        calls.push(`adopt:${key}`)
+        if (script.adoptError !== undefined) {
+          return { ok: false as const, error: { code: 'authorization/adopt-blocked', message: script.adoptError } }
+        }
+        return { ok: true as const, value: script.adoptResult }
+      }),
       cancel: vi.fn(async () => { calls.push('cancel') }),
       answer: vi.fn(async () => { calls.push('answer') }),
       revoke: vi.fn(async () => { calls.push('revoke') }),
@@ -49,7 +57,7 @@ describe('footer store', () => {
     const store = new SignInStore(ctx)
     await store.signInAndAdopt(KEY)
 
-    expect(calls).toEqual(['begin', 'adopt:llm-pi-ai/anthropic', 'list', 'listAdoptable'])
+    expect(calls).toEqual(['begin', 'list', 'listAdoptable', 'adopt:llm-pi-ai/anthropic'])
     const state = store.store.getSnapshot()
     expect(state.adopted).toEqual({
       key: KEY,
@@ -114,15 +122,7 @@ describe('footer store', () => {
       adoptEntries: [{ key: KEY, label: 'Anthropic', routeId: 'anthropic' }],
       frames: [],
       adoptResult: { route: 'created', models: [] },
-    })
-    // Match the RemoteErrorResult the real client would hand back.
-    // The bare ClientContext in this file does not pull the controller's
-    // ctx.remote merge, so `authorization` is untyped here; the scripted
-    // double above shapes it, and this cast preserves the seam the real
-    // Remote client would answer.
-    ;(ctx.remote as unknown as { authorization: { adopt: unknown } }).authorization.adopt = async () => ({
-      ok: false as const,
-      error: { code: 'authorization/no-grant', message: 'no stored grant; sign in first' },
+      adoptError: 'no stored grant; sign in first',
     })
     const store = new SignInStore(ctx)
     await store.adopt(KEY)
@@ -130,6 +130,42 @@ describe('footer store', () => {
     const state = store.store.getSnapshot()
     expect(state.adopted).toBeNull()
     expect(state.error).toContain('no stored grant')
+    store.dispose()
+  })
+
+  it('a new attempt clears the previous provider\'s banner, and a failed adopt never restores it', async () => {
+    // The reported regression: sign in with one provider, then sign in with
+    // another whose adopt fails — the first provider's model list must not
+    // stay on screen reading as the second provider's outcome.
+    const XAI = 'llm-pi-ai/xai'
+    const { ctx } = scriptedCtx({
+      list: [
+        { key: KEY, label: 'Anthropic', methods: [{ id: 'oauth', label: 'Anthropic' }], stored: false, inFlight: false },
+        { key: XAI, label: 'xAI', methods: [{ id: 'oauth', label: 'xAI' }], stored: false, inFlight: false },
+      ],
+      adoptEntries: [
+        { key: KEY, label: 'Anthropic', routeId: 'anthropic' },
+        { key: XAI, label: 'xAI', routeId: 'xai' },
+      ],
+      frames: [{ kind: 'settled', status: 'authorized', route: 'created' }],
+      adoptResult: { route: 'created', models: ['claude-opus-4-6'] },
+    })
+    const store = new SignInStore(ctx)
+    await store.signInAndAdopt(KEY)
+    expect(store.store.getSnapshot().adopted?.models).toEqual(['claude-opus-4-6'])
+
+    // The second provider's adopt refuses (its route namespace cannot serve
+    // it): the banner from the first provider clears at attempt start and
+    // the failure lands as the section's error, with nothing stale left.
+    ;(ctx.remote as unknown as { authorization: { adopt: unknown } }).authorization.adopt = async () => ({
+      ok: false as const,
+      error: { code: 'authorization/adopt-blocked', message: 'the settings route could not be written' },
+    })
+    await store.signInAndAdopt(XAI)
+
+    const state = store.store.getSnapshot()
+    expect(state.adopted).toBeNull()
+    expect(state.error).toContain('could not be written')
     store.dispose()
   })
 })

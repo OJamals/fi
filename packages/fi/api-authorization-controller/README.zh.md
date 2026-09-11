@@ -57,7 +57,7 @@ for await (const frame of ctx.remote.authorization.begin({ key, method: 'oauth' 
 
 ### 登录留下的路由
 
-针对 `llm-pi-ai/<id>` key 的成功尝试还会确保提供方存在于设置中：当 `llm-pi-ai` 命名空间缺少 `providers.<id>` 时，controller 会写入与模型页面自身“添加提供方”流程相同的空配置，使登录结束时得到的是一条可用路由而不仅是一份已存储的授权。settled 帧以 `route` 报告结果：`created` 表示新建；`already` 表示路由已存在（其配置绝不被动改）；`skipped` 表示没有可提交该写入的 settings 服务，此时授权仍然已存储，模型页面仍是显式路径。`llm-pi-ai` 之外的 scope 登录时不触碰设置；由一个常量把 scope 映射到命名空间，下一个适配器族以一行扩展它。
+针对 `llm-pi-ai/<id>` key 的成功尝试还会确保提供方存在于设置中：当 `llm-pi-ai` 命名空间缺少 `providers.<id>` 时，controller 会写入与模型页面自身“添加提供方”流程相同的空配置，使登录结束时得到的是一条可用路由而不仅是一份已存储的授权。settled 帧以 `route` 报告结果：`created` 表示新建；`already` 表示路由已存在（其配置绝不被动改）；`skipped` 表示没有可提交该写入的 settings 服务，此时授权仍然已存储，模型页面仍是显式路径。由一个常量把 scope 映射到命名空间——`llm-pi-ai` 路由进 pi-ai 的目录命名空间，`fi-antigravity` 路由进 Antigravity 适配器自己的命名空间——没有条目的 scope 登录时不触碰设置，下一个适配器族以一行扩展该映射。
 
 ### 移除：登录重置
 

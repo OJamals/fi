@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-11-subscription-oauth-sign-in.md
-2026-09-11-subscription-oauth-sign-in.md: 66b4d386d932b0d733079db0bc25278d6c47ba7d
-2026-09-11-subscription-oauth-sign-in.zh.md: fb76aaa68c43a012d4846ea0f63ed64bf36c576a
+2026-09-11-subscription-oauth-sign-in.md: 7b39a69ecf8c9c67b5d02cf2c19ac1360d13a185
+2026-09-11-subscription-oauth-sign-in.zh.md: fd6bc7879f63e52b3fc1be2382b14870ac3aca28

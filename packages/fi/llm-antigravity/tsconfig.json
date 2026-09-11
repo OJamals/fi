@@ -30,6 +30,12 @@
     },
     {
       "path": "../api-authorization-controller"
+    },
+    {
+      "path": "../../llm/llm"
+    },
+    {
+      "path": "../../../vendor/schemastery"
     }
   ]
 }

@@ -298,6 +298,17 @@ const LEGACY_THINKING_BUDGETS: Record<string, number> = {
 const STATIC_TEXT_MODELS = ANTIGRAVITY_MODELS.filter(
   model => !CATALOG_TEXT_MODEL_IDS.has(model),
 ).filter(model => !model.includes('image'))
+
+/**
+ * The text-model ids this transport can name without a live
+ * `fetchAvailableModels` reply: the shipped static list merged with the
+ * capture-derived projection targets. The fi adapter uses this as its
+ * fallback catalog when no grant or network is available; ordering matches
+ * `listAntigravityModels` so either source reads the same to a surface.
+ */
+export function staticAntigravityTextModelIds(): readonly string[] {
+  return [...new Set([...STATIC_TEXT_MODELS, ...CATALOG_TEXT_MODEL_IDS])]
+}
 const FALLBACK_TEXT_MODELS = [
   ...new Set([...STATIC_TEXT_MODELS, ...CATALOG_TEXT_MODEL_IDS]),
 ]

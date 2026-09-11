@@ -31,7 +31,7 @@ kind: "package-reference"
 
 模型页面提供方列表下方有一个“使用您的订阅登录”区块，列出 Host 实际注册的每个订阅提供方——Anthropic (Claude Pro/Max)、OpenAI Codex (ChatGPT Plus/Pro)、xAI (SuperGrok/X Premium) 与 Antigravity——各自带有状态点与无障碍状态标签。未登录的提供方提供“添加”按钮；单击即运行完整链路：流程的实时对话（需要打开的页面、需要输入的设备码、流程提出的任何问题），随后链接 Host 的 `adopt(key)`——upsert 该提供方的 settings 路由并回读它随后提供的模型。采用横幅报告路由结果（created 或 already present），并按已安装目录顺序列出每个模型 id；模型区块自身的 `settings/document-updated` 刷新把新路由行插入到页面已有行旁边。
 
-已登录的提供方在同一行显示其状态，并提供两个动作：“重新登录”（替换过期 refresh token 的方式；对仍在的路由，采用链路会回答 `already`）与“移除登录”（在 Host 侧以 `revoke` 动词撤销已存储的授权——因 Remote 客户端的命名空间服务占用了 `remove` 一词——把该行恢复为“添加”入口，而不触碰路由）。该区块除 `credentials/reference-updated` 外还监听 `credentials/record-updated`，因此授权在任何地方被删除——本区块、另一个标签页、CLI——都会重新提供登录入口，而不是留下一行死状态。
+已登录的提供方在同一行显示其状态，并提供两个动作：“重新登录”（替换过期 refresh token 的方式；对仍在的路由，采用链路会回答 `already`）与“移除登录”（在 Host 侧以 `revoke` 动词撤销已存储的授权——因 Remote 客户端的命名空间服务占用了 `remove` 一词——把该行恢复为“添加”入口，而不触碰路由）。该区块除 `credentials/reference-updated` 外还监听 `credentials/record-updated`，因此授权在任何地方被删除——本区块、另一个标签页、CLI——都会重新提供登录入口，而不是留下一行死状态。两条失败语义规则保持界面诚实：开始任何尝试都会清除上一个提供方的采用横幅（否则它会被读作新尝试的结果），失败的 adopt 会用一条指明 Host 诊断的内联错误替换横幅，而不是遗留早先的模型列表。
 
 该区块是唯一的登录界面：模型列表中的提供方行保持为纯路由行，不夹入任何凭据 UI。
 

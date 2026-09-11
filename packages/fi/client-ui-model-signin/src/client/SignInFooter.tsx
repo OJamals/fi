@@ -158,6 +158,13 @@ function Bound({ controller, useSnapshot, t }: {
             <AttemptView attempt={state.attempt} controller={controller} t={t} />
           </div>
         )}
+      {state.error === null
+        ? null
+        : (
+          <div className={styles['error']} role="alert">
+            {t('footerError', { message: state.error })}
+          </div>
+        )}
       {state.adopted === null
         ? null
         : (

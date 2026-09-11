@@ -48,16 +48,18 @@ export type {
  * `llm-pi-ai/<id>`, and the same `llm-pi-ai` settings namespace routes them by
  * `providers.<id>` — so a fresh sign-in materializes the one route the grant
  * exists for. The Antigravity adapter family authenticates under
- * `fi-antigravity/<id>` but routes through the same `llm-pi-ai` namespace,
- * because the Models page's provider list is pi-ai's catalog and Antigravity
- * models are served through pi-ai's own discovery once a route exists.
+ * `fi-antigravity/<id>` and routes through its own `fi-antigravity`
+ * settings namespace: the `@fi/llm-antigravity` plugin owns that section,
+ * serves the route through its own `LlmAdapter`, and answers model
+ * discovery for it — pi-ai's catalog has no `antigravity` provider, so a
+ * route written there could never be served or enumerated.
  * Another adapter family extends this map as its own one row; the seam and
  * this controller otherwise stay adapter-agnostic, and a scope with no entry
  * signs in without touching settings at all.
  */
 const ROUTE_NAMESPACE_BY_SCOPE = {
   'llm-pi-ai': 'llm-pi-ai',
-  'fi-antigravity': 'llm-pi-ai',
+  'fi-antigravity': 'fi-antigravity',
 } as const
 
 /**

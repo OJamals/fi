@@ -39,29 +39,13 @@ Status: implemented
 
 ## Phase 5 2026-09-11：Antigravity —— 第二个适配器家族
 
-第一个非 pi-ai 适配器证明了 seam 设计的成立。`@fi/llm-antigravity` 在 pi-ai 使用的同一个
-`ctx.authorization` seam 上注册了 Antigravity OAuth 流程（`fi-antigravity/antigravity`），
-其传输通过付费的 Cloud Code 端点提供 Gemini/Claude 模型。Host 控制器的
-`ROUTE_NAMESPACE_BY_SCOPE` 增加一行（`fi-antigravity` → `llm-pi-ai`），因此 Antigravity
-授权将 `providers.antigravity` upsert 到模型页面管理的同一个 settings 命名空间——路由
-出现在 pi-ai 路由旁边，而页面无需感知差异。
+第一个非 pi-ai 适配器证明了 seam 设计的成立。`@fi/llm-antigravity` 在 pi-ai 使用的同一个 `ctx.authorization` seam 上注册了 Antigravity OAuth 流程（`fi-antigravity/antigravity`）， 其传输通过付费的 Cloud Code 端点提供 Gemini/Claude 模型。Host 控制器的 `ROUTE_NAMESPACE_BY_SCOPE` 增加一行（`fi-antigravity` → `llm-pi-ai`），因此 Antigravity 授权将 `providers.antigravity` upsert 到模型页面管理的同一个 settings 命名空间——路由 出现在 pi-ai 路由旁边，而页面无需感知差异。
 
-OAuth 流程是 Google PKCE，使用 Antigravity 桌面应用的公共客户端 id，回环重定向
-`127.0.0.1:54545/callback`（不是 `localhost:3000`——浏览器 service worker 会劫持该源），
-以及五个 scope（含 `cloud-platform` 与 `cclog`）。交换后通过 `loadCodeAssist` 发现
-`cloudaicompanionProject`，它成为每个推理请求所命名的计费项目。传输将 Gemini
-`contents`/`generationConfig` 包装进 Cloud Code envelope
-（`{project, model, request, userAgent: "antigravity", requestId, requestType: "agent"}`），
-并 POST 到 `v1internal:streamGenerateContent?alt=sse`。
+OAuth 流程是 Google PKCE，使用 Antigravity 桌面应用的公共客户端 id，回环重定向 `127.0.0.1:54545/callback`（不是 `localhost:3000`——浏览器 service worker 会劫持该源）， 以及五个 scope（含 `cloud-platform` 与 `cclog`）。交换后通过 `loadCodeAssist` 发现 `cloudaicompanionProject`，它成为每个推理请求所命名的计费项目。传输将 Gemini `contents`/`generationConfig` 包装进 Cloud Code envelope （`{project, model, request, userAgent: "antigravity", requestId, requestType: "agent"}`）， 并 POST 到 `v1internal:streamGenerateContent?alt=sse`。
 
-模型页面卡片是 `@fi/client-ui-model-signin-antigravity`，与 pi-ai 卡片平行的包，注册进
-相同的两个槽位。当流程已注册且无存储授权时，页脚提供“Sign in with Antigravity (Gemini Code
-Assist)”；行卡片出现在 id 为 `antigravity` 的提供方卡片内。
+模型页面卡片是 `@fi/client-ui-model-signin-antigravity`，与 pi-ai 卡片平行的包，注册进 相同的两个槽位。当流程已注册且无存储授权时，页脚提供“Sign in with Antigravity (Gemini Code Assist)”；行卡片出现在 id 为 `antigravity` 的提供方卡片内。
 
-Stealth 刻意保持最小：UA 字符串与发现请求中的 `ideType: "ANTIGRAVITY"` 是仅有的身份声明，
-均为捕获派生。没有计费头指纹（Anthropic）、没有 originator 头（Codex）、没有
-plan=generic（Grok）——Antigravity 的 OAuth 是标准的 Google 安装应用流程，其传输的
-envelope 是官方认可的形状。
+Stealth 刻意保持最小：UA 字符串与发现请求中的 `ideType: "ANTIGRAVITY"` 是仅有的身份声明， 均为捕获派生。没有计费头指纹（Anthropic）、没有 originator 头（Codex）、没有 plan=generic（Grok）——Antigravity 的 OAuth 是标准的 Google 安装应用流程，其传输的 envelope 是官方认可的形状。
 
 ## 密钥徽标 2026-09-11 — 已调研并明确不实现
 
@@ -91,6 +75,22 @@ xAI 的设备码 OAuth（“Sign in with SuperGrok or X Premium”）随同一�
 **底部两个区块、且凭据 UI 夹在模型行之间。** `selectOfferedRows` 中的白名单连接在结构上排除了 `fi-antigravity/antigravity`，迫使 Antigravity 独占一个页脚区块；而逐行登录卡片（`settings.models.provider-card`）把凭据 UI 夹进了模型行之间，观感杂乱。现在该区块是唯一的登录界面：`OFFERED` 增加 Antigravity 键（provider id 从键通用派生，而非按 pi-ai scope 截取），页脚行在 stored 标记的两个方向上都渲染——未登录提供“添加”，已登录显示状态并提供“重新登录”与“移除登录”——`provider-card` 注册已移除。模型列表中的提供方行恢复为纯路由行；路由本身保留，因为 settings 路由是提供方可供服务的前提，由页面自行管理。
 
 用户看到的夹在模型行之间的 Anthropic/Codex/Antigravity 已登录行是 adopt 创建的路由而非凭据——这部分是设计使然（路由存在才能提供模型），而区块现在镜像它们的登录状态，使管理集中于一处。
+
+## 阶段 7 2026-09-11：原生 Antigravity 适配器与过期横幅缺陷
+
+实际使用发现了迄今最尖锐的缺陷：Antigravity 登录成功，但区块仍显示早前 xAI 采用的模型列表。三个叠加的原因，对应三处修复。
+
+**路由永远无法服务。** adopt 路径把 `fi-antigravity` 凭据 scope 映射到 `llm-pi-ai` 设置命名空间，但 pi-ai 目录中没有 `antigravity` 提供方——设置写入被 pi-ai 自己的 section 校验拒绝（已核实：线上设置文件没有残留条目），`ensureRoute` 回答 `skipped`，`adopt` 抛出 `adopt-blocked`。修复是 fi 原生适配器：`@fi/llm-antigravity` 现在拥有 `fi-antigravity` 设置命名空间（每条路由一份 profile，空挂载休眠，沿用 pi-ai 插件的姿态），挂载一个 `LlmAdapter`，通过已移植的 Cloud Code 传输为这些路由服务，声明模型页面"添加提供方"目录读取的目录项，并为其命名空间应答模型发现——授权可达实时目录时用实时投影目录，否则用静态列表。controller 的 scope→命名空间映射新增 `fi-antigravity → fi-antigravity`，因此 `adopt` 写入的路由真正能服务、能枚举。
+
+**横幅从不清除。** store 的 `adopt()` 失败路径设置了 `error` 但保留了 `adopted`——而区块根本没有渲染 `state.error`，于是上一个提供方的模型列表留在屏幕上，被读作新登录的结果。现在：开始任何尝试都会清除横幅；失败的 adopt 再次清除并设置错误；区块把错误渲染为指明 Host 诊断的内联告警。一个细节耗费了一轮测试：`drive()` 的 finally 原先在 `load()` 之前运行 settle 钩子（adopt），而 `load()` 成功时会清除 `error`——顺序改为先 load 后 settle，横幅与错误成为最后一次写入。
+
+**已完成的尝试会锁死界面。** `drive()` 在快照被任何尝试占用时拒绝启动——包括已完成的尝试——于是完成一次登录后，其他提供方的按钮在用户关闭卡片前全部静默失效。现在，已完成的尝试会被下一个动作取代（正如其关闭按钮所做的）；只有正在运行的尝试才锁定界面。
+
+**授权 payload 需要结构化收窄，而非形状教条。** 线上存储中的 Antigravity 记录实际携带 `{access, refresh, expires, projectId}`——没有 `type: 'oauth'` 标记，项目键也与流程写入的不同。解析器最初的收窄要求该标记且只读 `antigravityProjectId`/`accountUuid`，于是每次解析都失败：发现只返回静态目录，流以 `no-grant` 结束——而授权其实存在且有效。现在检查是结构化的：记录键已限定在本插件的流程，访问令牌字符串即是授权，项目 id 从三个历史键中任择其一读取。随后基于真实存储（副本）完成了全链路实网验证：过期令牌经 Google 刷新，`fetchAvailableModels` 以账户自身的排序返回实时投影目录，真实流式请求返回了文本与 stop 结束。回归测试钉住了这种前 profile 形态。
+
+**提供方编辑器无法创建仅授权的路由。** `ProviderEditor` 的 `layoutOf` 只认识 `llm-deepseek` 与 `llm-pi-ai` 命名空间；其他命名空间得到 `unknown` 布局，渲染"字段在 settings.yaml 中"的提示并硬性禁用 Apply。因此 Antigravity 的目录项虽出现在"添加提供方"中却无法在那里应用——一个绝不能被误认为路径的死胡同。目录项保留，因为提供方行是目录与存活路由的连接（移除它会隐藏已采用的路由）；区块的登录 → adopt 链路才是预期路径，而感知授权的编辑器布局应留给上游设计。
+
+适配器对能力刻意诚实：它不从附件服务解析 `ImageBlock`/`FileBlock` 字节，因此其模型声明 `inputModalities: ['text']`，界面会拒绝附件而不是静默丢弃。令牌刷新通过凭据接缝的串行化 `modifyRecord` 并在锁内复查，并发调用不会丢失彼此的轮换。
 
 ## Consequences
 

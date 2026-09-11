@@ -166,3 +166,15 @@
   line-height: 22px;
   color: var(--dsw-alias-text-l1);
 }
+
+.error {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  corner-shape: round;
+  background: var(--dsw-alias-bg-l2);
+  color: var(--dsw-alias-label-error);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}

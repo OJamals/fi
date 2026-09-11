@@ -57,10 +57,14 @@ class MemoryLlm extends Service {
   }
 
   async discoverModels(settingsNs: string, request: { provider: string }): Promise<{ id: string; name: string }[]> {
-    if (settingsNs !== 'llm-pi-ai') throw new Error(`unexpected discovery namespace "${settingsNs}"`)
-    const models = request.provider === 'anthropic'
-      ? ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5']
-      : ['gpt-5.2-codex', 'gpt-5.2']
+    const models = settingsNs === 'fi-antigravity'
+      ? ['antigravity-claude-sonnet-4-6', 'antigravity-gemini-3.1-pro-high']
+      : settingsNs === 'llm-pi-ai'
+        ? request.provider === 'anthropic'
+          ? ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5']
+          : ['gpt-5.2-codex', 'gpt-5.2']
+        : undefined
+    if (models === undefined) throw new Error(`unexpected discovery namespace "${settingsNs}"`)
     return models.map(id => ({ id, name: id }))
   }
 }
@@ -74,6 +78,7 @@ async function harness(options?: { settings?: boolean; llm?: boolean; doc?: Reco
   if (options?.settings === true) {
     await ctx.plugin(MemorySettings, { doc: options.doc ?? {} })
     ctx.settings.register('llm-pi-ai', RouteSchema)
+    ctx.settings.register('fi-antigravity', RouteSchema)
   }
   if (options?.llm === true) {
     await ctx.plugin(MemoryLlm)
@@ -83,9 +88,9 @@ async function harness(options?: { settings?: boolean; llm?: boolean; doc?: Reco
   return ctx
 }
 
-/** The resolved providers dict of the registered llm-pi-ai namespace. */
-function routedProviders(ctx: Context): Record<string, unknown> {
-  const view = ctx.settings.describe().find(candidate => candidate.ns === 'llm-pi-ai')
+/** The resolved providers dict of one registered namespace. */
+function routedProviders(ctx: Context, ns = 'llm-pi-ai'): Record<string, unknown> {
+  const view = ctx.settings.describe().find(candidate => candidate.ns === ns)
   return (view?.value as { providers?: Record<string, unknown> }).providers ?? {}
 }
 
@@ -392,10 +397,10 @@ describe('adopt', () => {
     expect(routedProviders(ctx)).toEqual({ anthropic: {} })
   })
 
-  it('adopts an Antigravity-scope grant into the same llm-pi-ai namespace', async () => {
+  it('adopts an Antigravity-scope grant into the adapter\'s own fi-antigravity namespace', async () => {
     // The Antigravity adapter authenticates under `fi-antigravity/antigravity`
-    // but its route belongs to the Models page's pi-ai catalog, so the scope
-    // map routes it into the same settings namespace.
+    // and owns its settings namespace: pi-ai's catalog has no `antigravity`
+    // provider, so a route written there could never be served.
     const AGY_KEY = 'fi-antigravity/antigravity'
     const ctx = await harness({ settings: true, llm: true })
     ctx.authorization.registerFlow({
@@ -410,13 +415,14 @@ describe('adopt', () => {
       },
     })
     await drain(ctx.fiAuthorizationController.begin({ key: AGY_KEY }, new AbortController().signal))
-    expect(routedProviders(ctx)).toEqual({ antigravity: {} })
+    expect(routedProviders(ctx, 'fi-antigravity')).toEqual({ antigravity: {} })
+    expect(routedProviders(ctx)).toEqual({})
 
     const adopted = await ctx.fiAuthorizationController.adopt(AGY_KEY)
 
     expect(adopted.route).toBe('already')
-    expect(adopted.models).toEqual(['gpt-5.2-codex', 'gpt-5.2'])
-    expect(routedProviders(ctx)).toEqual({ antigravity: {} })
+    expect(adopted.models).toEqual(['antigravity-claude-sonnet-4-6', 'antigravity-gemini-3.1-pro-high'])
+    expect(routedProviders(ctx, 'fi-antigravity')).toEqual({ antigravity: {} })
   })
 
   it('refuses when no grant is stored yet', async () => {
