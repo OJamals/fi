@@ -85,6 +85,23 @@ describe('desktop macOS release signature', () => {
     expect(config.appId).toBe(DESKTOP_APP_ID)
   })
 
+  it.each([
+    ['1.2.3-alpha.4', 'alpha'],
+    ['1.2.3', 'latest'],
+  ] as const)('sets the GitHub update channel for Desktop version %s', async (version, channel) => {
+    const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
+    const config = createElectronBuilderConfig({
+      ...RELEASE_ENVIRONMENT,
+      DSH_DESKTOP_AUTO_UPDATE_ENV: 'production',
+    }, 'darwin', 'arm64', version)
+    expect(config.publish).toEqual([{
+      provider: 'github',
+      owner: 'OJamals',
+      repo: 'fi',
+      channel,
+    }])
+  })
+
   it('seals PAK resources with their enclosing bundle while signing executable code', async () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
     const config = createElectronBuilderConfig(RELEASE_ENVIRONMENT, 'darwin', 'arm64')

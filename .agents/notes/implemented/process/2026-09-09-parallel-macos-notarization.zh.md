@@ -10,7 +10,7 @@ Desktop 发布同时提供用于安装的 DMG 和用于更新的 ZIP。等待 Ap
 
 ## 决策
 
-固定目标安装包命令先签名并验证一个 App，再通过 `ditto` 创建两个独立副本。App 路线公证其副本并钉票，验证签名、票据与 Gatekeeper 接受状态，再由 electron-builder 生成 ZIP 和更新元数据。DMG 路线立即封装其副本、签署映像，再通过现有 artifact-completion hook 公证映像、钉票并验证。每个 electron-builder 进程都通过 `--prepackaged` 接收真正的 `.app` 路径、独立的输出目录和 `--publish never`。
+固定目标安装包命令先签名并验证一个 App，再通过 `ditto` 创建两个独立副本。App 路线公证其副本并钉票，验证签名、票据与 Gatekeeper 接受状态，再由 electron-builder 生成 ZIP 和更新元数据。DMG 路线立即封装其副本、签署映像，再通过现有 artifact-completion hook 公证映像、钉票并验证。每个 electron-builder 进程都通过 `--prepackaged` 接收真正的 `.app` 路径、独立的输出目录和 `--publish never`。因为 electron-builder 从不为 GitHub provider 推断预发布频道，GitHub 发布配置会接收根据 Desktop 版本推导出的显式频道；alpha 构建因此生成 `alpha-mac.yml`，同时仍禁用发布。
 
 ZIP 包含已单独钉票的 App。DMG 包含已签名但未单独附加票据的 App；根据 Apple 的[容器说明](https://developer.apple.com/documentation/xcode/packaging-mac-software-for-distribution)，外层票据覆盖内嵌代码。Apple 还说明了 [Gatekeeper 检查外层容器时接收票据的行为](https://developer.apple.com/forums/thread/125512)。单独提取未钉票 App 依赖在线或缓存票据；ZIP 则提供内嵌票据。仅生成目录的命令仍会公证 App 并钉票。
 

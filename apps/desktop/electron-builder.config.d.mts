@@ -25,7 +25,7 @@ export interface DesktopElectronBuilderConfig {
   readonly artifactBuildCompleted: (artifact: { readonly file: string }) => Promise<void> | undefined
   readonly publish: readonly [
     | { readonly provider: 'generic', readonly url: string }
-    | { readonly provider: 'github', readonly owner: 'OJamals', readonly repo: 'fi' },
+    | { readonly provider: 'github', readonly owner: 'OJamals', readonly repo: 'fi', readonly channel: string },
   ] | null
 }
 
@@ -34,12 +34,14 @@ export interface DesktopElectronBuilderConfig {
  * @param env - Packaging environment.
  * @param hostPlatform - Build-host platform used when no explicit target is present.
  * @param hostArch - Build-host architecture used when no explicit target is present.
+ * @param version - Desktop version used to select the GitHub update channel.
  * @returns electron-builder configuration.
  */
 export function createElectronBuilderConfig(
   env?: NodeJS.ProcessEnv,
   hostPlatform?: NodeJS.Platform,
   hostArch?: string,
+  version?: string,
 ): DesktopElectronBuilderConfig
 
 declare const electronBuilderConfig: DesktopElectronBuilderConfig

@@ -67,15 +67,24 @@ export function desktopBuildRecordFilename(target) {
  * @returns {string} Channel metadata filename emitted for the target.
  */
 export function desktopUpdateMetadataFilename(version, platform) {
-  if (valid(version) === null) {
-    throw new Error(`desktop auto-update: invalid Desktop version ${JSON.stringify(version)}`)
-  }
   if (platform !== 'darwin' && platform !== 'win32') {
     throw new Error(`desktop auto-update: unsupported metadata platform ${platform}`)
   }
-  const release = prerelease(version)
-  const channel = release === null ? 'latest' : String(release[0])
+  const channel = desktopUpdateChannel(version)
   return `${channel}${platform === 'darwin' ? '-mac' : ''}.yml`
+}
+
+/**
+ * Return the updater channel selected by one Desktop semantic version.
+ * @param {string} version - Desktop semantic version.
+ * @returns {string} First prerelease identifier, or `latest` for a stable version.
+ */
+export function desktopUpdateChannel(version) {
+  if (valid(version) === null) {
+    throw new Error(`desktop auto-update: invalid Desktop version ${JSON.stringify(version)}`)
+  }
+  const release = prerelease(version)
+  return release === null ? 'latest' : String(release[0])
 }
 
 /**

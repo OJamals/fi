@@ -6,7 +6,9 @@ English | [中文](README.zh.md)
 
 fi is an alpha coding agent application for macOS and Windows. It combines a native desktop shell with a plugin-based agent runtime.
 
-Current version: `0.1.6-alpha.1`
+Current version: `0.1.0-alpha.1` (`fi alpha 1`)
+
+The first public release provides a signed and notarized macOS build for Apple silicon.
 
 <a id="run"></a>
 

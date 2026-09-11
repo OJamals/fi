@@ -6,7 +6,9 @@
 
 fi 是面向 macOS 与 Windows 的 alpha 阶段 coding agent 应用。它将原生桌面壳与插件化 agent 运行时组合在一起。
 
-当前版本：`0.1.6-alpha.1`
+当前版本：`0.1.0-alpha.1`（`fi alpha 1`）
+
+首个公开 release 提供面向 Apple 芯片 Mac 的签名并公证 macOS 构建。
 
 <a id="run"></a><a id="run-from-source"></a>
 

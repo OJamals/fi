@@ -11,20 +11,26 @@ import {
   createWindowsTokenSigner,
   installWindowsNsisBootstrapSigner,
 } from './scripts/windows-sign.mjs'
-import { resolveDesktopAutoUpdateConfig } from './scripts/desktop-auto-update-environment.mjs'
+import {
+  desktopUpdateChannel,
+  resolveDesktopAutoUpdateConfig,
+} from './scripts/desktop-auto-update-environment.mjs'
 import { desktopTargetBuildPaths, resolveDesktopBuildTarget } from './scripts/desktop-build-paths.mjs'
+import desktopPackage from './package.json' with { type: 'json' }
 
 /**
  * Create electron-builder configuration from one release environment.
  * @param {NodeJS.ProcessEnv} env - Packaging environment.
  * @param {NodeJS.Platform} hostPlatform - Build-host platform used when no explicit target is present.
  * @param {string} hostArch - Build-host architecture used when no explicit target is present.
+ * @param {string} version - Desktop version used to select the GitHub update channel.
  * @returns {object} electron-builder configuration.
  */
 export function createElectronBuilderConfig(
   env = process.env,
   hostPlatform = process.platform,
   hostArch = process.arch,
+  version = desktopPackage.version,
 ) {
   const targetPlatform = env.DSH_DESKTOP_TARGET_PLATFORM
   const resolvedPlatform = targetPlatform ?? hostPlatform
@@ -126,7 +132,10 @@ export function createElectronBuilderConfig(
       allowToChangeInstallationDirectory: true,
       differentialPackage: true,
     },
-    publish: update === undefined ? null : [update.publish],
+    publish: update === undefined ? null : [{
+      ...update.publish,
+      ...(update.publish.provider === 'github' ? { channel: desktopUpdateChannel(version) } : {}),
+    }],
   }
 }
 
