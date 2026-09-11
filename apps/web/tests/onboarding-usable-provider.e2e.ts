@@ -19,7 +19,7 @@ import { ZH_BROWSER_LOCALE, saveFailureShot } from './support.ts'
 const SNAPSHOT_DIR = fileURLToPath(new URL('./expected/onboarding-usable-provider', import.meta.url))
 const DISMISSED_EXPECTED = join(SNAPSHOT_DIR, 'dismissed.expected.md')
 const MODE = webSnapshotMode()
-const CREDENTIAL_STEP = '添加一个 API Key 开始使用'
+const SETUP_STEP = '选择一个模型开始使用'
 
 describe.skipIf(MODE === 'record')('web e2e: another usable provider ends first-run onboarding', () => {
   let scaffold: WebScaffold
@@ -44,10 +44,10 @@ describe.skipIf(MODE === 'record')('web e2e: another usable provider ends first-
 
   it('closes the setup card without discarding the add card beside it', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-onboarding-setup-card-cancel'))
-    const credentialStep = page.getByRole('dialog', { name: CREDENTIAL_STEP })
-    await credentialStep.waitFor({ timeout: 15_000 })
-    await credentialStep.getByRole('button', { name: '稍后配置' }).click()
-    await credentialStep.waitFor({ state: 'detached', timeout: 15_000 })
+    const setupStep = page.getByRole('dialog', { name: SETUP_STEP })
+    await setupStep.waitFor({ timeout: 15_000 })
+    await setupStep.getByRole('button', { name: '稍后设置' }).click()
+    await setupStep.waitFor({ state: 'detached', timeout: 15_000 })
 
     await page.getByRole('button', { name: '设置', exact: true }).click()
     const settings = page.getByRole('dialog', { name: '设置' })
@@ -106,7 +106,7 @@ describe.skipIf(MODE === 'record')('web e2e: another usable provider ends first-
     // The regression: the step read only the official route's credential, so a
     // fully configured user was taken over on every blank session.
     await expect.poll(
-      async () => page.getByRole('dialog', { name: CREDENTIAL_STEP }).count(),
+      async () => page.getByRole('dialog', { name: SETUP_STEP }).count(),
       { timeout: 10_000 },
     ).toBe(0)
     expect(await page.locator('#root').evaluate(root => (root as HTMLElement).inert)).toBe(false)

@@ -1,0 +1,5 @@
+- dialog "选择一个模型开始使用":
+  - heading "选择一个模型开始使用" [level=2]
+  - paragraph: fi 与你配置的任意 LLM 提供商协同工作。请在设置中配置提供商并选择默认模型。
+  - button "选择模型"
+  - button "稍后设置"
