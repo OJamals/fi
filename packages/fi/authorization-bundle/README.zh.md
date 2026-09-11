@@ -50,7 +50,7 @@ add 命令会对 profile 做协调并激活该层；它通过 profile 的包管�
 
 ### 你得到什么
 
-有三行进入组合。`@deepseek-ai/dsh-authorization` 挂载 `ctx.authorization`，即插件登录流程所注册的 seam。`@fi/api-authorization-controller` 拥有 `authorization` Remote 命名空间，浏览器表层由此可以列出流程、运行一次尝试、答复其提问并取消它；一次成功登录之后它提供 `adopt(key)`：在 settings 路由缺失时 upsert 该路由，并枚举该路由随后提供的模型。`@fi/client-ui-model-signin` 为每个提供方已注册 OAuth 流程的模型提供方卡片添加登录行，按 pi-ai 目录目前为 Claude Pro/Max、ChatGPT Plus/Pro 与 SuperGrok/X Premium，并实时渲染流程的通知、设备码与提示；其**页脚卡片**在尚无路由时也提供这些提供方，单击即可运行完整链路（登录，然后采用）。流程提交的授权在模型页面管理的既有设置下为该提供方的路由提供认证。
+有三行进入组合。`@deepseek-ai/dsh-authorization` 挂载 `ctx.authorization`，即插件登录流程所注册的 seam。`@fi/api-authorization-controller` 拥有 `authorization` Remote 命名空间，浏览器表层由此可以列出流程、运行一次尝试、答复其提问并取消它；一次成功登录之后它提供 `adopt(key)`：在 settings 路由缺失时 upsert 该路由，并枚举该路由随后提供的模型。`@fi/client-ui-model-signin` 为每个提供方已注册 OAuth 流程的模型提供方卡片添加登录行，按 pi-ai 目录目前为 Claude Pro/Max、ChatGPT Plus/Pro 与 SuperGrok/X Premium，并实时渲染流程的通知、设备码与提示；其**页脚卡片**在尚无路由时也提供这些提供方，单击即可运行完整链路（登录，然后采用）。`@fi/llm-antigravity` 注册 Antigravity OAuth 流程（Google PKCE → Cloud Code 项目发现）及其传输；`@fi/client-ui-model-signin-antigravity` 为 Antigravity 添加对应的登录行与页脚入口。流程提交的授权在模型页面管理的既有设置下为该提供方的路由提供认证。
 
 <a id="understand-the-implementation"></a>
 ## 理解实现
@@ -58,7 +58,7 @@ add 命令会对 profile 做协调并激活该层；它通过 profile 的包管�
 <details>
 <summary>实现内部——点击展开</summary>
 
-patch 文档是 `cordis.patch.yml`：一行挂载 seam，另有一个 `insert` 块加入 Remote 拥有方与浏览器卡片。行 id 以 `fi-` 为前缀，遵循本仓库对 fi 自有行的约定。顺序无需人工编排：`AuthorizationService` 声明了 `static inject = ['credentials']`，因此 Cordis 会持有它直到 base 层的 `credentials` 行就绪。浏览器行是一个 `dsh.client` 包，因此 client-modules 的 node 半边会像其他上游浏览器插件一样把它扫描进 `window.__DSH_BOOT__`。
+patch 文档是 `cordis.patch.yml`：一行挂载 seam，另有一个 `insert` 块加入 Remote 拥有方、pi-ai 浏览器卡片、Antigravity 适配器与 Antigravity 浏览器卡片。行 id 以 `fi-` 为前缀，遵循本仓库对 fi 自有行的约定。顺序无需人工编排：`AuthorizationService` 声明了 `static inject = ['credentials']`，因此 Cordis 会持有它直到 base 层的 `credentials` 行就绪。浏览器行是 `dsh.client` 包，因此 client-modules 的 node 半边会像其他上游浏览器插件一样把它们扫描进 `window.__DSH_BOOT__`。
 
 </details>
 
@@ -67,7 +67,9 @@ patch 文档是 `cordis.patch.yml`：一行挂载 seam，另有一个 `insert` �
 
 - [`@deepseek-ai/dsh-authorization`](../../credentials/authorization/README.zh.md) —— 本层所挂载的 seam。
 - [`@fi/api-authorization-controller`](../api-authorization-controller/README.zh.md) —— 从浏览器驱动该 seam 的 Remote 命名空间。
-- [`@fi/client-ui-model-signin`](../client-ui-model-signin/README.zh.md) —— 本层携带的模型页面卡片。
+- [`@fi/client-ui-model-signin`](../client-ui-model-signin/README.zh.md) —— 本层携带的 pi-ai 提供方模型页面卡片。
+- [`@fi/llm-antigravity`](../llm-antigravity/README.zh.md) —— 本层携带的 Antigravity OAuth 适配器与传输。
+- [`@fi/client-ui-model-signin-antigravity`](../client-ui-model-signin-antigravity/README.zh.md) —— 本层携带的 Antigravity 模型页面卡片。
 - [Agent Note：模型设置中的订阅 OAuth 登录](../../../.agents/notes/implemented/feature/2026-09-11-subscription-oauth-sign-in.zh.md)
 
 -----

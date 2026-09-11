@@ -199,6 +199,7 @@
     // that mounts the seam. Additive — no upstream project is modified.
     { "path": "./packages/fi/api-authorization-controller" },
     { "path": "./packages/fi/authorization-bundle" },
+    { "path": "./packages/fi/llm-antigravity" },
     { "path": "./packages/session-query/tool-session-query" },
     { "path": "./packages/storage/storage" },
     { "path": "./packages/storage/storage-json" },

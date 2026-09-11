@@ -29,7 +29,9 @@
   "dependencies": {
     "@deepseek-ai/dsh-authorization": "workspace:^",
     "@fi/api-authorization-controller": "workspace:^",
-    "@fi/client-ui-model-signin": "workspace:^"
+    "@fi/client-ui-model-signin": "workspace:^",
+    "@fi/client-ui-model-signin-antigravity": "workspace:^",
+    "@fi/llm-antigravity": "workspace:^"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^"

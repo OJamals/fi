@@ -392,6 +392,33 @@ describe('adopt', () => {
     expect(routedProviders(ctx)).toEqual({ anthropic: {} })
   })
 
+  it('adopts an Antigravity-scope grant into the same llm-pi-ai namespace', async () => {
+    // The Antigravity adapter authenticates under `fi-antigravity/antigravity`
+    // but its route belongs to the Models page's pi-ai catalog, so the scope
+    // map routes it into the same settings namespace.
+    const AGY_KEY = 'fi-antigravity/antigravity'
+    const ctx = await harness({ settings: true, llm: true })
+    ctx.authorization.registerFlow({
+      key: credentialKey('fi-antigravity', 'antigravity'),
+      label: 'Antigravity',
+      methods: [{ id: 'oauth', label: 'Sign in with Antigravity' }],
+      async run() {
+        await ctx.credentials.modifyRecord(
+          credentialKey('fi-antigravity', 'antigravity'),
+          () => Promise.resolve({ kind: 'grant', payload: { type: 'oauth', access: 'token' } }),
+        )
+      },
+    })
+    await drain(ctx.fiAuthorizationController.begin({ key: AGY_KEY }, new AbortController().signal))
+    expect(routedProviders(ctx)).toEqual({ antigravity: {} })
+
+    const adopted = await ctx.fiAuthorizationController.adopt(AGY_KEY)
+
+    expect(adopted.route).toBe('already')
+    expect(adopted.models).toEqual(['gpt-5.2-codex', 'gpt-5.2'])
+    expect(routedProviders(ctx)).toEqual({ antigravity: {} })
+  })
+
   it('refuses when no grant is stored yet', async () => {
     // No flow registers and none commits: an adopt without a stored grant
     // must refuse before any settings write.

@@ -37,6 +37,33 @@ Two rules this work pinned down, worth keeping close when adding Remote methods:
 - **Mounting a namespace does not grant access to it.** Cordis refuses `ctx.remote.authorization` property reads from any fiber that never declared it (`cannot get property "remote.authorization" without inject` — surfaced as a pageerror at client boot, leaving the plugin unmounted and its UI absent). The full pattern is the two-step: `$mount` the contribution in `apply()`, then `ctx.inject(['slots', 'locale', 'remote.authorization'], (scoped) => ...)` and do ALL real work inside that scoped fiber (the agent-team `mountAgentTeamUi` shape). A static `inject` entry for the namespace cannot work — the fiber would park before `apply()` ever mounts the namespace.
 - **Registering into a child slot must wait for its declaration.** A children-table slot exists only while the declaring entry (the Models section) is mounted; a sibling plugin that calls `ctx.slots.register` first throws `slot ... is not declared`. Wrap registration in `ctx.slots.inject('settings.models.provider-card', () => ctx.slots.register(...))` — the documented contract in packages/extensions/cordis-client-runner/src/client/slot-catalog.ts:70. It re-runs on owner remount.
 
+## Phase 5 2026-09-11: Antigravity — the second adapter family
+
+The first non-pi-ai adapter proves the seam design holds. `@fi/llm-antigravity` registers the
+Antigravity OAuth flow (`fi-antigravity/antigravity`) on the same `ctx.authorization` seam pi-ai
+uses, and its transport serves Gemini/Claude models through the paid Cloud Code endpoint. The
+Host controller's `ROUTE_NAMESPACE_BY_SCOPE` gains one row (`fi-antigravity` → `llm-pi-ai`), so
+an Antigravity grant upserts `providers.antigravity` into the same settings namespace the Models
+page manages — the route appears beside pi-ai routes without the page knowing the difference.
+
+The OAuth flow is Google PKCE with the Antigravity desktop app's public client id, loopback
+redirect `127.0.0.1:54545/callback` (not `localhost:3000` — browser service workers hijack that
+origin), and five scopes including `cloud-platform` and `cclog`. After exchange it discovers the
+`cloudaicompanionProject` via `loadCodeAssist`, which becomes the billing project every inference
+request names. The transport wraps Gemini `contents`/`generationConfig` in the Cloud Code envelope
+(`{project, model, request, userAgent: "antigravity", requestId, requestType: "agent"}`) and POSTs
+to `v1internal:streamGenerateContent?alt=sse`.
+
+The Models-page card is `@fi/client-ui-model-signin-antigravity`, a parallel package to the pi-ai
+card, registering into the same two slots. The strip offers "Sign in with Antigravity (Gemini Code
+Assist)" when the flow is registered and no grant is stored; the row card appears inside any
+provider card whose id is `antigravity`.
+
+Stealth is deliberately minimal: the UA string and `ideType: "ANTIGRAVITY"` in discovery are the
+only identity claims, both capture-derived. No billing-header fingerprint (Anthropic), no
+originator header (Codex), no plan=generic (Grok) — Antigravity's OAuth is standard Google
+installed-app flow, and the transport's envelope is the sanctioned shape.
+
 ## The key badge 2026-09-11 — investigated and deliberately NOT built
 
 An early pass at the OAuth badge problem parked a marker value (`oauth-grant:<key>`) at the Models

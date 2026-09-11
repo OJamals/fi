@@ -24,13 +24,15 @@ function own(name: string): string {
 }
 
 describe('the bundle layer', () => {
-  it('mounts the seam, its Remote owner, and the browser card', () => {
+  it('mounts the seam, its Remote owner, and the browser cards', () => {
     expect(parse(own('cordis.patch.yml'))).toEqual([
       {
         insert: [
           { id: 'fi-authorization', name: '@deepseek-ai/dsh-authorization' },
           { id: 'fi-authorization-controller', name: '@fi/api-authorization-controller' },
           { id: 'fi-ui-model-signin', name: '@fi/client-ui-model-signin' },
+          { id: 'fi-llm-antigravity', name: '@fi/llm-antigravity' },
+          { id: 'fi-ui-model-signin-antigravity', name: '@fi/client-ui-model-signin-antigravity' },
         ],
       },
     ])

@@ -37,6 +37,32 @@ Status: implemented
 - **挂载命名空间并不等于获得访问权。** Cordis 会拒绝从未声明它的 fiber 读取 `ctx.remote.authorization`（报 `cannot get property "remote.authorization" without inject`，在客户端启动时以 pageerror 出现，导致插件未挂载、其 UI 缺席）。完整模式是两步：在 `apply()` 中先 `$mount` contribution，再 `ctx.inject(['slots', 'locale', 'remote.authorization'], (scoped) => ...)`，并把全部实际工作放进该作用域 fiber 中（agent-team 的 `mountAgentTeamUi` 形态）。静态 `inject` 条目无法做到——fiber 会在 `apply()` 挂上命名空间之前就一直等待。
 - **注册进子槽位必须等待声明。** children 表中的槽位只在声明它的条目（模型区块）挂载期间存在；兄弟插件若先调用 `ctx.slots.register` 会抛 `slot ... is not declared`。用 `ctx.slots.inject('settings.models.provider-card', () => ctx.slots.register(...))` 包裹注册——这是 packages/extensions/cordis-client-runner/src/client/slot-catalog.ts:70 记录的书面约定，并会在所有者重挂载时重跑。
 
+## Phase 5 2026-09-11：Antigravity —— 第二个适配器家族
+
+第一个非 pi-ai 适配器证明了 seam 设计的成立。`@fi/llm-antigravity` 在 pi-ai 使用的同一个
+`ctx.authorization` seam 上注册了 Antigravity OAuth 流程（`fi-antigravity/antigravity`），
+其传输通过付费的 Cloud Code 端点提供 Gemini/Claude 模型。Host 控制器的
+`ROUTE_NAMESPACE_BY_SCOPE` 增加一行（`fi-antigravity` → `llm-pi-ai`），因此 Antigravity
+授权将 `providers.antigravity` upsert 到模型页面管理的同一个 settings 命名空间——路由
+出现在 pi-ai 路由旁边，而页面无需感知差异。
+
+OAuth 流程是 Google PKCE，使用 Antigravity 桌面应用的公共客户端 id，回环重定向
+`127.0.0.1:54545/callback`（不是 `localhost:3000`——浏览器 service worker 会劫持该源），
+以及五个 scope（含 `cloud-platform` 与 `cclog`）。交换后通过 `loadCodeAssist` 发现
+`cloudaicompanionProject`，它成为每个推理请求所命名的计费项目。传输将 Gemini
+`contents`/`generationConfig` 包装进 Cloud Code envelope
+（`{project, model, request, userAgent: "antigravity", requestId, requestType: "agent"}`），
+并 POST 到 `v1internal:streamGenerateContent?alt=sse`。
+
+模型页面卡片是 `@fi/client-ui-model-signin-antigravity`，与 pi-ai 卡片平行的包，注册进
+相同的两个槽位。当流程已注册且无存储授权时，页脚提供“Sign in with Antigravity (Gemini Code
+Assist)”；行卡片出现在 id 为 `antigravity` 的提供方卡片内。
+
+Stealth 刻意保持最小：UA 字符串与发现请求中的 `ideType: "ANTIGRAVITY"` 是仅有的身份声明，
+均为捕获派生。没有计费头指纹（Anthropic）、没有 originator 头（Codex）、没有
+plan=generic（Grok）——Antigravity 的 OAuth 是标准的 Google 安装应用流程，其传输的
+envelope 是官方认可的形状。
+
 ## 密钥徽标 2026-09-11 — 已调研并明确不实现
 
 早期一轮针对 OAuth 徽标问题的尝试在模型页面派生的 `<ROUTE>_API_KEY` 引用处停放标记值（`oauth-grant:<key>`），使已登录提供方的行不再显示缺少密钥。在将上游点状逻辑读到底之后，该实现于提交前被回滚：可见的行圆点要求**命名了** `apiKeyEnv`（仅对命名引用判定 `credential?.configured === true`），而路由未命名 `apiKeyEnv` 时**完全不显示**密钥圆点——绝不会显示误导性的“缺失”（`credentialMissing` 额外要求 `apiKeyEnv !== undefined`）。因此该标记只会喂给槽位座位的 `keyConfigured` 属性，而登录卡片根本没有读取该属性；同时带来真实隐患：此后若用户或编辑器在路由上写入 `apiKeyEnv: <DERIVED_REF>`，标记会被解析为 Bearer token，使请求时的授权被垃圾串替换。
