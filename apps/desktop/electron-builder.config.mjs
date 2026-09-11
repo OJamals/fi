@@ -1,5 +1,7 @@
+import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { dump } from 'js-yaml'
 import {
   DESKTOP_APP_ID,
   resolveMacOSNotarizationEnvironment,
@@ -56,11 +58,16 @@ export function createElectronBuilderConfig(
     installWindowsNsisBootstrapSigner({ sign: windowsSigner })
   }
   const update = unsigned ? undefined : resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
+  const publish = update === undefined ? undefined : {
+    ...update.publish,
+    ...(update.publish.provider === 'github' ? { channel: desktopUpdateChannel(version) } : {}),
+  }
   const buildPaths = desktopTargetBuildPaths(resolveDesktopBuildTarget(env, hostPlatform, hostArch))
   return {
     appId: DESKTOP_APP_ID,
     productName: 'fi',
     executableName: 'fi',
+    extraMetadata: { name: 'fi' },
     artifactName: 'fi-${version}-${os}-${arch}.${ext}',
     directories: {
       output: unsigned ? join(buildPaths.root, 'unsigned-artifacts') : buildPaths.artifacts,
@@ -95,8 +102,18 @@ export function createElectronBuilderConfig(
       writeUpdateInfo: false,
     },
     afterPack: async context => {
+      const resources = context.packager.getResourcesDir(context.appOutDir)
+      if (publish !== undefined) {
+        const detectedChannel = context.packager.appInfo.channel
+        const appUpdate = {
+          ...publish,
+          ...(publish.channel === undefined && detectedChannel !== null ? { channel: detectedChannel } : {}),
+          updaterCacheDirName: context.packager.appInfo.updaterCacheDirName,
+        }
+        await writeFile(join(resources, 'app-update.yml'), dump(appUpdate, { noRefs: true }))
+      }
       const { verifyDesktopRuntime } = await import('./lib/types/runtime-tree.js')
-      await verifyDesktopRuntime(join(context.packager.getResourcesDir(context.appOutDir), 'dsh'),
+      await verifyDesktopRuntime(join(resources, 'dsh'),
         context.packager.appInfo.version, { platform: resolvedPlatform, arch: resolvedArch })
     },
     afterSign: async context => {
@@ -132,10 +149,7 @@ export function createElectronBuilderConfig(
       allowToChangeInstallationDirectory: true,
       differentialPackage: true,
     },
-    publish: update === undefined ? null : [{
-      ...update.publish,
-      ...(update.publish.provider === 'github' ? { channel: desktopUpdateChannel(version) } : {}),
-    }],
+    publish: publish === undefined ? null : [publish],
   }
 }
 

@@ -1,8 +1,9 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { createRequire } from 'node:module'
 import { FileMatcher } from 'app-builder-lib/out/fileMatcher.js'
+import { load } from 'js-yaml'
 import { runtimeFixture } from './runtime-fixture.ts'
 import { verifyDesktopRuntime } from '../src/runtime-tree.ts'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -58,6 +59,7 @@ describe('desktop macOS release signature', () => {
     expect(portablePath(config.extraResources[1]?.from ?? '')).toContain('/.desktop-build/targets/mac-arm64/dsh')
     expect(config).toMatchObject({
       appId: DESKTOP_APP_ID,
+      extraMetadata: { name: 'fi' },
       mac: {
         identity: RELEASE_ENVIRONMENT.DSH_DESKTOP_MACOS_SIGNING_IDENTITY,
         forceCodeSigning: true,
@@ -100,6 +102,38 @@ describe('desktop macOS release signature', () => {
       repo: 'fi',
       channel,
     }])
+  })
+
+  it('writes the updater provider into directory builds before signing', async () => {
+    const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
+    const version = '1.2.3-preview.2'
+    const root = mkdtempSync(join(tmpdir(), 'desktop-app-update-'))
+    const resources = join(root, 'resources')
+    try {
+      runtimeFixture(join(resources, 'dsh'), version)
+      const config = createElectronBuilderConfig({
+        ...RELEASE_ENVIRONMENT,
+        DSH_DESKTOP_AUTO_UPDATE_ENV: 'production',
+      }, 'darwin', 'arm64', version)
+      await config.afterPack({
+        appOutDir: root,
+        packager: {
+          appInfo: {
+            channel: 'preview',
+            updaterCacheDirName: 'fi-updater',
+            version,
+          },
+          getResourcesDir: () => resources,
+        },
+      })
+      expect(load(readFileSync(join(resources, 'app-update.yml'), 'utf8'))).toEqual({
+        provider: 'github',
+        owner: 'OJamals',
+        repo: 'fi',
+        channel: 'preview',
+        updaterCacheDirName: 'fi-updater',
+      })
+    } finally { rmSync(root, { recursive: true, force: true }) }
   })
 
   it('seals PAK resources with their enclosing bundle while signing executable code', async () => {
