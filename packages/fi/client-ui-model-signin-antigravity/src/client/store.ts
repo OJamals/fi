@@ -8,7 +8,7 @@
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import type { AuthorizationEntryView, AuthorizationFrameView } from '@fi/api-authorization-controller'
+import type { AuthorizationFrameView } from '@fi/api-authorization-controller'
 
 const KEY = 'fi-antigravity/antigravity'
 
@@ -89,13 +89,18 @@ export class SignInStore {
     }
     this.set({ status: 'loading' })
     try {
-      const entries: AuthorizationEntryView[] = await remote.list()
-      const entry = entries.find(e => e.key === KEY)
+      const response = await remote.list()
+      if (!response.ok) {
+        this.set({ status: 'failed', error: response.error.message })
+        return
+      }
+      const entries = response.value
+      const entry = entries.find((e: { key: string }) => e.key === KEY)
       const rows: SignInRow[] = entry === undefined ? [] : [{
         key: entry.key,
         provider: 'antigravity',
         label: entry.label,
-        methods: entry.methods.filter(m => m.id === 'oauth'),
+        methods: entry.methods.filter((m: { id: string }) => m.id === 'oauth'),
         stored: entry.stored,
         inFlight: entry.inFlight,
       }]

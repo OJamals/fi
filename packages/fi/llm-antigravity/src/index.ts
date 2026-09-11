@@ -119,9 +119,7 @@ export class FiAntigravityService extends Service {
 
   constructor(ctx: Context) {
     super(ctx, 'fi-antigravity')
-    console.log('[fi-antigravity] registering flow on ctx.authorization')
     registerAntigravityFlow(this.ctx)
-    console.log('[fi-antigravity] flow registered')
   }
 }
 

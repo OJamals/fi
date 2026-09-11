@@ -36,13 +36,16 @@ describe('SignInStore', () => {
     const ctx = new Context()
     // Simulate the Remote namespace by mounting a stub service.
     const stub = {
-      list: async () => [{
-        key: 'fi-antigravity/antigravity',
-        label: 'Antigravity',
-        methods: [{ id: 'oauth', label: 'Sign in with Antigravity' }],
-        inFlight: false,
-        stored: false,
-      }],
+      list: async () => ({
+        ok: true,
+        value: [{
+          key: 'fi-antigravity/antigravity',
+          label: 'Antigravity',
+          methods: [{ id: 'oauth', label: 'Sign in with Antigravity' }],
+          inFlight: false,
+          stored: false,
+        }],
+      }),
       begin: async () => { throw new Error('not implemented') },
       cancel: async () => {},
       revoke: async () => {},
@@ -64,13 +67,16 @@ describe('SignInStore', () => {
   it('reports stored when a grant exists', async () => {
     const ctx = new Context()
     const stub = {
-      list: async () => [{
-        key: 'fi-antigravity/antigravity',
-        label: 'Antigravity',
-        methods: [{ id: 'oauth', label: 'Sign in with Antigravity' }],
-        inFlight: false,
-        stored: true,
-      }],
+      list: async () => ({
+        ok: true,
+        value: [{
+          key: 'fi-antigravity/antigravity',
+          label: 'Antigravity',
+          methods: [{ id: 'oauth', label: 'Sign in with Antigravity' }],
+          inFlight: false,
+          stored: true,
+        }],
+      }),
       begin: async () => { throw new Error('not implemented') },
       cancel: async () => {},
       revoke: async () => {},
