@@ -1,5 +1,5 @@
 ---
-description: "Models settings and product-onboarding plugin for the dsh web client: provider rows, API-key management, model lists, and the DeepSeek first-run dialogs."
+description: "Models settings and product-onboarding plugin for the dsh web client: provider rows, API-key management, model lists, and the model-universal first-run steps."
 kind: "package-reference"
 ---
 
@@ -69,7 +69,7 @@ Each settings write carries the card's current `revision`, so a concurrent write
 
 ### Onboarding coordinator
 
-The notice step owns its exact copy in `src/client/locales.ts` and its acknowledgement version in `src/onboarding-copy.ts`; on loopback it compares and writes `ui-onboarding.welcomeNoticeVersion` through the existing settings API, and only an explicit Continue records the current version. A non-loopback browser cannot use that Host-only namespace, so acknowledgement is process-local and the notice returns after reload. The DeepSeek step renders the existing `ProviderEditor` in credential-only mode inside the shared onboarding modal; `credentials.set` stays the only secret write, and no provider settings are changed.
+The notice step owns its exact copy in `src/client/locales.ts` and its acknowledgement version in `src/onboarding-copy.ts`; on loopback it compares and writes `ui-onboarding.welcomeNoticeVersion` through the existing settings API, and only an explicit Continue records the current version. A non-loopback browser cannot use that Host-only namespace, so acknowledgement is process-local and the notice returns after reload. The setup step is model-universal: no provider is presumed, and a user with no usable provider is routed to the Models page, where every provider — shipped or user-added — is configured. The step writes no credential and changes no settings of its own.
 
 </details>
 

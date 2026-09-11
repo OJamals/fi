@@ -5,12 +5,19 @@
   color: var(--dsw-alias-label-secondary);
 }
 
-.editor {
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
   margin-top: 24px;
 }
 
+.primary {
+  min-width: 120px;
+}
+
 @media (max-width: 560px) {
-  .editor {
-    margin-top: 20px;
+  .primary {
+    width: 100%;
   }
 }

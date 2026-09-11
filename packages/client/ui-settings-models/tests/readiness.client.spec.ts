@@ -67,30 +67,22 @@ describe('providerUsable', () => {
 })
 
 describe('onboardingReadiness', () => {
-  it('waits for the first join and skips onboarding when the adapter directory entry is absent', () => {
+  it('waits for the first join and skips onboarding when nothing is configurable', () => {
     expect(onboardingReadiness(state({ status: 'idle', rows: [] }))).toEqual({ kind: 'loading' })
     expect(onboardingReadiness(state({ status: 'loading', rows: [] }))).toEqual({ kind: 'loading' })
-    expect(onboardingReadiness(state({ rows: [] }))).toEqual({ kind: 'adapter-absent' })
-    expect(onboardingReadiness(state({
-      rows: [row({
-        entry: {
-          ...row().entry,
-          settingsNs: '',
-        },
-      })],
-    }))).toEqual({ kind: 'adapter-absent' })
+    expect(onboardingReadiness(state({ rows: [] }))).toEqual({ kind: 'no-providers' })
   })
 
-  it('reports a missing writable effective credential', () => {
-    expect(onboardingReadiness(state())).toEqual({ kind: 'credential-missing' })
+  it('asks for setup while no provider can serve a request', () => {
+    expect(onboardingReadiness(state())).toEqual({ kind: 'model-unconfigured' })
   })
 
-  it('ends onboarding once any other registered provider can serve requests', () => {
+  it('ends onboarding once any registered provider can serve requests', () => {
     expect(onboardingReadiness(state({ rows: [row(), otherRow()] }))).toEqual({ kind: 'provider-ready' })
     // A provider the user cannot reach yet leaves the prompt in place.
     expect(onboardingReadiness(state({
       rows: [row(), otherRow({ credential: missingCredential })],
-    }))).toEqual({ kind: 'credential-missing' })
+    }))).toEqual({ kind: 'model-unconfigured' })
   })
 
   it('accepts file and process-environment credentials without prompting', () => {
@@ -102,29 +94,26 @@ describe('onboardingReadiness', () => {
     }))).toEqual({ kind: 'provider-ready' })
   })
 
-  it('turns missing capabilities into diagnostics that never block the product', () => {
+  it('routes every unusable join to the Models page and blocks only on a failed load', () => {
     expect(onboardingReadiness(state({ status: 'error', error: 'settings down' }))).toEqual({
       kind: 'unavailable',
       reason: 'load-failed',
     })
+    // Inactive providers, unreadable credentials, and read-only settings are
+    // all resolvable — or diagnosable — from the Models page the step routes
+    // to, so each still prompts instead of silently skipping.
     expect(onboardingReadiness(state({
       rows: [row({ entry: { ...row().entry, active: false } })],
-    }))).toEqual({ kind: 'unavailable', reason: 'provider-inactive' })
+    }))).toEqual({ kind: 'model-unconfigured' })
     expect(onboardingReadiness(state({
       credentialError: 'credentials service is absent',
-    }))).toEqual({
-      kind: 'unavailable',
-      reason: 'credentials-unavailable',
-    })
+    }))).toEqual({ kind: 'model-unconfigured' })
     expect(onboardingReadiness(state({
       rows: [row({ credential: undefined })],
-    }))).toEqual({ kind: 'unavailable', reason: 'credentials-unavailable' })
+    }))).toEqual({ kind: 'model-unconfigured' })
     expect(onboardingReadiness(state({
       rows: [row({ credential: { configured: false, writable: false } })],
-    }))).toEqual({ kind: 'unavailable', reason: 'credential-read-only' })
-    expect(onboardingReadiness(state({ writable: false }))).toEqual({
-      kind: 'unavailable',
-      reason: 'settings-read-only',
-    })
+    }))).toEqual({ kind: 'model-unconfigured' })
+    expect(onboardingReadiness(state({ writable: false }))).toEqual({ kind: 'model-unconfigured' })
   })
 })

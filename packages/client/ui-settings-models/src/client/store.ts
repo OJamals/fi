@@ -271,27 +271,22 @@ export function providerUsable(row: ProviderRow): boolean {
 /** First-run onboarding readiness derived only from the shared Models join. */
 export type OnboardingReadiness =
   | { kind: 'loading' }
-  | { kind: 'adapter-absent' }
+  | { kind: 'no-providers' }
   | { kind: 'provider-ready' }
-  | { kind: 'credential-missing' }
-  | {
-    kind: 'unavailable'
-    reason:
-      | 'load-failed'
-      | 'provider-inactive'
-      | 'credentials-unavailable'
-      | 'settings-read-only'
-      | 'credential-read-only'
-  }
+  | { kind: 'model-unconfigured' }
+  | { kind: 'unavailable'; reason: 'load-failed' }
 
 /**
  * Project first-run readiness from the provider/settings/credential join used
  * by the Models page. The step exists to leave the user with a model to talk
- * to, so ANY usable provider ends it; only when none exists does the official
- * DeepSeek route — the one route the prompt can offer a key field for — decide
- * whether prompting can help. A missing official configurable-provider
- * declaration means the adapter is not repairable by navigating to Models.
- * @param state - current shared Models join snapshot.
+ * to, so ANY usable provider ends it; when none exists the step routes to the
+ * Models page, where every provider — shipped or user-added — is configured.
+ * No provider is presumed: the product is model-universal, so the join answers
+ * only "can the user talk to some model yet", never "which vendor to ask for".
+ * A catalog with no configurable provider rows at all cannot be acted on from
+ * the settings surface either, so that deployment skips the step rather than
+ * routing to a page with nothing to configure.
+ * @param state - the shared Models join snapshot.
  * @returns the onboarding state without reading a parallel fact source.
  */
 export function onboardingReadiness(state: ModelsSettingsState): OnboardingReadiness {
@@ -305,36 +300,6 @@ export function onboardingReadiness(state: ModelsSettingsState): OnboardingReadi
     }
   }
   if (state.rows.some(providerUsable)) return { kind: 'provider-ready' }
-  const row = state.rows.find(candidate =>
-    candidate.entry.provider === 'deepseek-official'
-    && candidate.entry.settingsNs === 'llm-deepseek'
-    && candidate.entry.settingsPath.length === 0)
-  if (row === undefined) return { kind: 'adapter-absent' }
-  if (!row.entry.active) {
-    return {
-      kind: 'unavailable',
-      reason: 'provider-inactive',
-    }
-  }
-  // Past the usable gate an active route names a reference it has no stored
-  // credential for, so the remaining questions are all about that credential.
-  if (state.credentialError !== null || row.credential === undefined) {
-    return {
-      kind: 'unavailable',
-      reason: 'credentials-unavailable',
-    }
-  }
-  if (!state.writable) {
-    return {
-      kind: 'unavailable',
-      reason: 'settings-read-only',
-    }
-  }
-  if (!row.credential.writable) {
-    return {
-      kind: 'unavailable',
-      reason: 'credential-read-only',
-    }
-  }
-  return { kind: 'credential-missing' }
+  if (state.rows.length === 0) return { kind: 'no-providers' }
+  return { kind: 'model-unconfigured' }
 }
