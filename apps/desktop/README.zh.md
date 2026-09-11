@@ -120,7 +120,7 @@ export DOWNLOAD_TEST_COS_SECRET_KEY='<test COS SecretKey>'
 pnpm run upload:mac:arm64
 ```
 
-生成 GitHub Release 的已签名产物前需设置 `DSH_DESKTOP_AUTO_UPDATE_ENV=production`。打包不要求仓库 token，并继续禁用 electron-builder 自动发布；发布仍是显式 release 操作。已发布的稳定 release 是稳定安装的官方更新流；preview 安装会跟随已发布的 preview prerelease。草稿 release 永远不会到达 updater。因为 electron-builder 不会为 GitHub 推断预发布频道，生产打包会根据 Desktop 版本为 GitHub provider 显式设置频道。每个 release 都必须包含平台更新元数据及其引用的全部产物。`fi Preview 01` 仅发布 macOS arm64，因此它的 `preview-mac.yml` 包含 arm64 ZIP 条目，不包含 x64 条目。
+生成 GitHub Release 的已签名产物前需设置 `DSH_DESKTOP_AUTO_UPDATE_ENV=production`。打包不要求仓库 token，并继续禁用 electron-builder 自动发布；发布仍是显式 release 操作。已发布的稳定 release 是稳定安装的官方更新流；preview 安装会跟随已发布的 preview prerelease。草稿 release 永远不会到达 updater。因为 electron-builder 不会为 GitHub 推断预发布频道，生产打包会根据 Desktop 版本为 GitHub provider 显式设置频道。每个 release 都必须包含平台更新元数据及其引用的全部产物。当前 fi Preview release 仅发布 macOS arm64，因此 `preview-mac.yml` 包含 arm64 ZIP 条目，不包含 x64 条目。
 
 测试上传会先验证完成记录、根与 Desktop 版本、频道元数据、产物名称、大小和 SHA-512，再读取 COS 凭据对。它先上传不可变且带版本的产物，最后以 `no-cache` 上传根据版本得出的频道元数据。稳定构建使用 `latest-mac.yml` 或 `latest.yml`；预发布构建使用频道名，例如 `alpha-mac.yml` 或 `alpha.yml`。
 
