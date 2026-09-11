@@ -1,0 +1,137 @@
+/* The sign-in section at the bottom of the Models page. It sits below the
+   provider rows and above the page footer, so it owns its own rule between
+   them rather than inheriting the row card's border. */
+
+.section {
+  border-top: 0.5px solid var(--dsw-alias-border-l4);
+  padding-top: 20px;
+  margin-top: 8px;
+}
+
+.title {
+  font-size: 14px;
+  line-height: 20px;
+  margin: 0 0 6px;
+  color: var(--dsw-alias-text-l1);
+  font-weight: 600;
+}
+
+.intro {
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-text-l2);
+  margin: 0 0 14px;
+  max-width: 64ch;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+}
+
+.rowLi {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-l2);
+}
+
+.row {
+  display: contents;
+}
+
+.identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.label {
+  font-size: 13px;
+  color: var(--dsw-alias-text-l1);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Mirrors the per-row sign-in card's state dot: status is carried by a solid
+   fill with an accessible label, never color alone. */
+.dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-border-l2);
+}
+
+.attempting {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--dsw-alias-text-l2);
+  margin: 0 0 12px;
+}
+
+.attempt {
+  margin: 0 0 12px;
+}
+
+.adopted {
+  border: 0.5px solid var(--dsw-alias-status-success);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--dsw-alias-status-success) 5%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.adoptedTitle {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-text-l1);
+  font-weight: 500;
+}
+
+.modelsTitle {
+  margin: 8px 0 6px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-text-l2);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.modelsList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding-left: 1.4em;
+  list-style: decimal;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.modelRow {
+  font-family: var(--dsw-alias-font-mono, monospace);
+  font-size: 12.5px;
+  line-height: 22px;
+  color: var(--dsw-alias-text-l1);
+}

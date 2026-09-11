@@ -318,6 +318,35 @@ Host service backing `ctx.remote.authorization`. It carries the wire obligations
  *   credential provider is mounted, or when the provider refuses the write.
  */
 @Remote async revoke(key: string): Promise<void>
+
+/**
+ * The providers the sign-in surface can adopt — every registered flow whose
+ * credential scope carries a settings route. May read a fresh `begin`'s
+ * settlement first; standing state answers without one.
+ * @returns adoption entries in flow-registration order.
+ */
+@Remote listAdoptable(): AuthorizationAdoptEntry[]
+
+/**
+ * Adopt one already-signed-in provider into the user's own settings: if the
+ * stored grant exists and no settings route for it stands yet, write the
+ * route with an empty `models` list (pi-ai resolves that to its full
+ * installed catalog), then enumerate the models the route will serve.
+ *
+ * The credential record is the precondition, written by `begin` when the
+ * flow settles `authorized`; this method reads that committed record rather
+ * than re-running any OAuth step, so the surface needs no second
+ * interaction. `revoke` deliberately does NOT remove the route (deleting it
+ * is the Models page's own action); calling `adopt` after `revoke` re-reads
+ * no grant and upserts nothing, answering `skipped`.
+ *
+ * @param key - the credential record whose grant should back a route.
+ * @returns what became of the route and which model ids it now serves.
+ * @throws RemoteError when no grant is stored, when an attempt for the key
+ *   is running, when no settings/credentials service is mounted, or when the
+ *   route namespace answers nothing the catalog can enumerate.
+ */
+@Remote async adopt(key: string): Promise<AuthorizationAdoptView>
 ```
 
 Source: [`packages/fi/api-authorization-controller/src/index.ts`](../../packages/fi/api-authorization-controller/src/index.ts)

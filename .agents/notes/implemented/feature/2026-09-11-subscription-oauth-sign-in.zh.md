@@ -37,6 +37,12 @@ Status: implemented
 - **挂载命名空间并不等于获得访问权。** Cordis 会拒绝从未声明它的 fiber 读取 `ctx.remote.authorization`（报 `cannot get property "remote.authorization" without inject`，在客户端启动时以 pageerror 出现，导致插件未挂载、其 UI 缺席）。完整模式是两步：在 `apply()` 中先 `$mount` contribution，再 `ctx.inject(['slots', 'locale', 'remote.authorization'], (scoped) => ...)`，并把全部实际工作放进该作用域 fiber 中（agent-team 的 `mountAgentTeamUi` 形态）。静态 `inject` 条目无法做到——fiber 会在 `apply()` 挂上命名空间之前就一直等待。
 - **注册进子槽位必须等待声明。** children 表中的槽位只在声明它的条目（模型区块）挂载期间存在；兄弟插件若先调用 `ctx.slots.register` 会抛 `slot ... is not declared`。用 `ctx.slots.inject('settings.models.provider-card', () => ctx.slots.register(...))` 包裹注册——这是 packages/extensions/cordis-client-runner/src/client/slot-catalog.ts:70 记录的书面约定，并会在所有者重挂载时重跑。
 
+## 页脚：为尚无路由的提供方添加
+
+行卡片需要有一张提供方卡片可扩展，而在全新安装中根本不存在任何 pi-ai 路由。模型区块为这一场景保留了第二个槽位 `settings.models.footer`，因此第二个注册把同一个 store 与对话放到了提供方行之下：一条“使用您的订阅登录”区域，以相同的 OAuth 按钮列出 Claude Pro/Max 与 ChatGPT Plus/Pro，通过同一个 `AttemptView` 运行相同的对话，随后链接 Host 的 `adopt(key)`——在 settings 路由缺失时 upsert 该路由，并枚举该路由接着提供的模型。store 中的 `signInAndAdopt(key)` 将 `begin('oauth')` 与采用折叠为一次意图，以尝试自身的 `authorized` 结束为门槛；同一行上的 `revoke` 重新打开该按钮。已存储授权的提供方显示为已订阅而非可采用，因此列表只对真正新的提供方重新出现该按钮，而横幅保留最后一次采用的证据。模型区块自身的 `settings/document-updated` 刷新无需额外接线即可将该新行带入，这正是成功采用为何无需其他 UI 的原因：用户请求的路由落在承载提供方卡片的同一个区块里。
+
+随页脚到来的两个 Host 调用——`listAdoptable()` 与 `adopt(key)`——是该 seam 两个半部的读取侧（哪些凭据 scope 携带 settings 路由，以及已登录者接下来还需要什么）。`adopt` 读取已存储的授权而非重跑 OAuth，因此表层无需第二次交互；只提交凭据而从不 `revoke` 的流程采用是幂等的，这正是为什么当模型区块自身的 `document-updated` 刷新重渲染该行时，相同的路由写入可以干净地重复。
+
 ## Consequences
 
 只要 composition 在 `@deepseek-ai/dsh-base` 之后列出 `@fi/authorization-bundle`，该 seam 即被挂载，`dsh-llm-pi-ai` 随即注册其登录流程，无需其他配置。pi-ai 仍是其自身凭据记录的唯一写入方——流程通过它自己的 store 适配器提交，由 seam 确认写入，因此刷新仍在该 store 的跨进程锁下工作，且已存储的授权在任何 `apiKeyEnv` 覆盖之下为其路由提供认证。没有任何密钥经由新命名空间双向传输。

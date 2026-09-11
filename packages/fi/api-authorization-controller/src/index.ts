@@ -32,12 +32,13 @@ import type {} from '@deepseek-ai/dsh-settings'
 import { z } from 'zod'
 
 import type {
-  AuthorizationEntryView, AuthorizationFrameView, AuthorizationPromptOptionView,
+  AuthorizationAdoptEntry, AuthorizationAdoptView, AuthorizationEntryView, AuthorizationFrameView,
+  AuthorizationPromptOptionView,
 } from './types.ts'
 
 export type {
-  AuthorizationEntryView, AuthorizationFrameView, AuthorizationMethodView,
-  AuthorizationPromptOptionView,
+  AuthorizationAdoptEntry, AuthorizationAdoptView, AuthorizationEntryView, AuthorizationFrameView,
+  AuthorizationMethodView, AuthorizationPromptOptionView,
 } from './types.ts'
 
 /**
@@ -413,6 +414,116 @@ export class FiAuthorizationController extends TypertRemoteService {
       )
     }
     await credentials.deleteRecord(branded)
+  }
+
+  /**
+   * The providers the sign-in surface can adopt — every registered flow whose
+   * credential scope carries a settings route. May read a fresh `begin`'s
+   * settlement first; standing state answers without one.
+   * @returns adoption entries in flow-registration order.
+   */
+  @Remote
+  listAdoptable(): AuthorizationAdoptEntry[] {
+    return this.seam().list().flatMap((entry) => {
+      const ns = (ROUTE_NAMESPACE_BY_SCOPE as Record<string, string | undefined>)[entry.key.slice(0, entry.key.indexOf('/'))]
+      if (ns === undefined) return []
+      return [{
+        key: entry.key,
+        label: entry.label,
+        routeId: entry.key.slice(entry.key.indexOf('/') + 1),
+      }]
+    })
+  }
+
+  /**
+   * Adopt one already-signed-in provider into the user's own settings: if the
+   * stored grant exists and no settings route for it stands yet, write the
+   * route with an empty `models` list (pi-ai resolves that to its full
+   * installed catalog), then enumerate the models the route will serve.
+   *
+   * The credential record is the precondition, written by `begin` when the
+   * flow settles `authorized`; this method reads that committed record rather
+   * than re-running any OAuth step, so the surface needs no second
+   * interaction. `revoke` deliberately does NOT remove the route (deleting it
+   * is the Models page's own action); calling `adopt` after `revoke` re-reads
+   * no grant and upserts nothing, answering `skipped`.
+   *
+   * @param key - the credential record whose grant should back a route.
+   * @returns what became of the route and which model ids it now serves.
+   * @throws RemoteError when no grant is stored, when an attempt for the key
+   *   is running, when no settings/credentials service is mounted, or when the
+   *   route namespace answers nothing the catalog can enumerate.
+   */
+  @Remote
+  async adopt(key: string): Promise<AuthorizationAdoptView> {
+    const parsed = parseRequest('authorization.adopt', z.object({ key: keySchema }), { key })
+    const branded = brandKey(parsed.key)
+    if (this.attempts.has(branded)) {
+      throw new RemoteError(
+        'authorization/in-flight', `an authorization attempt for "${parsed.key}" is already running`, { key: parsed.key })
+    }
+
+    // A grant must already be committed for the key; idempotent beyond that,
+    // so a second click of a done provider just re-reads the same answer.
+    const credentials = this.ctx.get('credentials')
+    if (credentials === undefined) {
+      throw new RemoteError(
+        'gateway/internal',
+        'credentials provider is absent: this deployment does not mount a credential store'
+        + ' (e.g. @deepseek-ai/dsh-credentials-local) in its composition',
+        {},
+      )
+    }
+    const record = await credentials.describeRecord(branded)
+    if (!record.configured) {
+      throw new RemoteError(
+        'authorization/no-grant', `no stored grant for "${parsed.key}"; sign in first`, { key: parsed.key })
+    }
+
+    const route = await this.ensureRoute(branded)
+    if (route === 'skipped') {
+      // The Models page's own add-provider flow remains the explicit path, so
+      // report the gap distinctly rather than fall back to an empty model set.
+      throw new RemoteError(
+        'authorization/adopt-blocked',
+        `the settings route for "${parsed.key}" could not be written (read-only store or unregistered namespace)`,
+        { key: parsed.key },
+      )
+    }
+
+    // The route serves the installed catalog when its profile carries no
+    // models list of its own; enumerate through the same discovery a surface
+    // would use, without a network call for catalog-shipped providers.
+    const settings = this.ctx.get('settings')
+    if (settings === undefined) {
+      throw new RemoteError(
+        'authorization/adopt-blocked',
+        'settings service is absent: cannot enumerate the adopted route models',
+        { key: parsed.key },
+      )
+    }
+    const settingsNs = (ROUTE_NAMESPACE_BY_SCOPE as Record<string, string | undefined>)[parsed.key.slice(0, parsed.key.indexOf('/'))]
+    if (settingsNs === undefined) {
+      throw new RemoteError(
+        'authorization/adopt-blocked',
+        `credential scope "${parsed.key.slice(0, parsed.key.indexOf('/'))}" carries no route rule to adopt through`,
+        { key: parsed.key },
+      )
+    }
+    const llm = this.ctx.get('llm')
+    if (llm === undefined) throw new RemoteError('gateway/internal', 'llm service is absent: cannot enumerate models', {})
+
+    let models: string[] = []
+    try {
+      const discovered = await llm.discoverModels(settingsNs, { provider: parsed.key.slice(parsed.key.indexOf('/') + 1) })
+      models = discovered.map(model => model.id)
+    } catch {
+      // A catalog-shipped provider answers from the registry; failure means the
+      // route namespace isn't connected to discovery — the route still stands
+      // from `ensureRoute`, so report the gap and keep the grant.
+      models = []
+    }
+    return { route, models }
   }
 
   /**

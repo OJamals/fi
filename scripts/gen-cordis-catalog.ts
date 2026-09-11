@@ -695,6 +695,8 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   // its Remote package, not catalog page types.
   AuthorizationEntryView: 'wire view of a registered flow is owned by packages/fi/api-authorization-controller/src/types.ts',
   AuthorizationFrameView: 'wire frame of one authorization attempt is owned by packages/fi/api-authorization-controller/src/types.ts',
+  AuthorizationAdoptView: 'wire view of one adopted provider is owned by packages/fi/api-authorization-controller/src/types.ts',
+  AuthorizationAdoptEntry: 'wire view of an adoptable provider is owned by packages/fi/api-authorization-controller/src/types.ts',
   BeginCommandRequest: 'event-local request contract is owned by packages/client/ui-input-trigger/src/types.ts',
   InsertReferenceRequest: 'event-local request contract is owned by packages/client/ui-input-trigger/src/types.ts',
   ConsumeTokenRequest: 'event-local request contract is owned by packages/client/ui-input-trigger/src/types.ts',

@@ -63,6 +63,10 @@ for await (const frame of ctx.remote.authorization.begin({ key, method: 'oauth' 
 
 `revoke(key)` 删除一条已存储的凭据记录，即让过期或损坏的授权可重新登录的重置。settings 路由刻意不受影响：它是用户配置，删除路由归模型页面所有。当某个 key 的尝试正在运行时 `revoke` 会拒绝，因为在存活流程之下删除记录会使其以一个谎言结束。（动词之所以不是 `remove`：客户端命名空间服务本身就有一个同名实例方法，Remote 客户端会拒绝与之冲突的方法名。）
 
+### 采用：登录之后的路由
+
+`listAdoptable()` 回答哪些凭据 scope 可由登录采用成 settings 路由，从而表面可为每个已安装的订阅登录提供“添加该提供方”；今天它是 pi-ai 目录的 OAuth 流程。`adopt(key)` 执行某次已完成登录的其余部分：读取已存储的授权（记录缺失时以 `authorization/no-grant` 拒绝），如路由不存在则写入 `llm-pi-ai` settings 路由，并枚举该路由随后提供的模型。路由 upsert 使用与模型页面自身“添加”流程相同的 `settings.mutate(expectedRevision)`，因此并发的用户编辑优先，绝不会被覆盖。模型列表来自已挂载 `llm` 服务的 `discoverModels({ provider: <id> })`——对目录提供方而言该调用由 pi-ai 自己的 registry 回答，不发生网络调用。若未挂载 settings 或 llm 服务，授权保持存储，模型页面仍是显式路径；调用以 `authorization/adopt-blocked` 如实报告，而非伪装路由已生效。
+
 <a id="understand-the-implementation"></a>
 ## 理解实现
 

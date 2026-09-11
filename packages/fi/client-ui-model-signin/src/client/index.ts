@@ -23,10 +23,13 @@ import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import fiAuthorizationRemote from '@fi/api-authorization-controller/remote'
 import { SignInCard } from './SignInCard.tsx'
 import type { SignInCardInjected } from './SignInCard.tsx'
+import { SignInFooter } from './SignInFooter.tsx'
+import type { SignInFooterInjected } from './SignInFooter.tsx'
 import { SignInStore } from './store.ts'
 import { en, zh, type SignInKey } from './locales.ts'
 
 export type { SignInCardInjected, SignInCardProps } from './SignInCard.tsx'
+export type { SignInFooterInjected, SignInFooterProps } from './SignInFooter.tsx'
 export type { SignInAttempt, SignInPrompt, SignInRow, SignInState } from './store.ts'
 export type { SignInKey } from './locales.ts'
 export { applyFrame, selectOfferedRows, SignInStore } from './store.ts'
@@ -97,17 +100,30 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
       }
     }, 'fi-model-signin: pushed invalidations')
 
-    // The Models section declares this child slot in its own registration.
+    // The Models section declares these child slots in its own registration.
     // Registration order is unconstrained, and registering into an
-    // undeclared slot throws, so the registration waits for the declaration
+    // undeclared slot throws, so the registrations wait for the declarations
     // through slots.inject() — the same contract the Models page's own apply
-    // uses for its parent slots. It re-runs if the owner remounts.
+    // uses for its parent slots. They re-run if the owner remounts.
+    const injectedFooter = (): SignInFooterInjected => ({
+      controller,
+      hooks: { snapshot: controller.store },
+      t,
+    })
     void controller.load()
     ctx.slots.inject('settings.models.provider-card', () => ctx.slots.register({
       name: 'settings.models.provider-card',
       key: PI_AI_NS,
       inject: injected,
     }, SignInCard))
+    // The footer carries the subscription providers when no route exists
+    // for them yet: the row card needs a row to extend, and the footer
+    // section is where "sign in and add the provider" lives before one.
+    ctx.slots.inject('settings.models.footer', () => ctx.slots.register({
+      name: 'settings.models.footer',
+      id: NS,
+      inject: injectedFooter,
+    }, SignInFooter))
   })
   try {
     await scoped

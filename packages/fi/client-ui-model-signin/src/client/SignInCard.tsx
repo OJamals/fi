@@ -96,7 +96,7 @@ function PromptForm({ attempt, controller, t }: {
 }
 
 /** The live conversation of one running attempt. */
-function AttemptView({ attempt, controller, t }: {
+export function AttemptView({ attempt, controller, t }: {
   attempt: SignInAttempt
   controller: SignInStore
   t: SignInCardInjected['t']

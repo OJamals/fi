@@ -928,6 +928,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'key', description: 'the credential record to revoke.' }],
         throws: ['RemoteError when an attempt for that key is running, when no credential provider is mounted, or when the provider refuses the write.'],
       },
+      {
+        signature: '@Remote listAdoptable(): AuthorizationAdoptEntry[]',
+        description: 'The providers the sign-in surface can adopt — every registered flow whose credential scope carries a settings route. May read a fresh `begin`\'s settlement first; standing state answers without one.',
+        parameters: [],
+        returns: 'adoption entries in flow-registration order.',
+      },
+      {
+        signature: '@Remote async adopt(key: string): Promise<AuthorizationAdoptView>',
+        description: 'Adopt one already-signed-in provider into the user\'s own settings: if the stored grant exists and no settings route for it stands yet, write the route with an empty `models` list (pi-ai resolves that to its full installed catalog), then enumerate the models the route will serve.\n\nThe credential record is the precondition, written by `begin` when the flow settles `authorized`; this method reads that committed record rather than re-running any OAuth step, so the surface needs no second interaction. `revoke` deliberately does NOT remove the route (deleting it is the Models page\'s own action); calling `adopt` after `revoke` re-reads no grant and upserts nothing, answering `skipped`.',
+        parameters: [{ name: 'key', description: 'the credential record whose grant should back a route.' }],
+        returns: 'what became of the route and which model ids it now serves.',
+        throws: ['RemoteError when no grant is stored, when an attempt for the key is running, when no settings/credentials service is mounted, or when the route namespace answers nothing the catalog can enumerate.'],
+      },
     ],
   },
   {
@@ -3773,6 +3786,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'AttachmentId',
     declaration: 'export type AttachmentId = Branded<\'AttachmentId\'>;',
+  },
+  {
+    name: 'AuthorizationAdoptEntry',
+    declaration: 'export interface AuthorizationAdoptEntry {\n    key: string;\n    label: string;\n    routeId: string;\n}',
+  },
+  {
+    name: 'AuthorizationAdoptView',
+    declaration: 'export interface AuthorizationAdoptView {\n    route: \'created\' | \'already\' | \'skipped\';\n    models: readonly string[];\n}',
   },
   {
     name: 'AuthorizationEntry',

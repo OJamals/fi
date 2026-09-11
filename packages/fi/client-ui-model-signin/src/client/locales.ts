@@ -22,6 +22,14 @@ export const en = {
   removeSignIn: 'Remove sign-in',
   cancelled: 'Sign-in cancelled.',
   failed: 'Sign-in failed.',
+  footerTitle: 'Sign in with your subscription',
+  footerHint: 'Add these providers without an API key: a one-time sign-in authorizes fi, and their models are listed under the route below.',
+  footerAdopted: '{provider} is ready: a route was {route}, and it lists {count} models.',
+  footerModelsTitle: 'Models this route now serves',
+  adoptAction: 'Add {provider}',
+  footerRouteCreated: 'created',
+  footerRouteAlready: 'already present',
+  footerRouteSkipped: 'blocked',
 } as const
 
 /** Chinese strings; the parity spec requires this key set to match `en` exactly. */
@@ -40,6 +48,14 @@ export const zh: Record<keyof typeof en, string> = {
   removeSignIn: '移除登录',
   cancelled: '登录已取消。',
   failed: '登录失败。',
+  footerTitle: '使用您的订阅登录',
+  footerHint: '无需 API 密钥即可添加以下提供方：一次登录授权 fi，其模型将列在下方路由中。',
+  footerAdopted: '{provider} 已就绪：路由已{route}，并列出 {count} 个模型。',
+  footerModelsTitle: '该路由现在提供的模型',
+  adoptAction: '添加 {provider}',
+  footerRouteCreated: '创建',
+  footerRouteAlready: '已存在',
+  footerRouteSkipped: '受阻',
 }
 
 /** The copy keys this plugin owns. */

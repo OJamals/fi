@@ -63,6 +63,10 @@ A successful attempt for a `llm-pi-ai/<id>` key also ensures the provider exists
 
 `revoke(key)` deletes one stored credential record — the reset that makes an expired or broken grant sign-in-able again. The settings route is deliberately untouched: it is user configuration, and the Models page already owns deleting it. `revoke` refuses while an attempt for the key is running, since deleting the record beneath a live flow would settle it into a lie. (The verb is not `remove`: the client-side namespace service owns an instance method by that name, and the Remote client refuses colliding method names.)
 
+### Adopt: route after sign-in
+
+`listAdoptable()` answers the credential scopes a sign-in can adopt into a settings route, so a surface can offer "add this provider" for every installed subscription login; today it is the pi-ai catalog's OAuth flows. `adopt(key)` performs the rest of one finished sign-in: it reads the stored grant (refusing `authorization/no-grant` when the record is absent), writes the `llm-pi-ai` settings route if one is absent, and enumerates the models the route then serves. The route upsert is the same `settings.mutate(expectedRevision)` the Models page's own add flow uses, so a concurrent user edit wins, never gets clobbered. The model list comes from the mounted `llm` service's `discoverModels` with `{ provider: <id> }` — for a catalog provider this answers from pi-ai's own registry, without a network call. If no settings or llm service is mounted the grant stays stored and the Models page remains the explicit path; the call reports `authorization/adopt-blocked` rather than pretend the route worked.
+
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 

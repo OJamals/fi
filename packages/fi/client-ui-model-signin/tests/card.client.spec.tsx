@@ -42,14 +42,20 @@ function owner(provider: string): SignInCardProps {
   }
 }
 
+/** The scripted controller a card test renders against. */
+interface MountController {
+  begin: ReturnType<typeof vi.fn>
+  answer: ReturnType<typeof vi.fn>
+  dismiss: ReturnType<typeof vi.fn>
+  remove: ReturnType<typeof vi.fn>
+}
+
 /** Render the card over one snapshot, with a recording controller. */
-function mount(state: Partial<SignInState>, provider = 'anthropic'): {
-  controller: {
-    begin: ReturnType<typeof vi.fn>, answer: ReturnType<typeof vi.fn>, dismiss: ReturnType<typeof vi.fn>, remove: ReturnType<typeof vi.fn>
-  }
-} {
+function mount(state: Partial<SignInState>, provider = 'anthropic'): { controller: MountController } {
   const store = createSnapshotStore<SignInState>({
-    status: 'ready', rows: [ANTHROPIC], attempt: null, error: null, ...state,
+    status: 'ready', rows: [ANTHROPIC], attempt: null, error: null,
+    adoptEntries: [], adopted: null,
+    ...state,
   })
   const controller = { begin: vi.fn(), answer: vi.fn(), dismiss: vi.fn(), remove: vi.fn() }
   render(

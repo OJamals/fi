@@ -46,8 +46,45 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
       /** The prompt id, when one question was withdrawn rather than all of them. */
       readonly id?: number
     }
+    /** An adopt call asked to write a route for a grant that is not stored yet. */
+    'authorization/no-grant': {
+      /** The credential record that names no stored grant. */
+      readonly key: string
+    }
+    /**
+     * An adopt call could not place the route: the settings store is read-only
+     * or the settings namespace is unregistered, so the surface must fall back
+     * to the Models page's explicit add-provider flow.
+     */
+    'authorization/adopt-blocked': {
+      /** The credential record whose route could not be written. */
+      readonly key: string
+    }
   }
 }
+
+/** Result of adopting a signed-in provider into the user's own settings. */
+export interface AuthorizationAdoptView {
+  /** The route the adopt upserted, `created` if it was absent and now stands. */
+  route: 'created' | 'already' | 'skipped'
+  /**
+   * The model ids the route serves after adoption, in installed-catalog
+   * order — pi-ai resolves an empty `models` list to its full shipped
+   * catalog, so for a catalog provider this is every model it declares.
+   */
+  models: readonly string[]
+}
+
+/** One provider the sign-in surface can adopt: its credential scope and the settings route id it upserts. */
+export interface AuthorizationAdoptEntry {
+  /** The credential record the sign-in stores, e.g. `llm-pi-ai/anthropic`. */
+  key: string
+  /** User-facing provider name for buttons and notices, e.g. `Anthropic`. */
+  label: string
+  /** The settings route id this provider upserts, e.g. `anthropic`. */
+  routeId: string
+}
+
 
 /** One way a flow can obtain its credential, as a surface offers it. */
 export interface AuthorizationMethodView {

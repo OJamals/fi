@@ -50,7 +50,7 @@ add 命令会对 profile 做协调并激活该层；它通过 profile 的包管�
 
 ### 你得到什么
 
-有三行进入组合。`@deepseek-ai/dsh-authorization` 挂载 `ctx.authorization`，即插件登录流程所注册的 seam。`@fi/api-authorization-controller` 拥有 `authorization` Remote 命名空间，浏览器表层由此可以列出流程、运行一次尝试、答复其提问并取消它。`@fi/client-ui-model-signin` 为每个提供方已注册 OAuth 流程的模型提供方卡片添加登录行，按 pi-ai 目录目前为 Claude Pro/Max 与 ChatGPT Plus/Pro，并实时渲染流程的通知、设备码与提示。流程提交的授权在模型页面管理的既有设置下为该提供方的路由提供认证。
+有三行进入组合。`@deepseek-ai/dsh-authorization` 挂载 `ctx.authorization`，即插件登录流程所注册的 seam。`@fi/api-authorization-controller` 拥有 `authorization` Remote 命名空间，浏览器表层由此可以列出流程、运行一次尝试、答复其提问并取消它；一次成功登录之后它提供 `adopt(key)`：在 settings 路由缺失时 upsert 该路由，并枚举该路由随后提供的模型。`@fi/client-ui-model-signin` 为每个提供方已注册 OAuth 流程的模型提供方卡片添加登录行，按 pi-ai 目录目前为 Claude Pro/Max 与 ChatGPT Plus/Pro，并实时渲染流程的通知、设备码与提示；其**页脚卡片**在尚无路由时也提供这些提供方，单击即可运行完整链路（登录，然后采用）。流程提交的授权在模型页面管理的既有设置下为该提供方的路由提供认证。
 
 <a id="understand-the-implementation"></a>
 ## 理解实现

@@ -15,7 +15,7 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type {
-  AuthorizationEntryView, AuthorizationFrameView,
+  AuthorizationAdoptEntry, AuthorizationEntryView, AuthorizationFrameView,
 } from '@fi/api-authorization-controller/types'
 
 /** The credential-record scope the pi-ai adapter family writes under. */
@@ -90,9 +90,26 @@ export interface SignInState {
   readonly attempt: SignInAttempt | null
   /** Why the last load failed, or null. */
   readonly error: string | null
+  /**
+   * Providers the sign-in surface can adopt into a settings route, in flow
+   * order. Modeled separately from `rows` because adoption needs the route
+   * id, which only the Host knows; either list may lag the other one load.
+   */
+  readonly adoptEntries: readonly AuthorizationAdoptEntry[]
+  /**
+   * The last completed adoption — the route it left and the models the route
+   * now serves — or null before anything has been adopted this session.
+   */
+  readonly adopted: {
+    readonly key: string
+    readonly route: 'created' | 'already' | 'skipped'
+    readonly models: readonly string[]
+  } | null
 }
 
-const INITIAL: SignInState = { status: 'idle', rows: [], attempt: null, error: null }
+const INITIAL: SignInState = {
+  status: 'idle', rows: [], attempt: null, error: null, adoptEntries: [], adopted: null,
+}
 
 /**
  * Select and order the offered flows out of everything the Host registered.
@@ -195,11 +212,18 @@ export class SignInStore {
       this.store.set({ ...this.store.getSnapshot(), status: 'failed', error: response.error.message })
       return
     }
+    // The adopt list rides its own call because it may exist without any
+    // flow's in-flight/stored facts changing: the scope→namespace map is a
+    // Host constant, and the Models page's own writes do not move what the
+    // authorization seam registered.
+    const adoptResponse = await this.ctx.remote.authorization.listAdoptable()
+    if (generation !== this.generation) return
     this.store.set({
       ...this.store.getSnapshot(),
       status: 'ready',
       error: null,
       rows: selectOfferedRows(response.value),
+      adoptEntries: adoptResponse.ok ? adoptResponse.value : this.store.getSnapshot().adoptEntries,
     })
   }
 
@@ -209,6 +233,40 @@ export class SignInStore {
    * @param method - the method to run; defaults to the flow's first.
    */
   async begin(key: string, method?: string): Promise<void> {
+    await this.drive(key, method, undefined)
+  }
+
+  /**
+   * The footer surface's whole flow: run the OAuth sign-in for a provider
+   * (device code, paste, whatever the flow asks), then if it settles
+   * `authorized` chain the adopt on the stored grant. The attempt's own
+   * `authorized` settlement is what decides the second call is legal — this
+   * method does not re-read credential state, and `revoke` between `begin`
+   * and here would make `adopt` report `no-grant` honestly.
+   * @param key - the credential record to authorize and adopt.
+   */
+  async signInAndAdopt(key: string): Promise<void> {
+    // `authorized` is folded from the stream inside `drive`; a failure
+    // short-circuits the adopt call below.
+    await this.drive(key, 'oauth', async () => {
+      const state = this.store.getSnapshot()
+      if (state.attempt?.settled?.status === 'authorized') {
+        await this.adopt(key)
+      }
+    })
+  }
+
+  /**
+   * Run one attempt to completion: set the attempt on the snapshot, consume
+   * its frames, and when it ends run the caller's settle hook. The hook is
+   * where an adopt chains onto a successful sign-in, so it runs before the
+   * attempt's `finally` re-loads the rows — the Models page's credential join
+   * and the footer's adoption banner stay the same read.
+   * @param key - the credential record to authorize.
+   * @param method - the method to run, or undefined for the flow's first.
+   * @param settle - hook invoked once the attempt has settled (may be a noop).
+   */
+  private async drive(key: string, method: string | undefined, settle: (() => Promise<void>) | undefined): Promise<void> {
     if (this.store.getSnapshot().attempt !== null) return
     const controller = new AbortController()
     this.running = controller
@@ -242,6 +300,10 @@ export class SignInStore {
       })
     } finally {
       if (this.running === controller) this.running = undefined
+      // The hook runs before the rows re-load because adoption does not move
+      // credential facts — it only writes a route and models list — while a
+      // load would otherwise erase the settled frame the footer shows.
+      if (settle !== undefined) await settle()
       // Whatever happened, the stored/in-flight facts moved; the page's own
       // credential join refreshes from the Host rather than from this state.
       await this.load()
@@ -269,6 +331,38 @@ export class SignInStore {
     const attempt = this.store.getSnapshot().attempt
     if (attempt === null) return
     await this.ctx.remote.authorization.cancel(attempt.key)
+  }
+
+  /**
+   * Adopt one already-signed-in provider into the Models page: write its
+   * settings route if absent and enumerate the models the route then serves.
+   * The grant must already exist (a settled `begin` wrote it); the adopt is
+   * idempotent past that point, so a click after an earlier successful adopt
+   * just refreshes the same answer.
+   * @param key - the credential record whose provider should be added.
+   * @returns the adopt outcome, or undefined when the call itself failed.
+   */
+  async adopt(key: string): Promise<void> {
+    const response = await this.ctx.remote.authorization.adopt(key)
+    if (!response.ok) {
+      this.store.set({
+        ...this.store.getSnapshot(),
+        status: 'ready',
+        error: response.error.message,
+      })
+      return
+    }
+    const state = this.store.getSnapshot()
+    this.store.set({
+      ...state,
+      status: 'ready',
+      error: null,
+      adopted: {
+        key,
+        route: response.value.route,
+        models: response.value.models,
+      },
+    })
   }
 
   /**

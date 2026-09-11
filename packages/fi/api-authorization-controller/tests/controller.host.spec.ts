@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
+import { Context, Service } from '@deepseek-ai/cordis'
 import AuthorizationService from '@deepseek-ai/dsh-authorization'
 import type { AuthorizationSession } from '@deepseek-ai/dsh-authorization'
 import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
@@ -43,8 +43,30 @@ class MemorySettings extends SettingsProvider {
 /** The pi-ai route schema, reduced to what the route write must validate. */
 const RouteSchema = z.object({ providers: z.dict(z.object({ displayName: z.string().role('option') })).default({}) })
 
+/**
+ * The minimal LlmService surface the controller's adopt reads: catalog
+ * enumeration by settings namespace. The real LlmService is part of the
+ * mounted Host bundle; a stub here answers from a fixed model list so the
+ * adopt tests exercise the wire shape without pulling the whole LLM graph.
+ */
+class MemoryLlm extends Service {
+  static inject = ['settings']
+
+  constructor(ctx: Context) {
+    super(ctx, 'llm')
+  }
+
+  async discoverModels(settingsNs: string, request: { provider: string }): Promise<{ id: string; name: string }[]> {
+    if (settingsNs !== 'llm-pi-ai') throw new Error(`unexpected discovery namespace "${settingsNs}"`)
+    const models = request.provider === 'anthropic'
+      ? ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5']
+      : ['gpt-5.2-codex', 'gpt-5.2']
+    return models.map(id => ({ id, name: id }))
+  }
+}
+
 /** A context with the record store, the seam, this controller, and (optionally) a settings provider. */
-async function harness(options?: { settings?: boolean; doc?: Record<string, unknown> }): Promise<Context> {
+async function harness(options?: { settings?: boolean; llm?: boolean; doc?: Record<string, unknown> }): Promise<Context> {
   const dir = await mkdtemp(join(tmpdir(), 'fi-auth-ctl-'))
   dirs.push(dir)
   const ctx = new Context()
@@ -52,6 +74,9 @@ async function harness(options?: { settings?: boolean; doc?: Record<string, unkn
   if (options?.settings === true) {
     await ctx.plugin(MemorySettings, { doc: options.doc ?? {} })
     ctx.settings.register('llm-pi-ai', RouteSchema)
+  }
+  if (options?.llm === true) {
+    await ctx.plugin(MemoryLlm)
   }
   await ctx.plugin(AuthorizationService)
   ctx.plugin(FiAuthorizationController)
@@ -350,5 +375,52 @@ describe('revoke', () => {
 
     ctx.fiAuthorizationController.cancel(KEY)
     await drained
+  })
+})
+
+describe('adopt', () => {
+  it('creates the route and lists the catalog models after a successful sign-in', async () => {
+    const ctx = await harness({ settings: true, llm: true })
+    registerFlow(ctx, async () => { await commit(ctx) })
+    await drain(ctx.fiAuthorizationController.begin({ key: KEY }, new AbortController().signal))
+    expect(routedProviders(ctx)).toEqual({ anthropic: {} })
+
+    const adopted = await ctx.fiAuthorizationController.adopt(KEY)
+
+    expect(adopted.route).toBe('already')
+    expect(adopted.models).toEqual(['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5'])
+    expect(routedProviders(ctx)).toEqual({ anthropic: {} })
+  })
+
+  it('refuses when no grant is stored yet', async () => {
+    // No flow registers and none commits: an adopt without a stored grant
+    // must refuse before any settings write.
+    const ctx = await harness({ settings: true, llm: true })
+    registerFlow(ctx, async () => {})
+    await expect(ctx.fiAuthorizationController.adopt(KEY))
+      .rejects.toMatchObject({ code: 'authorization/no-grant' })
+    expect(routedProviders(ctx)).toEqual({})
+  })
+
+  it('refuses when an attempt is already running', async () => {
+    const ctx = await harness({ settings: true, llm: true })
+    let release: () => void = () => {}
+    const hold = new Promise<void>((resolve) => { release = resolve })
+    registerFlow(ctx, async () => { await hold })
+    void drain(ctx.fiAuthorizationController.begin({ key: KEY }, new AbortController().signal))
+    await Promise.resolve()
+    await expect(ctx.fiAuthorizationController.adopt(KEY))
+      .rejects.toMatchObject({ code: 'authorization/in-flight' })
+    release()
+  })
+
+  it('blocks adoption when settings cannot commit a route, keeping the grant', async () => {
+    // Settings is absent, so `ensureRoute` reports `skipped` and adopt
+    // refuses rather than write nothing and read as settled.
+    const ctx = await harness({ llm: true })
+    registerFlow(ctx, async () => { await commit(ctx) })
+    await drain(ctx.fiAuthorizationController.begin({ key: KEY }, new AbortController().signal))
+    await expect(ctx.fiAuthorizationController.adopt(KEY))
+      .rejects.toMatchObject({ code: 'authorization/adopt-blocked' })
   })
 })
