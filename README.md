@@ -6,9 +6,9 @@ English | [中文](README.zh.md)
 
 Brand assets include the [default fi logo](apps/desktop/build/fi-logo-source.png) and a [transparent white variant for dark backgrounds](apps/desktop/build/fi-logo-dark-background.png).
 
-fi is an alpha coding agent application for macOS and Windows. It combines a native desktop shell with a plugin-based agent runtime.
+fi is a prerelease coding agent application for macOS and Windows. It combines a native desktop shell with a plugin-based agent runtime.
 
-Current version: `0.1.0-alpha.1` (`fi alpha 1`)
+Current release: `fi Preview 01` (package version `0.1.0-preview.1`)
 
 The first public release provides a signed and notarized macOS build for Apple silicon.
 
@@ -29,11 +29,11 @@ Use `pnpm run build:official` for an official Web build. Desktop packaging, sign
 
 ## Updates
 
-Production desktop builds read signed update metadata from published [fi GitHub Releases](https://github.com/OJamals/fi/releases). Alpha builds follow alpha prereleases; stable builds follow stable releases. Draft releases are ignored.
+Production desktop builds read signed update metadata from published [fi GitHub Releases](https://github.com/OJamals/fi/releases). Preview builds follow preview prereleases; stable builds follow stable releases. Draft releases are ignored.
 
 ## Project status
 
-fi is alpha software. Expect breaking changes. Read [SAFETY.md](SAFETY.md) before use.
+fi is prerelease software. Expect breaking changes. Read [SAFETY.md](SAFETY.md) before use.
 
 fi is based on [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), originally developed by DeepSeek AI, and uses [Cordis](https://github.com/cordiverse/cordis).
 

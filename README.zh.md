@@ -6,9 +6,9 @@
 
 品牌资源包括[默认 fi 标志](apps/desktop/build/fi-logo-source.png)以及用于深色背景的[透明白色版本](apps/desktop/build/fi-logo-dark-background.png)。
 
-fi 是面向 macOS 与 Windows 的 alpha 阶段 coding agent 应用。它将原生桌面壳与插件化 agent 运行时组合在一起。
+fi 是面向 macOS 与 Windows 的预发布 coding agent 应用。它将原生桌面壳与插件化 agent 运行时组合在一起。
 
-当前版本：`0.1.0-alpha.1`（`fi alpha 1`）
+当前 release：`fi Preview 01`（package 版本 `0.1.0-preview.1`）
 
 首个公开 release 提供面向 Apple 芯片 Mac 的签名并公证 macOS 构建。
 
@@ -29,11 +29,11 @@ pnpm run dev:desktop
 
 ## 更新
 
-生产桌面构建从已发布的 [fi GitHub Releases](https://github.com/OJamals/fi/releases) 读取已签名更新元数据。Alpha 构建跟随 alpha prerelease，稳定构建跟随稳定 release；草稿 release 会被忽略。
+生产桌面构建从已发布的 [fi GitHub Releases](https://github.com/OJamals/fi/releases) 读取已签名更新元数据。Preview 构建跟随 preview prerelease，稳定构建跟随稳定 release；草稿 release 会被忽略。
 
 ## 项目状态
 
-fi 处于 alpha 阶段，可能发生破坏性变更。使用前请阅读 [SAFETY.zh.md](SAFETY.zh.md)。
+fi 处于预发布阶段，可能发生破坏性变更。使用前请阅读 [SAFETY.zh.md](SAFETY.zh.md)。
 
 fi 基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)，该项目最初由 DeepSeek AI 开发，并使用 [Cordis](https://github.com/cordiverse/cordis)。
 

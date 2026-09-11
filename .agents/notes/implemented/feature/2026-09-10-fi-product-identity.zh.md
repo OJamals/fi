@@ -16,7 +16,7 @@ Status: implemented
 
 在 macOS 上，主 BrowserWindow 使用 Electron 的 `hiddenInset` 标题栏样式，并把原生红黄绿按钮放在 20px 可拖动应用行内。AppFrame 让侧边栏填充延伸到这些按钮下方，并让主区背景覆盖该行其余部分。启动文档在应用渲染进程加载前提供相同的可拖动高度；辅助窗口保留标准原生外观。
 
-桌面应用 ID 是源码拥有的 `com.fi.app`，发布环境无法替换它。生产包写入 electron-builder 的 GitHub provider，并由源码明确固定仓库 `OJamals/fi`。已发布的 GitHub release 是官方更新来源；alpha 安装跟随已发布的 alpha prerelease，稳定安装跟随已发布的稳定 release，草稿则不可见。测试包保留独立的通用 HTTPS 更新流与 COS 上传路径。首个公开 fi 预发布版本将产品发布线重置为 `0.1.0-alpha.1`，使用 release 标题 `fi alpha 1`，并选择 electron-builder 的 alpha 更新通道。它仅发布已签名并公证的 macOS arm64 产物，更新元数据也只引用该架构。
+桌面应用 ID 是源码拥有的 `com.fi.app`，发布环境无法替换它。生产包写入 electron-builder 的 GitHub provider，并由源码明确固定仓库 `OJamals/fi`。已发布的 GitHub release 是官方更新来源；preview 安装跟随已发布的 preview prerelease，稳定安装跟随已发布的稳定 release，草稿则不可见。测试包保留独立的通用 HTTPS 更新流与 COS 上传路径。fi 预发布版本依次使用公开标签 `fi Preview 01`、`fi Preview 02` 等，并对应 package 版本 `0.1.0-preview.1`、`0.1.0-preview.2` 等。首个公开 fi 预发布版本使用 release 标题 `fi Preview 01` 与 electron-builder 的 `preview` 更新频道。它仅发布已签名并公证的 macOS arm64 产物，更新元数据也只引用该架构。
 
 其他兼容性与来源标识保持不变。`dsh` 命令、`$DSH_HOME`、其余 `DSH_*` 环境变量、`@deepseek-ai/dsh-*` 包名、SDK wire 身份，以及对底层 DeepSeek Harness 实现的引用均保留现有值。包仓库元数据指向 fi 仓库，许可证与根文档保留上游来源说明。
 
@@ -28,4 +28,4 @@ Status: implemented
 
 ## 后果
 
-用户会在启动页、已安装应用外观和官方浏览器 UI 中看到统一的 fi 身份。macOS 原生控件属于应用界面，而不是单独的标题栏。品牌变更必须更新签入的源图稿，并一起重新生成桌面与 Web 衍生文件。安装与更新元数据使用 `com.fi.app`；首批公开产物使用版本 `0.1.0-alpha.1`。内部工具和外部集成继续使用稳定的 DSH 标识。
+用户会在启动页、已安装应用外观和官方浏览器 UI 中看到统一的 fi 身份。macOS 原生控件属于应用界面，而不是单独的标题栏。品牌变更必须更新签入的源图稿，并一起重新生成桌面与 Web 衍生文件。安装与更新元数据使用 `com.fi.app`；首批公开产物使用 package 版本 `0.1.0-preview.1` 与公开版本 `fi Preview 01`。内部工具和外部集成继续使用稳定的 DSH 标识。
