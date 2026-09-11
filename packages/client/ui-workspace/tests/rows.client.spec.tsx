@@ -333,6 +333,38 @@ describe('workspace browser rows', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
+  it('workspace row menu opens at the pointer on right-click and dispatches like the ellipsis', () => {
+    const onRename = vi.fn()
+    const onDelete = vi.fn()
+    const onToggle = vi.fn()
+    const group: GroupNode = {
+      key: 'project', workspaceId: wid('project'), cwd: '/projects/project', createdAt: 0, label: 'Project',
+      sessionCount: 0, expanded: false, containsCurrent: false, sessions: [],
+    }
+    render(<ProjectRowItem
+      group={group} onToggle={onToggle} onCreate={vi.fn()}
+      actions={{ rename: onRename, delete: onDelete }} t={t}
+    />)
+    const row = screen.getByRole('treeitem')
+    fireEvent.contextMenu(row, { clientX: 120, clientY: 88 })
+    // The same rows the ellipsis shows, without toggling the group.
+    expect(onToggle).not.toHaveBeenCalled()
+    expect(screen.getByRole('menuitem', { name: '重命名' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: '删除工作区' }).className).toMatch(/danger/)
+    // Cursor placement: the portaled list is fixed at the pointer, 4px below.
+    const menu = screen.getByRole('menu')
+    expect(menu.style.left).toBe('120px')
+    expect(menu.style.top).toBe('92px')
+    fireEvent.click(screen.getByRole('menuitem', { name: '删除工作区' }))
+    expect(onDelete).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('menu')).toBeNull()
+    // A later ellipsis open anchors at the button again, not the stale point.
+    fireEvent.click(screen.getByRole('button', { name: '工作区“Project”的操作' }))
+    expect(screen.getByRole('menu').style.left).not.toBe('120px')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
   it('workspace hover card shows its details and copies the full directory path', async () => {
     vi.useFakeTimers()
     const writeText = vi.fn(async () => {})
@@ -414,6 +446,27 @@ describe('workspace browser rows', () => {
     }
   })
 
+  it('right-click opens nothing where the ellipsis offers nothing', () => {
+    // Ungrouped bucket: no workspace actions to act on.
+    const group: GroupNode = {
+      key: '', workspaceId: undefined, cwd: undefined, createdAt: undefined, label: 'Ungrouped',
+      sessionCount: 0, expanded: false, containsCurrent: false, sessions: [],
+    }
+    const { unmount } = render(<ProjectRowItem group={group} onToggle={vi.fn()} onCreate={vi.fn()} t={t} />)
+    fireEvent.contextMenu(screen.getByRole('treeitem'), { clientX: 10, clientY: 10 })
+    expect(screen.queryByRole('menu')).toBeNull()
+    unmount()
+    // Blank New Session row: no row verbs yet.
+    const node: SessionNode = {
+      id: sid('s-blank'), title: 'ignored', blank: true, running: false,
+      runningSubagentCount: 0, completed: false, hasActiveSchedule: false, updatedAt: 0,
+    }
+    render(<SessionNodeItem node={node} currentId={undefined} now={0} onOpen={vi.fn()}
+      onRename={vi.fn()} onFork={vi.fn()} onArchive={vi.fn()} t={t} />)
+    fireEvent.contextMenu(screen.getByRole('treeitem'), { clientX: 10, clientY: 10 })
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
   it('ungrouped bucket renders no workspace menu', () => {
     const group: GroupNode = {
       key: '', workspaceId: undefined, cwd: undefined, createdAt: undefined, label: 'Ungrouped',
@@ -477,6 +530,15 @@ describe('workspace browser rows', () => {
     expect(onArchive).toHaveBeenCalledWith(node.id)
     expect(onRename).toHaveBeenCalledOnce()
     expect(onOpen).not.toHaveBeenCalled()
+
+    // Right-click opens the same rows at the pointer and dispatches equally.
+    fireEvent.contextMenu(screen.getByRole('treeitem'), { clientX: 40, clientY: 60 })
+    expect(onOpen).not.toHaveBeenCalled()
+    expect(screen.getByRole('menu').style.left).toBe('40px')
+    expect(screen.getByRole('menu').style.top).toBe('64px')
+    fireEvent.click(screen.getByRole('menuitem', { name: '分叉会话' }))
+    expect(onFork).toHaveBeenCalledTimes(2)
+    expect(screen.queryByRole('menu')).toBeNull()
     // Escape closes without selecting (Menu onClose path).
     fireEvent.click(screen.getByRole('button', { name: '会话“One”的操作' }))
     fireEvent.keyDown(document, { key: 'Escape' })
