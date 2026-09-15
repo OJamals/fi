@@ -6,11 +6,13 @@ English | [中文](2026-08-25-electron-desktop-packaging-and-updates.zh.md)
 
 Profile mutation and recovery follow the [in-place profile decision](2026-09-09-desktop-in-place-profile.md).
 
+The [FI data-home decision](2026-09-15-fi-desktop-data-home.md) supersedes this note's shared `.dsh` root assumption; its packaging, update, and profile-ownership decisions remain in force.
+
 ## Problem
 
 DeepSeek Harness needs an Electron desktop application that reuses the Web UI, works without system Node.js or pnpm, installs dsh and desktop plugins through an application-bundled pnpm, and updates the complete desktop release through one user-facing flow.
 
-The desktop application and an npm-installed dsh share the `.dsh` data root, but they may have different dsh and plugin versions. They must share supported product data without sharing executable packages, lockfiles, `node_modules`, plugin activation, or package-manager configuration.
+The desktop application and an npm-installed dsh may have different dsh and plugin versions. Desktop needs separate ownership of executable packages, lockfiles, `node_modules`, plugin activation, and package-manager configuration; the FI data-home decision also separates durable data by default.
 
 The current GUI protocol binds the Web client and backend release. Independently versioning the Electron artifact and its bundled dsh would create unqualified shell, client, backend, and plugin combinations and make update availability ambiguous.
 
@@ -18,7 +20,7 @@ The current GUI protocol binds the Web client and backend release. Independently
 
 Ship a small Electron shell with a bundled upstream Node.js executable and pinned pnpm. Electron starts the private Desktop Host package as an isolated child process; that package composes the installed dsh backend and matching client graph. Fetch metadata and bounded raw request and response chunks travel over two versioned framed byte pipes, Node IPC is reserved for readiness, fatal failure, and shutdown, and Electron serves validated assets through `dsh-app://`; it opens no listening port. Each frame carries a fixed marker, type, monotonic stream id, payload length, and validated payload. Serialized writers honor pipe drain, readers pause globally when a request or response stream applies backpressure, cancellation closes the matching stream, and late response frames for a retired stream stay inert. The Connection plugin provides its carrier-neutral RPC and Fetch registries without requiring `webServer`, while Client Modules provides the exact advertised combo-bundle responses to the shell-owned carrier; Web compositions attach their optional HTTP routes for both. The renderer keeps the same Fetch, RPC, and Remote-stream formats, while the child carrier avoids Base64 expansion and V8 serialization compatibility between Electron and the bundled upstream Node.js. Electron closes its request-pipe writer after sending shutdown, releasing an in-flight Windows pipe read before it waits for child exit. This follows the Electron reservation in the [GUI layering and RPC protocol note](../../archived/architecture/2026-07-19-gui-layering-and-rpc-protocol.md).
 
-Electron owns the reserved profile at `.dsh/profiles/desktop`. The [bundled-runtime decision](2026-09-08-desktop-bundled-runtime-and-external-plugins.md) owns core resource storage, external plugin dependencies, shared package links, and profile reconciliation. The private Desktop Host remains outside the public CLI package and is never published to npm.
+Electron owns the reserved profile at `$DSH_HOME/profiles/desktop`. The [bundled-runtime decision](2026-09-08-desktop-bundled-runtime-and-external-plugins.md) owns core resource storage, external plugin dependencies, shared package links, and profile reconciliation. The private Desktop Host remains outside the public CLI package and is never published to npm.
 
 One Desktop release number identifies the Electron artifact and its exact `@deepseek-ai/dsh` and `@deepseek-ai/dsh-desktop-host` dependencies. A release cannot select a different core version at build or runtime. Updating dsh therefore requires a new Electron release even when shell code is unchanged.
 
@@ -33,7 +35,7 @@ The browser Web UI, dsh backend, existing `dsh plugin` CLI, user npm, and user p
 | Desktop profile | External plugin dependencies, ordered enabled bundles, and shared links defined by the bundled-runtime decision |
 | Private Desktop Host package | Electron-only child-process entry and composition overlay installed with dsh but excluded from the public CLI package and npm publication |
 | Installed dsh package | Backend, matching Web UI, boot manifest, client bundles, and product behavior |
-| Shared `.dsh` owners | Sessions, settings, credentials, workspaces, and storage, guarded by their existing locks and format versions |
+| Desktop Harness home | Sessions, settings, credentials, workspaces, and storage, guarded by their existing locks and format versions |
 | npm-installed dsh | Its own executable installation and user-managed profiles; no access to the reserved desktop profile or package state |
 
 The renderer uses `nodeIntegration: false`, `contextIsolation: true`, and `sandbox: true`. Preload exposes typed RPC, lifecycle, update, locale, and desktop-plugin actions rather than raw `ipcRenderer`, filesystem access, shell commands, or pnpm arguments. Electron selects a typed English or Chinese dictionary from its application locale and falls back to English; menus, native dialogs, and the plugin-management renderer use that locale-owned copy.
@@ -41,7 +43,7 @@ The renderer uses `nodeIntegration: false`, `contextIsolation: true`, and `sandb
 ## Filesystem layout
 
 ```text
-~/.dsh/
+$DSH_HOME/
   desktop/
     pnpm/
       store/
@@ -61,7 +63,7 @@ The renderer uses `nodeIntegration: false`, `contextIsolation: true`, and `sandb
   storages/
 ```
 
-`.dsh/profiles/desktop` is the only active desktop profile. Its executable package ownership and allowed resolution directories follow the [bundled-runtime decision](2026-09-08-desktop-bundled-runtime-and-external-plugins.md). Plugin package content uses `.dsh/desktop/pnpm/store`.
+`$DSH_HOME/profiles/desktop` is the only active desktop profile. Its executable package ownership and allowed resolution directories follow the [bundled-runtime decision](2026-09-08-desktop-bundled-runtime-and-external-plugins.md). Plugin package content uses `$DSH_HOME/desktop/pnpm/store`.
 
 ## Installation and resolution
 
@@ -138,15 +140,15 @@ The bundled upstream Node.js and pnpm are expected to add about 35–50 MB compr
 
 - A clean offline machine without system Node.js or pnpm starts bundled dsh without installing core dependencies.
 - The signed application inventories final runtime files; every macOS native file has the release Developer ID, secure timestamp, and hardened runtime, and every Windows artifact has the configured hardware-backed EV signature.
-- `.dsh/profiles/desktop/node_modules` resolves shared host links and every GUI-installed desktop plugin.
-- Every desktop pnpm operation uses the bundled executable and `.dsh/desktop/pnpm/store`; none reads user `PATH`, config, store, or profile `node_modules`.
+- `$DSH_HOME/profiles/desktop/node_modules` resolves shared host links and every GUI-installed desktop plugin.
+- Every desktop pnpm operation uses the bundled executable and `$DSH_HOME/desktop/pnpm/store`; none reads user `PATH`, config, store, or profile `node_modules`.
 - The Electron-only GUI installs, removes, and updates ordinary npm plugin packages without exposing raw pnpm arguments.
 - The backend and browser application cannot mutate desktop packages.
 - npm/CLI dsh and Electron never resolve or install plugins from each other's `node_modules`.
 - The active backend and Web UI report the same dsh version and a compatible shell API before the product UI loads.
 - Package or Host failures retain partial profile changes and expose recovery controls; no automatic profile rollback is promised.
 - One Desktop version binds Electron and dsh; every dsh update arrives through one Electron update dialog and one user-visible restart.
-- Shared `.dsh` data rejects incompatible readers before migration or mutation.
+- Explicitly shared Harness-home data rejects incompatible readers before migration or mutation.
 - No loopback listener is opened, and the sandboxed renderer cannot access arbitrary filesystem or Electron APIs.
 - Workspace development runs current built code without downloading release resources, while unpacked-package verification retains the production installation path.
 - Windows release packaging requires the validated SignTool, EV token, matching public leaf certificate, Token Password, and explicit key container; it never falls back to an unsigned artifact or an exportable key file.
@@ -170,7 +172,7 @@ Plugin lifecycle scripts execute third-party code. The allowed registry, package
 
 Updating the bound dsh can invalidate plugin peer dependencies or native modules. Reconciliation validates changed dependencies and rebuilds native packages; failures require explicit repair through the recovery UI.
 
-An npm-installed dsh and desktop dsh may have different versions while sharing durable data. Each shared owner must enforce its format version and process lock before reading, migrating, or writing.
+An npm-installed dsh and desktop dsh may have different versions. An explicit shared `DSH_HOME` requires each data owner to enforce its format version and process lock before reading, migrating, or writing.
 
 Interrupted package operations retain a pending marker. Installed-artifact tests must verify that a later launch retries the locked installation and approved native builds.
 

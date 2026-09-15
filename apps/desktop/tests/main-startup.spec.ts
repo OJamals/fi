@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { DESKTOP_IPC } from '../src/ipc.ts'
+
+const FI_USER_DATA = join(tmpdir(), 'fi-desktop-startup-test-user-data')
 
 const harness = await vi.hoisted(async () => {
   const { EventEmitter } = await import('node:events')
@@ -13,6 +16,7 @@ const harness = await vi.hoisted(async () => {
   const windows: FakeWindow[] = []
   const hosts: FakeHost[] = []
   const handlers = new Map<string, (event: { senderFrame: { url: string } }) => unknown>()
+  const resolveDesktopPaths = vi.fn(() => ({ profile: 'desktop-test-profile' }))
   let pluginsEnabled = false
   let preparing = deferred()
   let prepared = deferred()
@@ -54,7 +58,13 @@ const harness = await vi.hoisted(async () => {
       this.ready.reject(new Error('child stopped'))
       return this.exited.promise
     })
-    constructor(readonly node: string, readonly runtime: string, readonly profile: string) { hosts.push(this) }
+    constructor(
+      readonly node: string,
+      readonly runtime: string,
+      readonly profile: string,
+      readonly inspectPort: number | undefined,
+      readonly environment: NodeJS.ProcessEnv,
+    ) { hosts.push(this) }
   }
   const app = Object.assign(new EventEmitter(), {
     isPackaged: true,
@@ -63,6 +73,10 @@ const harness = await vi.hoisted(async () => {
     getLocale: () => 'en-US',
     getVersion: () => '1.0.0',
     getAppPath: () => 'desktop-test-app',
+    getPath: (name: string) => {
+      if (name !== 'userData') throw new Error(`unexpected Electron path ${name}`)
+      return FI_USER_DATA
+    },
     requestSingleInstanceLock: () => true,
     exit: vi.fn(),
     relaunch: vi.fn(),
@@ -73,7 +87,7 @@ const harness = await vi.hoisted(async () => {
     }),
   })
   return {
-    windows, hosts, handlers, app, FakeWindow, FakeHost,
+    windows, hosts, handlers, app, FakeWindow, FakeHost, resolveDesktopPaths,
     dialog: { showErrorBox: vi.fn(), showMessageBox: vi.fn() },
     applyRelease: vi.fn(() => { preparing.resolve(); return prepared.promise }),
     assertProfileRuntime: vi.fn(),
@@ -104,7 +118,10 @@ vi.mock('electron', () => ({
   Menu: { setApplicationMenu: vi.fn(), buildFromTemplate: vi.fn() },
   protocol: { registerSchemesAsPrivileged: vi.fn(), handle: vi.fn() },
 }))
-vi.mock('../src/paths.ts', () => ({ resolveDesktopPaths: () => ({ profile: 'desktop-test-profile' }) }))
+vi.mock('../src/paths.ts', async importOriginal => ({
+  ...await importOriginal<typeof import('../src/paths.ts')>(),
+  resolveDesktopPaths: harness.resolveDesktopPaths,
+}))
 vi.mock('../src/project-manager.ts', () => ({
   DesktopProjectManager: class {
     readonly applyRelease = harness.applyRelease
@@ -139,6 +156,7 @@ beforeEach(() => {
   vi.stubEnv('DSH_DESKTOP_DSH_DIR', 'test-runtime')
   vi.stubGlobal('process', { ...process, resourcesPath: 'desktop-test-resources' })
   vi.stubEnv('DSH_DESKTOP_HOST_INSPECT_PORT', undefined)
+  vi.stubEnv('DSH_HOME', undefined)
 })
 
 afterEach(async () => {
@@ -155,6 +173,38 @@ afterEach(async () => {
 })
 
 describe('desktop main startup', () => {
+  it('starts packaged FI with an isolated Harness home', async () => {
+    await import('../src/main.ts')
+    await harness.preparing.promise
+    harness.prepared.resolve()
+    await harness.hostStarted.promise
+    const home = join(FI_USER_DATA, 'harness')
+    expect(harness.resolveDesktopPaths).toHaveBeenCalledWith(home)
+    expect(harness.hosts[0]!.environment.DSH_HOME).toBe(home)
+  })
+
+  it('honors an explicit DSH_HOME for opt-in shared state', async () => {
+    const home = join(tmpdir(), 'fi-desktop-explicit-harness-home')
+    vi.stubEnv('DSH_HOME', home)
+    await import('../src/main.ts')
+    await harness.preparing.promise
+    harness.prepared.resolve()
+    await harness.hostStarted.promise
+    expect(harness.resolveDesktopPaths).toHaveBeenCalledWith(home)
+    expect(harness.hosts[0]!.environment.DSH_HOME).toBe(home)
+  })
+
+  it('uses the FI home when DSH_HOME is blank', async () => {
+    vi.stubEnv('DSH_HOME', '  ')
+    await import('../src/main.ts')
+    await harness.preparing.promise
+    harness.prepared.resolve()
+    await harness.hostStarted.promise
+    const home = join(FI_USER_DATA, 'harness')
+    expect(harness.resolveDesktopPaths).toHaveBeenCalledWith(home)
+    expect(harness.hosts[0]!.environment.DSH_HOME).toBe(home)
+  })
+
   it('integrates macOS traffic lights into the main application surface', async () => {
     await import('../src/main.ts')
     await harness.preparing.promise
