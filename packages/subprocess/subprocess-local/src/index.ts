@@ -49,12 +49,51 @@ import { prepareShellActivity } from './shell-activity.ts'
 
 const requireNodePty = createLazyRequire<typeof NodePty>('node-pty', import.meta.url)
 
+/** Per-runtime host-exit finalizers dispatched by one shared process-level listener. */
+const hostExitFinalizers = new Set<() => void>()
+
+/** The module's single Node `exit` listener; installed and removed at the 0↔1 transition of {@link hostExitFinalizers}. */
+function terminateManagedProcessesOnHostExit(): void {
+  for (const finalize of hostExitFinalizers) {
+    try {
+      finalize()
+    } catch (_runtimeTerminationFailed) {
+      // One runtime's host-exit finalizer must not prevent another's from running.
+    }
+  }
+}
+
+/** Registers a runtime's host-exit finalizer, installing the shared listener on the first registration. */
+function registerHostExitFinalizer(finalize: () => void): void {
+  hostExitFinalizers.add(finalize)
+  if (hostExitFinalizers.size === 1) process.prependListener('exit', terminateManagedProcessesOnHostExit)
+}
+
+/** Removes a runtime's host-exit finalizer, removing the shared listener once no runtime remains registered. */
+function unregisterHostExitFinalizer(finalize: () => void): void {
+  hostExitFinalizers.delete(finalize)
+  if (hostExitFinalizers.size === 0) process.off('exit', terminateManagedProcessesOnHostExit)
+}
+
+/**
+ * Test hook: clears every registered host-exit finalizer and removes the shared listener.
+ * Production code never calls this; a runtime unregisters only through {@link unregisterHostExitFinalizer}
+ * after its own disposal settles. Tests that deliberately leave a runtime's disposal unsettled — to
+ * assert the finalizer stays registered — have no other way to restore process-level listener state
+ * for the next test.
+ */
+export function clearHostExitFinalizersForTests(): void {
+  hostExitFinalizers.clear()
+  process.off('exit', terminateManagedProcessesOnHostExit)
+}
+
 /**
  * Local subprocess service: platform-selected managed ranges, Node-shaped stdio
  * dispositions (raw pipes, inherit, bounded tail-keep collection with spill
  * files), credential-scrubbed environment, and provider-owned range signalling.
  * POSIX paths stage TERM before KILL; Windows paths terminate immediately.
- * JavaScript-observable host exit also performs synchronous final termination.
+ * JavaScript-observable host exit also performs synchronous final termination
+ * through one process-level listener shared by every live instance.
  */
 export class LocalSubprocessRuntime extends SubprocessRuntime {
   /** Live handles retained for normal disposal and synchronous host-exit finalization. */
@@ -76,10 +115,10 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
     super(ctx)
     ctx.effect(() => {
       const onHostExit = (): void => { this.terminateForHostExit() }
-      process.prependListener('exit', onHostExit)
+      registerHostExitFinalizer(onHostExit)
       return async () => {
         await this.disposeManagedProcesses()
-        process.off('exit', onHostExit)
+        unregisterHostExitFinalizer(onHostExit)
       }
     }, 'local subprocess teardown')
   }

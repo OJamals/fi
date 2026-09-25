@@ -6,7 +6,7 @@ import { basename, dirname, join, relative, resolve } from 'node:path'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { Context } from '@deepseek-ai/cordis'
-import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
+import LocalSubprocessRuntime, { clearHostExitFinalizersForTests } from '@deepseek-ai/dsh-subprocess-local'
 import type { SubprocessSpawnSpec, SubprocessTerminalHandle, SubprocessTerminalSpawnSpec } from '@deepseek-ai/dsh-subprocess'
 import { childEnv } from '../src/spawn.ts'
 import { signalLinuxDirectProcess } from '../src/linux-scope.ts'
@@ -109,6 +109,30 @@ describe('LocalSubprocessRuntime', () => {
     }
   })
 
+  it('shares one host-exit listener across concurrent runtimes', async () => {
+    const before = new Set(process.listeners('exit'))
+    const contexts = Array.from({ length: 12 }, () => new Context())
+    const fibers = await Promise.all(contexts.map(ctx => ctx.plugin(LocalSubprocessRuntime)))
+    const finalizers = contexts.map(() => vi.fn())
+    const liveSets = contexts.map((ctx, index) => {
+      const live = (ctx.subprocess as unknown as {
+        live: Set<{ terminateForHostExit(): void }>
+      }).live
+      live.add({ terminateForHostExit: finalizers[index]! })
+      return live
+    })
+    try {
+      const listeners = process.listeners('exit').filter(listener => !before.has(listener))
+      expect(listeners).toHaveLength(1)
+      listeners[0]!(0)
+      for (const finalizer of finalizers) expect(finalizer).toHaveBeenCalledOnce()
+    } finally {
+      for (const live of liveSets) live.clear()
+      await Promise.all(fibers.map(fiber => fiber.dispose()))
+    }
+    expect(process.listeners('exit')).toEqual([...before])
+  })
+
   it('places the host-exit finalizer before listeners that predate the service', async () => {
     const baseline = new Set(process.listeners('exit'))
     const prior = vi.fn()
@@ -203,7 +227,10 @@ describe('LocalSubprocessRuntime', () => {
     expect(process.listeners('exit')).toContain(listener)
     listener?.(0)
     expect(terminateForHostExit).toHaveBeenCalledTimes(2)
-    if (listener !== undefined) process.off('exit', listener)
+    // This runtime's failed disposal never unregisters its finalizer (by design: it stays
+    // registered so a later real host exit can still reach retained live/terminal targets);
+    // restore process-level listener state directly so it does not leak into later tests.
+    clearHostExitFinalizersForTests()
   })
 
   it('contains each host-exit termination failure and continues with the other targets', async () => {
@@ -374,7 +401,10 @@ describe('LocalSubprocessRuntime', () => {
       message: 'local subprocess teardown failed',
     })
     expect(process.listeners('exit')).toContain(listener)
-    if (listener !== undefined) process.off('exit', listener)
+    // This runtime's failed disposal never unregisters its finalizer (by design: it stays
+    // registered so a later real host exit can still reach retained live/terminal targets);
+    // restore process-level listener state directly so it does not leak into later tests.
+    clearHostExitFinalizersForTests()
   })
 
   it('reports one cleanup failure without wrapping it', async () => {
@@ -406,7 +436,10 @@ describe('LocalSubprocessRuntime', () => {
     expect(disposalErrors).toEqual([failure])
     expect(terminals.has(terminal)).toBe(true)
     expect(process.listeners('exit')).toContain(listener)
-    if (listener !== undefined) process.off('exit', listener)
+    // This runtime's failed disposal never unregisters its finalizer (by design: it stays
+    // registered so a later real host exit can still reach retained live/terminal targets);
+    // restore process-level listener state directly so it does not leak into later tests.
+    clearHostExitFinalizersForTests()
   })
 
   it('force-terminates and retains failed disposal targets for host exit', async () => {
@@ -433,7 +466,10 @@ describe('LocalSubprocessRuntime', () => {
     expect(process.listeners('exit')).toContain(listener)
     listener?.(0)
     expect(terminateForHostExit).toHaveBeenCalledTimes(2)
-    if (listener !== undefined) process.off('exit', listener)
+    // This runtime's failed disposal never unregisters its finalizer (by design: it stays
+    // registered so a later real host exit can still reach retained live/terminal targets);
+    // restore process-level listener state directly so it does not leak into later tests.
+    clearHostExitFinalizersForTests()
   })
 
   it('releases a terminal after top-level exit reaches quiescence', async () => {

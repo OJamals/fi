@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-09-25-shared-subprocess-host-exit-listener.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-25-shared-subprocess-host-exit-listener.md
+/agent-note-shared-subprocess-host-exit-listener:
+  en: 68bb69a70c92a12c
+  zh: 5b0de2e02f77ee33
+/agent-note-shared-subprocess-host-exit-listener/problem:
+  en: 30e75f3887c7dc84
+  zh: 7b7cba7d12c58674
+/agent-note-shared-subprocess-host-exit-listener/decision:
+  en: fe9e488ec6855144
+  zh: 92d722b5d043d767
+/agent-note-shared-subprocess-host-exit-listener/alternatives-considered:
+  en: 7d126597fb473d36
+  zh: da2a4d95677052f5
+/agent-note-shared-subprocess-host-exit-listener/consequences:
+  en: 28cc7642f25649fd
+  zh: 3fb4d843be83673b
