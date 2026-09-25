@@ -75,7 +75,7 @@ describe('pi-ai transport integration', () => {
 
     const codex = await ctx.waterfall('llm-pi-ai/request-transport', {
       provider: 'openai-codex',
-      model: 'gpt-5.4',
+      model: 'gpt-5.5',
       sessionId: 'session-test',
       timeoutMs: 60_000,
       harnessUserAgent: HARNESS_USER_AGENT,
@@ -107,7 +107,7 @@ describe('subscription headers', () => {
     const token = jwt({
       'https://api.openai.com/auth': { chatgpt_account_id: 'account-test' },
     })
-    const headers = subscriptionHeaders('openai-codex', 'gpt-5.4', 'session-test', 45_000, {
+    const headers = subscriptionHeaders('openai-codex', 'gpt-5.5', 'session-test', 45_000, {
       Authorization: `Bearer ${token}`,
       'User-Agent': HARNESS_USER_AGENT,
       'X-Caller': 'preserved',

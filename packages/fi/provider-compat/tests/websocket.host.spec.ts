@@ -125,7 +125,7 @@ function adapter(
 async function run(adapter: PiAiAdapter, sessionId: string, signal?: AbortSignal) {
   const chunks = []
   for await (const chunk of adapter.stream({
-    provider: 'openai-codex', model: 'gpt-5.4', messages: [], sessionId: sessionId as never,
+    provider: 'openai-codex', model: 'gpt-5.5', messages: [], sessionId: sessionId as never,
     ...signal === undefined ? {} : { signal },
   })) chunks.push(chunk)
   return chunks
@@ -222,7 +222,7 @@ describe('Codex subscription WebSocket wire', () => {
   })
 
   it('rejects noncanonical endpoints and missing request identity before constructing a socket', () => {
-    const factory = subscriptionWebSocket({ provider: 'openai-codex', model: 'gpt-5.4', timeoutMs: 60000, harnessUserAgent: UA }, () => { throw new Error('unexpected connection') })
+    const factory = subscriptionWebSocket({ provider: 'openai-codex', model: 'gpt-5.5', timeoutMs: 60000, harnessUserAgent: UA }, () => { throw new Error('unexpected connection') })
     expect(() => factory('wss://example.test/codex/responses', {})).toThrow('canonical endpoint')
     expect(() => factory(`${URL}?redirect=true`, {})).toThrow('canonical endpoint')
     expect(() => factory(URL, {})).toThrow('request identity')
@@ -402,7 +402,7 @@ describe('Codex subscription WebSocket wire', () => {
     fixture.state.hold = true
     const models = createModels(auth())
     for (const provider of builtinProviders()) models.setProvider(provider)
-    const model = models.getModel('openai-codex', 'gpt-5.4')
+    const model = models.getModel('openai-codex', 'gpt-5.5')
     if (model === undefined) throw new Error('fixture model missing')
     const request = { provider: 'openai-codex' as const, model: model.id, harnessUserAgent: UA, timeoutMs: 60000 }
     const result = await models.streamSimple(model, { messages: [] }, {
