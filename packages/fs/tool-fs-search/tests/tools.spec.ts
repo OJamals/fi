@@ -1265,5 +1265,5 @@ describe('scope-aware search guidance', () => {
 
 /** Preserve the default persona and exact section separators in the oracle. */
 function withPersona(...sections: string[]): string {
-  return ['You are an AI agent powered by fi.', ...sections].join('\n\n')
+  return ['You are an AI agent powered by fi. fi runs on the DeepSeek Harness (DSH) runtime: `dsh`, `DSH_*` environment variables, and `@deepseek-ai/dsh-*` packages in tools, skills, and paths are fi\'s own runtime, not a separate product or checkout; `$DSH_HOME` is fi\'s data home.', ...sections].join('\n\n')
 }

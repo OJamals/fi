@@ -12,7 +12,7 @@ import type { PromptContextOrderName, PromptSectionOrderName } from '@deepseek-a
  * their own sections; the built-ins' behavior is pinned by its own describe.
  */
 const BUILT_IN = ['harness:identity', 'deployment:persona-prefix', 'deployment:persona-suffix']
-const IDENTITY = 'You are an AI agent powered by fi.'
+const IDENTITY = 'You are an AI agent powered by fi. fi runs on the DeepSeek Harness (DSH) runtime: `dsh`, `DSH_*` environment variables, and `@deepseek-ai/dsh-*` packages in tools, skills, and paths are fi\'s own runtime, not a separate product or checkout; `$DSH_HOME` is fi\'s data home.'
 const SECTION_ORDER_NAMES = [
   'HARNESS_IDENTITY', 'DEPLOYMENT_PERSONA_PREFIX',
   'PLAN_POLICY', 'TEAM_POLICY', 'PTC_ONLY', 'FILE_REFERENCE', 'TOOL_BASH',

@@ -43,7 +43,7 @@ The config owns the fixed opener, runtime context, deployment persona prefix and
 
 | Field | Default | Meaning |
 |---|---|---|
-| `includeHarnessIdentity` | `true` | Include the fixed `You are an AI agent powered by fi.` first-party opener at order −1000. Set false only when a compatibility deployment owns the complete system prompt. |
+| `includeHarnessIdentity` | `true` | Include the fixed harness-identity opener (`You are an AI agent powered by fi.`, plus the DSH/fi runtime clarification sentence shown below) at order −1000. Set false only when a compatibility deployment owns the complete system prompt. |
 | `includeRuntimeContext` | `true` | Include ordered dynamic runtime context in assembly |
 | `personaPrefix` | `''` | Global persona prefix template at order `0`, before first-party guidance |
 | `personaSuffix` | `''` | Global `deployment:persona-suffix` template at order `10200`, after first-party guidance |
@@ -139,7 +139,7 @@ First-party sections render the harness identity, deployment persona prefix (inc
 ##### Harness identity
 
 ```markdown
-You are an AI agent powered by fi.
+You are an AI agent powered by fi. fi runs on the DeepSeek Harness (DSH) runtime: `dsh`, `DSH_*` environment variables, and `@deepseek-ai/dsh-*` packages in tools, skills, and paths are fi's own runtime, not a separate product or checkout; `$DSH_HOME` is fi's data home.
 ```
 
 #### Token effect

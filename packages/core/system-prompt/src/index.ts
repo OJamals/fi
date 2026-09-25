@@ -427,7 +427,7 @@ export class SystemPrompt extends Service {
       this.section({
         name: 'harness:identity',
         order: this.getSectionOrder('HARNESS_IDENTITY'),
-        text: 'You are an AI agent powered by fi.',
+        text: 'You are an AI agent powered by fi. fi runs on the DeepSeek Harness (DSH) runtime: `dsh`, `DSH_*` environment variables, and `@deepseek-ai/dsh-*` packages in tools, skills, and paths are fi\'s own runtime, not a separate product or checkout; `$DSH_HOME` is fi\'s data home.',
       })
     }
     this.section({

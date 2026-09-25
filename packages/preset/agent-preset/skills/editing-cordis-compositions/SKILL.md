@@ -67,7 +67,7 @@ Override the declaration by its Loader row id instead of inserting. The override
 
 ## Migrate a legacy preset
 
-Before declaration rows, a user preset was a directory `$DSH_HOME/.agent-presets/<id>/` holding `preset.yml` (display `name`, `description`, `order`) and `agent.cordis.yml` (the plugin entry list). Nothing reads that directory any more. To migrate one, create a bundle as above whose declaration takes `id` from the directory name, `name`, `description`, and `order` from `preset.yml`, and `plugins` from `agent.cordis.yml` verbatim; check each plugin name against `cordis-composition-reference` because packages renamed since the preset was written fail at activation. Install it, verify the row, then delete the legacy directory.
+This section applies only when `$DSH_HOME/.agent-presets/<id>/` already exists and holds entries; do not seek it out or create it otherwise. Before declaration rows, a user preset was such a directory, holding `preset.yml` (display `name`, `description`, `order`) and `agent.cordis.yml` (the plugin entry list). Nothing reads that directory any more. To migrate one, create a bundle as above whose declaration takes `id` from the directory name, `name`, `description`, and `order` from `preset.yml`, and `plugins` from `agent.cordis.yml` verbatim; check each plugin name against `cordis-composition-reference` because packages renamed since the preset was written fail at activation. Install it, verify the row, then delete the legacy directory.
 
 ## Verify
 

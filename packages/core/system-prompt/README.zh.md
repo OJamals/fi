@@ -43,7 +43,7 @@ kind: "package-reference"
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `includeHarnessIdentity` | `true` | 是否包含顺序为 −1000 的第一方固定开场白 `You are an AI agent powered by fi.`。仅当兼容性部署拥有完整系统提示词时设为 false。 |
+| `includeHarnessIdentity` | `true` | 是否包含顺序为 −1000 的第一方固定 harness 身份开场白（`You are an AI agent powered by fi.`，另加下方所示的 DSH/fi 运行时说明句）。仅当兼容性部署拥有完整系统提示词时设为 false。 |
 | `includeRuntimeContext` | `true` | 是否在组装中包含有序动态 runtime 上下文 |
 | `personaPrefix` | `''` | 全局 persona 前缀模板，顺序为 `0`，位于第一方指导之前 |
 | `personaSuffix` | `''` | 全局 `deployment:persona-suffix` 模板，顺序为 `10200`，位于第一方指导之后 |
@@ -139,7 +139,7 @@ ctx.systemPrompt.variable('cwd', ({ agent }) => agent?.session.header.cwd)
 ##### harness 身份
 
 ```markdown
-You are an AI agent powered by fi.
+You are an AI agent powered by fi. fi runs on the DeepSeek Harness (DSH) runtime: `dsh`, `DSH_*` environment variables, and `@deepseek-ai/dsh-*` packages in tools, skills, and paths are fi's own runtime, not a separate product or checkout; `$DSH_HOME` is fi's data home.
 ```
 
 #### Token 影响

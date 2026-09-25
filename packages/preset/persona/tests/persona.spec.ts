@@ -29,7 +29,7 @@ describe('the persona row', () => {
       const fiber = await scope.ctx.plugin(Persona, { prefix: 'Preset.', suffix: 'Workspace {{cwd}}.' })
       const assembly = await ctx.systemPrompt.assemble({ scope: key })
       expect(assembly.sections.find(section => section.name === PERSONA_SUFFIX_SECTION)?.text).toBe('Workspace {{cwd}}.')
-      expect(renderPrompt(assembly)).toBe('You are an AI agent powered by fi.\n\nPreset.\n\nUse tools.\n\nWorkspace /local.')
+      expect(renderPrompt(assembly)).toBe('You are an AI agent powered by fi. fi runs on the DeepSeek Harness (DSH) runtime: `dsh`, `DSH_*` environment variables, and `@deepseek-ai/dsh-*` packages in tools, skills, and paths are fi\'s own runtime, not a separate product or checkout; `$DSH_HOME` is fi\'s data home.\n\nPreset.\n\nUse tools.\n\nWorkspace /local.')
       expect(renderPrompt(await ctx.systemPrompt.assemble())).toContain('Global workspace.')
       await fiber.dispose()
       const restored = renderPrompt(await ctx.systemPrompt.assemble({ scope: key }))
