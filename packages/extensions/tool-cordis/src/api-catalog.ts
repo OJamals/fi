@@ -3524,8 +3524,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   },
   {
     key: 'workspaceChanges',
-    summary: 'Serves the summaries and file comparisons the recorder keeps for live Sessions.',
-    description: 'Serves the summaries and file comparisons the recorder keeps for live Sessions.',
+    summary: 'Serves the summaries, file comparisons, and restores the recorder keeps for live Sessions.',
+    description: 'Serves the summaries, file comparisons, and restores the recorder keeps for live Sessions.',
     methods: [
       {
         signature: 'summary(sessionId: SessionId, seq: number): WorkspaceChangesSummary | undefined',
@@ -3540,6 +3540,13 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the comparison, or undefined once its Session was disposed, when this Host never recorded it, or when no file has that index.',
         throws: ['when a snapshot read fails for a live Session.'],
       },
+      {
+        signature: 'restore( sessionId: SessionId, seq: number, index: number, side: WorkspaceRestoreSide, signal: AbortSignal, ): Promise<WorkspaceRestoreResult | undefined>',
+        description: 'Write one listed file\'s turn-start or turn-end content back to its live path, refusing when the live file no longer holds the opposite side\'s content.',
+        parameters: [{ name: 'sessionId', description: 'the Session that appended the event.' }, { name: 'seq', description: 'the event\'s sequence number.' }, { name: 'index', description: 'the file\'s index in the summary\'s `files`.' }, { name: 'side', description: 'the captured side to restore.' }, { name: 'signal', description: 'cancels the reads.' }],
+        returns: 'the outcome, or undefined once its Session was disposed, when this Host never recorded it, or when no file has that index.',
+        throws: ['when a snapshot read or the live write fails for a live Session.'],
+      },
     ],
   },
   {
@@ -3552,6 +3559,26 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Create or idempotently resolve one Workspace over an existing directory.',
         parameters: [{ name: 'request', description: 'directory path to register.' }],
         returns: 'the Workspace and whether this call created it.',
+      },
+      {
+        signature: '@Remote(\'createIsolated\') async createIsolated(request: WorkspaceManagedRequest): Promise<WorkspaceCreateValue>',
+        description: 'Create a registered Workspace isolated from the source checkout: a fresh local Git worktree on a new branch from the source\'s committed HEAD. Uncommitted, staged, ignored, and untracked source files are not copied. The new checkout is registered as an ordinary Workspace, so Session cwd, tools, and Git inspection retain their existing authority.',
+        parameters: [{ name: 'request', description: 'source Workspace identity.' }],
+        returns: 'the newly registered checkout.',
+        throws: ['`workspace/managed-unavailable` when no managed-worktree directory is configured, `workspace/not-found` when the source Workspace is unknown, or `workspace/isolation-invalid` when the source is not a local repository root with a committed HEAD.'],
+      },
+      {
+        signature: '@Remote(\'inspectManaged\') async inspectManaged(request: WorkspaceManagedRequest): Promise<WorkspaceManagedValue>',
+        description: 'Report whether a Workspace is an application-managed worktree and, when it is, the source it isolates from and its branch.',
+        parameters: [{ name: 'request', description: 'registered Workspace identity.' }],
+        returns: 'managed-worktree facts, or `{ kind: \'ordinary\' }` for a Workspace that is not application-managed, including when no managed-worktree directory is configured.',
+      },
+      {
+        signature: '@Remote(\'removeManaged\') async removeManaged(request: WorkspaceManagedRequest): Promise<WorkspaceDeleteValue>',
+        description: 'Remove a clean, merged managed checkout and its Workspace registration while retaining its branch and Session logs; Sessions whose cwd was this checkout cannot continue. Refuses while any of the Workspace\'s Sessions has running work, or while the checkout has uncommitted, untracked, or ignored changes, or commits not yet merged into its source.',
+        parameters: [{ name: 'request', description: 'managed Workspace identity.' }],
+        returns: 'registry deletion confirmation.',
+        throws: ['`workspace/managed-unavailable`, `workspace/not-managed`, `workspace/worktree-active`, or `workspace/worktree-dirty`.'],
       },
       {
         signature: '@Remote(\'initializeDefault\') async initializeDefault(signal: AbortSignal): Promise<WorkspaceValue | undefined>',
@@ -8111,6 +8138,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface WorkspaceInsertSessionBeforeRequest {\n    readonly workspaceId: WorkspaceId;\n    readonly sessionId: SessionId;\n    readonly beforeSessionId?: SessionId;\n}',
   },
   {
+    name: 'WorkspaceManagedRequest',
+    declaration: 'export interface WorkspaceManagedRequest {\n    readonly workspaceId: WorkspaceId;\n}',
+  },
+  {
+    name: 'WorkspaceManagedValue',
+    declaration: 'export type WorkspaceManagedValue = {\n    readonly kind: \'ordinary\';\n} | {\n    readonly kind: \'managed\';\n    readonly source: string;\n    readonly branch: string;\n};',
+  },
+  {
     name: 'WorkspaceOrderValue',
     declaration: 'export interface WorkspaceOrderValue {\n    readonly workspaceIds: readonly WorkspaceId[];\n}',
   },
@@ -8125,6 +8160,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkspaceRenameRequest',
     declaration: 'export interface WorkspaceRenameRequest {\n    readonly workspaceId: WorkspaceId;\n    readonly title: string;\n}',
+  },
+  {
+    name: 'WorkspaceRestoreResult',
+    declaration: 'export type WorkspaceRestoreResult = {\n    kind: \'restored\';\n} | {\n    kind: \'binary\';\n} | {\n    kind: \'oversized\';\n} | {\n    kind: \'diverged\';\n};',
+  },
+  {
+    name: 'WorkspaceRestoreSide',
+    declaration: 'export type WorkspaceRestoreSide = \'before\' | \'after\';',
   },
   {
     name: 'WorkspaceUnarchiveSessionRequest',

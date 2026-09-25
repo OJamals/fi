@@ -48,7 +48,9 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { SessionSearchResultItem } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { RemoteHostFacts } from '@deepseek-ai/dsh-api-remotes/client'
-import type { SessionActivity, WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
+import type {
+  SessionActivity, WorkspaceId, WorkspaceManagedValue, WorkspaceView,
+} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { ShortcutCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { WorkspaceShortcutState } from '../shortcuts.ts'
@@ -260,6 +262,16 @@ export type WorkspaceBrowserInjected = {
   renameWorkspace: (workspaceId: WorkspaceId, title: string) => Promise<void>
   /** Delete only a Host Workspace registration; directory and Session logs remain. */
   deleteWorkspace: (workspaceId: WorkspaceId) => Promise<void>
+  /**
+   * Create a registered Workspace isolated from an existing one: a fresh
+   * local Git worktree on a new branch from its committed HEAD. Uncommitted
+   * source changes are not copied.
+   */
+  createIsolatedWorkspace: (workspaceId: WorkspaceId) => Promise<WorkspaceView>
+  /** Report whether a Workspace is an application-managed worktree. */
+  inspectManagedWorkspace: (workspaceId: WorkspaceId) => Promise<WorkspaceManagedValue>
+  /** Remove a clean, merged managed checkout and its Workspace registration; retains its branch and Session logs. */
+  removeManagedWorkspace: (workspaceId: WorkspaceId) => Promise<void>
   /**
    * Reorder a Workspace in the durable registry display order.
    * Omitted anchor appends to the end.

@@ -138,8 +138,14 @@
       name: '@deepseek-ai/dsh-api-settings-controller'
 
     # Workspace commands and reconnect-safe projection over Typert Remote.
+    # managedWorktrees isolates a Workspace's coding session in a local Git
+    # worktree the app creates, tracks, and safety-checks before removal;
+    # remove this block to turn the feature off without unmounting the row.
     - id: workspace-controller
       name: '@deepseek-ai/dsh-api-workspace-controller'
+      config:
+        managedWorktrees:
+          managedWorktreeDirectory: !!js dshHomePath('worktrees')
 
     - id: cordis-host-runner
       name: '@deepseek-ai/dsh-cordis-host-runner'

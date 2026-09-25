@@ -194,6 +194,9 @@ class FakeWorkspaces implements IWorkspaces {
   declare readonly delete: IWorkspaces['delete']
   declare readonly insertBefore: IWorkspaces['insertBefore']
   declare readonly insertSessionBefore: IWorkspaces['insertSessionBefore']
+  declare readonly createIsolated: IWorkspaces['createIsolated']
+  declare readonly inspectManaged: IWorkspaces['inspectManaged']
+  declare readonly removeManaged: IWorkspaces['removeManaged']
   readonly pinCalls: SessionId[] = []
   readonly unpinCalls: SessionId[] = []
   onPin: IWorkspaces['pinSession'] = async (sessionId) => {

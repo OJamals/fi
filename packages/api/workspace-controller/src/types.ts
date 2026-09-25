@@ -50,6 +50,23 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
       readonly sessionId: SessionId
       readonly beforeSessionId?: SessionId
     }
+    /** The Host has no managed-worktree directory configured. */
+    'workspace/managed-unavailable': Record<string, never>
+    /** The Workspace is not a repository root, has no commit, or is not local. */
+    'workspace/isolation-invalid': { readonly workspaceId: WorkspaceId }
+    /** The Workspace is not an application-managed worktree. */
+    'workspace/not-managed': { readonly workspaceId: WorkspaceId }
+    /**
+     * The managed worktree still has running work — a Session's own turn, a
+     * subagent, a background job, or an active schedule — so removal was
+     * refused; `activity` names what must stop first.
+     */
+    'workspace/worktree-active': {
+      readonly workspaceId: WorkspaceId
+      readonly activity: readonly SessionActivity[]
+    }
+    /** The managed worktree has uncommitted, untracked, or ignored changes, or commits unmerged into its source. */
+    'workspace/worktree-dirty': { readonly workspaceId: WorkspaceId }
     /** The verb needs an interaction the composed backend does not serve. */
     'directory-picker/unavailable': { readonly capability: string }
     /** The target is not fully qualified, or the backend cannot list it. */
@@ -169,3 +186,19 @@ export type WorkspaceFollowIncrement =
 export type WorkspaceFollowFrame =
   | { readonly type: 'baseline'; readonly value: WorkspaceBaseline }
   | WorkspaceFollowIncrement
+
+/** Managed-worktree operations derive their target directory from a registered Workspace. */
+export interface WorkspaceManagedRequest {
+  readonly workspaceId: WorkspaceId
+}
+
+/** Durable managed-worktree facts, or explicit ordinary-Workspace state. */
+export type WorkspaceManagedValue =
+  | { readonly kind: 'ordinary' }
+  | {
+    readonly kind: 'managed'
+    /** Canonical path of the source Workspace this checkout isolates from. */
+    readonly source: string
+    /** Branch the checkout was created on. */
+    readonly branch: string
+  }

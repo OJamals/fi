@@ -1,7 +1,7 @@
 /** Test-owned workspaces face: the renderer standard-kit observable plus recorded actions. */
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type {
-  IWorkspaces, WorkspaceId, WorkspaceSnapshot, WorkspaceView,
+  IWorkspaces, WorkspaceId, WorkspaceManagedValue, WorkspaceSnapshot, WorkspaceView,
 } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
@@ -206,5 +206,40 @@ export class TestWorkspaces implements IWorkspaces {
     await this.update((draft) => {
       draft.pinnedSessionIds = draft.pinnedSessionIds.filter(id => id !== sessionId)
     })
+  }
+
+  /**
+   * Create an isolated worktree Workspace (recorded). The default echoes a minimal view.
+   * @param workspaceId - source Workspace to isolate from.
+   * @returns the created checkout's view.
+   */
+  async createIsolated(workspaceId: WorkspaceId): Promise<WorkspaceView> {
+    this.calls.push({ method: 'createIsolated', args: [workspaceId] })
+    const stub = this.stubs.get('createIsolated')
+    if (stub !== undefined) return await (stub(workspaceId) as Promise<WorkspaceView>)
+    return {
+      workspaceId: `${workspaceId}-worktree` as WorkspaceId, title: 'worktree', path: `/${workspaceId}-worktree`, sessionIds: [],
+    } as unknown as WorkspaceView
+  }
+
+  /**
+   * Report managed-worktree facts (recorded). The default reports an ordinary Workspace.
+   * @param workspaceId - Workspace to inspect.
+   * @returns managed-worktree facts, or `{ kind: 'ordinary' }`.
+   */
+  async inspectManaged(workspaceId: WorkspaceId): Promise<WorkspaceManagedValue> {
+    this.calls.push({ method: 'inspectManaged', args: [workspaceId] })
+    const stub = this.stubs.get('inspectManaged')
+    if (stub !== undefined) return await (stub(workspaceId) as Promise<WorkspaceManagedValue>)
+    return { kind: 'ordinary' }
+  }
+
+  /**
+   * Remove a managed checkout (recorded; default no-op).
+   * @param workspaceId - target managed Workspace.
+   */
+  async removeManaged(workspaceId: WorkspaceId): Promise<void> {
+    this.calls.push({ method: 'removeManaged', args: [workspaceId] })
+    await (this.stubs.get('removeManaged')?.(workspaceId) as Promise<void> | undefined)
   }
 }

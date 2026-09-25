@@ -12,6 +12,8 @@ import type {
   WorkspaceFollowFrame,
   WorkspaceInsertBeforeRequest,
   WorkspaceInsertSessionBeforeRequest,
+  WorkspaceManagedRequest,
+  WorkspaceManagedValue,
   WorkspaceOrderValue,
   WorkspacePinSessionRequest,
   WorkspacePinValue,
@@ -102,6 +104,18 @@ class FakeWorkspaceRemote implements WorkspaceRemote {
     _request: WorkspaceUnpinSessionRequest,
   ) => Promise<RemoteResult<WorkspacePinValue>> = () =>
     Promise.resolve(remoteOk({ pinnedSessionIds: [] }))
+  onCreateIsolated: (
+    request: WorkspaceManagedRequest,
+  ) => Promise<RemoteResult<WorkspaceCreateValue>> = request =>
+    Promise.resolve(remoteOk({ workspace: workspace(`${request.workspaceId}-worktree`), created: true }))
+  onInspectManaged: (
+    _request: WorkspaceManagedRequest,
+  ) => Promise<RemoteResult<WorkspaceManagedValue>> = () =>
+    Promise.resolve(remoteOk({ kind: 'ordinary' }))
+  onRemoveManaged: (
+    _request: WorkspaceManagedRequest,
+  ) => Promise<RemoteResult<WorkspaceDeleteValue>> = () =>
+    Promise.resolve(remoteOk({ deleted: true }))
 
   create(request: WorkspaceCreateRequest): Promise<RemoteResult<WorkspaceCreateValue>> {
     this.record('create', request)
@@ -146,6 +160,21 @@ class FakeWorkspaceRemote implements WorkspaceRemote {
   unpinSession(request: WorkspaceUnpinSessionRequest): Promise<RemoteResult<WorkspacePinValue>> {
     this.record('unpinSession', request)
     return this.onUnpinSession(request)
+  }
+
+  createIsolated(request: WorkspaceManagedRequest): Promise<RemoteResult<WorkspaceCreateValue>> {
+    this.record('createIsolated', request)
+    return this.onCreateIsolated(request)
+  }
+
+  inspectManaged(request: WorkspaceManagedRequest): Promise<RemoteResult<WorkspaceManagedValue>> {
+    this.record('inspectManaged', request)
+    return this.onInspectManaged(request)
+  }
+
+  removeManaged(request: WorkspaceManagedRequest): Promise<RemoteResult<WorkspaceDeleteValue>> {
+    this.record('removeManaged', request)
+    return this.onRemoveManaged(request)
   }
 
   follow(_signal?: AbortSignal): RemoteStreamHandle<WorkspaceFollowFrame, never> {
@@ -233,6 +262,32 @@ describe('ClientWorkspaceModel', () => {
     await expect(model.create({ path: '/w/created' })).resolves.toMatchObject({ ok: true })
     expect(remote.calls).toContainEqual({ method: 'create', request: { path: '/w/created' } })
     expect(model.getSnapshot().items[0]?.workspaceId).toBe('created')
+  })
+
+  it('creates an isolated worktree and prepends its row, and removes a managed worktree from the list', async () => {
+    const remote = new FakeWorkspaceRemote()
+    const model = modelFor(remote)
+    remote.onCreateIsolated = request => Promise.resolve(remoteOk({
+      workspace: workspace(`${request.workspaceId}-worktree`), created: true,
+    }))
+    await expect(model.createIsolated(wid('one'))).resolves.toMatchObject({ ok: true })
+    expect(remote.calls).toContainEqual({ method: 'createIsolated', request: { workspaceId: wid('one') } })
+    expect(model.getSnapshot().items[0]?.workspaceId).toBe('one-worktree')
+
+    remote.onRemoveManaged = () => Promise.resolve(remoteOk({ deleted: true }))
+    await expect(model.removeManaged(wid('one-worktree'))).resolves.toMatchObject({ ok: true })
+    expect(model.getSnapshot().items.map(item => item.workspaceId)).not.toContain('one-worktree')
+  })
+
+  it('reports managed-worktree facts without merging them into the Workspace projection', async () => {
+    const remote = new FakeWorkspaceRemote()
+    const model = modelFor(remote)
+    baseline(model, [workspace('one')])
+    remote.onInspectManaged = () => Promise.resolve(remoteOk({ kind: 'managed', source: '/w/one', branch: 'fi/worktree-abc' }))
+    await expect(model.inspectManaged(wid('one'))).resolves.toEqual({
+      ok: true, value: { kind: 'managed', source: '/w/one', branch: 'fi/worktree-abc' },
+    })
+    expect(model.getSnapshot().items).toEqual([workspace('one')])
   })
 
   it('lets newer stream order outrank unary echoes and rolls failures back', async () => {

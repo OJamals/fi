@@ -16,6 +16,7 @@ import {
   WorkspaceArchiveError,
   WorkspaceController,
   WorkspaceCreateError,
+  WorkspaceManagedError,
   type WorkspaceFollowSink,
 } from '../src/client/index.ts'
 import type { WorkspaceFollowFrame, WorkspaceId } from '../src/types.ts'
@@ -341,6 +342,9 @@ describe('WorkspaceController', () => {
     await expect(controller.unarchiveSession(sid('session'))).resolves.toBeUndefined()
     await expect(controller.pinSession(sid('session'))).resolves.toBeUndefined()
     await expect(controller.unpinSession(sid('session'))).resolves.toBeUndefined()
+    await expect(controller.createIsolated(wid('one'))).resolves.toMatchObject({ workspaceId: 'one-worktree' })
+    await expect(controller.inspectManaged(wid('one'))).resolves.toEqual({ kind: 'ordinary' })
+    await expect(controller.removeManaged(wid('one-worktree'))).resolves.toBeUndefined()
     await expect(controller.delete(wid('one'))).resolves.toBeUndefined()
     // Each command crosses the wire as one positional request object.
     expect(mock.log.requests('workspace/create')).toEqual([{ path: '/work/created' }])
@@ -352,6 +356,9 @@ describe('WorkspaceController', () => {
     expect(mock.log.requests('workspace/unarchiveSession')).toEqual([{ sessionId: 'session' }])
     expect(mock.log.requests('workspace/pinSession')).toEqual([{ sessionId: 'session' }])
     expect(mock.log.requests('workspace/unpinSession')).toEqual([{ sessionId: 'session' }])
+    expect(mock.log.requests('workspace/createIsolated')).toEqual([{ workspaceId: 'one' }])
+    expect(mock.log.requests('workspace/inspectManaged')).toEqual([{ workspaceId: 'one' }])
+    expect(mock.log.requests('workspace/removeManaged')).toEqual([{ workspaceId: 'one-worktree' }])
     expect(mock.log.requests('workspace/delete')).toEqual([{ workspaceId: 'one' }])
   })
 
@@ -403,6 +410,20 @@ describe('WorkspaceController', () => {
     )))
     await expect(controller.insertSessionBefore(wid('missing'), sid('session')))
       .rejects.toThrow('workspace move failed: workspace/move-invalid: invalid move')
+
+    mock.remote.workspace.createIsolated.mockResolvedValueOnce(err(missingWorkspace))
+    const createIsolated = controller.createIsolated(wid('missing'))
+    await expect(createIsolated).rejects.toBeInstanceOf(WorkspaceManagedError)
+    await expect(createIsolated).rejects.toThrow('managed worktree operation failed: workspace/not-found: gone')
+    // The dirty-checkout refusal keeps a stable code a surface can branch on.
+    const dirty = new RemoteError('workspace/worktree-dirty', 'checkout is dirty', { workspaceId: wid('one-worktree') })
+    mock.remote.workspace.removeManaged.mockResolvedValueOnce(err(dirty))
+    await expect(controller.removeManaged(wid('one-worktree'))).rejects.toMatchObject({
+      name: 'WorkspaceManagedError', rpcError: { code: 'workspace/worktree-dirty' },
+    })
+    mock.remote.workspace.inspectManaged.mockResolvedValueOnce(err(missingWorkspace))
+    await expect(controller.inspectManaged(wid('missing')))
+      .rejects.toThrow('managed worktree operation failed: workspace/not-found: gone')
   })
 
   it('receives a carrier throw as the client\'s gateway/internal fold, never as a rejection', async ({ mock, start }) => {

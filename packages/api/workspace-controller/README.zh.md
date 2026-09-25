@@ -1,5 +1,5 @@
 ---
-description: "Host 与 Client 工作区控制：修改工作区导航并跟随其完整投影。"
+description: "Host 与 Client 工作区控制：修改工作区导航、跟随其完整投影，并可选地把工作区的编码会话隔离到应用管理的本地 Git worktree 中。"
 kind: "package-reference"
 ---
 # Workspace Controller
@@ -42,6 +42,31 @@ Client 入口提供 `ClientWorkspaceModel` 和 `createWorkspaceStateStream()`。
 
 Documents 查询占用注册表变更队列，因此其他 Workspace 变更（包括登记已选目录）最多可能等待 `documentsLookupTimeoutMs`。取消可以停止查询；解析成功后，取消不会回滚创建或登记。
 
+<a id="managed-worktrees"></a>
+### 应用管理的 worktree
+
+配置 `managedWorktrees` 后，Client 可以把一次编码会话隔离到它自己的本地 Git checkout 中，而不是直接在工作区自己的目录里运行：
+
+```yaml
+- name: '@deepseek-ai/dsh-api-workspace-controller'
+  config:
+    managedWorktrees:
+      managedWorktreeDirectory: !!js dshHomePath('worktrees')
+```
+
+| 字段 | 默认值 | 含义 |
+|---|---|---|
+| `managedWorktreeDirectory` | ——（必填） | 位于每个源仓库之外、保存 checkout 及其归属记录的绝对目录 |
+| `gitTimeoutMs` | `30000` | 单条 git 命令允许运行的毫秒数，超时则中止 |
+| `gitGraceMs` | `2000` | 被终止的 git 进程退出前的宽限毫秒数，超时则杀死 |
+| `maxOutputBytes` | `8388608` | 每次读取保留的 git 输出字节数，以及一份归属清单的字节数 |
+
+未配置 `managedWorktrees` 时，`createIsolated`、`inspectManaged` 与 `removeManaged` 均以 `workspace/managed-unavailable` 拒绝；此外该特性不增加任何组合要求，其他 Workspace 与 Session 行为均不变。
+
+`createIsolated({ workspaceId })` 会在该工作区的目录——必须是带有已提交 HEAD 的本地仓库根目录——上创建一个新分支的全新本地 Git worktree，仅从源的已提交 HEAD 出发：源目录里未提交、已暂存、被忽略和未跟踪的文件永远不会被复制。新的 checkout 会通过与其他工作区完全相同的 `WorkspaceRegistry.create` 注册为普通工作区，因此 Session cwd、工具执行、搜索与 Git 检查保留其既有的单一权威；运行在受管 checkout 中的 Session 不会被特殊对待。`inspectManaged({ workspaceId })` 对该特性创建的工作区报告 `{ kind: 'managed', source, branch }`，对其余每个工作区——包括该特性未配置时的每一个——报告 `{ kind: 'ordinary' }`。`removeManaged({ workspaceId })` 会一并删除该 checkout 及其工作区登记：只要该工作区的任一 Session 通过 [`dsh-workspace`](../../workspace/workspace/README.zh.md) 声明的 `workspace/session-activity` waterfall——`archiveSession` 所用的同一接缝——报告仍有工作在跑，就以 `workspace/worktree-active` 拒绝；只要该 checkout 存在未提交、未跟踪或被忽略的内容，或存在尚未可从源的当前 HEAD 到达的提交，就以 `workspace/worktree-dirty` 拒绝。被移除 checkout 的分支、其源仓库与每条 Session 日志均保持不变；cwd 曾是该已移除 checkout 的 Session 无法在那里继续。
+
+一个 checkout 的应用归属由其自身的路径形态与紧邻（而非位于内部）它的一份清单解析得到，而绝不来自调用方提供的身份：客户端无法通过构造请求把某个工作区冒充为受管，也无法伪造其记录的 source 或 branch。[`ManagedWorktrees`](src/managed-worktrees.ts) 拥有这一解析逻辑，以及创建与移除所经过的、受限的 git 执行——hooks、文件系统监视器，以及（对 `status` 与 `worktree` 命令）每个内容过滤器均被禁用。
+
 -----
 
 <a id="model-experience"></a>
@@ -59,6 +84,9 @@ Documents 查询占用注册表变更队列，因此其他 Workspace 变更（�
 
 - `follow()` 在重连后替换完整投影，不提供持久 cursor 或增量追赶协议。
 - 进程内删除标记只会在 Client 模型生命周期内阻止延迟数据复活已移除的 Workspace。
+- 应用管理的 worktree 需要本地的 `fs` 与 `subprocess` 执行环境；远程或沙箱化的执行环境即使配置了 `managedWorktrees` 也会让 `createIsolated` 与 `removeManaged` 不可用。
+- 活跃度检查与移除并非同一个原子步骤：在 waterfall 给出答复与 `git worktree remove` 之间开始的一轮不会被追溯拒绝，实际受该步骤延迟所限。
+- `removeManaged` 一旦通过安全检查就会无条件删除该 checkout；没有软删除或回收站，`git worktree remove` 返回后被移除 checkout 的文件即已消失。
 
 
 <a id="dev-note"></a>

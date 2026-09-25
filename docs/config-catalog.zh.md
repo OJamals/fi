@@ -303,7 +303,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-api-workspace-controller`
 
 - `inject`: `typert` · `workspaceRegistry`
-- `source`: [`packages/api/workspace-controller/src/index.ts:33`](../packages/api/workspace-controller/src/index.ts)
+- `source`: [`packages/api/workspace-controller/src/index.ts:38`](../packages/api/workspace-controller/src/index.ts)
 
 ```ts config-catalog
 /** First-use directory policy for the Host account. */
@@ -312,6 +312,23 @@ export interface Config {
   documentsDirectory?: string
   /** Maximum duration of the operating system's Documents lookup. */
   documentsLookupTimeoutMs?: number
+  /**
+   * Enables application-managed isolated Git worktrees for Workspaces. Absent, `createIsolated`,
+   * `inspectManaged`, and `removeManaged` all reject with `workspace/managed-unavailable`.
+   */
+  managedWorktrees?: ManagedWorktreeConfig
+}
+
+/** Deployment policy for locally managed worktrees. */
+export interface ManagedWorktreeConfig {
+  /** Absolute directory outside every source repository that retains checkouts and their ownership records. */
+  readonly managedWorktreeDirectory: string
+  /** Milliseconds one git command may run before it is aborted. */
+  readonly gitTimeoutMs: number
+  /** Milliseconds a terminated git process gets to exit before it is killed. */
+  readonly gitGraceMs: number
+  /** Bytes of git output retained per command, and the byte limit its ownership manifest read is bounded to. */
+  readonly maxOutputBytes: number
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-api-workspace-controller -->
@@ -4274,7 +4291,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-workspace-changes`
 
 - `inject`: `subprocess`
-- `source`: [`packages/deliverables/workspace-changes/src/index.ts:33`](../packages/deliverables/workspace-changes/src/index.ts)
+- `source`: [`packages/deliverables/workspace-changes/src/index.ts:34`](../packages/deliverables/workspace-changes/src/index.ts)
 
 ```ts config-catalog
 /** Snapshot, capture, and comparison bounds. Invalid values fail plugin load. */

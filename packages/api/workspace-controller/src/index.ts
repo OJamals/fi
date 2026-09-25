@@ -2,11 +2,13 @@
 
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
+import { Remote, RemoteError, remoteErrorOf, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
+import { WorkspaceId, type SessionActivity, type Workspace } from '@deepseek-ai/dsh-workspace'
 import { WorkspaceCommands } from './commands.ts'
 import { DirectoryPickerController } from './directory-picker.ts'
 import { WorkspaceFeed, workspaceView } from './feed.ts'
 import { defaultWorkspaceDirectory, validateDocumentsDirectory } from './default-directory.ts'
+import { ManagedWorktreeConfigSchema, ManagedWorktrees, type ManagedWorktreeConfig } from './managed-worktrees.ts'
 import type {
   WorkspaceArchiveSessionRequest,
   WorkspaceArchiveValue,
@@ -17,6 +19,8 @@ import type {
   WorkspaceFollowFrame,
   WorkspaceInsertBeforeRequest,
   WorkspaceInsertSessionBeforeRequest,
+  WorkspaceManagedRequest,
+  WorkspaceManagedValue,
   WorkspaceOrderValue,
   WorkspacePinSessionRequest,
   WorkspacePinValue,
@@ -28,6 +32,7 @@ import type {
 
 export type * from './types.ts'
 export { DirectoryPickerController } from './directory-picker.ts'
+export { ManagedWorktrees, type ManagedWorktree, type ManagedWorktreeConfig } from './managed-worktrees.ts'
 
 /** First-use directory policy for the Host account. */
 export interface Config {
@@ -35,6 +40,11 @@ export interface Config {
   documentsDirectory?: string
   /** Maximum duration of the operating system's Documents lookup. */
   documentsLookupTimeoutMs?: number
+  /**
+   * Enables application-managed isolated Git worktrees for Workspaces. Absent, `createIsolated`,
+   * `inspectManaged`, and `removeManaged` all reject with `workspace/managed-unavailable`.
+   */
+  managedWorktrees?: ManagedWorktreeConfig
 }
 
 /** Directory policy after schema defaults have been applied. */
@@ -51,6 +61,11 @@ declare module '@deepseek-ai/cordis' {
 export class WorkspaceController extends TypertRemoteService {
   static inject = ['typert', 'workspaceRegistry']
 
+  // `managedWorktrees` is deliberately not part of this schema: every schemastery `z.object()`
+  // resolves an absent value against an implicit `{}` default rather than staying absent, which
+  // would throw on `managedWorktreeDirectory`'s required field for every composition that does
+  // not configure this feature. `ManagedWorktreeConfigSchema` in managed-worktrees.ts validates
+  // the block on its own, called only when the constructor's raw config actually supplies it.
   static Config: z<Config, ResolvedConfig> = z.object({
     documentsDirectory: z.string(),
     documentsLookupTimeoutMs: z.natural().min(1).default(10_000),
@@ -59,10 +74,11 @@ export class WorkspaceController extends TypertRemoteService {
   private readonly config: ResolvedConfig
   private readonly commands: WorkspaceCommands
   private readonly feed: WorkspaceFeed
+  private managed: ManagedWorktrees | undefined
 
   /**
    * @param ctx - Host context containing the Workspace registry.
-   * @param config - first-use directory policy.
+   * @param config - first-use directory policy and optional managed-worktree policy.
    */
   constructor(ctx: Context, config: Config = {}) {
     super(ctx, 'workspaceController', { namespace: 'workspace' })
@@ -75,6 +91,16 @@ export class WorkspaceController extends TypertRemoteService {
     // stays pending until a picking backend is composed, so a host without one
     // registers no picking namespace instead of answering an unservable verb.
     ctx.plugin(DirectoryPickerController)
+    // Managed worktrees need a local FS and subprocess execution world; a
+    // composition without either leaves the feature unavailable rather than
+    // failing the whole controller to load.
+    if (config.managedWorktrees !== undefined) {
+      const worktrees = ManagedWorktreeConfigSchema(config.managedWorktrees)
+      ctx.inject(['fs', 'subprocess'], (scoped) => {
+        this.managed = new ManagedWorktrees(scoped, worktrees)
+        scoped.effect(() => () => { this.managed = undefined })
+      })
+    }
   }
 
   /**
@@ -85,6 +111,100 @@ export class WorkspaceController extends TypertRemoteService {
   @Remote('create')
   create(request: WorkspaceCreateRequest): Promise<WorkspaceCreateValue> {
     return this.commands.create(request)
+  }
+
+  /**
+   * Create a registered Workspace isolated from the source checkout: a
+   * fresh local Git worktree on a new branch from the source's committed
+   * HEAD. Uncommitted, staged, ignored, and untracked source files are not
+   * copied. The new checkout is registered as an ordinary Workspace, so
+   * Session cwd, tools, and Git inspection retain their existing authority.
+   * @param request - source Workspace identity.
+   * @returns the newly registered checkout.
+   * @throws `workspace/managed-unavailable` when no managed-worktree directory is configured,
+   * `workspace/not-found` when the source Workspace is unknown, or `workspace/isolation-invalid`
+   * when the source is not a local repository root with a committed HEAD.
+   */
+  @Remote('createIsolated')
+  async createIsolated(request: WorkspaceManagedRequest): Promise<WorkspaceCreateValue> {
+    const managed = this.requireManaged()
+    const workspace = this.requireWorkspace(request.workspaceId)
+    let record
+    try {
+      record = await managed.create(workspace.path)
+    } catch (error) {
+      if (remoteErrorOf(error) !== undefined) throw error
+      throw new RemoteError(
+        'workspace/isolation-invalid',
+        `Workspace "${request.workspaceId}" cannot be isolated: ${errorMessage(error)}`,
+        { workspaceId: request.workspaceId },
+        { cause: error },
+      )
+    }
+    return this.commands.create({ path: record.path })
+  }
+
+  /**
+   * Report whether a Workspace is an application-managed worktree and, when
+   * it is, the source it isolates from and its branch.
+   * @param request - registered Workspace identity.
+   * @returns managed-worktree facts, or `{ kind: 'ordinary' }` for a Workspace
+   * that is not application-managed, including when no managed-worktree
+   * directory is configured.
+   */
+  @Remote('inspectManaged')
+  async inspectManaged(request: WorkspaceManagedRequest): Promise<WorkspaceManagedValue> {
+    if (this.managed === undefined) return { kind: 'ordinary' }
+    const workspace = this.requireWorkspace(request.workspaceId)
+    const record = await this.managed.get(workspace.path)
+    return record === undefined
+      ? { kind: 'ordinary' }
+      : { kind: 'managed', source: record.source, branch: record.branch }
+  }
+
+  /**
+   * Remove a clean, merged managed checkout and its Workspace registration
+   * while retaining its branch and Session logs; Sessions whose cwd was this
+   * checkout cannot continue. Refuses while any of the Workspace's Sessions
+   * has running work, or while the checkout has uncommitted, untracked, or
+   * ignored changes, or commits not yet merged into its source.
+   * @param request - managed Workspace identity.
+   * @returns registry deletion confirmation.
+   * @throws `workspace/managed-unavailable`, `workspace/not-managed`,
+   * `workspace/worktree-active`, or `workspace/worktree-dirty`.
+   */
+  @Remote('removeManaged')
+  async removeManaged(request: WorkspaceManagedRequest): Promise<WorkspaceDeleteValue> {
+    const managed = this.requireManaged()
+    const workspace = this.requireWorkspace(request.workspaceId)
+    const record = await managed.get(workspace.path)
+    if (record === undefined) {
+      throw new RemoteError(
+        'workspace/not-managed',
+        `Workspace "${request.workspaceId}" is not an application-managed worktree`,
+        { workspaceId: request.workspaceId },
+      )
+    }
+    const activity = await this.activeSessionActivity(workspace)
+    if (activity.length > 0) {
+      throw new RemoteError(
+        'workspace/worktree-active',
+        `Workspace "${request.workspaceId}" still has running work`,
+        { workspaceId: request.workspaceId, activity },
+      )
+    }
+    try {
+      await managed.remove(record)
+    } catch (error) {
+      if (remoteErrorOf(error) !== undefined) throw error
+      throw new RemoteError(
+        'workspace/worktree-dirty',
+        `Workspace "${request.workspaceId}" could not be removed: ${errorMessage(error)}`,
+        { workspaceId: request.workspaceId },
+        { cause: error },
+      )
+    }
+    return this.commands.delete(request)
   }
 
   /**
@@ -195,6 +315,34 @@ export class WorkspaceController extends TypertRemoteService {
   follow(signal: AbortSignal): AsyncIterable<WorkspaceFollowFrame> {
     return this.feed.follow(signal)
   }
+
+  private requireManaged(): ManagedWorktrees {
+    if (this.managed === undefined) {
+      throw new RemoteError('workspace/managed-unavailable', 'Managed worktrees are not configured on this Host', {})
+    }
+    return this.managed
+  }
+
+  private requireWorkspace(workspaceId: WorkspaceManagedRequest['workspaceId']): Workspace {
+    const workspace = this.ctx.workspaceRegistry.get(WorkspaceId(workspaceId))
+    if (workspace === undefined) {
+      throw new RemoteError('workspace/not-found', `Workspace "${workspaceId}" not found`, { workspaceId })
+    }
+    return workspace
+  }
+
+  /** Every `workspace/session-activity` a Workspace's own Sessions report, in accounting order. */
+  private async activeSessionActivity(workspace: Workspace): Promise<readonly SessionActivity[]> {
+    const activity: SessionActivity[] = []
+    for (const sessionId of workspace.sessionIds) {
+      activity.push(...await this.ctx.waterfall('workspace/session-activity', { sessionId }, () => Promise.resolve([])))
+    }
+    return activity
+  }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 export default WorkspaceController

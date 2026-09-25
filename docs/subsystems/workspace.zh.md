@@ -339,6 +339,43 @@ Host service backing the generated `ctx.remote.workspace` namespace.
 @Remote('create') create(request: WorkspaceCreateRequest): Promise<WorkspaceCreateValue>
 
 /**
+ * Create a registered Workspace isolated from the source checkout: a
+ * fresh local Git worktree on a new branch from the source's committed
+ * HEAD. Uncommitted, staged, ignored, and untracked source files are not
+ * copied. The new checkout is registered as an ordinary Workspace, so
+ * Session cwd, tools, and Git inspection retain their existing authority.
+ * @param request - source Workspace identity.
+ * @returns the newly registered checkout.
+ * @throws `workspace/managed-unavailable` when no managed-worktree directory is configured,
+ * `workspace/not-found` when the source Workspace is unknown, or `workspace/isolation-invalid`
+ * when the source is not a local repository root with a committed HEAD.
+ */
+@Remote('createIsolated') async createIsolated(request: WorkspaceManagedRequest): Promise<WorkspaceCreateValue>
+
+/**
+ * Report whether a Workspace is an application-managed worktree and, when
+ * it is, the source it isolates from and its branch.
+ * @param request - registered Workspace identity.
+ * @returns managed-worktree facts, or `{ kind: 'ordinary' }` for a Workspace
+ * that is not application-managed, including when no managed-worktree
+ * directory is configured.
+ */
+@Remote('inspectManaged') async inspectManaged(request: WorkspaceManagedRequest): Promise<WorkspaceManagedValue>
+
+/**
+ * Remove a clean, merged managed checkout and its Workspace registration
+ * while retaining its branch and Session logs; Sessions whose cwd was this
+ * checkout cannot continue. Refuses while any of the Workspace's Sessions
+ * has running work, or while the checkout has uncommitted, untracked, or
+ * ignored changes, or commits not yet merged into its source.
+ * @param request - managed Workspace identity.
+ * @returns registry deletion confirmation.
+ * @throws `workspace/managed-unavailable`, `workspace/not-managed`,
+ * `workspace/worktree-active`, or `workspace/worktree-dirty`.
+ */
+@Remote('removeManaged') async removeManaged(request: WorkspaceManagedRequest): Promise<WorkspaceDeleteValue>
+
+/**
  * Initialize or reuse the default Workspace during first-use startup. The
  * directory name is fixed, so the Host never renames or relocates an
  * existing default; its initial title is that same name, which browser

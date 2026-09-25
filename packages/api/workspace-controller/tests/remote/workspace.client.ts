@@ -18,6 +18,8 @@ import type {
   WorkspaceId,
   WorkspaceInsertBeforeRequest,
   WorkspaceInsertSessionBeforeRequest,
+  WorkspaceManagedRequest,
+  WorkspaceManagedValue,
   WorkspaceOrderValue,
   WorkspacePinSessionRequest,
   WorkspacePinValue,
@@ -107,5 +109,10 @@ export const workspaceWorld: RemoteTable = {
     'workspace/unarchiveSession': (_request: WorkspaceUnarchiveSessionRequest): RemoteResult<WorkspaceArchiveValue> => ok({ archivedSessionIds: [] }),
     'workspace/pinSession': (request: WorkspacePinSessionRequest): RemoteResult<WorkspacePinValue> => ok({ pinnedSessionIds: [request.sessionId] }),
     'workspace/unpinSession': (_request: WorkspaceUnpinSessionRequest): RemoteResult<WorkspacePinValue> => ok({ pinnedSessionIds: [] }),
+    'workspace/createIsolated': (request: WorkspaceManagedRequest): RemoteResult<WorkspaceCreateValue> => ok({
+      workspace: workspace(`${request.workspaceId}-worktree`), created: true,
+    }),
+    'workspace/inspectManaged': (_request: WorkspaceManagedRequest): RemoteResult<WorkspaceManagedValue> => ok({ kind: 'ordinary' }),
+    'workspace/removeManaged': (_request: WorkspaceManagedRequest): RemoteResult<WorkspaceDeleteValue> => ok({ deleted: true }),
   },
 }

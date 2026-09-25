@@ -4,7 +4,7 @@ import { Service, type Context } from '@deepseek-ai/cordis'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { RemoteFailure } from '@deepseek-ai/dsh-typert-protocol'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
-import type { WorkspaceView } from '../types.ts'
+import type { WorkspaceManagedValue, WorkspaceView } from '../types.ts'
 import type { ClientWorkspaceModel, WorkspaceSnapshot } from './model.ts'
 
 /** Structured create failure for callers that distinguish Host business errors. */
@@ -28,6 +28,23 @@ export class WorkspaceArchiveError extends Error {
   /** @param rpcError - Host business or folded carrier failure. */
   constructor(readonly rpcError: RemoteFailure) {
     super(`workspace session archive failed: ${rpcError.code}: ${rpcError.message}`)
+  }
+}
+
+/**
+ * A managed-worktree operation failed on the Host. `rpcError.code`
+ * distinguishes `workspace/managed-unavailable` (no managed-worktree
+ * directory configured), `workspace/not-managed` (not an application-managed
+ * checkout), `workspace/worktree-active` (running work, detailed in
+ * `activity`), and `workspace/worktree-dirty` (uncommitted or unmerged
+ * changes) from a missing Workspace or a carrier fault.
+ */
+export class WorkspaceManagedError extends Error {
+  override readonly name = 'WorkspaceManagedError'
+
+  /** @param rpcError - Host business or folded carrier failure. */
+  constructor(readonly rpcError: RemoteFailure) {
+    super(`managed worktree operation failed: ${rpcError.code}: ${rpcError.message}`)
   }
 }
 
@@ -112,6 +129,26 @@ export interface IWorkspaces {
     sessionId: SessionId,
     beforeSessionId?: SessionId,
   ): Promise<WorkspaceView>
+  /**
+   * Create a registered Workspace isolated from an existing one: a fresh
+   * local Git worktree on a new branch from its committed HEAD. Uncommitted
+   * source changes are not copied.
+   * @param workspaceId - registered source Workspace to isolate from.
+   * @returns the newly registered checkout.
+   */
+  createIsolated(workspaceId: WorkspaceId): Promise<WorkspaceView>
+  /**
+   * Report whether a Workspace is an application-managed worktree.
+   * @param workspaceId - Workspace to inspect.
+   * @returns managed-worktree facts, or `{ kind: 'ordinary' }`.
+   */
+  inspectManaged(workspaceId: WorkspaceId): Promise<WorkspaceManagedValue>
+  /**
+   * Remove a clean, merged managed checkout and its Workspace registration
+   * while retaining its branch and Session logs.
+   * @param workspaceId - target managed Workspace.
+   */
+  removeManaged(workspaceId: WorkspaceId): Promise<void>
 }
 
 /** Owns the bare Workspace snapshot and Workspace-only commands. */
@@ -183,6 +220,23 @@ export class WorkspaceController extends Service implements IWorkspaces {
     const result = await this.model.insertSessionBefore(workspaceId, sessionId, beforeSessionId)
     if (!result.ok) throw commandError('move', result.error)
     return result.value.workspace
+  }
+
+  async createIsolated(workspaceId: WorkspaceId): Promise<WorkspaceView> {
+    const result = await this.model.createIsolated(workspaceId)
+    if (!result.ok) throw new WorkspaceManagedError(result.error)
+    return result.value.workspace
+  }
+
+  async inspectManaged(workspaceId: WorkspaceId): Promise<WorkspaceManagedValue> {
+    const result = await this.model.inspectManaged(workspaceId)
+    if (!result.ok) throw new WorkspaceManagedError(result.error)
+    return result.value
+  }
+
+  async removeManaged(workspaceId: WorkspaceId): Promise<void> {
+    const result = await this.model.removeManaged(workspaceId)
+    if (!result.ok) throw new WorkspaceManagedError(result.error)
   }
 }
 

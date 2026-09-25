@@ -3,8 +3,8 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/api/workspace-controller/README.md
 /:
-  en: a080cd1633a6f3a9
-  zh: a54cb4fb9d9f15b2
+  en: 5bcaca04d1929137
+  zh: 293645591f675ab5
 /workspace-controller:
   en: b9d615d0df92cbb7
   zh: 5ecd432522478c8a
@@ -18,8 +18,11 @@
   en: aa0d93826ab685fe
   zh: 144e48d49020f5a4
 /workspace-controller/use-this-package/first-use-workspace:
-  en: 61032e060e7213f0
-  zh: 437eb982a8738539
+  en: ddd5d1592308e321
+  zh: 74049e11f9588dea
+/workspace-controller/use-this-package/managed-worktrees:
+  en: 7a30171d61ac4c1f
+  zh: 638a6f70000a277e
 /workspace-controller/model-experience:
   en: 4f399d6a27daf683
   zh: 13811489fe636127
@@ -27,8 +30,8 @@
   en: f38466c42287d3db
   zh: 692eb6e5806fe865
 /workspace-controller/known-limitations-and-deferred-work:
-  en: 43b497c19779532e
-  zh: c6d9d3afff774219
+  en: 3e4e7c498ad5bd84
+  zh: 6018386a2947967a
 /workspace-controller/known-limitations-and-deferred-work/dev-note:
   en: 0f74591fc1097e46
   zh: f4df9e5617a50a9f

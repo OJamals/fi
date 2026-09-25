@@ -26,7 +26,7 @@ import {
 import type {
   SessionListState, SessionSearchResultItem,
 } from '@deepseek-ai/dsh-api-session-controller/client'
-import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
+import type { WorkspaceId, WorkspaceManagedValue, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import { workspaceDisplayTitle } from '@deepseek-ai/dsh-api-workspace-controller/default-workspace'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
@@ -253,6 +253,8 @@ type SessionTreeProps = Pick<
   onRenameRequest: (workspaceId: WorkspaceId, currentTitle: string) => void
   /** Open the browser-owned delete-confirmation dialog for a real Workspace group. */
   onDeleteRequest: (workspaceId: WorkspaceId, currentTitle: string) => void
+  /** Open the browser-owned managed-worktree dialog for a real Workspace group. */
+  onManageWorktreeRequest: (workspaceId: WorkspaceId, currentTitle: string) => void
   /** Open the rename dialog from a row title double-click. */
   onSessionRenameRequest: (sessionId: SessionNode['id'], currentTitle: string) => void
   /** One Session chosen from search that must be exposed and scrolled into view. */
@@ -282,7 +284,7 @@ function SessionTree({
   list, useSessionStatus, startSession, open, workspaces, ungroupedSessionIds,
   rowState, onLeaveArchivedOnly,
   workspaceReady, animationResetKey, usePanelInfo,
-  onRenameRequest, onDeleteRequest, onSessionRenameRequest,
+  onRenameRequest, onDeleteRequest, onManageWorktreeRequest, onSessionRenameRequest,
   renderSlot,
   insertWorkspaceBefore,
   nestWorkspaces, groupExpansion, setGroupExpanded,
@@ -518,6 +520,10 @@ function SessionTree({
               rename: () => {
               /* v8 ignore next -- narrowing guard: the actions object exists only for real-workspace groups. */
                 if (group.workspaceId !== undefined) onRenameRequest(group.workspaceId, group.label)
+              },
+              manageWorktree: () => {
+              /* v8 ignore next -- narrowing guard: the actions object exists only for real-workspace groups. */
+                if (group.workspaceId !== undefined) onManageWorktreeRequest(group.workspaceId, group.label)
               },
               delete: () => {
               /* v8 ignore next -- narrowing guard: the actions object exists only for real-workspace groups. */
@@ -848,6 +854,9 @@ export function WorkspaceBrowser({
   notifyArchivedNotOpenable,
   renameWorkspace,
   deleteWorkspace,
+  createIsolatedWorkspace,
+  inspectManagedWorkspace,
+  removeManagedWorkspace,
   insertWorkspaceBefore,
   unarchiveSession,
   createWorkspace,
@@ -1204,6 +1213,60 @@ export function WorkspaceBrowser({
     })
   }
 
+  // Managed-worktree dialog: browser-owned like rename/delete. Opening it
+  // asks the Host what the target Workspace is; a fresh request supersedes
+  // any pending one, so a stale reply for a row the user already left never
+  // lands on the wrong target.
+  const [worktreeTarget, setWorktreeTarget] = useState<{ workspaceId: WorkspaceId; title: string } | null>(null)
+  const [worktreeStatus, setWorktreeStatus] = useState<WorkspaceManagedValue | null>(null)
+  const [worktreeBusy, setWorktreeBusy] = useState(false)
+  const [worktreeError, setWorktreeError] = useState<string | null>(null)
+  const [worktreeConfirmRemove, setWorktreeConfirmRemove] = useState(false)
+  useEffect(() => {
+    if (worktreeTarget === null) return undefined
+    let live = true
+    setWorktreeStatus(null)
+    setWorktreeError(null)
+    inspectManagedWorkspace(worktreeTarget.workspaceId).then((value) => {
+      if (live) setWorktreeStatus(value)
+    }, (reason: unknown) => {
+      if (live) setWorktreeError(reason instanceof Error ? reason.message : String(reason))
+    })
+    return () => { live = false }
+  }, [worktreeTarget, inspectManagedWorkspace])
+  const closeWorktree = () => {
+    if (worktreeBusy) return
+    setWorktreeTarget(null)
+    setWorktreeStatus(null)
+    setWorktreeError(null)
+    setWorktreeConfirmRemove(false)
+  }
+  const confirmCreateIsolated = () => {
+    if (worktreeTarget === null || worktreeBusy) return
+    setWorktreeBusy(true)
+    setWorktreeError(null)
+    createIsolatedWorkspace(worktreeTarget.workspaceId).then(() => {
+      setWorktreeBusy(false)
+      setWorktreeTarget(null)
+    }).catch((reason: unknown) => {
+      setWorktreeBusy(false)
+      setWorktreeError(reason instanceof Error ? reason.message : String(reason))
+    })
+  }
+  const confirmRemoveWorktree = () => {
+    if (worktreeTarget === null || worktreeBusy) return
+    setWorktreeBusy(true)
+    setWorktreeError(null)
+    removeManagedWorkspace(worktreeTarget.workspaceId).then(() => {
+      setWorktreeBusy(false)
+      setWorktreeTarget(null)
+    }).catch((reason: unknown) => {
+      setWorktreeBusy(false)
+      setWorktreeConfirmRemove(false)
+      setWorktreeError(reason instanceof Error ? reason.message : String(reason))
+    })
+  }
+
   return (
     <div className={clsx(css.root, !wide && css.rail)}>
       <div className={css.sectionHeader}>
@@ -1415,6 +1478,10 @@ export function WorkspaceBrowser({
                   setDeleteTarget({ workspaceId, title })
                   setDeleteError(null)
                 }}
+                onManageWorktreeRequest={(workspaceId, title) => {
+                  setWorktreeTarget({ workspaceId, title })
+                  setWorktreeConfirmRemove(false)
+                }}
               />
             ))}
       </div>
@@ -1478,6 +1545,46 @@ export function WorkspaceBrowser({
       >
         {deleting && <div className={css.deleteStatus} role="status">{t('delete.pending')}</div>}
         {deleteError !== null && <div className={css.renameError} role="alert">{deleteError}</div>}
+      </Modal>
+
+      <Modal
+        open={worktreeTarget !== null}
+        onClose={closeWorktree}
+        closeLabel={t('close')}
+        title={t('worktree.manage')}
+        footer={(
+          <>
+            <Button variant="outline" disabled={worktreeBusy} onClick={closeWorktree}>{t('cancel')}</Button>
+            {worktreeStatus?.kind === 'ordinary' && (
+              <Button variant="primary" disabled={worktreeBusy} onClick={confirmCreateIsolated}>{t('worktree.create')}</Button>
+            )}
+            {worktreeStatus?.kind === 'managed' && !worktreeConfirmRemove && (
+              <Button variant="outline" className={css.deleteAction} disabled={worktreeBusy}
+                onClick={() => { setWorktreeConfirmRemove(true) }}>{t('worktree.remove')}</Button>
+            )}
+            {worktreeStatus?.kind === 'managed' && worktreeConfirmRemove && (
+              <Button variant="outline" className={css.deleteAction} disabled={worktreeBusy} onClick={confirmRemoveWorktree}>
+                {t('worktree.confirm')}
+              </Button>
+            )}
+          </>
+        )}
+      >
+        {worktreeStatus === null && worktreeError === null && (
+          <div role="status">{t('worktree.loading')}</div>
+        )}
+        {worktreeStatus?.kind === 'ordinary' && <p>{t('worktree.explain')}</p>}
+        {worktreeStatus?.kind === 'managed' && !worktreeConfirmRemove && (
+          <>
+            <p>{t('worktree.source', { source: worktreeStatus.source })}</p>
+            <p>{t('worktree.branch', { branch: worktreeStatus.branch })}</p>
+          </>
+        )}
+        {worktreeStatus?.kind === 'managed' && worktreeConfirmRemove && (
+          <p role="alert">{t('worktree.confirmRemove')}</p>
+        )}
+        {worktreeBusy && <div className={css.deleteStatus} role="status">{t('worktree.busy')}</div>}
+        {worktreeError !== null && <div className={css.renameError} role="alert">{worktreeError}</div>}
       </Modal>
       {shortcutState.forkError !== null && <Toast key={shortcutState.forkError.seq}
         text={t(shortcutState.forkError.reason === 'unavailable' ? 'shortcut.noCompletedTurn' : 'shortcut.forkFailed')}

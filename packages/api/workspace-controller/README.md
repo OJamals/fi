@@ -1,5 +1,5 @@
 ---
-description: "Host and Client workspace control: mutate workspace navigation and follow its complete projection."
+description: "Host and Client workspace control: mutate workspace navigation, follow its complete projection, and optionally isolate a Workspace's coding session in an application-managed local Git worktree."
 kind: "package-reference"
 ---
 # Workspace Controller
@@ -42,6 +42,31 @@ The [Workspace registry](../../workspace/workspace/README.md#first-use-workspace
 
 Documents lookup holds the registry mutation queue, so other Workspace mutations, including registration of a picked directory, can wait up to `documentsLookupTimeoutMs`. Cancellation can stop the lookup; after resolution succeeds, it does not roll back creation or registration.
 
+<a id="managed-worktrees"></a>
+### Managed worktrees
+
+Configuring `managedWorktrees` lets a Client isolate a coding session in its own local Git checkout instead of running directly in a Workspace's own directory:
+
+```yaml
+- name: '@deepseek-ai/dsh-api-workspace-controller'
+  config:
+    managedWorktrees:
+      managedWorktreeDirectory: !!js dshHomePath('worktrees')
+```
+
+| Field | Default | Meaning |
+|---|---|---|
+| `managedWorktreeDirectory` | — (required) | Absolute directory outside every source repository that retains checkouts and their ownership records |
+| `gitTimeoutMs` | `30000` | Milliseconds one git command may run before it is aborted |
+| `gitGraceMs` | `2000` | Milliseconds a terminated git process gets to exit before it is killed |
+| `maxOutputBytes` | `8388608` | Bytes of git output, and of one ownership manifest, retained per read |
+
+Without `managedWorktrees`, `createIsolated`, `inspectManaged`, and `removeManaged` all reject with `workspace/managed-unavailable`; the feature adds no composition requirement otherwise, and every other Workspace and Session behavior is unchanged.
+
+`createIsolated({ workspaceId })` creates a fresh local Git worktree of that Workspace's directory — which must be a local repository root with a committed HEAD — on a new branch, from the source's committed HEAD alone: uncommitted, staged, ignored, and untracked source files are never copied. The new checkout is registered as an ordinary Workspace through the same `WorkspaceRegistry.create` every other Workspace uses, so Session cwd, tool execution, search, and Git inspection keep their existing, single authority; nothing about a Session running in a managed checkout is special-cased. `inspectManaged({ workspaceId })` reports `{ kind: 'managed', source, branch }` for a Workspace this feature created, or `{ kind: 'ordinary' }` for every other Workspace, including every one when the feature is not configured. `removeManaged({ workspaceId })` deletes the checkout and its Workspace registration together: it refuses with `workspace/worktree-active` while any of the Workspace's Sessions reports running work through the `workspace/session-activity` waterfall [`dsh-workspace`](../../workspace/workspace/README.md) declares — the same seam `archiveSession` uses — and refuses with `workspace/worktree-dirty` while the checkout has uncommitted, untracked, or ignored content, or commits not yet reachable from its source's current HEAD. A removed checkout's branch, its source repository, and every Session log stay untouched; a Session whose cwd was the removed checkout cannot continue there.
+
+Application ownership of a checkout is resolved from the checkout's own path shape and a manifest colocated beside it (never inside it, so `git worktree remove` deleting the checkout can never delete the record), never from a caller-supplied identity: a client cannot claim a Workspace as managed, or forge its recorded source or branch, by constructing a request. [`ManagedWorktrees`](src/managed-worktrees.ts) owns this resolution and the bounded git execution — hooks, the filesystem watcher, and (for `status` and `worktree` commands) every content filter disabled — that creation and removal run through.
+
 -----
 
 <a id="model-experience"></a>
@@ -59,6 +84,9 @@ No direct effect; Workspace mutations do not alter model requests.
 
 - `follow()` replaces the whole projection after reconnect and has no durable cursor or incremental catch-up protocol.
 - Process-local deletion markers prevent delayed data from reviving a removed Workspace only for the lifetime of the Client model.
+- Managed worktrees require a local `fs` and `subprocess` execution world; a remote or sandboxed execution world leaves `createIsolated` and `removeManaged` unavailable even when `managedWorktrees` is configured.
+- The activity check and the removal are not one atomic step: a turn that starts between the waterfall's answer and `git worktree remove` is not retroactively refused, bounded by that step's latency in practice.
+- `removeManaged` deletes the checkout unconditionally once its safety checks pass; there is no soft-delete or trash, and a removed checkout's files are gone once `git worktree remove` returns.
 
 
 <a id="dev-note"></a>

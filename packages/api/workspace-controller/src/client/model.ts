@@ -12,6 +12,7 @@ import type {
   WorkspaceCreateValue,
   WorkspaceDeleteValue,
   WorkspaceInsertSessionBeforeRequest,
+  WorkspaceManagedValue,
   WorkspaceOrderValue,
   WorkspacePinSessionRequest,
   WorkspacePinValue,
@@ -178,6 +179,38 @@ export class ClientWorkspaceModel implements WorkspaceFollowSink {
       ...beforeSessionId === undefined ? {} : { beforeSessionId },
     })
     if (result.ok) this.upsert(result.value.workspace)
+    return result
+  }
+
+  /**
+   * Create an isolated worktree Workspace and merge the unary result immediately.
+   * @param workspaceId - registered source Workspace to isolate from.
+   * @returns generated Remote result.
+   */
+  async createIsolated(workspaceId: WorkspaceId): Promise<RemoteResult<WorkspaceCreateValue>> {
+    const result = await this.remote.createIsolated({ workspaceId })
+    if (result.ok) this.upsert(result.value.workspace)
+    return result
+  }
+
+  /**
+   * Report whether a Workspace is an application-managed worktree.
+   * @param workspaceId - Workspace to inspect.
+   * @returns generated Remote result; not merged into the projection, since managed-worktree
+   * facts are not part of the reconnect-safe `WorkspaceView` state.
+   */
+  inspectManaged(workspaceId: WorkspaceId): Promise<RemoteResult<WorkspaceManagedValue>> {
+    return this.remote.inspectManaged({ workspaceId })
+  }
+
+  /**
+   * Remove a managed worktree Workspace and remove it from the local projection immediately.
+   * @param workspaceId - target managed Workspace.
+   * @returns generated Remote result.
+   */
+  async removeManaged(workspaceId: WorkspaceId): Promise<RemoteResult<WorkspaceDeleteValue>> {
+    const result = await this.remote.removeManaged({ workspaceId })
+    if (result.ok) this.remove(workspaceId, true)
     return result
   }
 

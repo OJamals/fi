@@ -12,14 +12,18 @@
     "src/default-workspace.ts",
     "src/directory-picker.ts",
     "src/feed.ts",
-    "src/default-directory.ts"
+    "src/default-directory.ts",
+    "src/managed-worktrees.ts",
+    "src/worktree-storage.ts"
   ],
   "references": [
     { "path": "../../../vendor/cordis" },
     { "path": "../../../vendor/schemastery" },
     { "path": "../../core/session" },
+    { "path": "../../fs/fs" },
     { "path": "../../host/directory-picker" },
     { "path": "../../storage/storage-domain" },
+    { "path": "../../subprocess/subprocess" },
     { "path": "../../typert/protocol" },
     { "path": "../../util/deque" },
     { "path": "../../util/native-command" },

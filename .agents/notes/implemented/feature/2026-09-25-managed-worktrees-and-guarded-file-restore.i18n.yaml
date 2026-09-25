@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-09-25-managed-worktrees-and-guarded-file-restore.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-25-managed-worktrees-and-guarded-file-restore.md
+/agent-note-managed-worktrees-and-guarded-file-restore:
+  en: a818c6e37b1bbe4e
+  zh: c5c59c4747d56553
+/agent-note-managed-worktrees-and-guarded-file-restore/problem:
+  en: d3528ccf72d5dbc2
+  zh: ee96f1ebf1de80bd
+/agent-note-managed-worktrees-and-guarded-file-restore/decision:
+  en: 0c3e64d35f0fa76b
+  zh: 0e63a7835985e96c
+/agent-note-managed-worktrees-and-guarded-file-restore/alternatives-considered:
+  en: 0ffc7ca9650ca599
+  zh: 02f173eaec67fe88
+/agent-note-managed-worktrees-and-guarded-file-restore/consequences:
+  en: bdcd37dfff5279ee
+  zh: 25df88c2e86af6c8
