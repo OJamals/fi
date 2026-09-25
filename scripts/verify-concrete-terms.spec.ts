@@ -54,6 +54,7 @@ describe('concrete terminology policy', () => {
 
   it('excludes vendored sources and frozen Agent Notes', () => {
     expect(findConcreteTermViolations(`vendor/example/${blockedTerm}.ts`, blockedTerm)).toEqual([])
+    expect(findConcreteTermViolations(`scripts/vendor/example/${blockedTerm}.mjs`, blockedTerm)).toEqual([])
     expect(findConcreteTermViolations(
       `.agents/notes/archived/process/${blockedTerm}.md`,
       blockedTerm,

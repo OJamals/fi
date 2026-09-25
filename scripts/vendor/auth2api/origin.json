@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "sourceRepository": "https://github.com/medicux/auth2api.git",
-  "sourceCommit": "f439f315e901e7812b08ba652c6fe0bbea057a9f",
-  "dirtyBaseline": true,
+  "sourceRepository": "https://github.com/OJamals/auth2api.git",
+  "sourceCommit": "476359aa9fc3413009449caccc607d8fda7c7588",
+  "dirtyBaseline": false,
   "sourceUpdaterPath": "tools/update-provider-settings.mjs",
   "sourceSettingsPath": "src/provider-settings.json",
-  "sourceUpdaterSha256": "04155ee70edb6d467191138b4f84776b93b368e4c293e5001e599fc631142305",
-  "sourceSettingsSha256": "14f8f8e4605d8e0b1df70da7e4df97b8d7b4f966250470d425ac659171ff0251",
-  "vendoredUpdaterSha256": "04155ee70edb6d467191138b4f84776b93b368e4c293e5001e599fc631142305"
+  "sourceUpdaterSha256": "9df52aa7ce0e8c52f1422a6cdb68c89978bee9267c94e90ce0c3590638d3426d",
+  "sourceSettingsSha256": "a2a3a44d38035b6365520235fd319ae52172efc461e87a2cf3781e4d2ffcb9a4",
+  "vendoredUpdaterSha256": "9df52aa7ce0e8c52f1422a6cdb68c89978bee9267c94e90ce0c3590638d3426d"
 }

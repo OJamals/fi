@@ -184,6 +184,49 @@ describe('FiAntigravityService', () => {
     })
   })
 
+  it('serializes concurrent resolution of a near-expiry grant into exactly one refresh', async () => {
+    // Two overlapping resolveAntigravityGrant calls both read the same
+    // near-expiry record before either writes. modifyRecord serializes their
+    // writes, but only the recheck inside the callback — not the seam's
+    // serialization alone — stops the second writer from refreshing again:
+    // it must see the first writer's already-fresh record and no-op.
+    const { ctx } = await harness()
+    const key = credentialKey('fi-antigravity', 'antigravity')
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve({
+      kind: 'grant',
+      payload: {
+        access: 'expired-access',
+        refresh: 'refresh-1',
+        expires: Date.now() + 1_000,
+        projectId: 'project-1',
+        email: 'person@example.test',
+      },
+    }))
+    const fetchSpy = vi.fn(async () => Response.json({
+      access_token: 'fresh-access',
+      refresh_token: 'refresh-2',
+      expires_in: 3600,
+    }))
+    vi.stubGlobal('fetch', fetchSpy)
+    const [first, second] = await Promise.all([
+      resolveAntigravityGrant(ctx),
+      resolveAntigravityGrant(ctx),
+    ])
+    expect(first).toEqual({ accessToken: 'fresh-access', projectId: 'project-1' })
+    expect(second).toEqual({ accessToken: 'fresh-access', projectId: 'project-1' })
+    expect(fetchSpy).toHaveBeenCalledOnce()
+    const stored = await ctx.credentials.readRecord(key)
+    expect(stored).toMatchObject({
+      kind: 'grant',
+      payload: {
+        access: 'fresh-access',
+        refresh: 'refresh-2',
+        projectId: 'project-1',
+        email: 'person@example.test',
+      },
+    })
+  })
+
   it('rejects OAuth redirects and redacts a failed refresh response body', async () => {
     const { ctx } = await harness()
     const key = credentialKey('fi-antigravity', 'antigravity')

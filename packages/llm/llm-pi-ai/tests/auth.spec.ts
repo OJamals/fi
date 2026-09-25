@@ -5,7 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
 import { credentialKey, credentialRef } from '@deepseek-ai/dsh-credentials'
+import { builtinProviders } from '@earendil-works/pi-ai/providers/all'
+import type { MutableModels } from '@earendil-works/pi-ai'
 import { authContextFrom, credentialStoreFrom, recordKeyFor } from '../src/auth.ts'
+import { createModels } from '../src/models.ts'
 
 const CODEX = recordKeyFor('openai-codex')
 
@@ -209,5 +212,64 @@ describe('pi-ai ambient auth context', () => {
     await expect(context.fileExists('~/missing')).resolves.toBe(false)
     await expect(context.fileExists(join(dir, 'creds'))).resolves.toBe(true)
     await expect(context.fileExists('~')).resolves.toBe(true)
+  })
+})
+
+describe('pi-ai OAuth refresh through the harness credential seam', () => {
+  /**
+   * A real `Models` collection carrying one installed subscription provider,
+   * authenticated entirely through this adapter family's store and ambient
+   * context — the same construction `PiAiAdapter` uses, minus the profile
+   * and stream machinery this test does not need.
+   */
+  function subscriptionModels(ctx: Context): MutableModels {
+    const models = createModels({ credentials: credentialStoreFrom(ctx), authContext: authContextFrom(ctx) })
+    const xai = builtinProviders().find(provider => provider.id === 'xai')
+    if (xai === undefined) throw new Error('pi-ai no longer ships a builtin "xai" provider')
+    models.setProvider(xai)
+    return models
+  }
+
+  it('refreshes a near-expiry grant exactly once and persists the rotated record', async () => {
+    const ctx = await stored()
+    const key = recordKeyFor('xai')
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve({
+      kind: 'grant',
+      payload: { type: 'oauth', access: 'stale-access', refresh: 'refresh-1', expires: Date.now() - 1_000 },
+    }))
+    const fetchSpy = vi.fn(async () => Response.json({
+      access_token: 'fresh-access',
+      refresh_token: 'refresh-2',
+      expires_in: 3600,
+    }))
+    vi.stubGlobal('fetch', fetchSpy)
+    const models = subscriptionModels(ctx)
+
+    // Two requests race against the same expired grant; pi-ai's resolver
+    // locks the store around the refresh, so only one reaches the network
+    // and the second observes the rotation the first one persisted.
+    const [first, second] = await Promise.all([models.getAuth('xai'), models.getAuth('xai')])
+
+    expect(first?.auth).toEqual({ apiKey: 'fresh-access' })
+    expect(second?.auth).toEqual({ apiKey: 'fresh-access' })
+    expect(fetchSpy).toHaveBeenCalledOnce()
+    await expect(ctx.credentials.readRecord(key)).resolves.toMatchObject({
+      kind: 'grant',
+      payload: { access: 'fresh-access', refresh: 'refresh-2' },
+    })
+  })
+
+  it('serves a still-valid grant with no network call', async () => {
+    const ctx = await stored()
+    await ctx.credentials.modifyRecord(recordKeyFor('xai'), () => Promise.resolve({
+      kind: 'grant',
+      payload: { type: 'oauth', access: 'live-access', refresh: 'refresh-1', expires: Date.now() + 3_600_000 },
+    }))
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+    const models = subscriptionModels(ctx)
+
+    await expect(models.getAuth('xai')).resolves.toEqual({ auth: { apiKey: 'live-access' }, source: 'OAuth' })
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 })

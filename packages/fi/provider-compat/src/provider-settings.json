@@ -1,6 +1,6 @@
 {
   "grokCode": {
-    "version": "1.0.30",
+    "version": "1.0.41",
     "releaseUrl": "https://x.ai/cli/stable",
     "oauthClientId": "b1a00492-073a-47ea-816f-4c329264a828",
     "oauthScopes": [
@@ -21,10 +21,10 @@
     "clientIdentifier": "grok-shell",
     "clientMode": "headless",
     "releaseEvidence": {
-      "version": "1.0.30",
+      "version": "1.0.41",
       "sourceUrl": "https://x.ai/cli/stable",
-      "retrievedAt": "2026-09-14T21:46:57.073Z",
-      "responseSha256": "2aa092243667791a5d0de79ef7a43605357e4bf8f6cf329bdf58539fe4b8a3d1"
+      "retrievedAt": "2026-09-25T11:14:37.076Z",
+      "responseSha256": "c1e7caf1f8a01ab4918d10bedf68033f9139ed18560a275330b4d4edd42cc3ca"
     }
   },
   "antigravityCli": {
@@ -50,68 +50,68 @@
     },
     "releaseUrl": "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/darwin_arm64.json",
     "corroborationUrl": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases/latest",
-    "latestReleaseVersion": "1.2.2",
+    "latestReleaseVersion": "1.2.11",
     "releaseEvidence": {
-      "version": "1.2.2",
+      "version": "1.2.11",
       "sourceUrl": "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/darwin_arm64.json",
-      "retrievedAt": "2026-09-14T21:46:57.073Z",
-      "responseSha256": "9ad164be829c106c9f49d44c5e2df45c7df665a3cf745c01137c45134a2b80e7",
+      "retrievedAt": "2026-09-25T11:14:37.076Z",
+      "responseSha256": "98a81aa3e1c12b2faaf56e059bacd1c2862f7515dfae4de4382d59537c01bbb4",
       "artifact": {
         "name": "cli_mac_arm64.tar.gz",
-        "url": "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.2.2-6061403484848128/darwin-arm/cli_mac_arm64.tar.gz",
-        "sha512": "8a3b5edea51e107a74413cea5eed1c5b02dede945ba21c7625b7c86f477c2c8ac423581de0ed84ff2f97c3bf6818c1fc24ca84cf9a76c2fb02a50e89d8a0d29a"
+        "url": "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.2.11-6016716732497920/darwin-arm/cli_mac_arm64.tar.gz",
+        "sha512": "6d9c1f2a30eaf41686dfe40e5a644c9d37c170019be5c89113b3745f5fe6cdf55f1c5c5e2300c5e797529f878b6970ab4725a38cd7ecd6ab250e5fbad42cf79b"
       },
       "corroboration": {
         "sourceUrl": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases/latest",
-        "responseSha256": "30f1f8fb71ef82dc858585e90047d80cfacb16f772e64505afc64039faaf3719",
-        "releasePageUrl": "https://github.com/google-antigravity/antigravity-cli/releases/tag/1.2.2",
-        "publishedAt": "2026-09-12T03:51:08Z",
+        "responseSha256": "c42e55c0a7c78273b006621ddd79bf01dbf73febe5031f9c765f82809a086c9d",
+        "releasePageUrl": "https://github.com/google-antigravity/antigravity-cli/releases/tag/1.2.11",
+        "publishedAt": "2026-09-25T04:22:17Z",
         "artifacts": [
           {
             "name": "agy_cli_linux_arm64.tar.gz",
-            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.2/agy_cli_linux_arm64.tar.gz",
-            "sha256": "00fc5cb50cd714b81cdf1298fcc90e63a59e3e564a4f8076454ab8457d36e6eb"
+            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.11/agy_cli_linux_arm64.tar.gz",
+            "sha256": "01513bc61f9592353045ba801ebb407fbccb8984fcbfde591bc6b681b24e92bc"
           },
           {
             "name": "agy_cli_linux_x64.tar.gz",
-            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.2/agy_cli_linux_x64.tar.gz",
-            "sha256": "2cfa5c9a4a1edd96db6d4058f34970be60d3bcacda866e2bdce6aefb2451b48e"
+            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.11/agy_cli_linux_x64.tar.gz",
+            "sha256": "c91c62c5e6fa954f5a7e1d7b9ad417d749db4aa60a4ba0b3d604dec1b645d190"
           },
           {
             "name": "agy_cli_mac_arm64.tar.gz",
-            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.2/agy_cli_mac_arm64.tar.gz",
-            "sha256": "f90ff6094a196f1be3854ac45d999a542d47ec66a1513aa882a8505b947b9a0f"
+            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.11/agy_cli_mac_arm64.tar.gz",
+            "sha256": "437a813cd7c606ccbb3180886887fc69361c28fe8e880327b3b82201afa900cc"
           },
           {
             "name": "agy_cli_mac_x64.tar.gz",
-            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.2/agy_cli_mac_x64.tar.gz",
-            "sha256": "2b44ed726a73a0ef0a39956c80e07b5898c0b4fe21f8ecd383be74f1c0b65e5d"
+            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.11/agy_cli_mac_x64.tar.gz",
+            "sha256": "ee0bd5b09ba93f71627b7f709d070ba80c8aa6566aec264a1419de24c35c2f37"
           },
           {
             "name": "agy_cli_windows_arm64.zip",
-            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.2/agy_cli_windows_arm64.zip",
-            "sha256": "00c4d0cc4d05372588eb4a016147e4a3d4a5b00ebdc692eaf46042e8de3cf6fd"
+            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.11/agy_cli_windows_arm64.zip",
+            "sha256": "6fd67011a0cc315e1b84f8b5be4c619910336eb6b17e4f956dddc0be3d256f93"
           },
           {
             "name": "agy_cli_windows_x64.zip",
-            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.2/agy_cli_windows_x64.zip",
-            "sha256": "50ce727a034980d341ee03773d2b81a78fb3c7897ac2ff138f55db88cead4c03"
+            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.11/agy_cli_windows_x64.zip",
+            "sha256": "a990fe8f05f3da02fe96d82b0c257c7be4d1644fa0025e316e9caaf81d163928"
           }
         ]
       },
       "verifiedArtifact": {
         "name": "cli_mac_arm64.tar.gz",
-        "url": "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.2.2-6061403484848128/darwin-arm/cli_mac_arm64.tar.gz",
-        "sha512": "8a3b5edea51e107a74413cea5eed1c5b02dede945ba21c7625b7c86f477c2c8ac423581de0ed84ff2f97c3bf6818c1fc24ca84cf9a76c2fb02a50e89d8a0d29a",
-        "sha256": "f90ff6094a196f1be3854ac45d999a542d47ec66a1513aa882a8505b947b9a0f",
-        "size": 49929659
+        "url": "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.2.11-6016716732497920/darwin-arm/cli_mac_arm64.tar.gz",
+        "sha512": "6d9c1f2a30eaf41686dfe40e5a644c9d37c170019be5c89113b3745f5fe6cdf55f1c5c5e2300c5e797529f878b6970ab4725a38cd7ecd6ab250e5fbad42cf79b",
+        "sha256": "437a813cd7c606ccbb3180886887fc69361c28fe8e880327b3b82201afa900cc",
+        "size": 53058630
       }
     }
   },
   "claudeCode": {
     "version": "2.1.269",
     "entrypoint": "sdk-cli",
-    "latestReleaseVersion": "2.1.270",
+    "latestReleaseVersion": "2.1.282",
     "fingerprintCapturedVersion": "2.1.269",
     "fingerprintEvidence": {
       "version": "2.1.269",
@@ -198,14 +198,14 @@
       "token-counting-2024-11-01"
     ],
     "releaseEvidence": {
-      "version": "2.1.270",
+      "version": "2.1.282",
       "sourceUrl": "https://registry.npmjs.org/@anthropic-ai/claude-code/latest",
-      "retrievedAt": "2026-09-14T21:46:57.073Z",
-      "responseSha256": "a25e60a553dda1e465de77290839ad801934bb7839e61d9623df03d97118ea93"
+      "retrievedAt": "2026-09-25T11:14:37.076Z",
+      "responseSha256": "88b0a581db5436c3e55adccefe47d16254c3bd44f803181ca73e2c75f01d145f"
     }
   },
   "codexCli": {
-    "version": "0.154.0",
+    "version": "0.157.0",
     "releaseUrl": "https://registry.npmjs.org/@openai/codex/latest",
     "baseUrl": "https://chatgpt.com/backend-api",
     "responsesPath": "/codex/responses",
@@ -227,10 +227,10 @@
       ]
     },
     "releaseEvidence": {
-      "version": "0.154.0",
+      "version": "0.157.0",
       "sourceUrl": "https://registry.npmjs.org/@openai/codex/latest",
-      "retrievedAt": "2026-09-11T16:28:02.348Z",
-      "responseSha256": "785849486d93ebba5bda538f0ebd29cd9b659e2b7ec78518a529c8eaf439bb87"
+      "retrievedAt": "2026-09-25T11:14:37.076Z",
+      "responseSha256": "dcb1c21a3ba9e3c47aab96f7b3e1c95ef99fe9389fe69d039f5fd2be434a7959"
     }
   }
 }

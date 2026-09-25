@@ -15,6 +15,10 @@ import {
 
 const HARNESS_USER_AGENT = 'deepseek-harness/test (+https://example.test)'
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 function jwt(payload: Record<string, unknown>): string {
   return `header.${Buffer.from(JSON.stringify(payload)).toString('base64url')}.signature`
 }
@@ -46,9 +50,10 @@ describe('provider compatibility metadata', () => {
     expect(settings.antigravityCli.oauth).not.toHaveProperty('clientSecret')
     expect(settings.claudeCode.oauth.scopes).toContain('user:inference')
     expect(settings.codexCli.oauth.scopes).toContain('api.connectors.invoke')
-    expect(settings.claudeCode.latestReleaseVersion).toBe('2.1.270')
+    // Release versions advance with the daily metadata refresh; captured fingerprints change only by review.
+    expect(settings.claudeCode.latestReleaseVersion).toMatch(/^\d+\.\d+\.\d+$/)
     expect(settings.claudeCode.fingerprintCapturedVersion).toBe('2.1.269')
-    expect(settings.antigravityCli.latestReleaseVersion).toBe('1.2.2')
+    expect(settings.antigravityCli.latestReleaseVersion).toMatch(/^\d+\.\d+\.\d+$/)
     expect(settings.antigravityCli.fingerprintCapturedVersion).toBe('1.2.1')
     expect(settings.claudeCode.fingerprintEvidence.artifact.binarySha256).toMatch(/^[a-f0-9]{64}$/)
     expect(settings.antigravityCli.releaseEvidence.verifiedArtifact.sha256).toMatch(/^[a-f0-9]{64}$/)
@@ -56,9 +61,10 @@ describe('provider compatibility metadata', () => {
 
   it('returns copies so callers cannot replace package-owned metadata', () => {
     const first = providerSettingsFor('grokCode')
+    const version = first.version
     ;(first as { version: string }).version = 'changed-by-caller'
 
-    expect(providerSettingsFor('grokCode').version).toBe('1.0.30')
+    expect(providerSettingsFor('grokCode').version).toBe(version)
   })
 })
 
@@ -107,7 +113,7 @@ describe('subscription headers', () => {
       'X-Caller': 'preserved',
     })
 
-    expect(headers['User-Agent']).toMatch(/^codex_cli_rs\/0\.154\.0 /)
+    expect(headers['User-Agent']).toMatch(new RegExp(`^codex_cli_rs/${escapeRegExp(providerSettingsFor('codexCli').version)} `))
     expect(headers[HARNESS_ATTRIBUTION_HEADER]).toBe(HARNESS_USER_AGENT)
     expect(headers['ChatGPT-Account-ID']).toBe('account-test')
     expect(headers['X-Caller']).toBe('preserved')
@@ -156,7 +162,7 @@ describe('subscription fetch', () => {
       expect(urlOf(input)).toBe('https://cli-chat-proxy.grok.com/v1/responses')
       const headers = headersOf(input, init)
       expect(headers.get('authorization')).toBe(`Bearer ${token}`)
-      expect(headers.get('user-agent')).toMatch(/^grok-shell\/1\.0\.30 /)
+      expect(headers.get('user-agent')).toMatch(new RegExp(`^grok-shell/${escapeRegExp(providerSettingsFor('grokCode').version)} `))
       expect(headers.get('x-xai-token-auth')).toBe('xai-grok-cli')
       expect(headers.get('x-deepseek-harness-user-agent')).toBe(HARNESS_USER_AGENT)
       return Promise.resolve(new Response('{}'))
