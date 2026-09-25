@@ -34,6 +34,10 @@ export const remoteDefaultResponses: RemoteTable = {
     'credentials/describe': ok({}),
     // ui-permission-presets `PermissionCatalogDirectory` on its first read for a connection generation.
     'permissionPresets/catalog': ok({ options: [] }),
+    // fi client-ui-model-signin store `load()` at mount and again on `connection/reset`.
+    'authorization/list': ok([]),
+    // fi client-ui-model-signin store `load()`, right after `authorization/list` resolves.
+    'authorization/listAdoptable': ok([]),
     // ui-settings-account refreshes details after a stored-grant snapshot.
     'account/getProfile': ok(null),
     'account/getBalance': ok(null),

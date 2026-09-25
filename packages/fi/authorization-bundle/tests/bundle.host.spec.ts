@@ -36,7 +36,6 @@ describe('the bundle layer', () => {
       { id: 'web-search-deepseek', disabled: true },
       {
         insert: [
-          { id: 'fi-authorization', name: '@deepseek-ai/dsh-authorization' },
           { id: 'fi-authorization-controller', name: '@fi/api-authorization-controller' },
           { id: 'fi-ui-model-signin', name: '@fi/client-ui-model-signin' },
           { id: 'fi-antigravity', name: '@fi/llm-antigravity' },

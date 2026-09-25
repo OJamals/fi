@@ -62,9 +62,9 @@ export const CREDENTIALS_FILENAME = '.credentials.yaml'
 
 /** Plugin config: file location and hot-reload behavior. */
 export interface Config {
-  /** Credentials document path; defaults to `.credentials.yaml` under the harness home. */
+  /** Credentials document path; defaults to `.credentials.yaml` under the fi home. */
   path?: string
-  /** Harness home used when `path` is omitted; defaults to `$DSH_HOME` or `~/.dsh`. */
+  /** fi home used when `path` is omitted; defaults to `$DSH_HOME` or `~/.fi`. */
   dshHome?: string
   /** Watch the document and hot-publish external edits; defaults to true. */
   watch?: boolean

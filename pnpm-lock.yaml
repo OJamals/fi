@@ -418,6 +418,9 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: link:../../vendor/schemastery
         version: link:../../vendor/schemastery
+      '@fi/authorization-bundle':
+        specifier: workspace:^
+        version: link:../../packages/fi/authorization-bundle
       commander:
         specifier: ^15.0.0
         version: 15.0.0
@@ -13396,6 +13399,9 @@ importers:
       '@deepseek-ai/dsh-app-boot':
         specifier: workspace:*
         version: link:../../boot/app-boot
+      '@deepseek-ai/dsh-home-paths':
+        specifier: workspace:*
+        version: link:../../util/home-paths
       '@deepseek-ai/dsh-http-proxy':
         specifier: workspace:*
         version: link:../../util/http-proxy

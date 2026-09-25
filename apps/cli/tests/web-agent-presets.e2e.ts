@@ -68,7 +68,7 @@ async function bootWeb(
   const storageRoot = join(profileHome, 'storages')
   const overrides: PatchOptions[] = [
     // storage-json's root is anchored to the real $DSH_HOME. Unpinned, this
-    // file writes the developer's own `~/.dsh/storages/` — and then reads it
+    // file writes the developer's own `~/.fi/storages/` — and then reads it
     // back on the next run, so a stored document from any other build decides
     // this test's boot.
     { id: 'storage-json', config: { root: storageRoot } },

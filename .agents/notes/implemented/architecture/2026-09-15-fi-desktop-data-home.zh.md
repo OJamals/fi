@@ -6,7 +6,7 @@ Status: implemented
 
 ## 问题
 
-FI Desktop 与 CLI dsh 可以在同一个默认 `.dsh` home 下启动不同进程。仍在运行的 CLI writer 可能持有会话锁，使 Desktop 无法恢复该会话，也无法更改模型或 agent preset。共享整个 home 还会让 Desktop 启动依赖 CLI 持有的设置、凭据和插件 profile 数据。
+FI Desktop 与 CLI dsh 可以在同一个默认 `.fi` home 下启动不同进程。仍在运行的 CLI writer 可能持有会话锁，使 Desktop 无法恢复该会话，也无法更改模型或 agent preset。共享整个 home 还会让 Desktop 启动依赖 CLI 持有的设置、凭据和插件 profile 数据。
 
 ## 决策
 

@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-09-25-fi-cli-home.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-25-fi-cli-home.md
+/agent-note-fi-cli-and-web-default-home:
+  en: f3d48c9bcf722183
+  zh: 924d2a726e100c08
+/agent-note-fi-cli-and-web-default-home/problem:
+  en: fe3b1a8875c66c85
+  zh: 22f46af4eb23dee2
+/agent-note-fi-cli-and-web-default-home/decision:
+  en: 5c00f2bfbb7b5234
+  zh: 206179611a2dc5b4
+/agent-note-fi-cli-and-web-default-home/alternatives-considered:
+  en: 92b8e8627e1256e0
+  zh: 3400b7a0298e6cf0
+/agent-note-fi-cli-and-web-default-home/consequences:
+  en: 9afc6d000d40c252
+  zh: 460dd575123f70a4

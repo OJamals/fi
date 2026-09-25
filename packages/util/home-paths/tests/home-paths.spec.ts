@@ -20,17 +20,17 @@ afterEach(() => {
 
 describe('dsh path helpers', () => {
   it('owns the shared default DSH home directory name', () => {
-    expect(DSH_HOME_DIR_NAME).toBe('.dsh')
-    expect(DEFAULT_DSH_HOME_DISPLAY).toBe('~/.dsh')
-    expect(defaultDshHome()).toBe(join(homedir(), '.dsh'))
+    expect(DSH_HOME_DIR_NAME).toBe('.fi')
+    expect(DEFAULT_DSH_HOME_DISPLAY).toBe('~/.fi')
+    expect(defaultDshHome()).toBe(join(homedir(), '.fi'))
   })
 
   it('expands tilde paths without changing non-tilde paths', () => {
     expect(expandHomePath('~')).toBe(homedir())
-    expect(expandHomePath('~/.dsh')).toBe(join(homedir(), '.dsh'))
-    expect(expandHomePath('~\\.dsh')).toBe(join(homedir(), '.dsh'))
-    expect(expandHomePath('/tmp/.dsh')).toBe('/tmp/.dsh')
-    expect(expandHomePath('~other/.dsh')).toBe('~other/.dsh')
+    expect(expandHomePath('~/.fi')).toBe(join(homedir(), '.fi'))
+    expect(expandHomePath('~\\.fi')).toBe(join(homedir(), '.fi'))
+    expect(expandHomePath('/tmp/.fi')).toBe('/tmp/.fi')
+    expect(expandHomePath('~other/.fi')).toBe('~other/.fi')
   })
 
   it('resolves explicit path before DSH_HOME and the default', () => {
@@ -53,14 +53,14 @@ describe('dsh path helpers', () => {
   })
 
   it('labels a resolved home by whether it is the default root', () => {
-    expect(dshHomeDisplay(resolve(defaultDshHome()))).toBe('~/.dsh')
+    expect(dshHomeDisplay(resolve(defaultDshHome()))).toBe('~/.fi')
     expect(dshHomeDisplay('/some/other/root')).toBe('$DSH_HOME')
   })
 
   it.each([
-    [undefined, join(homedir(), '.dsh')],
-    ['', join(homedir(), '.dsh')],
-    ['   ', join(homedir(), '.dsh')],
+    [undefined, join(homedir(), '.fi')],
+    ['', join(homedir(), '.fi')],
+    ['   ', join(homedir(), '.fi')],
     ['~/env-dsh', join(homedir(), 'env-dsh')],
     ['./relative-dsh', resolve('./relative-dsh')],
   ] as const)('resolves cache paths with DSH_HOME=%j', (home, expectedHome) => {

@@ -181,7 +181,7 @@ def main() -> None:
     if not os.environ.get("DSH_HOME", "").strip():
         print(
             "dsh: the Python runtime command requires an explicit DSH_HOME; "
-            "it never uses ~/.dsh implicitly",
+            "it never uses ~/.fi implicitly",
             file=sys.stderr,
         )
         raise SystemExit(2)

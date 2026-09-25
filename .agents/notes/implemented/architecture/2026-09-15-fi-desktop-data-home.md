@@ -6,7 +6,7 @@ English | [中文](2026-09-15-fi-desktop-data-home.zh.md)
 
 ## Problem
 
-FI Desktop and CLI dsh can start separate processes against one default `.dsh` home. A live CLI writer may hold a session lock, preventing Desktop from resuming that session and changing its model or agent preset. Sharing the entire home also makes Desktop startup depend on CLI-owned settings, credentials, and plugin profile data.
+FI Desktop and CLI dsh can start separate processes against one default `.fi` home. A live CLI writer may hold a session lock, preventing Desktop from resuming that session and changing its model or agent preset. Sharing the entire home also makes Desktop startup depend on CLI-owned settings, credentials, and plugin profile data.
 
 ## Decision
 

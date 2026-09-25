@@ -1,4 +1,6 @@
-# FI subscription plugins compose after the upstream base bundle.
+# FI subscription plugins compose after the upstream base bundle, which already
+# mounts `@deepseek-ai/dsh-authorization` under its own `authorization` row; a
+# second insert here would collide with that row rather than share it.
 # Cordis injection owns service ordering; this layer does not create credentials or routes.
 - id: web
   config:
@@ -9,9 +11,6 @@
   disabled: true
 
 - insert:
-    - id: fi-authorization
-      name: '@deepseek-ai/dsh-authorization'
-
     - id: fi-authorization-controller
       name: '@fi/api-authorization-controller'
 

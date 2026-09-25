@@ -24,8 +24,20 @@ export const REMOTES_PACKAGE = '@deepseek-ai/dsh-api-remotes'
 const PREFIX = 'remote.'
 
 /**
+ * Namespaces a roster row mounts for itself with `ctx.remote.$mount(...)`
+ * rather than relying on `dsh-api-remotes`'s generated aggregate client.
+ * `remoteNamespacesOf` must never provide a stand-in for one of these: the
+ * real row installs its own `remote.<ns>` service during boot, and a proxy
+ * already occupying that key makes the Gateway client refuse the row's own
+ * mount as a namespace conflict (`@fi/client-ui-model-signin` self-mounts
+ * `authorization` — see its `apply()`).
+ */
+const SELF_MOUNTED_REMOTE_NAMESPACES: ReadonlySet<string> = new Set(['authorization'])
+
+/**
  * Namespaces to provide: every `remote.<ns>` a roster module injects, plus the
- * namespace of every endpoint the mock has a rule for.
+ * namespace of every endpoint the mock has a rule for, excluding namespaces a
+ * roster row mounts for itself ({@link SELF_MOUNTED_REMOTE_NAMESPACES}).
  * @param modules - loaded roster modules.
  * @param mock - the spec's mock.
  * @returns sorted namespace names.
@@ -39,6 +51,7 @@ export function remoteNamespacesOf(modules: Iterable<ClientPluginModule>, mock: 
     const slash = endpoint.indexOf('/')
     if (slash > 0 && !endpoint.startsWith('$')) names.add(endpoint.slice(0, slash))
   }
+  for (const namespace of SELF_MOUNTED_REMOTE_NAMESPACES) names.delete(namespace)
   return [...names].sort()
 }
 

@@ -390,7 +390,7 @@ describe('one-time V4 migration command', () => {
 
   it('shows help, rejects unknown arguments, and logs a missing root failure', async () => {
     const help = await run('--help')
-    expect(help.stdout).toContain('Defaults to ~/.dsh/sessions')
+    expect(help.stdout).toContain('Defaults to ~/.fi/sessions')
     expect(help.stdout).toContain('CPU count capped at 16')
     expect((await run('--unknown')).status).toBe(1)
     const missing = join(temporaryRoot(), 'missing')
