@@ -181,6 +181,34 @@ describe('hand-declared providers', () => {
     expect(resolved.get('acme-gateway')?.configuredMaxTokens.get('sized')).toBe(512)
   })
 
+  it('strips the coached /v1 suffix from an anthropic-messages baseURL and no other protocol’s', () => {
+    // The Anthropic SDK appends /v1/messages verbatim, so a baseURL written in
+    // the OpenAI style (version prefix included) 404s every request at
+    // /v1/v1/messages; OpenAI-style SDKs need the prefix they are given.
+    const resolved = resolveProfiles({
+      'claude-flat': {
+        api: 'anthropic-messages',
+        baseURL: 'https://api.anthropic.com/v1',
+        models: [{ id: 'm', contextWindow: 200_000, maxTokens: 4096 }],
+      },
+      'claude-slashed': {
+        api: 'anthropic-messages',
+        baseURL: 'https://claude.gateway.test/v1/',
+        models: [{ id: 'm', contextWindow: 200_000, maxTokens: 4096 }],
+      },
+      'acme-responses': {
+        api: 'openai-responses',
+        baseURL: 'https://acme.test/v1',
+        models: [{ id: 'm', contextWindow: 8192, maxTokens: 2048 }],
+      },
+    })
+    const baseUrlOf = (route: string): string | undefined =>
+      resolved.get(route)?.piProvider?.getModels()[0]?.baseUrl
+    expect(baseUrlOf('claude-flat')).toBe('https://api.anthropic.com')
+    expect(baseUrlOf('claude-slashed')).toBe('https://claude.gateway.test')
+    expect(baseUrlOf('acme-responses')).toBe('https://acme.test/v1')
+  })
+
   it('takes a model’s declared modalities, then the catalog’s, then the route’s', () => {
     const vision = getBuiltinModels('anthropic').find(model => model.input.includes('image'))
     if (vision === undefined) throw new Error('the installed catalog ships no anthropic vision model')

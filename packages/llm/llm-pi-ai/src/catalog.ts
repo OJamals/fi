@@ -661,6 +661,22 @@ function invalid(provider: string, detail: string): never {
 }
 
 /**
+ * Normalize a configured endpoint for the protocol that reads it. The
+ * Anthropic SDK appends `/v1/messages` to the base verbatim, so a baseURL
+ * already carrying the version prefix — the OpenAI-style convention the
+ * settings surface's placeholder coaches — would 404 every request at
+ * `/v1/v1/messages`. Other protocols keep the base exactly as written:
+ * OpenAI-style SDKs need a `/v1` they are given.
+ * @param api - the model's resolved wire protocol.
+ * @param baseUrl - the resolved endpoint base.
+ * @returns the base to stamp on the model.
+ */
+export function protocolBaseUrl(api: string, baseUrl: string): string {
+  if (api !== 'anthropic-messages') return baseUrl
+  return baseUrl.replace(/\/+$/, '').replace(/\/v1$/i, '')
+}
+
+/**
  * The one wire protocol a catalog route's shipped models agree on. This is what
  * lets a deployment add a model the installed catalog has not caught up with —
  * a provider's newest release — without restating the protocol its siblings
@@ -902,10 +918,11 @@ export function resolveRouteModels(
       invalid(provider, `model "${entry.id}" needs an api; the installed catalog does not describe it, so set the`
         + ' route\'s api to the wire protocol its endpoint speaks')
     }
-    const baseUrl = request.baseURL ?? base?.baseUrl ?? providerBaseUrl
-    if (baseUrl === undefined) {
+    const rawBaseUrl = request.baseURL ?? base?.baseUrl ?? providerBaseUrl
+    if (rawBaseUrl === undefined) {
       invalid(provider, `model "${entry.id}" needs a baseURL; the installed catalog does not describe this route`)
     }
+    const baseUrl = protocolBaseUrl(api, rawBaseUrl)
     // Capacities fall back to the route's own defaults, so a model listing that
     // discloses nothing but ids still yields a serviceable route. The fallback
     // is a guess by construction, which is why it is a configurable route field

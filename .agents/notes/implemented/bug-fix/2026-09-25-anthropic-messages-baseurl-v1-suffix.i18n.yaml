@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-09-25-anthropic-messages-baseurl-v1-suffix.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-25-anthropic-messages-baseurl-v1-suffix.md
+/agent-note-anthropic-messages-baseurl-v1-suffix:
+  en: 5d8b9a03ad4a6cee
+  zh: c43b6ccd1ac27612
+/agent-note-anthropic-messages-baseurl-v1-suffix/problem:
+  en: 1449b665d3de9b0d
+  zh: 6abc57652819fa1d
+/agent-note-anthropic-messages-baseurl-v1-suffix/decision:
+  en: 650a63c05954e77e
+  zh: 027295332f400339
+/agent-note-anthropic-messages-baseurl-v1-suffix/alternatives-considered:
+  en: b07007e13ca31280
+  zh: fb73a1280803f789
+/agent-note-anthropic-messages-baseurl-v1-suffix/consequences:
+  en: 03073a3c8eb032da
+  zh: 45d33e0fee916d7a
