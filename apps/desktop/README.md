@@ -184,7 +184,7 @@ Version derivation does not change the fixed update channel or `nightly.yml` / `
 
 Packaging, upload, and manual macOS signature verification read `apps/desktop/.env.windows` or `.env.macos`, selected by target platform. Copy the [Windows template](.env.windows.example) or [macOS template](.env.macos.example) and fill in the local settings; Git ignores both local files, and packaged artifacts exclude them. Release fields come only from the target file, without fallback to system or shell variables; `PATH`, proxies, and build-tool settings remain inherited. The published version is an argument rather than a release field, and upload reads it from the completion record the packaging run wrote. Files use UTF-8 with optional BOM; relative certificate, SignTool, Apple API key, and keychain paths resolve from `apps/desktop`, values are not shell-expanded, and passwords containing `#` or spaces need quotes. CI also creates the target file before invoking packaging.
 
-Every package command checks the application ID — fi's source-owned reverse-DNS identifier `com.fi.app`, fixed regardless of the packaging environment — update origin, and mode-specific signing configuration before building or downloading, then probes the external tools the run will use: the archive reader, and on a Windows target the installer compiler. macOS checks the identity, Team ID, one complete notarization strategy, readable local `CSC_LINK` p12 file, explicit `CSC_KEY_PASSWORD`, and referenced API key and keychain files; Windows checks the public code-signing certificate, SignTool file, container name, and PIN format. Windows preparation-only and explicit unsigned builds do not require signing credentials. Configuration checks do not authenticate the PIN, log in to the token, unlock a keychain, or contact Apple; actual signing and notarization perform those checks. `--build-version auto` does contact the destination bucket, including under `--check`. Run the same checks separately:
+Every package command checks the application ID — fi's source-owned reverse-DNS identifier `com.fi.app`, fixed regardless of the packaging environment — update origin, and mode-specific signing configuration before building or downloading, then probes the external tools the run will use: the archive reader, and on a Windows target the installer compiler. macOS checks the identity, Team ID, one complete notarization strategy, readable local `CSC_LINK` p12 file, explicit `CSC_KEY_PASSWORD`, and referenced API key and keychain files; Windows checks the public code-signing certificate, SignTool file, container name, and PIN format. Windows preparation-only and unsigned builds do not require signing credentials, and neither does an explicit macOS unsigned build. Configuration checks do not authenticate the PIN, log in to the token, unlock a keychain, or contact Apple; actual signing and notarization perform those checks. `--build-version auto` does contact the destination bucket, including under `--check`. Run the same checks separately:
 
 ```sh
 pnpm --dir apps/desktop run check:package
@@ -299,6 +299,16 @@ pnpm run package:desktop:win:x64:unsigned
 ```
 
 The command uses the source-owned `com.fi.app` identifier and requires the normal build dependencies, including Python and Visual C++ build tools for native modules. Set `PYTHON` to the Python executable when it is absent from `PATH`. It writes the installer to `.desktop-build/targets/win-x64/unsigned-artifacts/`, omits automatic-update configuration, strips signing credentials, and creates no release completion record. It does not require EV credentials or an update origin. The signed packaging and upload commands retain their release requirements.
+
+### Unsigned macOS test build
+
+On Apple Silicon, use the complete unsigned packaging command for local installation testing:
+
+```sh
+pnpm run package:desktop:mac:arm64:unsigned
+```
+
+The command uses the source-owned `com.fi.app` identifier and requires only `apps/desktop/.env.macos` with `DSH_DESKTOP_APP_ID` and the mandatory-update policy fields filled in; it needs no Developer ID certificate, notarization credentials, or update origin. It writes `fi.app`, a DMG, and a ZIP to `.desktop-build/targets/mac-arm64/unsigned-artifacts/`, omits automatic-update configuration, and creates no release completion record. electron-builder resolves an ad-hoc identity for the arm64 target so the app and its Mach-O files execute on Apple Silicon; runtime preparation ad-hoc signs every embedded Mach-O file with the same entitlement handling as a signed build, and packaging ad-hoc signs the assembled application again afterward, verifying with `codesign --verify --deep --strict` instead of the release identity. `--unsigned` is also accepted for `mac-x64` (`pnpm --dir apps/desktop run package:mac:x64 --unsigned`), which runs on Intel macOS or Apple Silicon with Rosetta. The signed packaging, upload, and manual signature-verification commands retain their release requirements.
 
 ### Windows installer interface
 

@@ -187,12 +187,31 @@ describe('desktop macOS release signature', () => {
     })
   })
 
-  it('rejects unsigned macOS builds and malformed signing modes', async () => {
+  it('rejects malformed signing modes', async () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
-    expect(() => createElectronBuilderConfig({ ...RELEASE_ENVIRONMENT, DSH_DESKTOP_UNSIGNED: '1' }))
-      .toThrow(/unsigned builds require Windows/u)
     expect(() => createElectronBuilderConfig({ ...RELEASE_ENVIRONMENT, DSH_DESKTOP_UNSIGNED: 'yes' }))
       .toThrow(/must be 0 or 1/u)
+  })
+
+  it('produces an ad-hoc-identity local macOS build with no notarization, release credentials, or update feed', async () => {
+    const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
+    const config = createElectronBuilderConfig({
+      DSH_DESKTOP_APP_ID: RELEASE_ENVIRONMENT.DSH_DESKTOP_APP_ID,
+      DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://policy.example.com',
+      DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: JSON.stringify({ allowedAuthOrigins: ['https://login.example.com'] }),
+      DSH_DESKTOP_TARGET_PLATFORM: 'darwin',
+      DSH_DESKTOP_UNSIGNED: '1',
+    }, 'darwin', 'arm64')
+    expect(portablePath(config.directories.output)).toContain('/targets/mac-arm64/unsigned-artifacts')
+    expect(config.artifactName).toBe('fi-${version}-${os}-${arch}-unsigned.${ext}')
+    expect(config).toMatchObject({
+      mac: { identity: null, forceCodeSigning: false, hardenedRuntime: true, notarize: false },
+      dmg: { sign: false },
+      publish: null,
+    })
+    expect(typeof config.artifactBuildCompleted).toBe('function')
+    // Skips notarization credential resolution entirely for unsigned artifacts.
+    expect(config.artifactBuildCompleted({ file: '/tmp/fi-0.1.0-mac-arm64-unsigned.dmg' })).toBeUndefined()
   })
 
   it('accepts the configured authority and team', () => {

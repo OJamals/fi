@@ -2,10 +2,20 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
-import { signMacOSRuntime } from '../scripts/macos-runtime.ts'
-import { signMacOSRuntimeCode, verifyMacOSRuntimeCode } from '../scripts/verify-macos-signature.mjs'
+import { signMacOSRuntime, signMacOSRuntimeAdHoc } from '../scripts/macos-runtime.ts'
+import {
+  signMacOSRuntimeCode,
+  signMacOSRuntimeCodeAdHoc,
+  verifyMacOSRuntimeCode,
+  verifyMacOSRuntimeCodeAdHoc,
+} from '../scripts/verify-macos-signature.mjs'
 
-vi.mock('../scripts/verify-macos-signature.mjs', () => ({ signMacOSRuntimeCode: vi.fn(), verifyMacOSRuntimeCode: vi.fn() }))
+vi.mock('../scripts/verify-macos-signature.mjs', () => ({
+  signMacOSRuntimeCode: vi.fn(),
+  verifyMacOSRuntimeCode: vi.fn(),
+  signMacOSRuntimeCodeAdHoc: vi.fn(),
+  verifyMacOSRuntimeCodeAdHoc: vi.fn(),
+}))
 const roots: string[] = []
 function root(): string {
   const path = mkdtempSync(join(tmpdir(), 'desktop-signing-'))
@@ -61,4 +71,33 @@ it('grants JIT only to the standalone Node interpreter and native Office helpers
       join(import.meta.dirname, '../scripts/jit-entitlements.plist'))
   }
   expect(signMacOSRuntimeCode).toHaveBeenCalledWith(addon, expect.any(String), identity, undefined)
+})
+
+it('ad-hoc signs and verifies Mach-O files without a keychain-owned identity', async () => {
+  const path = root()
+  writeFileSync(join(path, 'addon.node'), Buffer.from('cffaedfe00000000', 'hex'))
+  writeFileSync(join(path, 'source.js'), 'export {}')
+  await expect(signMacOSRuntimeAdHoc(path, 'com.example.app')).resolves.toBe(1)
+  expect(signMacOSRuntimeCodeAdHoc).toHaveBeenCalledWith(join(path, 'addon.node'), expect.stringMatching(/^com\.example\.app\.runtime\.[a-f0-9]{64}$/u), undefined)
+  expect(verifyMacOSRuntimeCodeAdHoc).toHaveBeenCalledWith(join(path, 'addon.node'))
+  expect(signMacOSRuntimeCode).not.toHaveBeenCalled()
+})
+
+it('grants JIT to the same files when ad-hoc signing', async () => {
+  const path = root()
+  mkdirSync(join(path, 'dependencies/node/bin'), { recursive: true })
+  const node = join(path, 'dependencies/node/bin/node')
+  writeFileSync(node, Buffer.from('cffaedfe00000000', 'hex'))
+  await signMacOSRuntimeAdHoc(path, 'com.example.app')
+  expect(signMacOSRuntimeCodeAdHoc).toHaveBeenCalledWith(node, expect.any(String), join(import.meta.dirname, '../scripts/jit-entitlements.plist'))
+})
+
+it('awaits other ad-hoc signers before rejecting', async () => {
+  const path = root()
+  for (const name of ['a.node', 'b.node']) writeFileSync(join(path, name), Buffer.from('cffaedfe00000000', 'hex'))
+  vi.mocked(signMacOSRuntimeCodeAdHoc).mockImplementation(async (file) => {
+    if (file.endsWith('a.node')) throw new Error('sign failure')
+  })
+  await expect(signMacOSRuntimeAdHoc(path, 'com.example.app')).rejects.toBeInstanceOf(AggregateError)
+  expect(verifyMacOSRuntimeCodeAdHoc).toHaveBeenCalledWith(join(path, 'b.node'))
 })

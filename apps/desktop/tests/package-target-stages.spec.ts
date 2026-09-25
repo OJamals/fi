@@ -102,6 +102,30 @@ it.each(['--unsigned', '--prepare-only'])('keeps %s hardware-free and creates no
   expect(stages.includes('exec tsx scripts/smoke-packaged-runtime.ts --unsigned')).toBe(mode === '--unsigned')
 })
 
+it('builds an unsigned macOS package in one electron-builder pass without notarization or a release record', async () => {
+  const { run, stages } = supervisor()
+  await packageTarget(parseDesktopPackageInvocation(['mac-arm64', '--unsigned'], 'darwin', 'arm64'), environment, run)
+  expect(stages).toEqual(expect.arrayContaining([
+    'exec electron-builder --config electron-builder.config.mjs --mac --arm64 --publish never',
+    'exec tsx scripts/smoke-packaged-runtime.ts --unsigned',
+  ]))
+  expect(stages.at(-1)).toBe('exec tsx scripts/smoke-packaged-runtime.ts --unsigned')
+  expect(withMacOSNotarizationProxy).not.toHaveBeenCalled()
+  expect(packageMacOSArtifacts).not.toHaveBeenCalled()
+  expect(writeFileSync).not.toHaveBeenCalled()
+  for (const call of run.run.mock.calls) expect(call[0]).not.toContain('--config.mac.notarize=false')
+})
+
+it('never continues or records a release after an unsigned macOS build fails', async () => {
+  const failure = 'exec electron-builder --config electron-builder.config.mjs --mac --arm64 --publish never'
+  const { run, stages } = supervisor(failure)
+  await expect(packageTarget(parseDesktopPackageInvocation(['mac-arm64', '--unsigned'], 'darwin', 'arm64'), environment, run))
+    .rejects.toThrow('stage refused')
+  expect(stages.at(-1)).toBe(failure)
+  expect(withMacOSNotarizationProxy).not.toHaveBeenCalled()
+  expect(writeFileSync).not.toHaveBeenCalled()
+})
+
 it('checks the assembled macOS runtime before notarizing and recording the release', async () => {
   const { run, stages } = supervisor()
   vi.mocked(packageMacOSArtifacts).mockImplementationOnce(async () => {

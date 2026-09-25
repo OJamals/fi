@@ -7,7 +7,12 @@ import { inventoryDesktopRuntime } from '../src/runtime-tree.ts'
 import type { MacOSSigningEnvironment } from './desktop-release-environment.mjs'
 import { cachedMacOSSignature, pruneMacOSSignatureCache } from './macos-signature-cache.ts'
 import { macOSCachePolicy } from './macos-cache-policy.ts'
-import { signMacOSRuntimeCode, verifyMacOSRuntimeCode } from './verify-macos-signature.mjs'
+import {
+  signMacOSRuntimeCode,
+  signMacOSRuntimeCodeAdHoc,
+  verifyMacOSRuntimeCode,
+  verifyMacOSRuntimeCodeAdHoc,
+} from './verify-macos-signature.mjs'
 
 const MACH_O_MAGICS = new Set(['cafebabe', 'cafebabf', 'cefaedfe', 'cffaedfe', 'feedface', 'feedfacf', 'bebafeca', 'bfbafeca'])
 
@@ -61,5 +66,35 @@ export async function signMacOSRuntime(
     pruneMacOSSignatureCache(cacheDirectory)
     console.info(`desktop macOS signing cache: ${hits} hits, ${misses} misses, ${files.length - hits - misses} uncached`)
   }
+  return files.length
+}
+
+/**
+ * Ad-hoc sign every materialized Mach-O file for a local unsigned-mode build, awaiting all signers on failure.
+ * Entitlement handling matches {@link signMacOSRuntime} exactly; only the identity changes. Ad-hoc signing
+ * needs no keychain and no network timestamp, so there is no signature cache to consult or populate.
+ * @param root - Self-contained production runtime without symlinks.
+ * @param appId - Release application identifier.
+ * @returns Number of ad-hoc-signed native files.
+ */
+export async function signMacOSRuntimeAdHoc(root: string, appId: string): Promise<number> {
+  const files = inventoryDesktopRuntime(root).map(file => file.path).filter(path => MACH_O_MAGICS.has(magic(join(root, path))))
+  let next = 0
+  const workers = Array.from({ length: Math.min(4, files.length) }, async () => {
+    for (;;) {
+      const path = files[next++]
+      if (path === undefined) return
+      const identifier = `${appId}.runtime.${createHash('sha256').update(path).digest('hex')}`
+      const needsJit = path === 'dependencies/node/bin/node'
+        || /^node_modules\/@deepseek-ai\/libreoffice-kit-darwin-(?:arm64|x64)\/bin\/libreoffice-kit$/u.test(path)
+      const entitlements = needsJit ? join(import.meta.dirname, 'jit-entitlements.plist') : undefined
+      const file = join(root, path)
+      await signMacOSRuntimeCodeAdHoc(file, identifier, entitlements)
+      verifyMacOSRuntimeCodeAdHoc(file)
+    }
+  })
+  const results = await Promise.allSettled(workers)
+  const errors = results.filter(result => result.status === 'rejected').map(result => result.reason as unknown)
+  if (errors.length > 0) throw new AggregateError(errors, 'desktop runtime: native ad-hoc signing failed')
   return files.length
 }

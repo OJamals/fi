@@ -180,6 +180,54 @@ export function verifyMacOSDiskImage(diskImagePath, expected) {
 }
 
 /**
+ * Ad-hoc sign a local, unsigned-mode macOS application so its Mach-O files can execute on Apple Silicon.
+ * electron-builder already applies its own ad-hoc fallback for an arm64 target with no identity, so this
+ * only re-signs when that fallback is absent (for example, on an Intel target); it always re-verifies.
+ * @param {string} appPath - Path to the packaged `.app` directory.
+ * @returns {Promise<void>} Resolves once `codesign --verify --deep --strict` passes.
+ */
+export async function adHocSignMacOSApplication(appPath) {
+  try {
+    runCodeSign(['--verify', '--deep', '--strict', '--verbose=2', appPath])
+    return
+  } catch {
+    // No usable signature yet (electron-builder's own ad-hoc fallback did not cover this target); sign it here.
+  }
+  await runAppleCommandAsync('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', appPath], 'codesign')
+  runCodeSign(['--verify', '--deep', '--strict', '--verbose=2', appPath])
+}
+
+/**
+ * Ad-hoc sign one runtime Mach-O file without a keychain-owned identity, for local unsigned-mode builds.
+ * Uses `--timestamp=none`: a secure timestamp requires reaching Apple and is only meaningful for notarization.
+ * @param {string} path - Writable standalone Mach-O file.
+ * @param {string} identifier - Stable code-signing identifier derived from the release app ID and CAS digest.
+ * @param {string | undefined} entitlements - Optional entitlement plist for this executable.
+ * @returns {Promise<void>} Resolves after codesign exits successfully.
+ */
+export async function signMacOSRuntimeCodeAdHoc(path, identifier, entitlements) {
+  await runAppleCommandAsync('/usr/bin/codesign', [
+    '--force',
+    '--sign', '-',
+    '--identifier', identifier,
+    '--timestamp=none',
+    '--options', 'runtime',
+    ...(entitlements === undefined ? [] : ['--entitlements', entitlements]),
+    path,
+  ], 'codesign')
+}
+
+/**
+ * Verify one ad-hoc-signed runtime Mach-O file embedded in the runtime tree.
+ * An ad-hoc signature carries no Authority or TeamIdentifier, so only structural validity is checked.
+ * @param {string} path - Mach-O file to inspect.
+ * @returns {void}
+ */
+export function verifyMacOSRuntimeCodeAdHoc(path) {
+  runCodeSign(['--verify', '--strict', '--verbose=2', path])
+}
+
+/**
  * Verify the macOS application produced by electron-builder's signing phase.
  * @param {{ electronPlatformName: string, appOutDir: string, packager: { appInfo: { productFilename: string } } }} context - electron-builder hook context.
  * @param {{ signingIdentity: string, teamId: string }} expected - Public release identity.

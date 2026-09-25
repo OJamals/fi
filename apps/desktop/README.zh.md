@@ -186,7 +186,7 @@ production 发布使用产品版本本身，不传 `--build-version`。其上传
 
 打包、上传以及手动 macOS 签名检查使用 `apps/desktop/.env.windows` 或 `.env.macos`，由目标平台选择。复制对应的 [Windows 模板](.env.windows.example) 或 [macOS 模板](.env.macos.example)，填写本机配置；Git 忽略这两个本地文件，安装产物也不包含它们。发布字段只从目标文件读取，不回退到系统或 shell 中的同名变量；`PATH`、代理和构建工具环境仍保留。发布版本是命令参数而非发布字段，上传从打包写下的完成记录中读取它。文件使用 UTF-8，支持 BOM；相对证书、SignTool、Apple API Key 和钥匙串路径以 `apps/desktop` 为基准，变量值不做 shell 展开，包含 `#` 或空格的密码需要引号。CI 同样在运行前生成目标文件。
 
-每条打包命令在构建与下载前检查应用 ID——即由 fi 源码拥有、不随打包环境变化的反向域名标识 `com.fi.app`——更新地址和该模式需要的签名配置，随后探测本次运行要用的外部工具：归档读取工具，以及 Windows 目标的安装器编译器。macOS 检查身份、Team ID、一套完整公证凭据、`CSC_LINK` 指定的可读本地 p12 文件、显式配置的 `CSC_KEY_PASSWORD`，以及引用的 API Key 和钥匙串文件；Windows 检查公开代码签名证书、SignTool 文件、容器名称和 PIN 格式。仅准备 Windows 资源或显式未签名打包不要求签名凭据。配置检查不验证 PIN 是否正确、Token 是否登录、钥匙串是否解锁或 Apple 是否接受凭据；实际签名与公证负责这些检查。`--build-version auto` 会访问目标 bucket，`--check` 下同样如此。单独运行相同检查：
+每条打包命令在构建与下载前检查应用 ID——即由 fi 源码拥有、不随打包环境变化的反向域名标识 `com.fi.app`——更新地址和该模式需要的签名配置，随后探测本次运行要用的外部工具：归档读取工具，以及 Windows 目标的安装器编译器。macOS 检查身份、Team ID、一套完整公证凭据、`CSC_LINK` 指定的可读本地 p12 文件、显式配置的 `CSC_KEY_PASSWORD`，以及引用的 API Key 和钥匙串文件；Windows 检查公开代码签名证书、SignTool 文件、容器名称和 PIN 格式。仅准备 Windows 资源或未签名打包不要求签名凭据，显式未签名 macOS 打包同样不要求。配置检查不验证 PIN 是否正确、Token 是否登录、钥匙串是否解锁或 Apple 是否接受凭据；实际签名与公证负责这些检查。`--build-version auto` 会访问目标 bucket，`--check` 下同样如此。单独运行相同检查：
 
 ```sh
 pnpm --dir apps/desktop run check:package
@@ -301,6 +301,16 @@ pnpm run package:desktop:win:x64:unsigned
 ```
 
 该命令使用源码拥有的 `com.fi.app` 标识，并要求具备常规构建依赖，包括编译原生模块所需的 Python 和 Visual C++ 构建工具。Python 不在 `PATH` 中时，将 `PYTHON` 设置为其可执行文件路径。命令将安装包写入 `.desktop-build/targets/win-x64/unsigned-artifacts/`，省略自动更新配置，清除签名凭据，且不生成发布完成记录。它不需要 EV 凭据或更新源地址。签名打包和上传命令仍遵循正式发布要求。
+
+### 未签名 macOS 测试构建
+
+在 Apple Silicon 上，使用完整的未签名打包命令进行本地安装测试：
+
+```sh
+pnpm run package:desktop:mac:arm64:unsigned
+```
+
+该命令使用源码拥有的 `com.fi.app` 标识，只要求填写 `apps/desktop/.env.macos` 中的 `DSH_DESKTOP_APP_ID` 和强制更新策略字段；不需要 Developer ID 证书、公证凭据或更新源地址。命令将 `fi.app`、一个 DMG 和一个 ZIP 写入 `.desktop-build/targets/mac-arm64/unsigned-artifacts/`，省略自动更新配置，且不生成发布完成记录。electron-builder 会为 arm64 目标解析出临时（ad-hoc）身份，使应用及其 Mach-O 文件可以在 Apple Silicon 上执行；运行时准备以与已签名构建相同的 entitlement 处理方式对每个内嵌 Mach-O 文件进行临时签名，打包随后再次对组装完成的应用进行临时签名，并使用 `codesign --verify --deep --strict` 而非发布身份进行验证。`mac-x64` 同样接受 `--unsigned`（`pnpm --dir apps/desktop run package:mac:x64 --unsigned`），可在 Intel macOS 或带 Rosetta 的 Apple Silicon 上运行。签名打包、上传和手动签名检查命令仍遵循正式发布要求。
 
 ### Windows 安装界面
 
