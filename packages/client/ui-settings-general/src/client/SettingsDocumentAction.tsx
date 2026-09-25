@@ -9,10 +9,12 @@ import css from './SettingsDocumentAction.module.css'
 
 /** Registrant-owned dependencies of {@link SettingsDocumentAction}. */
 export interface SettingsDocumentActionInjected {
-  /** Provider metadata and action state owner. */
-  controller: SettingsDocumentStore
+  /** Begin following the mirror and reflect current document availability. */
+  load: () => Promise<void>
+  /** Open the loaded document once; concurrent gestures collapse behind the in-flight action. */
+  open: () => Promise<void>
   hooks: {
-    /** Controller snapshot bound by the UI renderer as useSnapshot. */
+    /** Document state snapshot bound by the UI renderer as useSnapshot. */
     snapshot: SettingsDocumentStore['store']
   }
 }
@@ -26,12 +28,12 @@ export type SettingsDocumentActionProps =
  * @param props - header owner props, localized copy, and injected document state.
  * @returns the action, or null while unavailable or unresolved.
  */
-export function SettingsDocumentAction({ controller, useSnapshot, t }: SettingsDocumentActionProps): ReactNode {
+export function SettingsDocumentAction({ load, open, useSnapshot, t }: SettingsDocumentActionProps): ReactNode {
   const state = useSnapshot(snapshot => snapshot)
 
   useEffect(() => {
-    void controller.load()
-  }, [controller])
+    void load()
+  }, [load])
 
   if (state.status !== 'ready') return null
 
@@ -42,7 +44,7 @@ export function SettingsDocumentAction({ controller, useSnapshot, t }: SettingsD
         variant="outline"
         size="sm"
         disabled={state.opening}
-        onClick={() => { void controller.open() }}
+        onClick={() => { void open() }}
       >
         {t('openDocument')}
       </Button>

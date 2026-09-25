@@ -105,7 +105,8 @@ export function apply(ctx: ClientContext): void {
   const documentInjected = documentController === undefined
     ? undefined
     : (): SettingsDocumentActionInjected => ({
-      controller: documentController,
+      load: () => documentController.load(),
+      open: () => documentController.open(),
       hooks: { snapshot: documentController.store },
     })
   ctx.effect(() => () => { documentController?.dispose() }, 'ui-settings-general: document action directory')

@@ -111,9 +111,8 @@ describe('ui-settings-general apply', () => {
     const setEnabled = vi.spyOn(c.ctx.configForms.developerTools, 'setEnabled').mockResolvedValue(undefined)
     await developer.setEnabled(true)
     expect(setEnabled).toHaveBeenCalledExactlyOnceWith(true)
-    const { controller, hooks } = actionInjectedOf(c)
-    expect(controller.store.getSnapshot().status).toBe('idle')
-    expect(hooks.snapshot).toBe(controller.store)
+    const { hooks } = actionInjectedOf(c)
+    expect(hooks.snapshot.getSnapshot().status).toBe('idle')
     // Copy rides the standard locale seat: every row this plugin seats declares the namespace.
     for (const [name, component] of SEATS) {
       expect(c.ctx.slots.entries(name).find(row => row.component === component)!.locale).toBe(NS)
@@ -176,13 +175,13 @@ describe('ui-settings-general apply', () => {
 
   it('reads availability from the shared mirror and follows its reconnect refresh', async ({ mock, start }) => {
     const { c } = await client(mock, start, true)
-    const { controller } = actionInjectedOf(c)
+    const { load, hooks } = actionInjectedOf(c)
     // Boot reads the document twice: the mirror's own `ensure` at apply, then
     // the `connection/reset` of the first connection. The action's load adds none.
     expect(c.mock.log.calls('settings/describe')).toHaveLength(2)
-    await controller.load()
+    await load()
     expect(c.mock.log.calls('settings/describe')).toHaveLength(2)
-    expect(controller.store.getSnapshot().status).toBe('ready')
+    expect(hooks.snapshot.getSnapshot().status).toBe('ready')
     c.connection.reconnect()
     await c.mock.streams.opened('$events', 2)
     await vi.waitFor(() => { expect(c.mock.log.calls('settings/describe')).toHaveLength(3) })

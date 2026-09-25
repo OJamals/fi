@@ -146,7 +146,8 @@ describe('SettingsDocumentAction', () => {
     render(<SettingsDocumentAction
       {...kit}
       t={t}
-      controller={controller}
+      load={() => controller.load()}
+      open={() => controller.open()}
       useSnapshot={bindSnapshotSelector(controller.store)}
     />)
     const action = await screen.findByRole('button', { name: 'Open configuration file' })
@@ -164,7 +165,8 @@ describe('SettingsDocumentAction', () => {
     const first = render(<SettingsDocumentAction
       {...kit}
       t={t}
-      controller={controller}
+      load={() => controller.load()}
+      open={() => controller.open()}
       useSnapshot={bindSnapshotSelector(controller.store)}
     />)
     await waitFor(() => { expect(controller.store.getSnapshot().status).toBe('unavailable') })
@@ -173,7 +175,8 @@ describe('SettingsDocumentAction', () => {
     render(<SettingsDocumentAction
       {...kit}
       t={t}
-      controller={controller}
+      load={() => controller.load()}
+      open={() => controller.open()}
       useSnapshot={bindSnapshotSelector(controller.store)}
     />)
     // A remount alone re-reads nothing; availability moves with the mirror's
@@ -201,7 +204,8 @@ describe('SettingsDocumentAction', () => {
     render(<SettingsDocumentAction
       {...kit}
       t={t}
-      controller={controller}
+      load={() => controller.load()}
+      open={() => controller.open()}
       useSnapshot={bindSnapshotSelector(controller.store)}
     />)
     fireEvent.click(await screen.findByRole('button', { name: 'Open configuration file' }))
