@@ -1,0 +1,55 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/core/tool-problems/README.md
+/:
+  en: c6782e4114738ab0
+  zh: 48182379a0d13c78
+/deepseek-ai-dsh-tool-problems:
+  en: b70683acf8aa7515
+  zh: 23a492069031befd
+/deepseek-ai-dsh-tool-problems/summary:
+  en: 3c31c97b84b02a39
+  zh: 38878362c575ad36
+/deepseek-ai-dsh-tool-problems/table-of-contents:
+  en: 4e53164159b5ce41
+  zh: 89582dc0294d0776
+/deepseek-ai-dsh-tool-problems/use-this-package:
+  en: 47eb78fb93e245f2
+  zh: e9c1d1428b391c41
+/deepseek-ai-dsh-tool-problems/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-tool-problems/model-experience/workspace-diagnostic-guidance:
+  en: e55b128d7b1a47b4
+  zh: c80a9c3a49212958
+/deepseek-ai-dsh-tool-problems/model-experience/workspace-diagnostic-guidance/what-the-model-sees:
+  en: 49015c5b0e51ec55
+  zh: bfbc016be15e790b
+/deepseek-ai-dsh-tool-problems/model-experience/workspace-diagnostic-guidance/what-the-model-sees/diagnostic-inspection-guidance:
+  en: 9ae26e2ebf062c83
+  zh: dc28606fd1ce2db1
+/deepseek-ai-dsh-tool-problems/model-experience/workspace-diagnostic-guidance/token-effect:
+  en: 6d12612e70def937
+  zh: 5e1e9f345709fae6
+/deepseek-ai-dsh-tool-problems/model-experience/workspace-diagnostic-guidance/kv-cache-effect:
+  en: 328edc0b3f4cb8d6
+  zh: 35786405bd0a2df9
+/deepseek-ai-dsh-tool-problems/model-experience/problems-tool-and-results:
+  en: abba421aecc5be9c
+  zh: 0742df77ecb67dc5
+/deepseek-ai-dsh-tool-problems/model-experience/problems-tool-and-results/what-the-model-sees:
+  en: a92d38417c3e1411
+  zh: d06111cff1db990f
+/deepseek-ai-dsh-tool-problems/model-experience/problems-tool-and-results/token-effect:
+  en: a9bdcdf60b477b86
+  zh: 352cda4f0e6421cf
+/deepseek-ai-dsh-tool-problems/model-experience/problems-tool-and-results/kv-cache-effect:
+  en: 464d955ec606d565
+  zh: eb674901dc93e5ab
+/deepseek-ai-dsh-tool-problems/known-limitations-and-deferred-work:
+  en: 6d9fbf310162dac8
+  zh: d6e0e1b35fb5c940
+/deepseek-ai-dsh-tool-problems/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 3bb0c20c93f16f98

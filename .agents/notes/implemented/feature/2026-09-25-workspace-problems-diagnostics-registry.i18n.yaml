@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-09-25-workspace-problems-diagnostics-registry.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-25-workspace-problems-diagnostics-registry.md
+/agent-note-workspace-diagnostics-registry-ctx-problems-and-its-model-tool:
+  en: b6dfce6d9419b623
+  zh: 465961c6d4f1fa9c
+/agent-note-workspace-diagnostics-registry-ctx-problems-and-its-model-tool/problem:
+  en: 5cd7a0811e025ca1
+  zh: 59af789a48abe130
+/agent-note-workspace-diagnostics-registry-ctx-problems-and-its-model-tool/decision:
+  en: 6a09033a5cc8407a
+  zh: 12af55c142bd2dc8
+/agent-note-workspace-diagnostics-registry-ctx-problems-and-its-model-tool/alternatives-considered:
+  en: 5dcdf285cfe1806f
+  zh: 472bd78950d58cc8
+/agent-note-workspace-diagnostics-registry-ctx-problems-and-its-model-tool/consequences:
+  en: e1de2c1a0518b846
+  zh: 5a4f898eec0fb895
+/agent-note-workspace-diagnostics-registry-ctx-problems-and-its-model-tool/required-verification:
+  en: 8c72abc0aaf6bfe7
+  zh: f17144ccb954e0fa
