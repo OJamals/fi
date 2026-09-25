@@ -60,6 +60,7 @@ import type {
 } from '@deepseek-ai/dsh-llm'
 import type { AttachmentStore, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import { idleWatchdog, timeoutOf } from '@deepseek-ai/dsh-timeout'
+import { cloneLiveModel } from './catalog.ts'
 import type { ResolvedPiAiProviderProfile } from './config.ts'
 import { toPiContext } from './context.ts'
 import { createModels, getSupportedThinkingLevels } from './models.ts'
@@ -102,6 +103,31 @@ interface AuthenticatedPiAiRequestTransport extends PiAiRequestTransport {
   apiKey: string
 }
 
+/**
+ * Non-secret facts passed to a `llm-pi-ai/live-models` listener, plus the one
+ * secret that extension point exists to hand over: unlike
+ * {@link PiAiRequestTransportContext}, which lets a listener transform an
+ * already-authenticated request without ever seeing the token, a live-model
+ * listing is a side call the listener originates entirely on its own, so it
+ * needs the resolved token to authenticate that call itself.
+ */
+export interface PiAiLiveModelsContext {
+  /** Configured pi-ai provider route. */
+  provider: string
+  /** Resolved OAuth access token for this route's stored subscription grant. */
+  apiKey: string
+  /** Cancellation for the listener's own network call. */
+  signal?: AbortSignal
+}
+
+/** One live-discovered model id, with its optional upstream display name. */
+export interface PiAiLiveModel {
+  /** Model id accepted by the provider's own request endpoint. */
+  id: string
+  /** Upstream display name, when the live listing disclosed one. */
+  name?: string
+}
+
 /** Constructor options for {@link PiAiAdapter}: the two resolution hooks the plugin owns. */
 export interface PiAiAdapterOptions {
   /** Current validated profiles by provider route; called once per operation. */
@@ -133,6 +159,18 @@ export interface PiAiAdapterOptions {
   resolveRequestTransport?: (
     request: PiAiRequestTransportContext,
   ) => Promise<PiAiRequestTransport | undefined>
+  /**
+   * Resolve live model ids/names a full-catalog OAuth-subscription route
+   * currently advertises beyond its installed catalog. Called only for a
+   * route whose profile carries no `models` list and whose resolved auth is
+   * `OAuth` (checked with pi-ai's own `Models.getAuth`, never a raw
+   * credential read); the result augments, never replaces, the installed
+   * catalog. Absent means no route on this adapter instance is ever
+   * augmented. Failures are caught by the caller and treated as an empty
+   * list, so a listener need not guard its own network failures for this
+   * package's sake.
+   */
+  resolveLiveModels?: (request: PiAiLiveModelsContext) => Promise<readonly PiAiLiveModel[]>
   /** Resolve the optional durable attachment service at request time. */
   resolveAttachments?: () => AttachmentStore | undefined
   /** Bridge one attachment reference into the current model-tool execution world. */
@@ -330,17 +368,82 @@ export class PiAiAdapter extends LlmAdapter {
     return profile
   }
 
-  /** The configured descriptor for one exact route/model pair within one snapshot. */
-  private modelOf(snapshot: PiAiSnapshot, provider: string, model: string): Model<Api> {
+  /**
+   * The configured descriptor for one exact route/model pair within one
+   * snapshot. A model absent from the route's installed catalog falls back to
+   * a live-discovered clone before failing, so a model id the picker just
+   * surfaced from {@link listModels} keeps resolving here.
+   */
+  private async modelOf(
+    snapshot: PiAiSnapshot,
+    provider: string,
+    model: string,
+    signal?: AbortSignal,
+  ): Promise<Model<Api>> {
     const profile = this.profileOf(snapshot, provider)
     const failure = profile.modelErrors.get(model)
       ?? (profile.piProvider === undefined ? profile.catalogError : undefined)
     if (failure !== undefined) throw new LlmError(failure, 'INVALID_CONFIG')
     const resolved = snapshot.models.getModel(provider, model)
-    if (resolved === undefined) {
-      throw new LlmError(`pi-ai provider "${provider}" has no configured model "${model}"`, 'UNKNOWN_MODEL')
+    if (resolved !== undefined) return resolved
+    const live = await this.liveModelsFor(snapshot, provider, signal)
+    const liveMatch = live.find(candidate => candidate.id === model)
+    if (liveMatch !== undefined) return liveMatch
+    throw new LlmError(`pi-ai provider "${provider}" has no configured model "${model}"`, 'UNKNOWN_MODEL')
+  }
+
+  /**
+   * Live-discovered models beyond the installed catalog for one route within
+   * one snapshot, cloned from their closest catalog template. Empty for a
+   * route with no live-models hook, no `piProvider`, a curated `models` list,
+   * or auth that does not resolve to a stored OAuth subscription grant — the
+   * one case {@link PiAiAdapterOptions.resolveLiveModels} may be called for.
+   * Failures from the hook itself are swallowed: a live listing that cannot
+   * be reached must never take down request-path model resolution or the
+   * picker, only leave the catalog as the whole truth.
+   */
+  private async liveModelsFor(
+    snapshot: PiAiSnapshot,
+    provider: string,
+    signal?: AbortSignal,
+  ): Promise<readonly Model<Api>[]> {
+    if (this.config.resolveLiveModels === undefined) return []
+    const profile = snapshot.profiles.get(provider)
+    if (profile?.piProvider === undefined || !profile.usesInstalledCatalog) return []
+    const templates = snapshot.models.getModels(provider)
+    if (templates.length === 0) return []
+    if (snapshot.models.getProvider(provider)?.auth.oauth?.isSubscription !== true) return []
+    const resolution = await snapshot.models.getAuth(provider, signal === undefined ? {} : { signal })
+      .catch(() => undefined)
+    if (resolution?.source !== 'OAuth' || typeof resolution.auth.apiKey !== 'string') return []
+    const live = await this.config.resolveLiveModels({
+      provider,
+      apiKey: resolution.auth.apiKey,
+      ...signal === undefined ? {} : { signal },
+    }).catch(() => [] as readonly PiAiLiveModel[])
+    const existing = new Set(templates.map(template => template.id))
+    const seen = new Set<string>()
+    const clones: Model<Api>[] = []
+    for (const candidate of live) {
+      if (existing.has(candidate.id) || seen.has(candidate.id)) continue
+      seen.add(candidate.id)
+      clones.push(cloneLiveModel(candidate.id, candidate.name, templates))
     }
-    return resolved
+    return clones
+  }
+
+  /**
+   * Live model ids/names this route currently advertises beyond its installed
+   * catalog, for the discovery module's "fetch available models" action. A
+   * thin public wrapper over {@link liveModelsFor}, so discovery and request-path
+   * resolution share one gating and caching path rather than two.
+   * @param provider - the configured route to check.
+   * @param signal - cancellation for the underlying live-listing call.
+   * @returns live-only model ids and names; empty when none apply.
+   */
+  async liveModelIds(provider: string, signal?: AbortSignal): Promise<readonly PiAiLiveModel[]> {
+    const live = await this.liveModelsFor(this.current(), provider, signal)
+    return live.map(model => ({ id: model.id, name: model.name }))
   }
 
   override providerInfo(provider: string): LlmProviderInfo {
@@ -354,33 +457,35 @@ export class PiAiAdapter extends LlmAdapter {
     return this.current().profiles.get(provider)?.retryPolicy
   }
 
-  override listModels(provider: string): Promise<readonly LlmModelInfo[]> {
-    return Promise.resolve().then(() => {
-      const snapshot = this.current()
-      this.profileOf(snapshot, provider)
-      return snapshot.models.getModels(provider).map(model => ({
-        provider,
-        id: model.id,
-        name: model.name,
-        inputModalities: [...model.input],
-      }))
-    })
+  override async listModels(provider: string): Promise<readonly LlmModelInfo[]> {
+    const snapshot = this.current()
+    this.profileOf(snapshot, provider)
+    const live = await this.liveModelsFor(snapshot, provider)
+    return [...snapshot.models.getModels(provider), ...live].map(model => ({
+      provider,
+      id: model.id,
+      name: model.name,
+      inputModalities: [...model.input],
+    }))
   }
 
-  override resolveModel(
+  override async resolveModel(
     provider: string,
     model: string,
-    _signal?: AbortSignal,
+    signal?: AbortSignal,
   ): Promise<LlmResolvedModelInfo> {
-    return Promise.resolve().then(() => {
-      const snapshot = this.current()
-      return this.modelInfo(snapshot, provider, model)
-    })
+    const snapshot = this.current()
+    return this.modelInfo(snapshot, provider, model, signal)
   }
 
-  private modelInfo(snapshot: PiAiSnapshot, provider: string, model: string): LlmResolvedModelInfo {
+  private async modelInfo(
+    snapshot: PiAiSnapshot,
+    provider: string,
+    model: string,
+    signal?: AbortSignal,
+  ): Promise<LlmResolvedModelInfo> {
     const profile = this.profileOf(snapshot, provider)
-    const resolvedModel = this.modelOf(snapshot, provider, model)
+    const resolvedModel = await this.modelOf(snapshot, provider, model, signal)
     const defaultLevel = describableReasoningLevel(resolvedModel, profile.reasoning)
     // Only a cap the deployment configured is a request default; the
     // catalog's `maxTokens` sizes the model and stops there.
@@ -396,12 +501,12 @@ export class PiAiAdapter extends LlmAdapter {
     }
   }
 
-  override prepareCall(provider: string, model: string, _signal?: AbortSignal): Promise<PreparedAdapterCall> {
+  override async prepareCall(provider: string, model: string, signal?: AbortSignal): Promise<PreparedAdapterCall> {
     const snapshot = this.current()
-    return Promise.resolve({
-      model: this.modelInfo(snapshot, provider, model),
+    return {
+      model: await this.modelInfo(snapshot, provider, model, signal),
       stream: options => this.streamWithSnapshot(options, snapshot),
-    })
+    }
   }
 
   stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
@@ -415,13 +520,16 @@ export class PiAiAdapter extends LlmAdapter {
     if (options.stop !== undefined) {
       throw new LlmError('llm-pi-ai does not support GenerateOptions.stop', 'UNSUPPORTED_OPTION')
     }
-    // One capture per stream call, taken before any await: the profile, the
-    // model descriptor, and the collection all come from the same immutable
-    // snapshot, and the credential freezes with them. A configuration change
-    // mid-request builds a separate snapshot, so this request finishes under
-    // the one it started with and the next call picks up the new one.
+    // One capture per stream call, resolved from the frozen `snapshot` alone:
+    // the profile, the model descriptor, and the collection all come from the
+    // same immutable snapshot, and the credential freezes with them. A
+    // configuration change mid-request builds a separate snapshot, so this
+    // request finishes under the one it started with and the next call picks
+    // up the new one. Resolving the model may itself await a live-models
+    // lookup (a model id the catalog does not describe), which reads only
+    // this same snapshot and never observes a later configuration change.
     const profile = this.profileOf(snapshot, options.provider)
-    const model = this.modelOf(snapshot, options.provider, options.model)
+    const model = await this.modelOf(snapshot, options.provider, options.model, options.signal)
     const reasoning = resolveReasoningLevel(
       model,
       options.reasoningEffort ?? profile.reasoning,

@@ -17,6 +17,9 @@
 /fi-provider-compat/use-this-package:
   en: 0c748d9a1d413e90
   zh: 860166ae0664dab6
+/fi-provider-compat/use-this-package/live-model-discovery-for-claude-code-codex-and-grok:
+  en: 27a829432e6ae832
+  zh: f4901603c2c8bbb8
 /fi-provider-compat/use-this-package/synchronize-an-existing-canonical-snapshot:
   en: f7d812dc49511e39
   zh: 009f1e44e57430d9
@@ -36,8 +39,8 @@
   en: 686bd6b5595706fa
   zh: 4ddf3419d9da7ca5
 /fi-provider-compat/known-limitations-and-deferred-work:
-  en: 3eed1e0d4e22904a
-  zh: de85c2e0e91da422
+  en: 348d6376a63fea7b
+  zh: c0b8b48cb2351c3b
 /fi-provider-compat/known-limitations-and-deferred-work/dev-note:
   en: c9be2316dd9885c6
   zh: 3769162796122d24

@@ -25,6 +25,7 @@
 import { INVALID_CREDENTIAL_CODE, LlmError, normalizeApiKey } from '@deepseek-ai/dsh-llm'
 import type { LlmDiscoveredModel, LlmModelDiscoveryOperation } from '@deepseek-ai/dsh-llm'
 import { attributionHeaders } from '@deepseek-ai/dsh-llm'
+import type { PiAiLiveModel } from './adapter.ts'
 import { catalogModels } from './catalog.ts'
 
 /**
@@ -254,6 +255,12 @@ export interface StoredModelDiscoveryProfile {
   readonly headers: Readonly<Record<string, string>> | undefined
   /** Resolve the named route's credential only when the draft carries none. */
   readonly resolveApiKey: () => Promise<string | undefined>
+  /**
+   * Live model ids/names the named route's stored OAuth subscription grant
+   * currently advertises beyond the installed catalog, when any apply. Absent
+   * or empty leaves the installed catalog as the whole answer.
+   */
+  readonly liveModelIds?: () => Promise<readonly PiAiLiveModel[]>
 }
 
 /**
@@ -275,13 +282,24 @@ export async function discoverModels(
   if (request.provider !== undefined) {
     const installed = catalogModels(request.provider)
     if (installed.size > 0) {
-      return [...installed.values()].map(model => ({
+      const catalog = [...installed.values()].map(model => ({
         id: model.id,
         name: model.name,
         contextWindow: model.contextWindow,
         maxTokens: model.maxTokens,
         inputModalities: [...model.input],
       }))
+      // Beyond the installed catalog, an OAuth-subscription route may serve
+      // models this build has not caught up with yet; the adopt flow and the
+      // "fetch available models" action both reach this same live list, so a
+      // fresh sign-in can enumerate a model the settings UI could not yet name.
+      const liveModelIds = storedProfile?.()?.liveModelIds
+      const live = liveModelIds === undefined ? [] : await liveModelIds().catch(() => [])
+      const existing = new Set(catalog.map(model => model.id))
+      const liveOnly = live
+        .filter(model => !existing.has(model.id))
+        .map(model => ({ id: model.id, name: model.name ?? model.id }))
+      return [...catalog, ...liveOnly]
     }
   }
   if (request.baseURL === undefined || request.baseURL.length === 0) {

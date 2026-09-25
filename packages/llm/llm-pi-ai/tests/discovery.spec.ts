@@ -114,6 +114,50 @@ describe('catalog-route model discovery', () => {
   })
 })
 
+describe('catalog-route discovery merged with a live model listing', () => {
+  it('adds a live-only id beyond the installed catalog', async () => {
+    const models = await discoverModels({ provider: 'xai' }, () => ({
+      headers: undefined,
+      resolveApiKey: () => Promise.resolve(undefined),
+      liveModelIds: () => Promise.resolve([{ id: 'grok-9-preview', name: 'Grok 9 Preview' }]),
+    }))
+
+    expect(models.find(model => model.id === 'grok-9-preview')).toEqual({ id: 'grok-9-preview', name: 'Grok 9 Preview' })
+  })
+
+  it('does not duplicate a live id the installed catalog already lists', async () => {
+    const [firstInstalled] = getBuiltinModels('xai')
+    const models = await discoverModels({ provider: 'xai' }, () => ({
+      headers: undefined,
+      resolveApiKey: () => Promise.resolve(undefined),
+      liveModelIds: () => Promise.resolve([{ id: firstInstalled?.id ?? '' }]),
+    }))
+
+    expect(models.filter(model => model.id === firstInstalled?.id)).toHaveLength(1)
+  })
+
+  it('keeps the installed catalog when the live listing hook rejects', async () => {
+    const installedCount = getBuiltinModels('xai').length
+    const models = await discoverModels({ provider: 'xai' }, () => ({
+      headers: undefined,
+      resolveApiKey: () => Promise.resolve(undefined),
+      liveModelIds: () => Promise.reject(new Error('network down')),
+    }))
+
+    expect(models).toHaveLength(installedCount)
+  })
+
+  it('needs no live-models hook at all', async () => {
+    const installedCount = getBuiltinModels('xai').length
+    const models = await discoverModels({ provider: 'xai' }, () => ({
+      headers: undefined,
+      resolveApiKey: () => Promise.resolve(undefined),
+    }))
+
+    expect(models).toHaveLength(installedCount)
+  })
+})
+
 describe('draft-provider model discovery', () => {
   it('reads an OpenAI-compatible listing and keeps the capacities it discloses', async () => {
     const server = await listingServer({

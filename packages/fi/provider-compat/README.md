@@ -33,6 +33,18 @@ Mount the plugin after `@deepseek-ai/dsh-llm-pi-ai`. Codex uses WebSocket-first 
 
 Direct subscription HTTP clients first call pi-ai `Models.getAuth(provider)`, require `source === 'OAuth'`, and freeze that result for the request. `authorizationHeaders(auth)` keeps string-valued supplied headers and adds `Authorization: Bearer <auth.apiKey>` only when authorization is absent. Clients then call `subscriptionEndpoint(provider)` and `subscriptionHeaders(provider, model, sessionId, timeoutMs, existingHeaders)`; callers must never log the authorization record. For Anthropic, compatibility headers retain pi-ai's request-specific beta features alongside the captured Claude Code beta set and map `mid-conversation-output-config-2026-07-01` to Claude Code's `per-turn-control-2026-07-01` wire name.
 
+### Live model discovery for Claude Code, Codex, and Grok
+
+This plugin also answers `@deepseek-ai/dsh-llm-pi-ai`'s optional `llm-pi-ai/live-models` waterfall for its three subscription routes (`anthropic`, `openai-codex`, `xai`), so a signed-in account's new models appear in `listModels`, model discovery, and the adopt flow without a catalog update. `liveModelDiscoveryEnabled` (default `true`) and `liveModelDiscoveryCacheTtlMs` (default 300000, five minutes; 1,000–86,400,000 accepted) are `Config` fields on this plugin, since the fetch cadence is a deployment choice, not a constant. Each provider is interrogated with the same identity `subscriptionHeaders` already builds for a chat request, pointed at that provider's own model-listing endpoint instead of its inference one:
+
+| Provider | Request | Kept |
+|---|---|---|
+| `anthropic` | `GET https://api.anthropic.com/v1/models?limit=1000` with the Claude Code OAuth header set | `data[].id` starting with `claude-` |
+| `openai-codex` | `GET {codexCli.baseUrl}{codexCli.modelsPath}?client_version={codexCli.version}` with Codex account headers, `Accept: application/json`, and `If-None-Match` reuse of the previous ETag | `models[]` with usable `slug`/`display_name`, dropping `visibility: "hide"` |
+| `xai` | `GET {grokCode.cliBaseUrl}/models` with Grok CLI headers | `data[].id` |
+
+Every fetch runs against a 10-second timeout and a bounded response size, and any failure at any stage — network, non-2xx, a 304 with no cached list yet, a malformed body — resolves to the last cached list, or an empty list before any fetch has ever succeeded; the caller merges that into the installed catalog unchanged, so an outage never breaks listing or requests. Nothing here logs the resolved token, and nothing here polls in the background — each provider's cache is checked (and, once its TTL elapses, refreshed) only when `listModels`, discovery, or a request actually reaches this path.
+
 ### Synchronize an existing canonical snapshot
 
 The import command accepts an explicit source so FI does not depend on a sibling checkout path.
@@ -100,6 +112,8 @@ None, as request content and model parameters are unchanged.
 - WebSocket compatibility requires the pinned pi-ai patch and the server-side `ws` connector. No latency or throughput improvement is guaranteed; performance depends on the network and provider.
 - pi-ai does not expose its built-in OAuth scopes through a public runtime API, so automatic scope-drift diagnostics cover canonical metadata but cannot compare private SDK constants.
 - Release automation updates public release fields and release evidence. Capture-gated runtime headers remain at their recorded version until a separate fingerprint capture is reviewed and recorded canonically.
+- Live model discovery only ever lists what `llm-pi-ai` already gates it to: a full-catalog route (no `models` list) whose stored credential resolves to `OAuth`. An ambient or API-key-authenticated route, and a curated `models` list, never reach this plugin's fetchers at all — that gate lives entirely in `@deepseek-ai/dsh-llm-pi-ai`, not here.
+- A live listing is cached per provider for the whole plugin instance, not per account; a deployment routing more than one account through the same provider route sees whichever account's listing last refreshed until the next TTL boundary.
 
 <a id="dev-note"></a>
 ### Dev Note

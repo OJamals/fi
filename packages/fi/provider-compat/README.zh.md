@@ -33,6 +33,18 @@ kind: "package-reference"
 
 直接订阅 HTTP 客户端先调用 pi-ai 的 `Models.getAuth(provider)`，要求 `source === 'OAuth'`，并为本次请求冻结结果。`authorizationHeaders(auth)` 保留字符串值请求头，仅在授权头缺失时添加 `Authorization: Bearer <auth.apiKey>`。客户端随后调用 `subscriptionEndpoint(provider)` 和 `subscriptionHeaders(provider, model, sessionId, timeoutMs, existingHeaders)`；调用者绝不能记录该授权对象。对于 Anthropic，兼容请求头会在已捕获的 Claude Code beta 集合之外保留 pi-ai 按请求启用的 beta 功能，并把 `mid-conversation-output-config-2026-07-01` 映射为 Claude Code 的线上名称 `per-turn-control-2026-07-01`。
 
+### Claude Code、Codex 与 Grok 的实时模型发现
+
+本插件还会回答 `@deepseek-ai/dsh-llm-pi-ai` 面向其三条订阅路由（`anthropic`、`openai-codex`、`xai`）的可选 `llm-pi-ai/live-models` waterfall，因此已登录账户的新模型无需目录更新即可出现在 `listModels`、模型发现与采纳流程中。`liveModelDiscoveryEnabled`（默认 `true`）与 `liveModelDiscoveryCacheTtlMs`（默认 300000，即五分钟；接受 1,000–86,400,000）是本插件上的 `Config` 字段，因为抓取节奏是部署方的选择，不是常量。每个提供方都会以 `subscriptionHeaders` 为聊天请求已构建的同一身份被询问，只是指向该提供方自己的模型列表端点而非推理端点：
+
+| 提供方 | 请求 | 保留内容 |
+|---|---|---|
+| `anthropic` | 带 Claude Code OAuth 请求头集合的 `GET https://api.anthropic.com/v1/models?limit=1000` | 以 `claude-` 开头的 `data[].id` |
+| `openai-codex` | 带 Codex 账户请求头、`Accept: application/json`，以及复用上一次 ETag 的 `If-None-Match` 的 `GET {codexCli.baseUrl}{codexCli.modelsPath}?client_version={codexCli.version}` | `models[]` 中可用的 `slug`/`display_name`，丢弃 `visibility: "hide"` 的条目 |
+| `xai` | 带 Grok CLI 请求头的 `GET {grokCode.cliBaseUrl}/models` | `data[].id` |
+
+每次抓取都在 10 秒超时与受限响应体大小下运行，任一阶段的失败——网络、非 2xx、尚无缓存列表时收到 304、报文格式不正确——都会回退到上一次缓存的列表，或在从未成功抓取过时回退到空列表；调用方会把它原样并入已安装目录，因此一次故障永远不会破坏列表或请求。此处绝不记录已解析的令牌，也不进行任何后台轮询——只有当 `listModels`、发现或某次请求真正触达该路径时，才会检查（并在其 TTL 到期后刷新）每个提供方的缓存。
+
 ### 同步现有规范快照
 
 导入命令接受显式来源，因此 FI 不依赖相邻 checkout 路径。
@@ -100,6 +112,8 @@ node scripts/fi-provider-settings-update.mjs --check
 - WebSocket 兼容性需要固定的 pi-ai 补丁和服务端 `ws` connector。不保证延迟或吞吐量改善；性能取决于网络和提供方。
 - pi-ai 未通过公开运行时 API 暴露内置 OAuth scopes，因此自动 scope 漂移诊断可覆盖规范元数据，但无法比较 SDK 私有常量。
 - 发布自动化更新公开发布字段和来源。需要捕获的运行时请求头会保留其记录版本，直到单独的指纹捕获通过评审并写入规范记录。
+- 实时模型发现只会列出 `llm-pi-ai` 已经限定的范围：已存凭据解析为 `OAuth` 的完整目录路由（没有 `models` 列表）。环境或 API 密钥鉴权的路由，以及经过筛选的 `models` 列表，根本不会触达本插件的抓取逻辑——那道限制完全在 `@deepseek-ai/dsh-llm-pi-ai` 中，不在这里。
+- 实时列表按提供方为整个插件实例缓存，而非按账户缓存；若某部署让多个账户共用同一提供方路由，看到的会是最近一次刷新的那个账户的列表，直到下一个 TTL 边界。
 
 <a id="dev-note"></a>
 ### 开发备注

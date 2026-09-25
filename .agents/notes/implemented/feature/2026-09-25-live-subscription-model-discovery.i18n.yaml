@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-09-25-live-subscription-model-discovery.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-25-live-subscription-model-discovery.md
+/agent-note-live-subscription-model-discovery-for-pi-ai-routes:
+  en: 209e8e145013da1e
+  zh: 27c8fe45caf0fa93
+/agent-note-live-subscription-model-discovery-for-pi-ai-routes/problem:
+  en: cb5226088e01f99d
+  zh: dbaf85a65c33fc84
+/agent-note-live-subscription-model-discovery-for-pi-ai-routes/decision:
+  en: f638fd5712c20b37
+  zh: dd5feff8829216bf
+/agent-note-live-subscription-model-discovery-for-pi-ai-routes/alternatives-considered:
+  en: 3a86e4101d735a3a
+  zh: 70f9115d6dd899b4
+/agent-note-live-subscription-model-discovery-for-pi-ai-routes/consequences:
+  en: 1f80182dd7b369d0
+  zh: ce8657bb1643341f
+/agent-note-live-subscription-model-discovery-for-pi-ai-routes/required-verification:
+  en: bd72f24f8be6d2bc
+  zh: 6373037ebb371803

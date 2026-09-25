@@ -20,6 +20,7 @@ import type {
   BedrockCompat,
   ChatTemplateKwargValue,
   KnownApi,
+  MistralConversationsCompat,
   Model,
   ModelCost,
   ModelThinkingLevel,
@@ -253,8 +254,10 @@ const COMPLETIONS_COMPAT_GATE = {
   zaiToolStream: 'withhold',
   supportsOpenAIGrammarTools: 'withhold',
   sendSessionAffinityHeaders: 'withhold',
-  deferredToolsMode: 'withhold',
   sessionAffinityFormat: 'withhold',
+  // Harness history carries no mid-conversation system or tool-change messages to pi-ai.
+  supportsMidConvoSystemMessages: 'withhold',
+  supportsMidConvoToolAdditions: 'withhold',
 } as const satisfies Record<keyof OpenAICompletionsCompat, CompatDisposition>
 
 /** Disposition of every `OpenAIResponsesCompat` field; a drift gate like the one above. */
@@ -268,6 +271,7 @@ const RESPONSES_COMPAT_GATE = {
   supportsAdditionalTools: 'withhold',
   supportsToolSearch: 'withhold',
   supportsExplicitPromptCacheMode: 'withhold',
+  supportsMidConvoSystemMessages: 'withhold',
 } as const satisfies Record<keyof OpenAIResponsesCompat, CompatDisposition>
 
 /** Disposition of every `AnthropicMessagesCompat` field; a drift gate like the one above. */
@@ -280,7 +284,9 @@ const ANTHROPIC_COMPAT_GATE = {
   allowEmptySignature: 'offer',
   supportsStrictTools: 'offer',
   sendSessionAffinityHeaders: 'withhold',
-  supportsToolReferences: 'withhold',
+  sessionAffinityFormat: 'withhold',
+  supportsMidConvoSystemMessages: 'withhold',
+  supportsMidConvoToolChanges: 'withhold',
   supportsMidConvoEffort: 'withhold',
   allowedFallbackModels: 'withhold',
 } as const satisfies Record<keyof AnthropicMessagesCompat, CompatDisposition>
@@ -289,6 +295,11 @@ const ANTHROPIC_COMPAT_GATE = {
 const BEDROCK_COMPAT_GATE = {
   supportsStrictMode: 'offer',
 } as const satisfies Record<keyof BedrockCompat, CompatDisposition>
+
+/** Disposition of every `MistralConversationsCompat` field; a drift gate like the one above. */
+const MISTRAL_COMPAT_GATE = {
+  supportsMidConvoSystemMessages: 'withhold',
+} as const satisfies Record<keyof MistralConversationsCompat, CompatDisposition>
 
 /**
  * Every wire protocol pi-ai gives a compat type. Derived from `Model.compat`'s
@@ -315,6 +326,7 @@ const COMPAT_GATES: Readonly<Record<ApiWithCompat, Readonly<Record<string, Compa
   'openai-codex-responses': RESPONSES_COMPAT_GATE,
   'anthropic-messages': ANTHROPIC_COMPAT_GATE,
   'bedrock-converse-stream': BEDROCK_COMPAT_GATE,
+  'mistral-conversations': MISTRAL_COMPAT_GATE,
 }
 
 /**
@@ -954,4 +966,53 @@ export function resolveRouteModels(
       + ` it exists on ${takers.join(', ')}`)
   }
   return { models: serviceableModels, configuredMaxTokens, modelErrors }
+}
+
+/**
+ * Length of the longest shared prefix of two ids, used to find the catalog
+ * template most likely to be the same model family as a live-discovered id
+ * (`claude-sonnet-4-6` and `claude-sonnet-4-7` share more prefix than either
+ * shares with `claude-opus-4-6`).
+ */
+function commonPrefixLength(left: string, right: string): number {
+  let length = 0
+  while (length < left.length && length < right.length && left[length] === right[length]) length += 1
+  return length
+}
+
+/**
+ * Clone the installed-catalog template model closest to a live-discovered id
+ * the catalog does not yet describe, so a brand-new release still streams
+ * through the same api, baseUrl, and compat quirks as its family before this
+ * package's own catalog catches up.
+ *
+ * The template is the model whose id shares the longest prefix with `id`
+ * (same family, e.g. `claude-sonnet-*`); when no template shares any prefix,
+ * the first template in the route's own order stands in as the route's
+ * default. `templates` is the route's already-materialized catalog, so the
+ * clone inherits every field this module resolved for it — reasoning
+ * capability, compat block, context window — and only `id` and `name` change.
+ * @param id - the live-discovered model id, absent from `templates`.
+ * @param name - the upstream display name, when the live listing disclosed one.
+ * @param templates - the route's materialized catalog to clone from; never empty
+ *   when a route has a `piProvider`, since {@link resolveRouteModels} refuses an
+ *   empty catalog.
+ * @returns a new model descriptor for `id`, structurally a clone of its closest template.
+ */
+export function cloneLiveModel(id: string, name: string | undefined, templates: readonly Model<Api>[]): Model<Api> {
+  let closest = templates[0]
+  let bestLength = -1
+  for (const template of templates) {
+    const length = commonPrefixLength(template.id, id)
+    if (length > bestLength) {
+      bestLength = length
+      closest = template
+    }
+  }
+  /* v8 ignore next 3 -- callers only reach here with a non-empty `templates`: resolveRouteModels
+     refuses a route with no models, so a route with a `piProvider` always has at least one. */
+  if (closest === undefined) {
+    throw new PiAiCatalogError(`llm-pi-ai: no template model available to clone live-discovered id "${id}"`)
+  }
+  return { ...closest, id, name: name ?? id }
 }

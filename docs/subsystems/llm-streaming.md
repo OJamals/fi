@@ -6,7 +6,7 @@ The conversation and streaming types from [`packages/llm`](../../packages/llm/RE
 
 Source: [`packages/llm/llm/src/types.ts`](../../packages/llm/llm/src/types.ts)
 
-The pi-ai adapter additionally exports `PiAiRequestTransportContext` (provider, model, optional session id, timeout, and Harness User-Agent) and `PiAiRequestTransport` (optional header transformation, request-scoped HTTP fetch, and WebSocket handshake preparation). Its optional `llm-pi-ai/request-transport` waterfall carries no credential fields. A returned transport is restricted to subscription OAuth and checked against the actual request authorization; absent contributions preserve ordinary dispatch. Profile transport settings remain authoritative, including automatic WebSocket-first selection and HTTP fallback. See the [adapter reference](../../packages/llm/llm-pi-ai/README.md) for authentication and transport ownership. These additions do not change shared requests, replay envelopes, or Session formats.
+The pi-ai adapter additionally exports `PiAiRequestTransportContext` (provider, model, optional session id, timeout, and Harness User-Agent) and `PiAiRequestTransport` (optional header transformation, request-scoped HTTP fetch, and WebSocket handshake preparation). Its optional `llm-pi-ai/request-transport` waterfall carries no credential fields. A returned transport is restricted to subscription OAuth and checked against the actual request authorization; absent contributions preserve ordinary dispatch. Profile transport settings remain authoritative, including automatic WebSocket-first selection and HTTP fallback. The optional `llm-pi-ai/live-models` waterfall supplies live model ids/names (`PiAiLiveModel`) beyond a full-catalog route's installed catalog, called only after the adapter resolves that route to a stored OAuth subscription grant; its `PiAiLiveModelsContext` carries that resolved token, since a live listing is a side call a listener originates itself rather than a transform of an already-authenticated one. See the [adapter reference](../../packages/llm/llm-pi-ai/README.md) for authentication and transport ownership. These additions do not change shared requests, replay envelopes, or Session formats.
 
 <a id="content-blocks-and-messages"></a>
 
@@ -1132,6 +1132,30 @@ Source: [`packages/llm/llm/src/index.ts`](../../packages/llm/llm/src/index.ts)
 <a id="llm-pi-ai-events"></a>
 
 ### `llm-pi-ai/*` events
+
+<a id="llm-pi-ailive-models--waterfall"></a>
+
+#### `llm-pi-ai/live-models` — waterfall
+
+Supply live model ids/names for a full-catalog OAuth-subscription provider route, merged into (never replacing) that route's installed catalog. Called only after this package's own `Models.getAuth` has resolved the route to a stored `OAuth` grant, so a listener needs no credential check of its own; `request.apiKey` is that resolved token, handed over because listing is a side call the listener originates itself rather than a transform of an already-authenticated one.
+
+```ts cordis-catalog
+/**
+ * Supply live model ids/names for a full-catalog OAuth-subscription
+ * provider route, merged into (never replacing) that route's installed
+ * catalog. Called only after this package's own `Models.getAuth` has
+ * resolved the route to a stored `OAuth` grant, so a listener needs no
+ * credential check of its own; `request.apiKey` is that resolved token,
+ * handed over because listing is a side call the listener originates
+ * itself rather than a transform of an already-authenticated one.
+ * @param request - the route, its resolved OAuth token, and cancellation.
+ * @param next - continue to the next live-models listener.
+ * @mode waterfall
+ */
+'llm-pi-ai/live-models'( request: PiAiLiveModelsContext, next: () => Promise<readonly PiAiLiveModel[]>, ): Promise<readonly PiAiLiveModel[]>
+```
+
+Source: [`packages/llm/llm-pi-ai/src/index.ts`](../../packages/llm/llm-pi-ai/src/index.ts)
 
 <a id="llm-pi-airequest-transport--waterfall"></a>
 

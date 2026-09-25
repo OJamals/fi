@@ -116,8 +116,11 @@ function restate(prompt: AuthPrompt): AuthorizationPrompt {
  * moment the plugin mounts rather than appearing once a profile does.
  * @param ctx - the plugin context carrying `ctx.authorization`.
  * @param auth - the injectables every collection here is built with.
+ * @param onSignedIn - called after a login commits its credential, so the
+ *   plugin can announce that this route's live models may have changed even
+ *   when the route itself already existed under an earlier, weaker grant.
  */
-export function registerPiAiFlows(ctx: Context, auth: PiAiAuthInjection): void {
+export function registerPiAiFlows(ctx: Context, auth: PiAiAuthInjection, onSignedIn?: () => void): void {
   for (const providerId of catalogProviderIds()) {
     const provider = catalogProvider(providerId)
     const [first, ...rest] = loginMethods(provider)
@@ -155,6 +158,7 @@ export function registerPiAiFlows(ctx: Context, auth: PiAiAuthInjection): void {
           notify: (event) => { relay(event, session) },
           prompt: prompt => session.prompt(restate(prompt)),
         })
+        onSignedIn?.()
       },
     })
   }

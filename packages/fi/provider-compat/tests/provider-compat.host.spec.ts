@@ -1,11 +1,14 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createServer } from 'node:http'
 import { once } from 'node:events'
 import { Context } from '@deepseek-ai/cordis'
+import type { PiAiLiveModelsContext } from '@deepseek-ai/dsh-llm-pi-ai'
 import {
   apply,
   allProviderSettings,
   authorizationHeaders,
+  Config,
+  createAsyncCache,
   HARNESS_ATTRIBUTION_HEADER,
   providerSettingsFor,
   subscriptionEndpoint,
@@ -14,6 +17,72 @@ import {
 } from '../src/index.ts'
 
 const HARNESS_USER_AGENT = 'deepseek-harness/test (+https://example.test)'
+
+afterEach(() => { vi.unstubAllGlobals() })
+
+/**
+ * One mounted instance of the plugin's `llm-pi-ai/live-models` listener,
+ * reusable across several calls in the same test — the shape a TTL or ETag
+ * case needs, since each instance owns its own caches for as long as it
+ * stays mounted.
+ */
+interface LiveModelsSession {
+  request(
+    request: PiAiLiveModelsContext & { provider: 'anthropic' | 'openai-codex' | 'xai' },
+  ): Promise<readonly { id: string; name?: string }[]>
+  dispose(): Promise<void>
+}
+
+function mountLiveModels(config: Config = {}): LiveModelsSession {
+  const ctx = new Context()
+  apply(ctx, config)
+  return {
+    request: request => ctx.waterfall('llm-pi-ai/live-models', request, () => Promise.resolve([])),
+    dispose: () => ctx.fiber.dispose(),
+  }
+}
+
+/**
+ * Fetch requests as `fetchLiveModels` would send them, in one fresh mount:
+ * a live-model request through the `llm-pi-ai/live-models` waterfall over a
+ * stubbed global `fetch`. Every case is offered the same OAuth apiKey a real
+ * Claude Code, Codex, or Grok CLI carries, never a real production token.
+ */
+async function liveModelRequest(
+  request: PiAiLiveModelsContext & { provider: 'anthropic' | 'openai-codex' | 'xai' },
+  config: Config = {},
+): Promise<readonly { id: string; name?: string }[]> {
+  const session = mountLiveModels(config)
+  try {
+    return await session.request(request)
+  } finally {
+    await session.dispose()
+  }
+}
+
+interface CapturedRequest {
+  url: string
+  headers: Headers
+}
+
+/** Stub the global `fetch` to record every call and answer from a script, one reply per call. */
+function stubFetch(script: readonly (() => Response)[]): CapturedRequest[] {
+  const requests: CapturedRequest[] = []
+  let index = 0
+  vi.stubGlobal('fetch', async (input: string | URL | Request, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+    requests.push({ url, headers: new Headers(init?.headers) })
+    const respond = script[index++] ?? (() => new Response('script exhausted', { status: 500 }))
+    return respond()
+  })
+  return requests
+}
+
+const ANTHROPIC_OAUTH_TOKEN = 'sk-ant-oat-test-placeholder'
+const CODEX_OAUTH_TOKEN = `header.${Buffer.from(JSON.stringify({
+  'https://api.openai.com/auth': { chatgpt_account_id: 'account-test' },
+})).toString('base64url')}.signature`
+const GROK_OAUTH_TOKEN = `header.${Buffer.from(JSON.stringify({ sub: 'user-test' })).toString('base64url')}.signature`
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -324,5 +393,205 @@ describe('subscription fetch', () => {
       target.close()
       await Promise.all([once(source, 'close'), once(target, 'close')])
     }
+  })
+})
+
+describe('live subscription model discovery', () => {
+  it('reads Anthropic\'s model directory with Claude Code OAuth identity, keeping only claude- ids', async () => {
+    const requests = stubFetch([() => new Response(JSON.stringify({
+      data: [{ id: 'claude-sonnet-4-7' }, { id: 'claude-sonnet-4-7' }, { id: 'gpt-4' }, { id: 42 }],
+    }), { status: 200 })])
+
+    const models = await liveModelRequest({ provider: 'anthropic', apiKey: ANTHROPIC_OAUTH_TOKEN })
+
+    expect(requests).toHaveLength(1)
+    expect(requests[0]?.url).toBe('https://api.anthropic.com/v1/models?limit=1000')
+    const headers = requests[0]?.headers
+    expect(headers?.get('authorization')).toBe(`Bearer ${ANTHROPIC_OAUTH_TOKEN}`)
+    expect(headers?.get('anthropic-version')).toBe('2023-06-01')
+    expect(headers?.get('anthropic-beta')).toContain('oauth-2025-04-20')
+    expect(headers?.get('user-agent')).toMatch(/^claude-cli\//)
+    // No wire token, other secret, or their headers ever reach a log call this
+    // test can observe; the assertions above are made against the captured
+    // request alone, never a console/logger spy.
+    expect(models).toEqual([{ id: 'claude-sonnet-4-7' }])
+  })
+
+  it('reads Codex\'s model manifest with account headers, dropping hidden entries', async () => {
+    const settings = providerSettingsFor('codexCli')
+    const requests = stubFetch([() => new Response(JSON.stringify({
+      models: [
+        { slug: 'gpt-5.6-sol', display_name: 'GPT-5.6 Sol' },
+        { slug: 'gpt-5.6-hidden', display_name: 'Hidden', visibility: 'hide' },
+        { display_name: 'no slug' },
+      ],
+    }), { status: 200, headers: { etag: '"v1"' } })])
+
+    const models = await liveModelRequest({ provider: 'openai-codex', apiKey: CODEX_OAUTH_TOKEN })
+
+    expect(requests).toHaveLength(1)
+    expect(requests[0]?.url).toBe(
+      `${settings.baseUrl}${settings.modelsPath}?client_version=${encodeURIComponent(settings.version)}`,
+    )
+    const headers = requests[0]?.headers
+    expect(headers?.get('authorization')).toBe(`Bearer ${CODEX_OAUTH_TOKEN}`)
+    expect(headers?.get('chatgpt-account-id')).toBe('account-test')
+    expect(headers?.get('originator')).toBe(settings.originator)
+    expect(headers?.get('accept')).toBe('application/json')
+    expect(headers?.has('if-none-match')).toBe(false)
+    expect(models).toEqual([{ id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol' }])
+  })
+
+  it('revalidates Codex\'s manifest with the prior ETag and reuses its model list on a 304', async () => {
+    const session = mountLiveModels({ liveModelDiscoveryCacheTtlMs: 1_000 })
+    try {
+      const requests = stubFetch([
+        () => new Response(JSON.stringify({ models: [{ slug: 'gpt-5.6-sol' }] }), {
+          status: 200,
+          headers: { etag: '"v1"' },
+        }),
+        () => new Response(null, { status: 304 }),
+      ])
+      vi.useFakeTimers()
+
+      const first = await session.request({ provider: 'openai-codex', apiKey: CODEX_OAUTH_TOKEN })
+      vi.advanceTimersByTime(1_001)
+      const second = await session.request({ provider: 'openai-codex', apiKey: CODEX_OAUTH_TOKEN })
+
+      expect(requests).toHaveLength(2)
+      expect(requests[1]?.headers.get('if-none-match')).toBe('"v1"')
+      expect(second).toEqual(first)
+      expect(second).toEqual([{ id: 'gpt-5.6-sol' }])
+    } finally {
+      vi.useRealTimers()
+      await session.dispose()
+    }
+  })
+
+  it('reads Grok\'s CLI model listing with Grok CLI identity', async () => {
+    const settings = providerSettingsFor('grokCode')
+    const requests = stubFetch([() => new Response(JSON.stringify({
+      data: [{ id: 'grok-4.5' }, { id: 'grok-9-preview' }, { notAnId: true }],
+    }), { status: 200 })])
+
+    const models = await liveModelRequest({ provider: 'xai', apiKey: GROK_OAUTH_TOKEN })
+
+    expect(requests).toHaveLength(1)
+    expect(requests[0]?.url).toBe(`${settings.cliBaseUrl}/models`)
+    const headers = requests[0]?.headers
+    expect(headers?.get('authorization')).toBe(`Bearer ${GROK_OAUTH_TOKEN}`)
+    expect(headers?.get('x-xai-token-auth')).toBe(settings.tokenAuth)
+    expect(headers?.get('x-grok-user-id')).toBe('user-test')
+    expect(models).toEqual([{ id: 'grok-4.5' }, { id: 'grok-9-preview' }])
+  })
+
+  it('keeps the catalog-only list — an empty result — on a non-2xx reply, for every provider', async () => {
+    stubFetch([() => new Response('server error', { status: 500 })])
+    await expect(liveModelRequest({ provider: 'anthropic', apiKey: ANTHROPIC_OAUTH_TOKEN })).resolves.toEqual([])
+
+    stubFetch([() => new Response('server error', { status: 500 })])
+    await expect(liveModelRequest({ provider: 'openai-codex', apiKey: CODEX_OAUTH_TOKEN })).resolves.toEqual([])
+
+    stubFetch([() => new Response('server error', { status: 500 })])
+    await expect(liveModelRequest({ provider: 'xai', apiKey: GROK_OAUTH_TOKEN })).resolves.toEqual([])
+  })
+
+  it('keeps the catalog-only list when the network itself fails', async () => {
+    vi.stubGlobal('fetch', () => Promise.reject(new Error('network down')))
+
+    await expect(liveModelRequest({ provider: 'anthropic', apiKey: ANTHROPIC_OAUTH_TOKEN })).resolves.toEqual([])
+  })
+
+  it('keeps the catalog-only list when the reply is not the expected JSON shape', async () => {
+    stubFetch([() => new Response(JSON.stringify({ unexpected: true }), { status: 200 })])
+
+    await expect(liveModelRequest({ provider: 'anthropic', apiKey: ANTHROPIC_OAUTH_TOKEN })).resolves.toEqual([])
+  })
+
+  it('caches a successful listing for the configured TTL, then refreshes once it elapses', async () => {
+    const session = mountLiveModels({ liveModelDiscoveryCacheTtlMs: 1_000 })
+    try {
+      const requests = stubFetch([
+        () => new Response(JSON.stringify({ data: [{ id: 'grok-4.5' }] }), { status: 200 }),
+        () => new Response(JSON.stringify({ data: [{ id: 'grok-9-preview' }] }), { status: 200 }),
+      ])
+      vi.useFakeTimers()
+
+      const first = await session.request({ provider: 'xai', apiKey: GROK_OAUTH_TOKEN })
+      const stillCached = await session.request({ provider: 'xai', apiKey: GROK_OAUTH_TOKEN })
+      expect(requests).toHaveLength(1)
+      expect(stillCached).toEqual(first)
+
+      vi.advanceTimersByTime(1_001)
+      const refreshed = await session.request({ provider: 'xai', apiKey: GROK_OAUTH_TOKEN })
+
+      expect(requests).toHaveLength(2)
+      expect(refreshed).toEqual([{ id: 'grok-9-preview' }])
+    } finally {
+      vi.useRealTimers()
+      await session.dispose()
+    }
+  })
+
+  it('never fetches for a route this package carries no subscription identity for', async () => {
+    const requests = stubFetch([() => new Response('unexpected', { status: 500 })])
+
+    const passthrough = await mountLiveModels().request(
+      { provider: 'deepseek' as unknown as 'anthropic', apiKey: 'irrelevant' },
+    )
+
+    expect(passthrough).toEqual([])
+    expect(requests).toHaveLength(0)
+  })
+
+  it('fetches nothing at all when live model discovery is disabled', async () => {
+    const requests = stubFetch([() => new Response(JSON.stringify({ data: [{ id: 'grok-4.5' }] }), { status: 200 })])
+
+    const models = await liveModelRequest(
+      { provider: 'xai', apiKey: GROK_OAUTH_TOKEN },
+      { liveModelDiscoveryEnabled: false },
+    )
+
+    expect(models).toEqual([])
+    expect(requests).toHaveLength(0)
+  })
+
+  it('rejects an unreasonable cache TTL at plugin load', () => {
+    expect(() => Config({ liveModelDiscoveryCacheTtlMs: 0 })).toThrow()
+    expect(() => Config({ liveModelDiscoveryCacheTtlMs: -1 })).toThrow()
+  })
+})
+
+describe('createAsyncCache', () => {
+  it('serves the cached value until the TTL elapses, then refreshes', async () => {
+    vi.useFakeTimers()
+    try {
+      const cache = createAsyncCache<number>(1_000)
+      const fetcher = vi.fn(async () => 1)
+
+      expect(await cache.get('k', fetcher)).toBe(1)
+      expect(await cache.get('k', fetcher)).toBe(1)
+      expect(fetcher).toHaveBeenCalledOnce()
+
+      vi.advanceTimersByTime(1_001)
+      fetcher.mockResolvedValueOnce(2)
+      expect(await cache.get('k', fetcher)).toBe(2)
+      expect(fetcher).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('keeps the stale value when a refresh reports null', async () => {
+    const cache = createAsyncCache<number>(0)
+
+    expect(await cache.get('k', () => Promise.resolve(1))).toBe(1)
+    expect(await cache.get('k', () => Promise.resolve(null))).toBe(1)
+  })
+
+  it('has no stale value to fall back to before any fetch has succeeded', async () => {
+    const cache = createAsyncCache<number>(1_000)
+
+    expect(await cache.get('k', () => Promise.resolve(null))).toBeUndefined()
   })
 })

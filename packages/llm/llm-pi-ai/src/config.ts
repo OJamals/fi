@@ -216,6 +216,14 @@ export interface ResolvedPiAiProviderProfile
    * own, so a catalog capability must not appear here.
    */
   configuredMaxTokens: ReadonlyMap<string, number>
+  /**
+   * Whether this route serves the installed catalog unchanged (no `models`
+   * list of its own; `modelOverrides` may still reshape individual entries).
+   * The one condition under which the adapter may add a live-discovered model
+   * id beyond the catalog: a curated `models` list is exactly what the
+   * deployment configured, and gains nothing it did not list.
+   */
+  usesInstalledCatalog: boolean
 }
 
 /** Plugin configuration: the provider routes this instance owns. */
@@ -501,6 +509,7 @@ export function resolveProfiles(
       ...rest.headers === undefined ? {} : { headers: { ...rest.headers } },
       ...rest.thinkingBudgets === undefined ? {} : { thinkingBudgets: { ...rest.thinkingBudgets } },
       configuredMaxTokens: catalog?.configuredMaxTokens ?? new Map(),
+      usesInstalledCatalog: source.models === undefined,
       modelErrors: catalog?.modelErrors ?? new Map(),
       ...piProvider === undefined ? {} : { piProvider },
       ...catalogError === undefined ? {} : { catalogError },

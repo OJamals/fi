@@ -4091,6 +4091,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'reloads', description: 'Replaced plugins and their module locations.' }],
   },
   {
+    name: 'llm-pi-ai/live-models',
+    mode: 'waterfall',
+    signature: '\'llm-pi-ai/live-models\'( request: PiAiLiveModelsContext, next: () => Promise<readonly PiAiLiveModel[]>, ): Promise<readonly PiAiLiveModel[]>',
+    summary: 'Supply live model ids/names for a full-catalog OAuth-subscription provider route, merged into (never replacing) that route\'s installed catalog.',
+    description: 'Supply live model ids/names for a full-catalog OAuth-subscription provider route, merged into (never replacing) that route\'s installed catalog. Called only after this package\'s own `Models.getAuth` has resolved the route to a stored `OAuth` grant, so a listener needs no credential check of its own; `request.apiKey` is that resolved token, handed over because listing is a side call the listener originates itself rather than a transform of an already-authenticated one.',
+    parameters: [{ name: 'request', description: 'the route, its resolved OAuth token, and cancellation.' }, { name: 'next', description: 'continue to the next live-models listener.' }],
+  },
+  {
     name: 'llm-pi-ai/request-transport',
     mode: 'waterfall',
     signature: '\'llm-pi-ai/request-transport\'( request: PiAiRequestTransportContext, next: () => Promise<PiAiRequestTransport | undefined>, ): Promise<PiAiRequestTransport | undefined>',
@@ -5901,6 +5909,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PermissionCatalog',
     declaration: 'export interface PermissionCatalog {\n    options: PresetOption[];\n    defaultOptions: PresetOption[];\n    defaultPreset: string;\n}',
+  },
+  {
+    name: 'PiAiLiveModel',
+    declaration: 'export interface PiAiLiveModel {\n    id: string;\n    name?: string;\n}',
+  },
+  {
+    name: 'PiAiLiveModelsContext',
+    declaration: 'export interface PiAiLiveModelsContext {\n    provider: string;\n    apiKey: string;\n    signal?: AbortSignal;\n}',
   },
   {
     name: 'PiAiRequestTransport',

@@ -26,13 +26,13 @@ const CODEX = recordKeyFor('openai-codex')
 const dirs: string[] = []
 
 /** A context with the record store, the seam, and every pi-ai login flow. */
-async function harness(): Promise<Context> {
+async function harness(onSignedIn?: () => void): Promise<Context> {
   const dir = await mkdtemp(join(tmpdir(), 'dsh-pi-login-'))
   dirs.push(dir)
   const ctx = new Context()
   await ctx.plugin(LocalCredentialProvider, { path: join(dir, '.credentials.yaml'), watch: false })
   await ctx.plugin(AuthorizationService)
-  registerPiAiFlows(ctx, { credentials: credentialStoreFrom(ctx), authContext: authContextFrom(ctx) })
+  registerPiAiFlows(ctx, { credentials: credentialStoreFrom(ctx), authContext: authContextFrom(ctx) }, onSignedIn)
   return ctx
 }
 
@@ -194,5 +194,24 @@ describe('pi-ai login flows', () => {
       signal: controller.signal,
     })).resolves.toEqual({ status: 'cancelled' })
     expect(seen?.aborted).toBe(true)
+  })
+
+  it('calls onSignedIn once a login commits its credential', async () => {
+    const onSignedIn = vi.fn()
+    const ctx = await harness(onSignedIn)
+
+    await attempt(ctx, () => Promise.resolve())
+
+    expect(onSignedIn).toHaveBeenCalledOnce()
+  })
+
+  it('never calls onSignedIn when the attempt does not authorize', async () => {
+    const onSignedIn = vi.fn()
+    const ctx = await harness(onSignedIn)
+    login.mockImplementation(() => Promise.reject(new Error('login failed')))
+
+    await expect(ctx.authorization.begin({ key: CODEX, interaction: surface() })).rejects.toThrow('login failed')
+
+    expect(onSignedIn).not.toHaveBeenCalled()
   })
 })

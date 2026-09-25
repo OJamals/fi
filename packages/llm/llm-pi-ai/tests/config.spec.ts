@@ -107,3 +107,21 @@ describe('request image policy bounds', () => {
     }).toThrow(message)
   })
 })
+
+describe('usesInstalledCatalog', () => {
+  it('is true for a route with no models list, even with modelOverrides', () => {
+    const resolved = resolveProfiles({
+      xai: {},
+      deepseek: { modelOverrides: { 'deepseek-flash': { name: 'renamed' } } },
+    })
+
+    expect(resolved.get('xai')?.usesInstalledCatalog).toBe(true)
+    expect(resolved.get('deepseek')?.usesInstalledCatalog).toBe(true)
+  })
+
+  it('is false the moment a route curates its own models list', () => {
+    const resolved = resolveProfiles({ xai: { models: [{ id: 'grok-4.3' }] } })
+
+    expect(resolved.get('xai')?.usesInstalledCatalog).toBe(false)
+  })
+})

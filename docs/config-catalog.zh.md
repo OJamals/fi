@@ -1581,7 +1581,7 @@ export interface Config extends ProtocolConfig {
 
 - `inject`: `llm`
 - `refs`: `Api` (`@earendil-works/pi-ai`) · `CacheRetention` (`@earendil-works/pi-ai`) · `Model` (`@earendil-works/pi-ai`) · `ModelThinkingLevel` (`@earendil-works/pi-ai`) · `OpenAICompletionsCompat` (`@earendil-works/pi-ai`) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · `ThinkingBudgets` (`@earendil-works/pi-ai`) · `Transport` (`@earendil-works/pi-ai`) · `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/llm/llm-pi-ai/src/config.ts:222`](../packages/llm/llm-pi-ai/src/config.ts)
+- `source`: [`packages/llm/llm-pi-ai/src/config.ts:230`](../packages/llm/llm-pi-ai/src/config.ts)
 
 ```ts config-catalog
 /** Plugin configuration: the provider routes this instance owns. */
@@ -4306,13 +4306,28 @@ interface FiAntigravityProfile {
 
 ## `@fi/provider-compat`
 
-- `source`: [`packages/fi/provider-compat/src/index.ts:17`](../packages/fi/provider-compat/src/index.ts)
+- `source`: [`packages/fi/provider-compat/src/index.ts:25`](../packages/fi/provider-compat/src/index.ts)
 
 ```ts config-catalog
 /** Subscription transport limits configured by the FI deployment. */
 export interface Config {
   /** Maximum received Codex WebSocket message size in bytes. */
   websocketMaxPayloadBytes?: number
+  /**
+   * Whether Claude Code, Codex, and Grok subscription routes advertise the
+   * live model ids their signed-in account can use, beyond pi-ai's installed
+   * catalog for `anthropic`, `openai-codex`, and `xai`. Disabling it leaves
+   * those three routes exactly as the installed catalog describes them.
+   */
+  liveModelDiscoveryEnabled?: boolean
+  /**
+   * How long a successful live listing is cached before its route is
+   * interrogated again, in milliseconds. Listing or a subscription sign-in
+   * may still trigger a fresh interrogation immediately after the previous
+   * one expires; this is not a polling interval, since nothing here polls in
+   * the background.
+   */
+  liveModelDiscoveryCacheTtlMs?: number
 }
 ```
 <!-- END GENERATED config-catalog:@fi/provider-compat -->

@@ -65,7 +65,7 @@ import type { AdapterRegistrationHandle, DirectoryRegistrationHandle, LlmConfigu
 import type {} from '@deepseek-ai/dsh-fs'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
 import { PiAiAdapter } from './adapter.ts'
-import type { PiAiRequestTransport, PiAiRequestTransportContext } from './adapter.ts'
+import type { PiAiLiveModel, PiAiLiveModelsContext, PiAiRequestTransport, PiAiRequestTransportContext } from './adapter.ts'
 import { authContextFrom, credentialStoreFrom } from './auth.ts'
 import { catalogProviderIds } from './catalog.ts'
 import { assertServiceable, Config, resolveProfiles } from './config.ts'
@@ -77,6 +77,8 @@ import { registerPiAiFlows } from './login.ts'
 export { PiAiAdapter } from './adapter.ts'
 export type {
   PiAiAdapterOptions,
+  PiAiLiveModel,
+  PiAiLiveModelsContext,
   PiAiRequestTransport,
   PiAiRequestTransportContext,
 } from './adapter.ts'
@@ -112,6 +114,22 @@ declare module '@deepseek-ai/cordis' {
       request: PiAiRequestTransportContext,
       next: () => Promise<PiAiRequestTransport | undefined>,
     ): Promise<PiAiRequestTransport | undefined>
+    /**
+     * Supply live model ids/names for a full-catalog OAuth-subscription
+     * provider route, merged into (never replacing) that route's installed
+     * catalog. Called only after this package's own `Models.getAuth` has
+     * resolved the route to a stored `OAuth` grant, so a listener needs no
+     * credential check of its own; `request.apiKey` is that resolved token,
+     * handed over because listing is a side call the listener originates
+     * itself rather than a transform of an already-authenticated one.
+     * @param request - the route, its resolved OAuth token, and cancellation.
+     * @param next - continue to the next live-models listener.
+     * @mode waterfall
+     */
+    'llm-pi-ai/live-models'(
+      request: PiAiLiveModelsContext,
+      next: () => Promise<readonly PiAiLiveModel[]>,
+    ): Promise<readonly PiAiLiveModel[]>
   }
 }
 
@@ -240,6 +258,11 @@ export function apply(ctx: Context, config: Config): void {
       request,
       () => Promise.resolve(undefined),
     ),
+    resolveLiveModels: request => ctx.waterfall(
+      'llm-pi-ai/live-models',
+      request,
+      () => Promise.resolve([]),
+    ),
     resolveAttachments: () => ctx.get('attachments'),
     resolveImageAccess: (attachments, ref) => resolveImageAttachmentAccess(
       attachments,
@@ -258,7 +281,17 @@ export function apply(ctx: Context, config: Config): void {
   // Scoped to the authorization seam rather than injected outright, because a
   // composition without it (headless, ACP) simply has no surface to sign in
   // from, while everything else this plugin does still works.
-  ctx.inject(['authorization'], (authorized) => { registerPiAiFlows(authorized, auth) })
+  // A signed-in provider whose route already existed changes no registration
+  // fact `ensureRegistrationFacts` tracks (same route, same displayName, same
+  // retryPolicy), so nothing below would otherwise announce that its live
+  // models may have changed. Replaying the unchanged route set through the
+  // existing registration is what `commitRoutes` already uses to announce a
+  // route-set change; reusing it here announces a grant change the same way,
+  // through the one mechanism the Web model picker already listens for.
+  const announceModelsMayHaveChanged = (): void => { registration?.replace([...profiles().keys()]) }
+  ctx.inject(['authorization'], (authorized) => {
+    registerPiAiFlows(authorized, auth, announceModelsMayHaveChanged)
+  })
   // The full installed catalog is configurable from the moment the plugin
   // mounts — dormant or not — so configuration surfaces can offer every
   // pi-ai provider before any route exists. Hand-declared routes join it as
@@ -291,6 +324,7 @@ export function apply(ctx: Context, config: Config): void {
     return {
       headers: profile.headers,
       resolveApiKey: () => resolveApiKey(provider, profile),
+      liveModelIds: () => adapter.liveModelIds(provider),
     }
   }
   // Interrogating an endpoint is a configuration-time action over a draft, so

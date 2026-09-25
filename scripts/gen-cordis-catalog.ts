@@ -340,6 +340,8 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   LlmProviderInfo: 'llm-streaming.md',
   PiAiRequestTransport: 'llm-streaming.md',
   PiAiRequestTransportContext: 'llm-streaming.md',
+  PiAiLiveModel: 'llm-streaming.md',
+  PiAiLiveModelsContext: 'llm-streaming.md',
   LlmConfigurableProvider: 'llm-streaming.md',
   LlmModelDiscoveryRequest: 'llm-streaming.md',
   LlmDiscoveredModel: 'llm-streaming.md',

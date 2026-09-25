@@ -6,7 +6,7 @@
 
 源码：[`packages/llm/llm/src/types.ts`](../../packages/llm/llm/src/types.ts)
 
-pi-ai 适配器另外导出 `PiAiRequestTransportContext`（提供方、模型、可选会话 id、超时与 Harness User-Agent）和 `PiAiRequestTransport`（可选请求头变换、单次请求的 HTTP fetch 与 WebSocket 握手准备）。可选的 `llm-pi-ai/request-transport` waterfall 不携带凭据字段。返回的传输仅用于订阅 OAuth，并与实际请求授权核对；没有 contribution 时保留普通分派。配置档的传输设置仍具权威性，包括自动优先 WebSocket 与 HTTP 回退。认证与传输所有权见[适配器参考](../../packages/llm/llm-pi-ai/README.zh.md)。这些扩展不改变共享请求、重放信封或 Session 格式。
+pi-ai 适配器另外导出 `PiAiRequestTransportContext`（提供方、模型、可选会话 id、超时与 Harness User-Agent）和 `PiAiRequestTransport`（可选请求头变换、单次请求的 HTTP fetch 与 WebSocket 握手准备）。可选的 `llm-pi-ai/request-transport` waterfall 不携带凭据字段。返回的传输仅用于订阅 OAuth，并与实际请求授权核对；没有 contribution 时保留普通分派。配置档的传输设置仍具权威性，包括自动优先 WebSocket 与 HTTP 回退。可选的 `llm-pi-ai/live-models` waterfall 为完整目录路由在其安装目录之外提供实时模型 id/名称（`PiAiLiveModel`），仅在适配器将该路由解析为已存储的订阅 OAuth 授权后才会调用；其 `PiAiLiveModelsContext` 携带该已解析的令牌，因为实时列表查询是监听者自行发起的旁路调用，而非对一次已认证请求的变换。认证与传输所有权见[适配器参考](../../packages/llm/llm-pi-ai/README.zh.md)。这些扩展不改变共享请求、重放信封或 Session 格式。
 
 <a id="content-blocks-and-messages"></a>
 
@@ -1138,6 +1138,30 @@ Source: [`packages/llm/llm/src/index.ts`](../../packages/llm/llm/src/index.ts)
 <a id="llm-pi-ai-events"></a>
 
 ### `llm-pi-ai/*` events
+
+<a id="llm-pi-ailive-models--waterfall"></a>
+
+#### `llm-pi-ai/live-models` — waterfall
+
+Supply live model ids/names for a full-catalog OAuth-subscription provider route, merged into (never replacing) that route's installed catalog. Called only after this package's own `Models.getAuth` has resolved the route to a stored `OAuth` grant, so a listener needs no credential check of its own; `request.apiKey` is that resolved token, handed over because listing is a side call the listener originates itself rather than a transform of an already-authenticated one.
+
+```ts cordis-catalog
+/**
+ * Supply live model ids/names for a full-catalog OAuth-subscription
+ * provider route, merged into (never replacing) that route's installed
+ * catalog. Called only after this package's own `Models.getAuth` has
+ * resolved the route to a stored `OAuth` grant, so a listener needs no
+ * credential check of its own; `request.apiKey` is that resolved token,
+ * handed over because listing is a side call the listener originates
+ * itself rather than a transform of an already-authenticated one.
+ * @param request - the route, its resolved OAuth token, and cancellation.
+ * @param next - continue to the next live-models listener.
+ * @mode waterfall
+ */
+'llm-pi-ai/live-models'( request: PiAiLiveModelsContext, next: () => Promise<readonly PiAiLiveModel[]>, ): Promise<readonly PiAiLiveModel[]>
+```
+
+Source: [`packages/llm/llm-pi-ai/src/index.ts`](../../packages/llm/llm-pi-ai/src/index.ts)
 
 <a id="llm-pi-airequest-transport--waterfall"></a>
 
