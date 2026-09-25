@@ -20,6 +20,8 @@ Status: implemented
 
 `agent/created`——它是本功能早期一条已分叉分支曾称为 `agent/setup` 的扩展点在当前架构下、被串行等待的等价物——是这次组合所用的生命周期接缝（`packages/extensions/plugin-compat/src/runtime.ts` 的 `mountManagedPlugins`，由 `PluginCompatService` 的构造函数调用）。插件挂载会在 agent 发布之前完成，初始化失败会回滚创建，这与 `docs/architecture.md` 的 turn 流程约定一致。这使该功能保持在 agent loop 之外，并保留既有原生 hook bridge 的行为，包括其分离执行的 SessionStart 时机与不受支持的输出控制。每个贡献都作为子插件挂载到组合该会话的 agent 自身的 `agent.ctx` 上（一个随该 agent 释放而卸载其贡献的作用域上下文，与 `dsh-browser-use-runtime` 已用于按 agent 挂载 MCP 的原语相同），因此已解析的 skill、MCP 服务器或 hook 集合永远不会比它所解析的那个 agent 存活得更久。
 
+仅靠「结算后回滚」只能中断那些会自行结算的工作；MCP 服务器的连接尝试没有自然的期限,一个无响应的连接会让 `agent/created` 以及整个 `ctx.agents.create()` 调用挂起,而不是在取消时拒绝。因此 `mountManagedPlugins` 接受一个可选的 `signal`,该信号从 `agent/created` 自身的负载中串接而来;一个 `mountCancelable()` 辅助函数会在该信号中止时立即释放正在等待的 MCP 客户端 Fiber,并优先使用该信号自身的中止原因,而不是被释放的 Fiber 的 `await()` 结算出的原因——与 `dsh-browser-use-runtime` 按 agent 挂载 MCP 时已经使用的做法相同。skill 与 hook 的挂载不需要这样的信号:两者都是有边界的本地工作,已经由普通的「结算后回滚」覆盖,专门的 hook 目录创建与 hook 配置写入取消测试也证实了这一点。
+
 被选中的 hook 行会把生成的配置写入一个权限为 `0o600` 的私有临时目录，并通过未经修改的 `dsh-hooks-claude-code`/`dsh-hooks-codex` bridge 挂载——与未经修改的部署已经使用的同一套命令 hook 运行器与带类型的决策映射相同。被选中的 MCP 服务器通过未经修改的 `dsh-mcp-client` 挂载，把发现的 `command`/`args`/`env`/`cwd` 或 `url`/`headers` 形态转换为其 `StdioConfig`/`StreamableHttpConfig`。被选中的 skill 直接调用 `dsh-skill` 的 `ctx.skills.register()`，并标注 `claude-plugin`/`codex-plugin` 这一 `SkillSource`，同时在 metadata 中记录所属插件的 id。
 
 本包不发布任何包自有的 `./invariant` 伴生入口。`packages/AGENTS.md` 的不变式规则现在会拒绝一个仅包含空检查或固定示例探测的安装器；本包的持久化状态已经由其持久化文档的 `zod` schema（读取时拒绝）与每次激活时的指纹重校验（挂载时拒绝）覆盖，单独的伴生入口只会重复包装已有检查，而不会报告一个独立的、可能出现分歧的观测点。相应理由改为写在本包的 README 中，遵循同一条规则。
