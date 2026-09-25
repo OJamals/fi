@@ -25,6 +25,7 @@ import {
   ANTIGRAVITY_CREDENTIAL_SCOPE,
   ANTIGRAVITY_OAUTH_CLIENT_ID_REF,
   ANTIGRAVITY_OAUTH_CLIENT_SECRET_REF,
+  DISABLED_ANTIGRAVITY_DISCOVERY,
 } from '../src/index.ts'
 
 /** An interaction that never answers a prompt — this flow never asks one. */
@@ -75,13 +76,15 @@ describe('registerAntigravityFlow', () => {
     await ctx.plugin(AuthorizationService)
     await ctx.plugin(FiAuthorizationController)
 
-    registerAntigravityFlow(ctx)
+    // Discovery disabled: neither ANTIGRAVITY_OAUTH_CLIENT_ID nor
+    // ANTIGRAVITY_OAUTH_CLIENT_SECRET is stored, exported, or in a .env file
+    // here, and this asserts the fail-loud path itself rather than a
+    // dependency on whatever the test host has locally installed.
+    registerAntigravityFlow(ctx, undefined, () => DISABLED_ANTIGRAVITY_DISCOVERY)
 
-    // Neither ANTIGRAVITY_OAUTH_CLIENT_ID nor ANTIGRAVITY_OAUTH_CLIENT_SECRET
-    // is stored, exported, or in a .env file here: the attempt must fail
-    // before ever reaching Google, with a message the sign-in UI shows
-    // verbatim (AuthorizationService.begin() rejects with the flow's own
-    // thrown error).
+    // The attempt must fail before ever reaching Google, with a message the
+    // sign-in UI shows verbatim (AuthorizationService.begin() rejects with
+    // the flow's own thrown error).
     await expect(ctx.authorization.begin({
       key: credentialKey(ANTIGRAVITY_CREDENTIAL_SCOPE, ANTIGRAVITY_CREDENTIAL_ID),
       interaction: surface(),

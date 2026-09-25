@@ -20,6 +20,7 @@ import FiAntigravityService, {
   ANTIGRAVITY_CREDENTIAL_KEY,
   ANTIGRAVITY_OAUTH_CLIENT_ID_REF,
   ANTIGRAVITY_OAUTH_CLIENT_SECRET_REF,
+  DISABLED_ANTIGRAVITY_DISCOVERY,
   resolveAntigravityGrant,
 } from '../src/index.ts'
 import { ANTIGRAVITY_STATIC_CATALOG } from '../src/catalog.ts'
@@ -58,7 +59,10 @@ async function harness(services?: {
   }
   await ctx.plugin(LlmRuntime)
   await ctx.plugin(AuthorizationService)
-  const live = await liveConfig(ctx, FiAntigravityService, {}, 'fi-antigravity')
+  // Empty discovery locations: these tests must never scan the real
+  // filesystem for an Antigravity install, regardless of what the host
+  // running them has locally.
+  const live = await liveConfig(ctx, FiAntigravityService, { oauthClientDiscoveryLocations: [] }, 'fi-antigravity')
   return { ctx, live }
 }
 
@@ -281,7 +285,9 @@ describe('FiAntigravityService', () => {
     }))
     const fetchSpy = vi.fn()
     vi.stubGlobal('fetch', fetchSpy)
-    await expect(resolveAntigravityGrant(ctx)).rejects.toThrow(
+    // Discovery disabled: this asserts the fail-loud path itself, not a
+    // dependency on whatever the test host has locally installed.
+    await expect(resolveAntigravityGrant(ctx, undefined, undefined, DISABLED_ANTIGRAVITY_DISCOVERY)).rejects.toThrow(
       new RegExp(`${ANTIGRAVITY_OAUTH_CLIENT_ID_REF}.*${ANTIGRAVITY_OAUTH_CLIENT_SECRET_REF}`),
     )
     expect(fetchSpy).not.toHaveBeenCalled()

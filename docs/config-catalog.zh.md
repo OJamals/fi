@@ -2314,6 +2314,34 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-plugin-package-inventory-deepseek -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-problems -->
+<a id="deepseek-aidsh-problems"></a>
+
+## `@deepseek-ai/dsh-problems`
+
+- `source`: [`packages/core/problems/src/index.ts:26`](../packages/core/problems/src/index.ts)
+
+```ts config-catalog
+/** Deployment bounds for producer contributions and stored diagnostic strings. */
+export interface Config {
+  /** Maximum active producer sources per Workspace. */
+  maxSourcesPerWorkspace?: number
+  /** Maximum problems accepted in one source replacement. */
+  maxProblemsPerSource?: number
+  /** Maximum problems retained across all sources in one Workspace. */
+  maxProblemsPerWorkspace?: number
+  /** Maximum UTF-8 bytes in one message. */
+  maxMessageBytes?: number
+  /** Maximum UTF-8 bytes in one source id. */
+  maxSourceBytes?: number
+  /** Maximum UTF-8 bytes in one diagnostic code. */
+  maxCodeBytes?: number
+  /** Maximum UTF-8 bytes in one Workspace-relative path. */
+  maxPathBytes?: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-problems -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-ptc-runtime-node -->
 <a id="deepseek-aidsh-ptc-runtime-node"></a>
 
@@ -3337,7 +3365,7 @@ export interface Config {
 
 ## `@deepseek-ai/dsh-system-prompt`
 
-- `source`: [`packages/core/system-prompt/src/index.ts:247`](../packages/core/system-prompt/src/index.ts)
+- `source`: [`packages/core/system-prompt/src/index.ts:248`](../packages/core/system-prompt/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: the deployment-authored fragment of the system prompt (see {@link Config.personaPrefix} for its contract). */
@@ -3670,6 +3698,25 @@ export interface Config {
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-tool-present -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-tool-problems -->
+<a id="deepseek-aidsh-tool-problems"></a>
+
+## `@deepseek-ai/dsh-tool-problems`
+
+- `inject`: `fs` · `tools` · `systemPrompt` · `problems`
+- `source`: [`packages/core/tool-problems/src/index.ts:29`](../packages/core/tool-problems/src/index.ts)
+
+```ts config-catalog
+/** Deployment-owned model result bounds. */
+export interface Config {
+  /** Maximum diagnostics rendered per call. Defaults to 100. */
+  maxProblems?: number
+  /** Maximum rendered Unicode code points per call. Defaults to 16000. */
+  maxResultChars?: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-tool-problems -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-tool-pwsh -->
 <a id="deepseek-aidsh-tool-pwsh"></a>
@@ -4320,7 +4367,7 @@ export interface Config {
 
 - `inject`: `authorization` · `credentials` · `llm`
 - `refs`: `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/fi/llm-antigravity/src/index.ts:210`](../packages/fi/llm-antigravity/src/index.ts)
+- `source`: [`packages/fi/llm-antigravity/src/index.ts:271`](../packages/fi/llm-antigravity/src/index.ts)
 
 ```ts config-catalog
 /** The plugin Config: profiles keyed by route id, edited live through the profile-backed settings form. */
@@ -4331,6 +4378,24 @@ export interface FiAntigravityConfig {
   oauthClientIdRef: Volatile<string>
   /** Credential reference resolved per sign-in/refresh for the Google OAuth client secret. */
   oauthClientSecretRef: Volatile<string>
+  /**
+   * Bounded local install locations scanned for the OAuth client when
+   * neither `oauthClientIdRef` nor `oauthClientSecretRef` resolves to a
+   * value; each entry is `which:<name>` (a `PATH` lookup) or a filesystem
+   * path (`~` and `%VAR%` expand). Defaults to the running platform's known
+   * Antigravity CLI/app install locations.
+   */
+  oauthClientDiscoveryLocations: Volatile<string[]>
+  /**
+   * Accepted (client id, client secret) SHA-256 fingerprint pairs a
+   * discovered candidate must match before it is trusted; a rotated
+   * Antigravity OAuth client is accepted by adding its pair here.
+   */
+  oauthClientDiscoveryFingerprints: Volatile<AntigravityOAuthFingerprintPair[]>
+  /** Files larger than this are skipped unread during discovery, in bytes. */
+  oauthClientDiscoveryMaxFileBytes: Volatile<number>
+  /** How long a failed discovery scan is cached before the next resolution attempt retries it, in milliseconds. */
+  oauthClientDiscoveryNegativeCacheMs: Volatile<number>
 }
 
 /**
@@ -4342,6 +4407,18 @@ export interface FiAntigravityConfig {
 interface FiAntigravityProfile {
   /** Name the Models page shows for this route. */
   displayName?: string
+}
+
+/**
+ * One accepted (client id, client secret) pair, named by the SHA-256 hex
+ * digest of each value rather than the value itself — the fingerprint is
+ * safe to commit and log; the value it verifies is not.
+ */
+export interface AntigravityOAuthFingerprintPair {
+  /** SHA-256 hex digest of the accepted client id. */
+  readonly clientIdSha256: string
+  /** SHA-256 hex digest of the accepted client secret. */
+  readonly clientSecretSha256: string
 }
 ```
 <!-- END GENERATED config-catalog:@fi/llm-antigravity -->

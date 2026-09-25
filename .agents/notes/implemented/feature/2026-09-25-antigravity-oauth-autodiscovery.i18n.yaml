@@ -1,0 +1,25 @@
+# Bilingual-pair consistency record for 2026-09-25-antigravity-oauth-autodiscovery.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-25-antigravity-oauth-autodiscovery.md
+/agent-note-antigravity-oauth-client-local-install-auto-discovery:
+  en: 2778291cba9a3d15
+  zh: 42f799645ea749e8
+/agent-note-antigravity-oauth-client-local-install-auto-discovery/problem:
+  en: 2c0e83e76a92eb0d
+  zh: 3e491bbb1be16cd2
+/agent-note-antigravity-oauth-client-local-install-auto-discovery/decision:
+  en: 8341482eaf76b5dc
+  zh: b1b6da947bbf17d5
+/agent-note-antigravity-oauth-client-local-install-auto-discovery/alternatives-considered:
+  en: 807bb20fa8473381
+  zh: a63e6b7ffc082527
+/agent-note-antigravity-oauth-client-local-install-auto-discovery/testing:
+  en: 8d4e740d4e2746c1
+  zh: f7a804ea2d1ff855
+/agent-note-antigravity-oauth-client-local-install-auto-discovery/repository-secret-guard:
+  en: a3723a22e6adc0fc
+  zh: a5e5c6c6500a6993
+/agent-note-antigravity-oauth-client-local-install-auto-discovery/consequences:
+  en: 606237bbf1bed691
+  zh: c0be363038d0106d

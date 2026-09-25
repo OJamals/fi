@@ -52,6 +52,14 @@ import {
   waitForAntigravityCallback,
 } from './auth/oauth.ts'
 import type { AntigravityOAuthClient, AntigravityTokenData } from './auth/oauth.ts'
+import {
+  DEFAULT_ANTIGRAVITY_DISCOVERY_OPTIONS,
+  DEFAULT_ANTIGRAVITY_OAUTH_FINGERPRINTS,
+  DISABLED_ANTIGRAVITY_DISCOVERY,
+  defaultAntigravityDiscoveryLocations,
+  runAntigravityDiscovery,
+} from './auth/discovery.ts'
+import type { AntigravityDiscoveryOptions, AntigravityOAuthFingerprintPair } from './auth/discovery.ts'
 import { AntigravityAdapter } from './adapter.ts'
 import type { AntigravityGrant } from './adapter.ts'
 
@@ -69,6 +77,13 @@ export { AntigravityAdapter } from './adapter.ts'
 export type { AntigravityGrant, AntigravityGrantResolver } from './adapter.ts'
 export { ANTIGRAVITY_STATIC_CATALOG, antigravityModelName } from './catalog.ts'
 export type { AntigravityCatalogEntry } from './catalog.ts'
+export {
+  DEFAULT_ANTIGRAVITY_DISCOVERY_OPTIONS,
+  DEFAULT_ANTIGRAVITY_OAUTH_FINGERPRINTS,
+  DISABLED_ANTIGRAVITY_DISCOVERY,
+  defaultAntigravityDiscoveryLocations,
+}
+export type { AntigravityDiscoveryOptions, AntigravityOAuthFingerprintPair }
 
 /** The two credential refs jointly configuring the Google OAuth client used by every route. */
 export interface AntigravityOAuthClientRefs {
@@ -99,35 +114,78 @@ async function resolveOAuthClientValue(ctx: Context, ref: CredentialRef): Promis
 }
 
 /**
+ * Attempt local-install discovery and, on success, persist both values under
+ * `refs` before returning them. Discovery only runs when the credentials
+ * seam is mounted — persistence is the point, and there is nowhere durable
+ * to write without it. `credentials.set` is safe to call here: it would only
+ * reject a ref the inherited environment shadows, and a shadowed ref would
+ * already have resolved a non-empty value, which is exactly the case this
+ * function's caller has already ruled out.
+ * @param ctx - context supplying the optional credentials service.
+ * @param refs - the refs a discovered client is persisted under.
+ * @param discovery - locations, accepted fingerprints, and cache behavior for the scan.
+ * @returns the discovered and persisted client, or `undefined` when discovery is unavailable or found nothing.
+ */
+async function discoverAndPersistAntigravityOAuthClient(
+  ctx: Context,
+  refs: AntigravityOAuthClientRefs,
+  discovery: AntigravityDiscoveryOptions,
+): Promise<AntigravityOAuthClient | undefined> {
+  const credentials = ctx.get('credentials')
+  if (credentials === undefined) return undefined
+  const found = await runAntigravityDiscovery(discovery, ctx.logger)
+  if (found === undefined) return undefined
+  await credentials.set(refs.clientIdRef, found.clientId)
+  await credentials.set(refs.clientSecretRef, found.clientSecret)
+  return found
+}
+
+/**
  * Resolve the Google OAuth client id and secret used for every Antigravity
  * sign-in and token refresh. Both values are mandatory: a Google installed-app
  * OAuth client authenticates the whole account, so a missing half must fail
- * loud rather than default to a guessed or absent secret.
+ * loud rather than default to a guessed or absent secret. When neither value
+ * is configured, this scans the user's local Antigravity install
+ * ({@link discoverAntigravityOAuthClient}) before failing; a value found
+ * there is persisted under `refs` so later resolutions skip the scan.
  * @param ctx - context supplying the optional credentials service and the launch environment.
  * @param refs - the two refs to resolve, from {@link FiAntigravityConfig} or {@link DEFAULT_OAUTH_CLIENT_REFS}.
+ * @param discovery - locations, accepted fingerprints, and cache behavior for the local-install scan; defaults to
+ *   {@link DEFAULT_ANTIGRAVITY_DISCOVERY_OPTIONS}.
  * @returns the resolved client id and secret.
- * @throws when either ref resolves to nothing, naming both refs and every place they can be set.
+ * @throws when either ref resolves to nothing and discovery also finds nothing, naming both refs and every place
+ *   they can be set.
  */
 export async function resolveAntigravityOAuthClient(
   ctx: Context,
   refs: AntigravityOAuthClientRefs = DEFAULT_OAUTH_CLIENT_REFS,
+  discovery: AntigravityDiscoveryOptions = DEFAULT_ANTIGRAVITY_DISCOVERY_OPTIONS,
 ): Promise<AntigravityOAuthClient> {
   const [clientId, clientSecret] = await Promise.all([
     resolveOAuthClientValue(ctx, refs.clientIdRef),
     resolveOAuthClientValue(ctx, refs.clientSecretRef),
   ])
+  if (clientId !== undefined && clientSecret !== undefined) {
+    return { clientId, clientSecret }
+  }
+  // Discovery only makes sense when NEITHER half is configured: a partially
+  // configured client (one ref set, the other not) is a deliberate,
+  // ambiguous state a discovered pair must never silently overwrite.
+  if (clientId === undefined && clientSecret === undefined) {
+    const discovered = await discoverAndPersistAntigravityOAuthClient(ctx, refs, discovery)
+    if (discovered !== undefined) return discovered
+  }
   const missing = [
     clientId === undefined ? refs.clientIdRef : undefined,
     clientSecret === undefined ? refs.clientSecretRef : undefined,
   ].filter((ref): ref is CredentialRef => ref !== undefined)
-  if (missing.length > 0) {
-    throw new Error(
-      `Antigravity sign-in and token refresh need ${missing.join(' and ')} to authenticate the Google OAuth `
-      + `client; set ${missing.length > 1 ? 'them' : 'it'} as an environment variable, in a .env file in the `
-      + 'fi home directory or your launch directory, or as a stored credential (the web Models page writes it).',
-    )
-  }
-  return { clientId: clientId as string, clientSecret: clientSecret as string }
+  throw new Error(
+    `Antigravity sign-in and token refresh need ${missing.join(' and ')} to authenticate the Google OAuth `
+    + `client; set ${missing.length > 1 ? 'them' : 'it'} as an environment variable, in a .env file in the `
+    + 'fi home directory or your launch directory, or as a stored credential (the web Models page writes it). '
+    + 'Installing or launching the Antigravity CLI or app also lets fi pick up the client automatically on the '
+    + 'next sign-in attempt.',
+  )
 }
 
 /**
@@ -142,17 +200,20 @@ export async function resolveAntigravityOAuthClient(
  * @param refs - reads the OAuth client refs to resolve for one attempt, fresh on every call so a live
  *   {@link FiAntigravityConfig} edit reaches the next sign-in without a restart; defaults to
  *   {@link ANTIGRAVITY_OAUTH_CLIENT_ID_REF} and {@link ANTIGRAVITY_OAUTH_CLIENT_SECRET_REF}.
+ * @param discovery - reads the local-install discovery options for one attempt, fresh on every call on the same
+ *   terms as `refs`; defaults to {@link DEFAULT_ANTIGRAVITY_DISCOVERY_OPTIONS}.
  */
 export function registerAntigravityFlow(
   ctx: Context,
   refs: () => AntigravityOAuthClientRefs = () => DEFAULT_OAUTH_CLIENT_REFS,
+  discovery: () => AntigravityDiscoveryOptions = () => DEFAULT_ANTIGRAVITY_DISCOVERY_OPTIONS,
 ): void {
   ctx.authorization.registerFlow({
     key: credentialKey(ANTIGRAVITY_CREDENTIAL_SCOPE, ANTIGRAVITY_CREDENTIAL_ID),
     label: ANTIGRAVITY_FLOW_LABEL,
     methods: [{ id: 'oauth', label: 'Sign in with Antigravity' }],
     async run(session) {
-      const client = await resolveAntigravityOAuthClient(ctx, refs())
+      const client = await resolveAntigravityOAuthClient(ctx, refs(), discovery())
       const pkce = generateAntigravityPKCE()
       const state = randomUUID()
       const authUrl = generateAntigravityAuthURL(state, pkce, client)
@@ -214,15 +275,47 @@ export interface FiAntigravityConfig {
   oauthClientIdRef: Volatile<string>
   /** Credential reference resolved per sign-in/refresh for the Google OAuth client secret. */
   oauthClientSecretRef: Volatile<string>
+  /**
+   * Bounded local install locations scanned for the OAuth client when
+   * neither `oauthClientIdRef` nor `oauthClientSecretRef` resolves to a
+   * value; each entry is `which:<name>` (a `PATH` lookup) or a filesystem
+   * path (`~` and `%VAR%` expand). Defaults to the running platform's known
+   * Antigravity CLI/app install locations.
+   */
+  oauthClientDiscoveryLocations: Volatile<string[]>
+  /**
+   * Accepted (client id, client secret) SHA-256 fingerprint pairs a
+   * discovered candidate must match before it is trusted; a rotated
+   * Antigravity OAuth client is accepted by adding its pair here.
+   */
+  oauthClientDiscoveryFingerprints: Volatile<AntigravityOAuthFingerprintPair[]>
+  /** Files larger than this are skipped unread during discovery, in bytes. */
+  oauthClientDiscoveryMaxFileBytes: Volatile<number>
+  /** How long a failed discovery scan is cached before the next resolution attempt retries it, in milliseconds. */
+  oauthClientDiscoveryNegativeCacheMs: Volatile<number>
 }
 
 const Profile = z.object({
   displayName: z.string(),
 })
+const FingerprintPair = z.object({
+  clientIdSha256: z.string(),
+  clientSecretSha256: z.string(),
+})
 const Config = z.object({
   providers: z.dict(Profile).default({}).volatile(),
   oauthClientIdRef: z.string().role('credential-ref').default(ANTIGRAVITY_OAUTH_CLIENT_ID_REF).volatile(),
   oauthClientSecretRef: z.string().role('credential-ref').default(ANTIGRAVITY_OAUTH_CLIENT_SECRET_REF).volatile(),
+  oauthClientDiscoveryLocations: z.array(z.string())
+    .default([...defaultAntigravityDiscoveryLocations()])
+    .volatile(),
+  oauthClientDiscoveryFingerprints: z.array(FingerprintPair)
+    .default([...DEFAULT_ANTIGRAVITY_OAUTH_FINGERPRINTS])
+    .volatile(),
+  oauthClientDiscoveryMaxFileBytes: z.number().step(1).min(1)
+    .default(DEFAULT_ANTIGRAVITY_DISCOVERY_OPTIONS.maxFileBytes).volatile(),
+  oauthClientDiscoveryNegativeCacheMs: z.number().step(1).min(0)
+    .default(DEFAULT_ANTIGRAVITY_DISCOVERY_OPTIONS.negativeCacheMs).volatile(),
 }) as unknown as z<FiAntigravityConfig>
 
 /** The grant payload as the sign-in flow commits it. */
@@ -278,12 +371,15 @@ const REFRESH_MARGIN_MS = 120_000
  *   {@link ANTIGRAVITY_OAUTH_CLIENT_ID_REF} and {@link ANTIGRAVITY_OAUTH_CLIENT_SECRET_REF} — every caller
  *   outside `FiAntigravityService` (image generation, subscription search) reuses the same stored grant
  *   through these defaults, so a deployment that renames either ref must keep the default names resolvable too.
+ * @param discovery - local-install discovery options resolved before a refresh, on the same terms as `refs`;
+ *   defaults to {@link DEFAULT_ANTIGRAVITY_DISCOVERY_OPTIONS}.
  * @returns the current usable grant, or `undefined` when Antigravity is signed out.
  */
 export async function resolveAntigravityGrant(
   ctx: Context,
   signal?: AbortSignal,
   refs: AntigravityOAuthClientRefs = DEFAULT_OAUTH_CLIENT_REFS,
+  discovery: AntigravityDiscoveryOptions = DEFAULT_ANTIGRAVITY_DISCOVERY_OPTIONS,
 ): Promise<AntigravityGrant | undefined> {
   const key = credentialKey(ANTIGRAVITY_CREDENTIAL_SCOPE, ANTIGRAVITY_CREDENTIAL_ID)
   let record = await ctx.credentials.readRecord(key)
@@ -291,7 +387,7 @@ export async function resolveAntigravityGrant(
   if (payload === undefined) return undefined
   if (payload.expires !== undefined && payload.expires - Date.now() < REFRESH_MARGIN_MS
     && payload.refresh !== undefined) {
-    const client = await resolveAntigravityOAuthClient(ctx, refs)
+    const client = await resolveAntigravityOAuthClient(ctx, refs, discovery)
     record = await ctx.credentials.modifyRecord(key, async (current) => {
       const currentPayload = grantPayload(current)
       const rawPayload = rawGrantPayload(current)
@@ -338,13 +434,21 @@ export class FiAntigravityService extends Service {
       clientIdRef: credentialRef(config.oauthClientIdRef.get()),
       clientSecretRef: credentialRef(config.oauthClientSecretRef.get()),
     })
-    registerAntigravityFlow(this.ctx, oauthClientRefs)
+    // Read fresh on every call on the same terms as `oauthClientRefs`, so a
+    // live edit to any discovery field reaches the next scan without a restart.
+    const oauthClientDiscoveryOptions = (): AntigravityDiscoveryOptions => ({
+      locations: config.oauthClientDiscoveryLocations.get(),
+      fingerprints: config.oauthClientDiscoveryFingerprints.get(),
+      maxFileBytes: config.oauthClientDiscoveryMaxFileBytes.get(),
+      negativeCacheMs: config.oauthClientDiscoveryNegativeCacheMs.get(),
+    })
+    registerAntigravityFlow(this.ctx, oauthClientRefs, oauthClientDiscoveryOptions)
     // The Models page renders this section through the provider directory, not an automatic form.
     this.ctx.inject(['settings'], (child) => { child.effect(() => child.settings.configure({ auto: false }, this.ctx.fiber)) })
     const settingsNs = this.ctx.fiber.entry?.options.id ?? ANTIGRAVITY_CREDENTIAL_SCOPE
 
     const adapter = new AntigravityAdapter(
-      signal => resolveAntigravityGrant(this.ctx, signal, oauthClientRefs()),
+      signal => resolveAntigravityGrant(this.ctx, signal, oauthClientRefs(), oauthClientDiscoveryOptions()),
       () => this.ctx.get('attachments'),
     )
     let registration: AdapterRegistrationHandle | undefined
