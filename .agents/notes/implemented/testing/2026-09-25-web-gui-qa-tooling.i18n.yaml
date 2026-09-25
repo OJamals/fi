@@ -1,0 +1,37 @@
+# Bilingual-pair consistency record for 2026-09-25-web-gui-qa-tooling.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/testing/2026-09-25-web-gui-qa-tooling.md
+/agent-note-web-gui-qa-tooling-axe-core-accessibility-gate-and-opt-in-pixel-baseline-visual-lane:
+  en: f487edae8d030a79
+  zh: b481ee981221f65f
+/agent-note-web-gui-qa-tooling-axe-core-accessibility-gate-and-opt-in-pixel-baseline-visual-lane/problem:
+  en: 38a5f16d516067a4
+  zh: 6db51475d0a0a5a3
+/agent-note-web-gui-qa-tooling-axe-core-accessibility-gate-and-opt-in-pixel-baseline-visual-lane/decision:
+  en: a15c7c13f167e5ac
+  zh: 63bcc2ef60c2f344
+/agent-note-web-gui-qa-tooling-axe-core-accessibility-gate-and-opt-in-pixel-baseline-visual-lane/decision/accessibility-gate:
+  en: 6d44d438eafcb0b7
+  zh: e5d0eb06856cad9e
+/agent-note-web-gui-qa-tooling-axe-core-accessibility-gate-and-opt-in-pixel-baseline-visual-lane/decision/pixel-baseline-visual-lane:
+  en: 5a072ed4a1bfa7f1
+  zh: a59db094d7e219eb
+/agent-note-web-gui-qa-tooling-axe-core-accessibility-gate-and-opt-in-pixel-baseline-visual-lane/decision/determinism:
+  en: 2e7b6603e8dc2f8d
+  zh: 647b7f9c3df32aa0
+/agent-note-web-gui-qa-tooling-axe-core-accessibility-gate-and-opt-in-pixel-baseline-visual-lane/decision/dependency-resolution:
+  en: 0c50599dca25be7b
+  zh: 1560b61ecdd49d3c
+/agent-note-web-gui-qa-tooling-axe-core-accessibility-gate-and-opt-in-pixel-baseline-visual-lane/alternatives-considered:
+  en: 7cf04df82658820f
+  zh: 0352c169607da7fa
+/agent-note-web-gui-qa-tooling-axe-core-accessibility-gate-and-opt-in-pixel-baseline-visual-lane/consequences:
+  en: 48ef33527a85fa90
+  zh: 10adc24e124ec04a
+/agent-note-web-gui-qa-tooling-axe-core-accessibility-gate-and-opt-in-pixel-baseline-visual-lane/testing:
+  en: 8b72b2214cf2da6e
+  zh: 08510319a425dd1a
+/agent-note-web-gui-qa-tooling-axe-core-accessibility-gate-and-opt-in-pixel-baseline-visual-lane/deferred:
+  en: ef183dfed62e5e8f
+  zh: c165373ecc469921
