@@ -108,10 +108,35 @@ type WorkspaceFileDiff =
   | { kind: 'oversized'; path: string; display: string }
 ```
 
+## `WorkspaceRestoreSide` — the captured side a restore writes back
+
+```ts type-equiv
+/** Which captured side of a listed file a restore writes back to disk. */
+type WorkspaceRestoreSide = 'before' | 'after'
+```
+
+## `WorkspaceRestoreResult` — one restore attempt's settled outcome
+
+```ts type-equiv
+/** The outcome of one restore attempt. */
+type WorkspaceRestoreResult =
+  /** The requested side's content is now on disk. */
+  | { kind: 'restored' }
+  /** A side git reported as binary or that holds a NUL byte; no restore is possible. */
+  | { kind: 'binary' }
+  /** A side larger than the plugin's `maxFileBytes`; no restore is possible. */
+  | { kind: 'oversized' }
+  /**
+   * The live file no longer holds the opposite side's content, so restoring
+   * would discard an edit this summary never observed; nothing was written.
+   */
+  | { kind: 'diverged' }
+```
+
 ## `WorkspaceChanges` — the Host service serving summaries and comparisons
 
 ```ts type-equiv
-/** Serves the summaries and file comparisons the recorder keeps for live Sessions. */
+/** Serves the summaries, file comparisons, and restores the recorder keeps for live Sessions. */
 interface WorkspaceChanges {
   /**
    * The summary announced by one `workspace/changes` event.
@@ -130,6 +155,20 @@ interface WorkspaceChanges {
    * @throws when a snapshot read fails for a live Session.
    */
   diff(sessionId: SessionId, seq: number, index: number, signal: AbortSignal): Promise<WorkspaceFileDiff | undefined>
+  /**
+   * Write one listed file's turn-start or turn-end content back to its live path, refusing when the live
+   * file no longer holds the opposite side's content.
+   * @param sessionId - the Session that appended the event.
+   * @param seq - the event's sequence number.
+   * @param index - the file's index in the summary's `files`.
+   * @param side - the captured side to restore.
+   * @param signal - cancels the reads.
+   * @returns the outcome, or undefined once its Session was disposed, when this Host never recorded it, or when no file has that index.
+   * @throws when a snapshot read or the live write fails for a live Session.
+   */
+  restore(
+    sessionId: SessionId, seq: number, index: number, side: WorkspaceRestoreSide, signal: AbortSignal,
+  ): Promise<WorkspaceRestoreResult | undefined>
 }
 ```
 
@@ -149,7 +188,7 @@ Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnp
 
 ### `ctx.workspaceChanges` — `WorkspaceChanges`
 
-Serves the summaries and file comparisons the recorder keeps for live Sessions.
+Serves the summaries, file comparisons, and restores the recorder keeps for live Sessions.
 
 ```ts cordis-catalog
 /**
@@ -170,6 +209,19 @@ summary(sessionId: SessionId, seq: number): WorkspaceChangesSummary | undefined
  * @throws when a snapshot read fails for a live Session.
  */
 diff(sessionId: SessionId, seq: number, index: number, signal: AbortSignal): Promise<WorkspaceFileDiff | undefined>
+
+/**
+ * Write one listed file's turn-start or turn-end content back to its live path, refusing when the live
+ * file no longer holds the opposite side's content.
+ * @param sessionId - the Session that appended the event.
+ * @param seq - the event's sequence number.
+ * @param index - the file's index in the summary's `files`.
+ * @param side - the captured side to restore.
+ * @param signal - cancels the reads.
+ * @returns the outcome, or undefined once its Session was disposed, when this Host never recorded it, or when no file has that index.
+ * @throws when a snapshot read or the live write fails for a live Session.
+ */
+restore( sessionId: SessionId, seq: number, index: number, side: WorkspaceRestoreSide, signal: AbortSignal, ): Promise<WorkspaceRestoreResult | undefined>
 ```
 
 Types: [SessionId](core.md)

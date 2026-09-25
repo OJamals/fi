@@ -98,6 +98,16 @@ export function durablePathOf(absolute: string, cwd: string): string {
 }
 
 /**
+ * Invert {@link durablePathOf}: the live filesystem path a listed file's `path` addresses.
+ * @param path - the listed file's durable `path`.
+ * @param cwd - canonical Session working directory.
+ * @returns the native absolute path to read or write.
+ */
+export function livePathOf(path: string, cwd: string): string {
+  return isAbsolute(path) ? path : join(cwd, ...path.split('/'))
+}
+
+/**
  * Code-unit order of display paths, which places `../` and absolute paths
  * before letters and matches git's own listing order for relative paths.
  * @param a - first file.

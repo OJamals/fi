@@ -1,6 +1,8 @@
-/** Validate workspace-change records that cross the Host routes and address their summary, comparison, and native-open actions. */
+/** Validate workspace-change records that cross the Host routes and address their summary, comparison, restore, and native-open actions. */
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { WorkspaceChangedFile, WorkspaceChangesSummary, WorkspaceDiffHunk, WorkspaceFileDiff } from '@deepseek-ai/dsh-workspace-changes/types'
+import type {
+  WorkspaceChangedFile, WorkspaceChangesSummary, WorkspaceDiffHunk, WorkspaceFileDiff, WorkspaceRestoreResult, WorkspaceRestoreSide,
+} from '@deepseek-ai/dsh-workspace-changes/types'
 
 /** Authenticated GET route serving one announced change summary while its Session lives. */
 export const CHANGED_FILES_PATH = '/api/changes.summary'
@@ -10,6 +12,9 @@ export const CHANGES_DIFF_PATH = '/api/changes.diff'
 
 /** Authenticated POST route for opening a changed file on the Host desktop. */
 export const CHANGES_OPEN_PATH = '/api/changes.open'
+
+/** Authenticated POST route for restoring one listed file's turn-start or turn-end content to its live path. */
+export const CHANGES_RESTORE_PATH = '/api/changes.restore'
 
 /**
  * Browser-relative form of {@link CHANGED_FILES_PATH}; see
@@ -22,6 +27,9 @@ export const CHANGES_DIFF_ROUTE = CHANGES_DIFF_PATH.slice(1)
 
 /** Browser-relative form of {@link CHANGES_OPEN_PATH}. */
 export const CHANGES_OPEN_ROUTE = CHANGES_OPEN_PATH.slice(1)
+
+/** Browser-relative form of {@link CHANGES_RESTORE_PATH}. */
+export const CHANGES_RESTORE_ROUTE = CHANGES_RESTORE_PATH.slice(1)
 
 /** Resource-address prefix of a turn's review tab in the right Sidebar. */
 export const CHANGES_REVIEW_ADDRESS = 'dsh-resource://changes-review/session/'
@@ -93,6 +101,20 @@ export function isChangesDiff(value: unknown): value is ChangesDiff {
     && Array.isArray(hunks) && hunks.every(isHunk)
 }
 
+/** The route's restore outcome; distinct from the Host's `undefined` (unknown coordinates), which the route answers as 404. */
+export type ChangesRestoreOutcome = WorkspaceRestoreResult
+
+/**
+ * Validate a restore outcome read from the restore route.
+ * @param value - decoded JSON.
+ * @returns whether the value is one of the restore route's declared outcomes.
+ */
+export function isChangesRestoreOutcome(value: unknown): value is ChangesRestoreOutcome {
+  if (!isRecord(value)) return false
+  const { kind } = value
+  return kind === 'restored' || kind === 'binary' || kind === 'oversized' || kind === 'diverged'
+}
+
 /**
  * Validate the `workspace/changes` event data read from a Session log.
  * @param value - decoded durable event data.
@@ -132,6 +154,18 @@ export function changesDiffUrl(sessionId: SessionId, seq: number, index: number)
  */
 export function changedFileUrl(sessionId: SessionId, seq: number, index: number): string {
   return `${CHANGES_OPEN_ROUTE}?${new URLSearchParams({ sessionId, seq: String(seq), index: String(index) })}`
+}
+
+/**
+ * Build authenticated coordinates for restoring one listed file's turn-start or turn-end content.
+ * @param sessionId - owning Session.
+ * @param seq - workspace/changes event sequence.
+ * @param index - original index in the summary's files array.
+ * @param side - the captured side to restore.
+ * @returns document-relative action route.
+ */
+export function changesRestoreUrl(sessionId: SessionId, seq: number, index: number, side: WorkspaceRestoreSide): string {
+  return `${CHANGES_RESTORE_ROUTE}?${new URLSearchParams({ sessionId, seq: String(seq), index: String(index), side })}`
 }
 
 /**

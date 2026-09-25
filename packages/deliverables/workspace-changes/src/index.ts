@@ -21,6 +21,7 @@ import type { WorkspaceChanges } from './types.ts'
 
 export type {
   WorkspaceChangedFile, WorkspaceChanges, WorkspaceChangesSummary, WorkspaceDiffHunk, WorkspaceFileDiff,
+  WorkspaceRestoreResult, WorkspaceRestoreSide,
 } from './types.ts'
 
 /** Stable Loader identity. */
@@ -114,6 +115,8 @@ export function apply(ctx: Context, config: Config): void {
   const service: WorkspaceChanges = {
     summary: (sessionId, seq) => byId.get(sessionId)?.summary(seq),
     diff: (sessionId, seq, index, signal) => byId.get(sessionId)?.diff(seq, index, signal) ?? Promise.resolve(undefined),
+    restore: (sessionId, seq, index, side, signal) =>
+      byId.get(sessionId)?.restore(seq, index, side, signal) ?? Promise.resolve(undefined),
   }
   ctx.provide('workspaceChanges', service)
   let runner: Promise<GitRunner | null> | undefined

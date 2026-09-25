@@ -50,6 +50,8 @@ A row opens the turn's `changes-review` tab, addressed by the viewed Session and
 
 The selected-file title uses the shared `ui-primitives` [`PathLabel`](../ui-primitives/README.md#component-catalog): complete and left-aligned when it fits, otherwise clipped at the left with a fade that preserves trailing characters and the extension. Directories use subdued text, the filename uses primary text, and hovering reveals the complete displayed path. Resizing the pane or selecting another file updates the fade; the dropdown arrow, line counts, and toolbar actions retain their space.
 
+A fourth toolbar control, disabled for a binary or oversized file, offers Restore, opening a menu of the file's two captured sides — before this turn, after this turn. Choosing one opens a confirmation naming the side and the file before any write; confirming calls the Host's guarded restore and shows one of five settled outcomes below the toolbar: restored, refused as binary, refused as oversized, refused as diverged when the live file no longer holds the content the Host expected to overwrite, or unavailable for a lost coordinate or transport failure. Restoring writes only the live file; it appends no event, so later turns' own comparisons and the Host-held summaries are unaffected, and a conversation reopened after a Host restart loses the restore control the same way it loses the rest of the comparison.
+
 Without wrapping, the two columns synchronize vertical scrolling and horizontal offsets up to each side’s available range. Line backgrounds, including empty alignment rows, cover each column’s full scrollable width. Both columns suppress elastic edge feedback and scroll chaining on both axes; the browser retains control of native momentum within each column’s scrollable range. Both horizontal scrollbars remain at the bottom of the visible comparison; scrolling vertically preserves a long line’s horizontal offset when the other side fits without horizontal scrolling.
 
 ### Inline-code links
@@ -118,6 +120,7 @@ These limits define the current deliverables vocabulary. They are current packag
 - **Comparison highlighting is hunk-local** — each rendered old and new hunk side is tokenized independently because omitted source lines are unavailable; unknown suffixes remain plain, and the tab draws at most 5,000 lines before saying so.
 - **Comparisons carry whole file text** — the comparison route serves a listed file's complete text wherever the Host recorded it, including ignored files and files outside the workspace root the Sidebar previews are confined to.
 - **Files outside the workspace open by absolute path only** — the recorded path is the Host path at recording time; a moved workspace or a different viewing Session cannot relocate it.
+- **Restore has no history or undo of its own** — the confirmation dialog is the only guard; a completed restore cannot be reversed from the review tab itself, and restoring a renamed file's earlier side writes to its current (listed) path rather than recreating the earlier name.
 
 <a id="dev-note"></a>
 ### Dev Note

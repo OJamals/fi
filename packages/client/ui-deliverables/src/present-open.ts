@@ -8,7 +8,7 @@ import { remoteErrorOf } from '@deepseek-ai/dsh-typert-protocol'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-session-query'
 import type { SessionId, SessionSeq } from '@deepseek-ai/dsh-session'
-import { CHANGES_DIFF_PATH, CHANGES_OPEN_PATH, CHANGED_FILES_PATH, type ChangesSummary } from './changes.ts'
+import { CHANGES_DIFF_PATH, CHANGES_OPEN_PATH, CHANGES_RESTORE_PATH, CHANGED_FILES_PATH, type ChangesSummary } from './changes.ts'
 import { isPresentedData, isPresentedFile, PRESENT_OPEN_PATH, PRESENT_HOST_PATH, type PresentedHost } from './presented.ts'
 
 /**
@@ -35,6 +35,7 @@ export function registerPresentOpen(ctx: Context): void {
   })
   const routes = [
     [PRESENT_OPEN_PATH, ['GET', 'POST'], handlePresentOpen], [CHANGES_OPEN_PATH, ['GET', 'POST'], handleChangesOpen], [CHANGES_DIFF_PATH, ['GET'], handleChangesDiff],
+    [CHANGES_RESTORE_PATH, ['POST'], handleChangesRestore],
   ] as const
   for (const [path, methods, handler] of routes) {
     ctx.connection.fetch.register({
@@ -161,6 +162,23 @@ async function handleChangesDiff(ctx: Context, request: Request): Promise<Respon
   } catch (error: unknown) {
     request.signal.throwIfAborted()
     return new Response('Change comparison unavailable.', { status: failureStatus(error) })
+  }
+}
+
+/** Write one listed file's turn-start or turn-end content back to its live path; 404 once the Host no longer serves it. */
+async function handleChangesRestore(ctx: Context, request: Request): Promise<Response> {
+  const coordinates = changedFileCoordinates(request)
+  if (coordinates instanceof Response) return coordinates
+  const { id, seq, index } = coordinates
+  const side = new URL(request.url).searchParams.get('side')
+  if (side !== 'before' && side !== 'after') return new Response('Invalid restore side.', { status: 400 })
+  try {
+    const outcome = await ctx.workspaceChanges.restore(id, seq, index, side, request.signal)
+    if (outcome === undefined) return new Response('Restore unavailable.', { status: 404 })
+    return Response.json(outcome, { headers: { 'cache-control': 'no-store' } })
+  } catch (error: unknown) {
+    request.signal.throwIfAborted()
+    return new Response('Restore unavailable.', { status: failureStatus(error) })
   }
 }
 

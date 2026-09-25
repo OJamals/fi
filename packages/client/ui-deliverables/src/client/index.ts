@@ -94,6 +94,7 @@ export function apply(ctx: ClientContext): void {
         loadChangesDiff: (sessionId, seq, index) => diffs.load(sessionId, seq, index),
         reloadPresentedHost: () => opener.loadHost(),
         openChanged: (sessionId, seq, index, action, application) => opener.openChanged(sessionId, seq, index, action, application),
+        restoreChanged: (sessionId, seq, index, side) => opener.restoreChanged(sessionId, seq, index, side),
       }),
     },
     ReviewTab,

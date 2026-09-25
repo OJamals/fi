@@ -16,7 +16,7 @@ import {
 } from '../src/changes.ts'
 import { ChangesDiffStore } from '../src/client/changes-diff.ts'
 import { ChangesSummaryStore } from '../src/client/changes-summary.ts'
-import { PresentedOpenController } from '../src/client/present-open.ts'
+import { PresentedOpenController, type RestoreOutcome } from '../src/client/present-open.ts'
 import {
   ReviewTab, type ReviewInjected, type ReviewTabProps,
 } from '../src/client/ReviewTab.tsx'
@@ -145,6 +145,7 @@ describe('ReviewTab', () => {
     revision?: number
     address?: string
     cwd?: string | undefined
+    restoreChanged?: ReviewInjected['restoreChanged']
   } = {}) {
     const summaries = options.summaries ?? new ChangesSummaryStore()
     const diffs = options.diffs ?? new ChangesDiffStore()
@@ -161,6 +162,7 @@ describe('ReviewTab', () => {
       loadChangesDiff: vi.fn<ReviewInjected['loadChangesDiff']>(() => Promise.resolve()),
       reloadPresentedHost: vi.fn<ReviewInjected['reloadPresentedHost']>(() => Promise.resolve()),
       openChanged: vi.fn<ReviewInjected['openChanged']>(() => Promise.resolve(null)),
+      restoreChanged: options.restoreChanged ?? vi.fn<ReviewInjected['restoreChanged']>(() => Promise.resolve({ kind: 'restored' })),
     }
     const sessions: SessionListState = {
       ids: [SESSION],
@@ -401,6 +403,63 @@ describe('ReviewTab', () => {
     expect(store.getSnapshot().byTab[TAB]).toBeDefined()
     aborter.abort()
     expect(store.getSnapshot().byTab[TAB]).toBeUndefined()
+  })
+
+  it('disables restore for a binary or oversized file and offers it for an ordinary text file', () => {
+    const summaries = new ChangesSummaryStore()
+    summaries.state.set({ [SUMMARY_URL]: summary })
+    const { view } = mount({ summaries, params: { index: 1 } })
+    expect((view.getByRole('button', { name: 'Restore ~/out/big.bin' }) as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.click(view.getByRole('button', { name: en['review.selectFile'] }))
+    fireEvent.click(view.getAllByRole('menuitem')[3]!) // logo.png (binary)
+    expect((view.getByRole('button', { name: 'Restore logo.png' }) as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.click(view.getByRole('button', { name: en['review.selectFile'] }))
+    fireEvent.click(view.getAllByRole('menuitem')[0]!) // src/app/main.ts (ordinary text)
+    expect((view.getByRole('button', { name: 'Restore src/app/main.ts' }) as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('confirms before restoring a side and reports the settled outcome', async () => {
+    const summaries = new ChangesSummaryStore()
+    summaries.state.set({ [SUMMARY_URL]: summary })
+    const restoreChanged = vi.fn<ReviewInjected['restoreChanged']>(() => Promise.resolve({ kind: 'restored' }))
+    const { view } = mount({ summaries, restoreChanged })
+    fireEvent.click(view.getByRole('button', { name: 'Restore src/app/main.ts' }))
+    fireEvent.click(view.getByRole('menuitem', { name: en['review.restoreBefore'] }))
+    expect(view.getByRole('dialog', { name: en['review.restoreConfirmTitle'] })).toBeTruthy()
+    expect(view.getByText('This overwrites src/app/main.ts with its content from before this turn. This cannot be undone from here.')).toBeTruthy()
+    // Cancelling closes the dialog without restoring.
+    fireEvent.click(view.getByRole('button', { name: en['review.restoreConfirmCancel'] }))
+    expect(restoreChanged).not.toHaveBeenCalled()
+    expect(view.queryByRole('dialog', { name: en['review.restoreConfirmTitle'] })).toBeNull()
+    fireEvent.click(view.getByRole('button', { name: 'Restore src/app/main.ts' }))
+    fireEvent.click(view.getByRole('menuitem', { name: en['review.restoreBefore'] }))
+    fireEvent.click(view.getByRole('button', { name: en['review.restoreConfirmConfirm'] }))
+    expect(restoreChanged).toHaveBeenCalledWith('viewed', 5, 0, 'before')
+    expect(view.queryByRole('dialog', { name: en['review.restoreConfirmTitle'] })).toBeNull()
+    expect(view.container.querySelector('[data-restore-status]')?.textContent).toBe(en['review.restoring'])
+    const settled = restoreChanged.mock.results[0]!.value as Promise<RestoreOutcome>
+    await act(() => settled)
+    expect(view.container.querySelector('[data-restore-status]')?.textContent).toBe('Restored src/app/main.ts')
+  })
+
+  it.each([
+    ['binary' as const, en['review.restoreBinary']],
+    ['oversized' as const, en['review.restoreOversized']],
+    ['diverged' as const, 'Not restored — src/app/main.ts changed again since this comparison'],
+    ['unavailable' as const, 'Could not restore src/app/main.ts. Try again.'],
+  ])('reports a %s outcome distinctly from a successful restore', async (kind, expected) => {
+    const summaries = new ChangesSummaryStore()
+    summaries.state.set({ [SUMMARY_URL]: summary })
+    const outcome = kind === 'unavailable' ? 'unavailable' as const : { kind }
+    const restoreChanged = vi.fn<ReviewInjected['restoreChanged']>(() => Promise.resolve(outcome))
+    const { view } = mount({ summaries, restoreChanged })
+    fireEvent.click(view.getByRole('button', { name: 'Restore src/app/main.ts' }))
+    fireEvent.click(view.getByRole('menuitem', { name: en['review.restoreAfter'] }))
+    fireEvent.click(view.getByRole('button', { name: en['review.restoreConfirmConfirm'] }))
+    expect(restoreChanged).toHaveBeenCalledWith('viewed', 5, 0, 'after')
+    const settled = restoreChanged.mock.results[0]!.value as Promise<RestoreOutcome>
+    await act(() => settled)
+    expect(view.container.querySelector('[data-restore-status]')?.textContent).toBe(expected)
   })
 
   it('refuses an address it did not mint', () => {

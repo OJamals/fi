@@ -7,16 +7,16 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   IconChevronDownOutlineRegular, IconCompareSplitOutlineRegular, IconInspectOutlineRegular,
-  IconNowrapFillRegular, IconWrapFillRegular, Menu, PathLabel, Tooltip,
+  IconNowrapFillRegular, IconRefreshOutlineRegular, IconWrapFillRegular, Menu, Modal, PathLabel, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import { fileAddressFor } from '@deepseek-ai/dsh-util-workspace-path'
-import type { WorkspaceChangedFile } from '@deepseek-ai/dsh-workspace-changes/types'
+import type { WorkspaceChangedFile, WorkspaceRestoreSide } from '@deepseek-ai/dsh-workspace-changes/types'
 import { changedFileUrl, changesDiffUrl, changesSummaryUrl, parseChangesReviewAddress } from '../changes.ts'
 import type { ChangesDiffStore } from './changes-diff.ts'
 import type { ChangesSummaryStore } from './changes-summary.ts'
-import type { PresentedOpenController } from './present-open.ts'
+import type { PresentedOpenController, RestoreOutcome } from './present-open.ts'
 import type { ChangesReviewParams } from './review-definition.ts'
 import type { createReviewStore } from './review-store.ts'
 import type { NS } from './locales.ts'
@@ -38,6 +38,7 @@ export interface ReviewInjected {
   loadChangesDiff: ChangesDiffStore['load']
   reloadPresentedHost: PresentedOpenController['loadHost']
   openChanged: PresentedOpenController['openChanged']
+  restoreChanged: PresentedOpenController['restoreChanged']
 }
 
 /** The body's composed props: the tab it draws, its store, its injected face, and its copy. */
@@ -67,7 +68,7 @@ function Counts({ file, t }: { file: WorkspaceChangedFile } & PropsLocale<typeof
  */
 export function ReviewTab({
   useTabInfo, sessionId, useSessions, useStore, actions, useChangesSummary, useChangesDiff, usePresentedOpen, usePresentedHost,
-  loadChangesSummary, loadChangesDiff, reloadPresentedHost, openChanged, t, renderSlot,
+  loadChangesSummary, loadChangesDiff, reloadPresentedHost, openChanged, restoreChanged, t, renderSlot,
 }: ReviewTabProps): ReactNode {
   const { tab } = useTabInfo()
   const { navigation, signal } = tab
@@ -104,6 +105,20 @@ export function ReviewTab({
   }, [file, diffState, sessionId, seq, index, loadChangesDiff])
   const phase = usePresentedOpen(value => file === undefined ? undefined : value[changedFileUrl(sessionId, seq, index)])
   const [menuOpen, setMenuOpen] = useState(false)
+  const [restoreMenuOpen, setRestoreMenuOpen] = useState(false)
+  const [confirmSide, setConfirmSide] = useState<WorkspaceRestoreSide | null>(null)
+  const [restoring, setRestoring] = useState(false)
+  const [restoreStatus, setRestoreStatus] = useState<RestoreOutcome | null>(null)
+  useEffect(() => { setRestoreStatus(null) }, [sessionId, seq, index])
+  const restore = (side: WorkspaceRestoreSide): void => {
+    setConfirmSide(null)
+    setRestoring(true)
+    setRestoreStatus(null)
+    void restoreChanged(sessionId, seq, index, side).then((outcome) => {
+      setRestoring(false)
+      setRestoreStatus(outcome)
+    })
+  }
   const split = state?.split === true
   const wrap = state?.wrap === true
   const native = host !== null && host !== 'error' && host.available && phase !== 'nativeUnavailable'
@@ -144,6 +159,19 @@ export function ReviewTab({
             <button type="button" className={css.tool} aria-label={t('review.openFileAria', { name: file.display })} data-review-tool="open-file"
               onClick={() => { tab.actions.openResource(fileAddressFor(sessionId, cwd, file.path)) }}><IconInspectOutlineRegular /></button>
           </Tooltip>}
+          {file !== undefined && <Menu className={css.selector} open={restoreMenuOpen} portal align="end" dense
+            onClose={() => { setRestoreMenuOpen(false) }}
+            anchor={<Tooltip label={t('review.restore')} side="bottom" delayMs={500}>
+              <button type="button" className={css.tool} aria-haspopup="menu" aria-expanded={restoreMenuOpen}
+                aria-label={t('review.restoreAria', { name: file.display })} data-review-tool="restore"
+                disabled={restoring || file.binary === true || file.oversized === true}
+                onClick={() => { setRestoreMenuOpen(value => !value) }}><IconRefreshOutlineRegular /></button>
+            </Tooltip>}
+            items={[
+              { id: 'before', label: t('review.restoreBefore') },
+              { id: 'after', label: t('review.restoreAfter') },
+            ]}
+            onSelect={(id) => { setRestoreMenuOpen(false); setConfirmSide(id as WorkspaceRestoreSide) }} />}
           {file !== undefined && renderSlot('deliverables.review.file.actions', {
             actionUrl: changedFileUrl(sessionId, seq, index), available: native,
             pending: phase === 'opening' || phase === 'revealing',
@@ -153,8 +181,29 @@ export function ReviewTab({
       </div>
       {summaryState === 'loading' && <p className={diffCss.status} role="status">{t('diff.loading')}</p>}
       {summaryState === 'missing' && <p className={diffCss.status}>{t('diff.missing')}</p>}
+      {restoring && <p className={diffCss.status} role="status" data-restore-status>{t('review.restoring')}</p>}
+      {!restoring && file !== undefined && restoreStatus !== null
+        && <p className={diffCss.status} role="status" data-restore-status>{restoreStatusText(restoreStatus, file.display, t)}</p>}
       {file !== undefined && <FileDiff state={diffState} split={split} wrap={wrap} t={t}
         retry={() => { void loadChangesDiff(sessionId, seq, index) }} />}
+      {file !== undefined && confirmSide !== null && <Modal open onClose={() => { setConfirmSide(null) }}
+        title={t('review.restoreConfirmTitle')} closeLabel={t('review.restoreConfirmClose')}
+        description={t(confirmSide === 'before' ? 'review.restoreConfirmDescBefore' : 'review.restoreConfirmDescAfter', { name: file.display })}
+        footer={<>
+          <button type="button" className={css.tool} onClick={() => { setConfirmSide(null) }}>{t('review.restoreConfirmCancel')}</button>
+          <button type="button" className={css.tool} onClick={() => { restore(confirmSide) }}>{t('review.restoreConfirmConfirm')}</button>
+        </>} />}
     </div>
   )
+}
+
+/** The transient message a settled restore leaves under the toolbar. */
+function restoreStatusText(outcome: RestoreOutcome, name: string, t: PropsLocale<typeof NS>['t']): string {
+  if (outcome === 'unavailable') return t('review.restoreUnavailable', { name })
+  switch (outcome.kind) {
+    case 'restored': return t('review.restored', { name })
+    case 'binary': return t('review.restoreBinary')
+    case 'oversized': return t('review.restoreOversized')
+    case 'diverged': return t('review.restoreDiverged', { name })
+  }
 }

@@ -1,15 +1,20 @@
 /** Per-Session turn recorder: snapshots, captures around file-tool edits, the turn-end diff, and the records kept until disposal. */
-import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises'
+import { mkdtemp, open, readFile, realpath, rename, rm, unlink } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
-import { join, relative, resolve } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
 import { captureFile, mutationPath, sameCapture, type Capture } from './capture.ts'
 import { compareText } from './compare.ts'
 import {
   blobText, diffTrees, gitlinkPaths, ignoredPaths, locateGitWorkspace, snapshotTree, treeBlob, type GitRunner, type GitWorkspace,
 } from './git.ts'
-import { canonicalPath, compareDisplay, displayPathOf, durablePathOf, isInside, isTemporaryPath, temporaryRoots, toPosix } from './paths.ts'
-import type { WorkspaceChangedFile, WorkspaceChangesSummary, WorkspaceFileDiff } from './types.ts'
+import {
+  canonicalPath, compareDisplay, displayPathOf, durablePathOf, isInside, isTemporaryPath, livePathOf, temporaryRoots, toPosix,
+} from './paths.ts'
+import type {
+  WorkspaceChangedFile, WorkspaceChangesSummary, WorkspaceFileDiff, WorkspaceRestoreResult, WorkspaceRestoreSide,
+} from './types.ts'
 
 /** Facts shared by every recorder of one plugin instance. */
 export interface RecorderEnvironment {
@@ -240,6 +245,43 @@ export class TurnRecorder {
   }
 
   /**
+   * Write one listed file's turn-start or turn-end content back to its live path. Refuses when the live file
+   * no longer holds the opposite side's content, so an edit this summary never observed is never discarded.
+   * @param seq - the announcing event's sequence number.
+   * @param index - the file's index in the summary's `files`.
+   * @param side - the captured side to restore.
+   * @param signal - cancels the reads and the write.
+   * @returns the outcome, or undefined for an unknown sequence or index, or once disposed.
+   * @throws when a read or the live write fails while the recorder lives.
+   */
+  async restore(seq: number, index: number, side: WorkspaceRestoreSide, signal: AbortSignal): Promise<WorkspaceRestoreResult | undefined> {
+    const record = this.records.get(seq)
+    const file = record?.summary.files[index]
+    const sources = record?.sources[index]
+    const paths = this.paths
+    if (file === undefined || sources === undefined || paths === undefined) return undefined
+    if (sources.refusal !== undefined) return { kind: sources.refusal }
+    const combined = AbortSignal.any([signal, this.lifetime.signal])
+    const target = livePathOf(file.path, paths.cwd)
+    try {
+      const other: WorkspaceRestoreSide = side === 'before' ? 'after' : 'before'
+      const [wanted, expected] = await Promise.all([
+        this.readSide(sources[side], combined), this.readSide(sources[other], combined),
+      ])
+      if (wanted === OVERSIZED || expected === OVERSIZED) return { kind: 'oversized' }
+      const live = await readLiveText(target, this.env.maxFileBytes, combined)
+      if (live === OVERSIZED) return { kind: 'oversized' }
+      if (live !== expected) return { kind: 'diverged' }
+      await writeLiveText(target, wanted)
+      return { kind: 'restored' }
+    } catch (error) {
+      // Disposal removes the temporary directory under a running read; the Session is gone either way.
+      if (this.lifetime.signal.aborted) return undefined
+      throw error
+    }
+  }
+
+  /**
    * Abort queued work, forget every record, and remove the temporary directory.
    * @returns once the temporary directory is gone.
    */
@@ -388,6 +430,66 @@ export class TurnRecorder {
 /** Whether a captured side holds binary content. */
 function isBinary(capture: Capture): boolean {
   return capture.kind === 'file' && capture.binary
+}
+
+/** Whether a filesystem error names a missing path. */
+function isMissingPath(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 'ENOENT'
+}
+
+/**
+ * The live file's current text, read the same cautious way {@link captureFile} reads a capture: at most
+ * `maxBytes + 1` bytes, so a file that grows past the cap while read costs no more memory than the cap.
+ * @param path - native absolute path.
+ * @param maxBytes - inclusive byte cap.
+ * @param signal - cancels the read.
+ * @returns the file's text, null when absent, or {@link OVERSIZED} past the cap.
+ */
+async function readLiveText(path: string, maxBytes: number, signal: AbortSignal): Promise<string | null | typeof OVERSIZED> {
+  let handle
+  try {
+    handle = await open(path, 'r')
+  } catch (error: unknown) {
+    if (!isMissingPath(error)) throw error
+    return null
+  }
+  try {
+    if (!(await handle.stat()).isFile()) return OVERSIZED
+    const probe = Buffer.allocUnsafe(maxBytes + 1)
+    let length = 0
+    while (length < probe.length) {
+      const { bytesRead } = await handle.read(probe, length, probe.length - length, length)
+      if (bytesRead === 0) break
+      length += bytesRead
+      signal.throwIfAborted()
+    }
+    if (length > maxBytes) return OVERSIZED
+    return probe.subarray(0, length).toString('utf8')
+  } finally {
+    await handle.close()
+  }
+}
+
+/**
+ * Replace one live file's complete text, or remove it for a null side, writing through a sibling temporary
+ * file so a reader never observes a partial write.
+ * @param path - native absolute path to replace or remove.
+ * @param text - the side's content, or null to remove the path.
+ */
+async function writeLiveText(path: string, text: string | null): Promise<void> {
+  if (text === null) {
+    await unlink(path).catch((error: unknown) => { if (!isMissingPath(error)) throw error })
+    return
+  }
+  const temporary = join(dirname(path), `.dsh-workspace-changes-restore-${randomUUID()}`)
+  const handle = await open(temporary, 'wx')
+  try {
+    await handle.writeFile(text, 'utf8')
+    await handle.sync()
+  } finally {
+    await handle.close()
+  }
+  await rename(temporary, path)
 }
 
 interface Counts { added: number; deleted: number; binary: boolean; oversized?: boolean }

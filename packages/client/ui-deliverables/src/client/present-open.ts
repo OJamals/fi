@@ -1,7 +1,8 @@
 /** Shared native-open status for delivery cards, the changed-files card, and closing-message file mentions. */
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import { changedFileUrl } from '../changes.ts'
+import type { WorkspaceRestoreSide } from '@deepseek-ai/dsh-workspace-changes/types'
+import { changedFileUrl, changesRestoreUrl, isChangesRestoreOutcome, type ChangesRestoreOutcome } from '../changes.ts'
 import { presentedFileUrl, PRESENT_HOST_ROUTE, isPresentedHost, type PresentedAction, type PresentedHost } from '../presented.ts'
 
 /** Success feedback remains fully visible for five seconds before fading. */
@@ -15,6 +16,9 @@ export type PresentedOpenFailure = 'openError' | 'revealError' | null
 /** State published on the owning file card. */
 export type PresentedOpenPhase = 'opening' | 'opened' | 'revealing' | 'revealed' | 'error' | 'revealError' | 'nativeUnavailable'
 
+/** A restore's settled outcome, or `'unavailable'` for a lost coordinate, a transport failure, or disposal. */
+export type RestoreOutcome = ChangesRestoreOutcome | 'unavailable'
+
 /** One browser plugin's file-open requests, cancelled when that plugin is disposed. */
 export class PresentedOpenController {
   /** File action URLs key the state across Sessions, turns, and both clickable surfaces. */
@@ -25,7 +29,7 @@ export class PresentedOpenController {
   private loading: Promise<void> | undefined
   private metadata = new AbortController()
   private readonly lifetime = new AbortController()
-  private readonly pending = new Set<Promise<void | PresentedOpenFailure>>()
+  private readonly pending = new Set<Promise<void | PresentedOpenFailure | RestoreOutcome>>()
 
   /**
    * Open a declared file once while a request for the same coordinates is pending.
@@ -56,6 +60,36 @@ export class PresentedOpenController {
     sessionId: SessionId, seq: number, index: number, action: PresentedAction = 'open', application?: string,
   ): Promise<PresentedOpenFailure> {
     return this.openUrl(changedFileUrl(sessionId, seq, index), action, application)
+  }
+
+  /**
+   * Write one recorded changed file's turn-start or turn-end content back to its live path.
+   * @param sessionId - viewed Session.
+   * @param seq - durable workspace/changes event sequence.
+   * @param index - original file index within that event.
+   * @param side - the captured side to restore.
+   * @returns the Host's outcome, or `'unavailable'` for a lost coordinate, a transport failure, or disposal.
+   */
+  async restoreChanged(sessionId: SessionId, seq: number, index: number, side: WorkspaceRestoreSide): Promise<RestoreOutcome> {
+    if (this.lifetime.signal.aborted) return 'unavailable'
+    const task = this.requestRestore(sessionId, seq, index, side)
+    this.pending.add(task)
+    try {
+      return await task
+    } finally {
+      this.pending.delete(task)
+    }
+  }
+
+  private async requestRestore(sessionId: SessionId, seq: number, index: number, side: WorkspaceRestoreSide): Promise<RestoreOutcome> {
+    try {
+      const response = await fetch(changesRestoreUrl(sessionId, seq, index, side), { method: 'POST', signal: this.lifetime.signal })
+      if (!response.ok) return 'unavailable'
+      const value: unknown = await response.json()
+      return isChangesRestoreOutcome(value) ? value : 'unavailable'
+    } catch {
+      return 'unavailable'
+    }
   }
 
   private async openUrl(url: string, action: PresentedAction, application?: string): Promise<PresentedOpenFailure> {

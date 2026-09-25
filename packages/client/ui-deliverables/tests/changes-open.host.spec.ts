@@ -10,12 +10,14 @@ import type { BrowserAuth } from '@deepseek-ai/dsh-client-connection/src/browser
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { SessionQueryError } from '@deepseek-ai/dsh-session-query'
 import type { SessionEventReadRequest } from '@deepseek-ai/dsh-session-query'
-import type { WorkspaceChangedFile, WorkspaceChangesSummary, WorkspaceFileDiff } from '@deepseek-ai/dsh-workspace-changes/types'
+import type {
+  WorkspaceChangedFile, WorkspaceChangesSummary, WorkspaceFileDiff, WorkspaceRestoreResult,
+} from '@deepseek-ai/dsh-workspace-changes/types'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { registerPresentOpen } from '../src/present-open.ts'
 import {
-  changedFileUrl, changesDiffUrl, changesSummaryUrl, CHANGES_DIFF_PATH, CHANGES_OPEN_PATH, CHANGED_FILES_PATH, isChangedFile, isChangesDiff,
-  isChangesEvent, isChangesSummary,
+  changedFileUrl, changesDiffUrl, changesRestoreUrl, changesSummaryUrl, CHANGES_DIFF_PATH, CHANGES_OPEN_PATH, CHANGES_RESTORE_PATH,
+  CHANGED_FILES_PATH, isChangedFile, isChangesDiff, isChangesEvent, isChangesRestoreOutcome, isChangesSummary,
 } from '../src/changes.ts'
 
 const cleanups: Array<() => Promise<unknown>> = []
@@ -59,7 +61,11 @@ async function fixture() {
   }
   const diff = vi.fn(async (sessionId: SessionId, seq: number, index: number, _signal: AbortSignal) =>
     sessionId === 'owner' && seq === 9 && index === 0 ? comparison : undefined)
-  ctx.provide('workspaceChanges', { summary, diff })
+  const restore = vi.fn(
+    async (sessionId: SessionId, seq: number, index: number, _side: 'before' | 'after', _signal: AbortSignal): Promise<WorkspaceRestoreResult | undefined> =>
+      sessionId === 'owner' && seq === 9 && index === 0 ? { kind: 'restored' } : undefined,
+  )
+  ctx.provide('workspaceChanges', { summary, diff, restore })
   const opener = vi.fn(async (_request: { path: string; action?: 'reveal' }, _signal: AbortSignal) => ({ opened: true as const }))
   const applications = vi.fn(async () => [{ id: 'player', name: 'Player', default: true, icon: null }])
   ctx.provide('sessionController', { workspacePathApplications: applications, openWorkspacePath: opener, workspaceDesktop: () => ({ name: 'desktop', available: true, fileManager: 'finder' }) } as never)
@@ -72,7 +78,12 @@ async function fixture() {
   const open = (query = '?sessionId=owner&seq=9&index=0') => handler.fetch(new Request(`http://localhost${CHANGES_OPEN_PATH}${query}`, { method: 'POST' }))
   const read = (query = '?sessionId=owner&seq=9') => handler.fetch(new Request(`http://localhost${CHANGED_FILES_PATH}${query}`))
   const compare = (query = '?sessionId=owner&seq=9&index=0') => handler.fetch(new Request(`http://localhost${CHANGES_DIFF_PATH}${query}`))
-  return { handler, applications, root, cwd, ctx, data, readEvent, open, read, compare, comparison, diff, opener, outside, summary }
+  const restoreRequest = (query = '?sessionId=owner&seq=9&index=0&side=before') =>
+    handler.fetch(new Request(`http://localhost${CHANGES_RESTORE_PATH}${query}`, { method: 'POST' }))
+  return {
+    handler, applications, root, cwd, ctx, data, readEvent, open, read, compare, comparison, diff, opener, outside, summary,
+    restore, restoreRequest,
+  }
 }
 
 describe('change summary route', () => {
@@ -127,6 +138,42 @@ describe('change comparison route', () => {
     expect(isChangesDiff({ ...text, hunks: [{ oldStart: 1, oldLines: 1, newStart: 1, newLines: 0, lines: ['x'] }] })).toBe(false)
     expect(isChangesDiff({ ...text, hunks: [null] })).toBe(false)
     expect(isChangesDiff(null)).toBe(false)
+  })
+})
+
+describe('changes restore route', () => {
+  it('restores a listed file through the Host service, 404 once it is gone, and 500 when the write fails', async () => {
+    const { restoreRequest, restore } = await fixture()
+    expect(changesRestoreUrl(SessionId('owner'), 9, 0, 'before')).toBe('api/changes.restore?sessionId=owner&seq=9&index=0&side=before')
+    const response = await restoreRequest()
+    expect(response.status).toBe(200)
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(await response.json()).toEqual({ kind: 'restored' })
+    expect(restore).toHaveBeenLastCalledWith('owner', 9, 0, 'before', expect.any(AbortSignal))
+    expect((await restoreRequest('?sessionId=owner&seq=9&index=0&side=after')).status).toBe(200)
+    expect(restore).toHaveBeenLastCalledWith('owner', 9, 0, 'after', expect.any(AbortSignal))
+    expect((await restoreRequest('?sessionId=owner&seq=8&index=0&side=before')).status).toBe(404)
+    expect((await restoreRequest('?sessionId=other&seq=9&index=0&side=before')).status).toBe(404)
+    for (const bad of [
+      '', '?seq=9&index=0&side=before', '?sessionId=owner&seq=9&side=before', '?sessionId=owner&seq=9&index=0',
+      '?sessionId=owner&seq=9&index=0&side=sideways', '?sessionId=owner&seq=x&index=0&side=before',
+    ]) {
+      expect((await restoreRequest(bad)).status).toBe(400)
+    }
+    restore.mockRejectedValueOnce(new Error('/private/objects'))
+    const failed = await restoreRequest()
+    expect(failed.status).toBe(500)
+    expect(await failed.text()).not.toContain('/private/objects')
+  })
+
+  it('validates served restore outcomes', () => {
+    expect(isChangesRestoreOutcome({ kind: 'restored' })).toBe(true)
+    expect(isChangesRestoreOutcome({ kind: 'binary' })).toBe(true)
+    expect(isChangesRestoreOutcome({ kind: 'oversized' })).toBe(true)
+    expect(isChangesRestoreOutcome({ kind: 'diverged' })).toBe(true)
+    expect(isChangesRestoreOutcome({ kind: 'unavailable' })).toBe(false)
+    expect(isChangesRestoreOutcome({ kind: 'other' })).toBe(false)
+    expect(isChangesRestoreOutcome(null)).toBe(false)
   })
 })
 
