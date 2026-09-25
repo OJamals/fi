@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The extensions group provides read-only runtime API discovery for agents, process-local runners for programmatic and browser consumers, and historical generated-plugin cards. Creator mode installs persistent plugins through [Plugin Manager](../boot/plugin-manager/README.md). Choose a child package for inspection, Host execution, Client execution, or browser controls.
+The extensions group provides read-only runtime API discovery for agents, process-local runners for programmatic and browser consumers, historical generated-plugin cards, and a bounded, consent-gated importer for local Claude Code and Codex plugins. Creator mode installs persistent plugins through [Plugin Manager](../boot/plugin-manager/README.md). Choose a child package for inspection, Host execution, Client execution, browser controls, or Claude/Codex plugin compatibility.
 
 ## Table of Contents
 
@@ -28,6 +28,7 @@ The extensions group provides read-only runtime API discovery for agents, proces
 | [`cordis-host-runner`](cordis-host-runner/README.md) | Host half: definition registry, sandboxed host-half lifecycle, and the inspect registry that answers browser queries | provides `ctx.dynamicCordisRunner` and `ctx.cordisInspect` |
 | [`cordis-client-runner`](cordis-client-runner/README.md) | Browser half: evaluates a browser-half source into a live plugin and answers run requests | client face; provides browser `ctx.dynamicCordisRunner` |
 | [`ui-cordis`](ui-cordis/README.md) | Browser panel and historical lifecycle tool cards | client face; registers slots |
+| [`plugin-compat`](plugin-compat/README.md) | Bounded scan, persistent registry, and per-agent activation for local Claude Code and Codex plugins | provides `ctx.pluginCompat` |
 
 -----
 

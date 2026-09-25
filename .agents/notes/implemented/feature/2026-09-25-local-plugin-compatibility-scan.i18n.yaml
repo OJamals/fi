@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-09-25-local-plugin-compatibility-scan.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-25-local-plugin-compatibility-scan.md
+/agent-note-local-claude-and-codex-plugin-compatibility-scanning:
+  en: 0b22cfc3772fcc30
+  zh: 4cf2440b666bc7c3
+/agent-note-local-claude-and-codex-plugin-compatibility-scanning/problem:
+  en: 0bfc20fe287f48f1
+  zh: 1c5dcf9f1ca22cb5
+/agent-note-local-claude-and-codex-plugin-compatibility-scanning/decision:
+  en: 5bccea7be3116eab
+  zh: 2101d22dec56829d
+/agent-note-local-claude-and-codex-plugin-compatibility-scanning/alternatives-considered:
+  en: 006190d3942eb70c
+  zh: 1cb0e6e9f54be391
+/agent-note-local-claude-and-codex-plugin-compatibility-scanning/consequences:
+  en: d60f63f2d684f23a
+  zh: 2e8fd1b843eaffb9

@@ -491,6 +491,20 @@
     - id: mcp-resources
       name: '@deepseek-ai/dsh-mcp-resources'
 
+    # Off by default: importing a local Claude Code or Codex plugin is a
+    # deliberate, per-plugin, per-component consent decision (see
+    # packages/extensions/plugin-compat/README.md), not something every
+    # deployment should carry. A patch flips this row on; the /plugin-import,
+    # /plugin-list, /plugin-enable, /plugin-disable, and /plugin-remove
+    # commands remain the only mutation surface.
+    - id: plugin-compat
+      name: '@deepseek-ai/dsh-plugin-compat'
+      disabled: true
+
+    - id: plugin-compat-command
+      name: '@deepseek-ai/dsh-plugin-compat/command'
+      disabled: true
+
     # ── rows every mode mounts, whose values each overlay may state ──────────────
 
     # The tool registry. Presentation mode is a deployment choice; omitting it here

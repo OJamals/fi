@@ -1,0 +1,55 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/extensions/plugin-compat/README.md
+/:
+  en: 0fd6708a84672761
+  zh: 2b0410f781076462
+/deepseek-ai-dsh-plugin-compat:
+  en: 8bd87928b92dc4e6
+  zh: 05ce51295f566557
+/deepseek-ai-dsh-plugin-compat/summary:
+  en: acb8deeabf432ce7
+  zh: 632eb823faae2fbf
+/deepseek-ai-dsh-plugin-compat/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/deepseek-ai-dsh-plugin-compat/use-this-package:
+  en: bbff250eba0f1b89
+  zh: 0a618f05cc88ee2b
+/deepseek-ai-dsh-plugin-compat/use-this-package/when-to-choose-it:
+  en: de6bec6755ebbde1
+  zh: c2e0e34ea9af922a
+/deepseek-ai-dsh-plugin-compat/use-this-package/enable-the-plugin-and-the-commands:
+  en: 05573939b14c71d6
+  zh: 76b34709d388ca21
+/deepseek-ai-dsh-plugin-compat/use-this-package/import-and-enable-a-plugin:
+  en: 84c2f4cb3bac3efa
+  zh: c3469604ef956852
+/deepseek-ai-dsh-plugin-compat/use-this-package/observable-success-and-failures:
+  en: feb36b164df1139e
+  zh: 862b6fe342aac62a
+/deepseek-ai-dsh-plugin-compat/understand-the-implementation:
+  en: 42b15ac6321706aa
+  zh: 4ed0861911abaf5d
+/deepseek-ai-dsh-plugin-compat/understand-the-implementation/design-concept:
+  en: a334765b0413af61
+  zh: 93c8ca86a81157a1
+/deepseek-ai-dsh-plugin-compat/understand-the-implementation/source-map:
+  en: c879d75f5b1609e5
+  zh: ad5277987949b850
+/deepseek-ai-dsh-plugin-compat/further-exploration:
+  en: 789bda715bce1fa8
+  zh: 2efdc601e5272d58
+/deepseek-ai-dsh-plugin-compat/model-experience:
+  en: c719eff0bcfd1b94
+  zh: b463baec807fe6c5
+/deepseek-ai-dsh-plugin-compat/model-experience/kv-cache-effect:
+  en: 303ef5af11482c7e
+  zh: 249a04f8609a5519
+/deepseek-ai-dsh-plugin-compat/known-limitations-and-deferred-work:
+  en: 49fcd276bd61ab87
+  zh: 3380a65f0111a6fe
+/deepseek-ai-dsh-plugin-compat/known-limitations-and-deferred-work/dev-note:
+  en: 20287defac42f89d
+  zh: aab061e0a1f0daf4

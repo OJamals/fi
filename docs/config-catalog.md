@@ -2219,6 +2219,30 @@ export interface PlanModeConfig {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-plan-mode -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-plugin-compat -->
+<a id="deepseek-aidsh-plugin-compat"></a>
+
+## `@deepseek-ai/dsh-plugin-compat`
+
+- `source`: [`packages/extensions/plugin-compat/src/index.ts:59`](../packages/extensions/plugin-compat/src/index.ts)
+
+```ts config-catalog
+/** Host configuration for the compatibility document and bounded scans. */
+export interface Config {
+  /** Directory containing the Host-owned compatibility document. */
+  readonly home?: string
+  /** Maximum number of source files read during one scan. */
+  readonly maxFiles?: number
+  /** Maximum bytes read from one source file. */
+  readonly maxFileBytes?: number
+  /** Maximum aggregate bytes read during one scan. */
+  readonly maxTotalBytes?: number
+  /** Maximum directory entries visited during one scan. */
+  readonly maxEntries?: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-plugin-compat -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-plugin-manager -->
 <a id="deepseek-aidsh-plugin-manager"></a>
 
