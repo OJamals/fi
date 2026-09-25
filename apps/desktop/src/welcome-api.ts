@@ -57,10 +57,22 @@ export interface WelcomeAuthentication {
 }
 
 /**
+ * fi is model-universal: first-run onboarding is the workspace's own
+ * model-setup step (`ui-settings-models` `ModelSetupDialog`), never a
+ * DeepSeek-account sign-in or DeepSeek-API-key prompt. The native welcome
+ * window (this module, `welcome-window.ts`, `welcome-backend.ts`,
+ * `preload-welcome.ts`) stays in the tree as infrastructure `needsWelcome`
+ * permanently declines to invoke; it registers no IPC and shows no window
+ * while this stays `true`.
+ */
+const FI_NATIVE_WELCOME_DISABLED: boolean = true
+
+/**
  * Decide whether a startup or sign-out requires the welcome entry.
  * @param authentication - current account and independently stored API-key facts.
- * @returns true only when neither authentication route is configured.
+ * @returns true only when neither authentication route is configured, and fi's
+ * native welcome gate is not disabled.
  */
 export function needsWelcome(authentication: WelcomeAuthentication): boolean {
-  return !authentication.loggedIn && !authentication.hasApiKey
+  return !FI_NATIVE_WELCOME_DISABLED && !authentication.loggedIn && !authentication.hasApiKey
 }

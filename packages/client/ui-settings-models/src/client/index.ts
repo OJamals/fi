@@ -2,12 +2,14 @@
  * Models settings and product-onboarding plugin, browser half. It registers
  * the Models page plus the ordered internal-testing notice and the
  * model-universal setup step, whose UI shares this package's modal wrapper.
- * The setup step shows itself automatically only while the page-bootstrap
+ * The setup step shows itself automatically whenever the page-bootstrap
  * `credentialOnboarding` option (the Host half's `apply`) is not overridden
- * false and no native shell marks itself with `dshDesktop`; a shell that owns
- * its own first-run experience gets neither. The Host settings and credential
- * contracts stay behind their existing wire APIs. Export discipline:
- * packages/client/AGENTS.md.
+ * false — including inside fi's Desktop shell (`dshDesktop`), which owns no
+ * DeepSeek-account or DeepSeek-API-key first-run experience of its own and
+ * relies on this step for model-universal setup. The internal-testing notice
+ * stays Web-only (`!('dshDesktop' in globalThis)`), an unrelated choice. The
+ * Host settings and credential contracts stay behind their existing wire
+ * APIs. Export discipline: packages/client/AGENTS.md.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the shell's SlotMap merge (the 'settings.section' entry).
@@ -85,7 +87,7 @@ export function apply(ctx: ClientContext): void {
   const page = globalThis as Partial<Record<typeof ONBOARDING_CONFIG_GLOBAL, unknown>>
   const payload = page[ONBOARDING_CONFIG_GLOBAL]
   const configured = Config(payload === undefined ? {} : payload)
-  const automaticModelSetup = configured.credentialOnboarding && !('dshDesktop' in globalThis)
+  const automaticModelSetup = configured.credentialOnboarding
   ctx.plugin(ModelSettingsSubscriptions)
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-settings-models: copy dictionaries')
 

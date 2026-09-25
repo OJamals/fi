@@ -34,6 +34,10 @@ describe('the bundle layer', () => {
         },
       },
       { id: 'web-search-deepseek', disabled: true },
+      { id: 'ui-settings-account', disabled: true },
+      { id: 'account-controller', disabled: true },
+      { id: 'deepseek-account', disabled: true },
+      { id: 'llm-deepseek-account', disabled: true },
       {
         insert: [
           { id: 'fi-authorization-controller', name: '@fi/api-authorization-controller' },
@@ -102,6 +106,27 @@ describe('the bundle layer', () => {
     expect(effective.find(entry => entry.id === 'fi-ui-web-search-preferences')).toMatchObject({
       name: '@fi/client-ui-web-search-preferences',
     })
+  })
+
+  it('disables the DeepSeek-account settings UI, its Remote, and its account-based LLM route, but not the API-key route', () => {
+    type PatchLayer = Parameters<typeof composeEntries>[0][number]
+    const base = parse(
+      readFileSync(new URL('../../../bundle/base/cordis.patch.yml', import.meta.url), 'utf8'),
+      { logLevel: 'silent' },
+    ) as PatchLayer
+    const webApp = parse(
+      readFileSync(new URL('../../../bundle/web-app/cordis.patch.yml', import.meta.url), 'utf8'),
+      { logLevel: 'silent' },
+    ) as PatchLayer
+    const layer = parse(own('cordis.patch.yml')) as PatchLayer
+    const effective = composeEntries([base, webApp, layer])
+
+    for (const id of ['ui-settings-account', 'account-controller', 'deepseek-account', 'llm-deepseek-account']) {
+      expect(effective.find(entry => entry.id === id)).toMatchObject({ disabled: true })
+    }
+    // fi is model-universal: the DeepSeek account gate is off, but a user-supplied API key still
+    // makes DeepSeek an ordinary provider on the Models page.
+    expect(effective.find(entry => entry.id === 'llm-deepseek')?.disabled).not.toBe(true)
   })
 
   it('declares that patch through the manifest field the profile composer reads', () => {

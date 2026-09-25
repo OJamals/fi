@@ -7,7 +7,7 @@
  */
 import { describe, expect, onTestFinished, vi } from 'vitest'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
-import { createClientTest, type TestClient, webApp } from '@deepseek-ai/dsh-client-test-runtime/src/assembly/index.ts'
+import { bundleRoster, createClientTest, type TestClient, webApp } from '@deepseek-ai/dsh-client-test-runtime/src/assembly/index.ts'
 import { inject } from '../src/client/index.ts'
 import type { SettingsRootInjected } from '../src/client/shell-contract.ts'
 import { SettingsRoot } from '../src/client/SettingsRoot.tsx'
@@ -16,6 +16,16 @@ import type { DesktopUpdatePresentation } from '../src/types.ts'
 const SELF = '@deepseek-ai/dsh-client-ui-settings-general'
 const SIDEBAR = '@deepseek-ai/dsh-client-ui-sidebar'
 const it = createClientTest({ roster: webApp })
+// fi's own roster (`webApp`, which layers @fi/authorization-bundle) disables
+// ui-settings-account's Desktop-only "account" section: fi's onboarding is model-universal,
+// never a DeepSeek-account gate. The dynamic add/remove ledger behavior this file otherwise
+// tests through it is a generic ui-settings-general capability, so the one test exercising it
+// composes the roster without fi's layer to keep exercising a real, still-mountable section.
+const itUpstream = createClientTest({
+  roster: bundleRoster(['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'], undefined, {
+    get: (name: string) => name === 'profileContext' ? { name: 'web' } : undefined,
+  }),
+})
 /** The whole roster's first boot pays the cold module transform of every plugin package. */
 const COLD_BOOT_TIMEOUT_MS = 60_000
 
@@ -109,7 +119,7 @@ describe('ui-settings-general shell', () => {
     off()
   })
 
-  it('shows Account first in Desktop while signed in and removes it on sign-out', async ({ start }) => {
+  itUpstream('shows Account first in Desktop while signed in and removes it on sign-out', async ({ start }) => {
     vi.stubGlobal('dshDesktop', {})
     onTestFinished(() => { vi.unstubAllGlobals() })
     const c = await start()

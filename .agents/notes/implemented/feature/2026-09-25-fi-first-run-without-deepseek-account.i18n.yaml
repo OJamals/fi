@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-09-25-fi-first-run-without-deepseek-account.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-25-fi-first-run-without-deepseek-account.md
+/agent-note-fi-first-run-without-a-deepseek-account:
+  en: ebb90b29e2cbebb6
+  zh: 4ba844c37992c47d
+/agent-note-fi-first-run-without-a-deepseek-account/problem:
+  en: b4beffd8187213ce
+  zh: 299e7afe82b04142
+/agent-note-fi-first-run-without-a-deepseek-account/decision:
+  en: fb6b5b970de0614d
+  zh: c47092167bc4aa95
+/agent-note-fi-first-run-without-a-deepseek-account/decision/model-visible-dsh-fi-runtime-clarification:
+  en: 8322efa5b6113d19
+  zh: 0a826f86411af6e1
+/agent-note-fi-first-run-without-a-deepseek-account/alternatives-considered:
+  en: 8e80d0452ccb637c
+  zh: 8c94defe89ff2fc7
+/agent-note-fi-first-run-without-a-deepseek-account/consequences:
+  en: 4f34caba4e17e89b
+  zh: 03c1a17a73aa8386

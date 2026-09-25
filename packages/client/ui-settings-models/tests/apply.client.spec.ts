@@ -69,7 +69,7 @@ function declare(slots: SlotRegistry): () => void {
 }
 
 describe('ui-settings-models apply', () => {
-  it('keeps manual credential onboarding available when the native shell owns automatic onboarding', async () => {
+  it('keeps manual credential onboarding available when the Host disables the automatic step', async () => {
     const { ctx, slots } = await bench()
     declare(slots)
     try {
@@ -91,6 +91,19 @@ describe('ui-settings-models apply', () => {
       const after: IndexInjection[] = []
       ctx.emit('webserver/index-inject', after)
       expect(after).toEqual([])
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('offers automatic onboarding inside a Desktop shell, which owns no first-run experience of its own', async () => {
+    const { ctx, slots } = await bench()
+    declare(slots)
+    try {
+      vi.stubGlobal('dshDesktop', { protocolVersion: 1 })
+      await ctx.plugin({ inject: [...inject], apply }).await()
+      const onboarding = slots.entries('settings.onboarding').find(entry => entry.options.id === 'model-setup')!
+      expect((onboarding.inject as () => { automatic: boolean })().automatic).toBe(true)
     } finally {
       await ctx.fiber.dispose()
     }

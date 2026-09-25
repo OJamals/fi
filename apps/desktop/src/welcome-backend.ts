@@ -106,7 +106,10 @@ export async function connectDesktopWelcome(
     }
     if (ref !== undefined && !record(states[ref])) throw new Error('desktop welcome: missing credential metadata')
     return {
-      loggedIn: (await account.state()).status === 'credential-stored',
+      // fi has no DeepSeek-account sign-in route (welcome-api.ts's `needsWelcome` never
+      // reads this field), and `account-controller`'s Remote is unmounted in fi's bundle
+      // (packages/fi/authorization-bundle/cordis.patch.yml), so `loggedIn` never queries it.
+      loggedIn: false,
       hasApiKey: Object.values(states).some(value => record(value) && value.configured === true),
       writable: ref !== undefined && record(states[ref]) && states[ref].writable === true,
       localePreference: localePreference(namespaces),

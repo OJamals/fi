@@ -3,17 +3,17 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write apps/desktop/README.md
 /fi-desktop:
-  en: aff2694bdcc321dd
-  zh: 6b7b72a9b113b364
+  en: 17192b0e79f6c0df
+  zh: 5e5f147d322a61cf
 /fi-desktop/closing-the-window-and-quitting:
-  en: ef53807bdf9fda35
-  zh: 80c7d33a6e02bb86
+  en: e2027b51054779c3
+  zh: 84731738eabef455
 /fi-desktop/key-technical-decisions:
   en: b13240940dd63af6
   zh: 0249f6cd227d07fe
 /fi-desktop/key-technical-decisions/bundled-workspace-dependencies:
-  en: 4089c53d73490437
-  zh: af5f22f1e9edf6bf
+  en: 9ac3f10746da4ede
+  zh: 0f889c350e6483b1
 /fi-desktop/installation-ownership:
   en: 794016082d3688d5
   zh: e3c588b21c6ac27e
@@ -24,11 +24,8 @@
   en: 0f6fee0051b86577
   zh: f66b89f2235343f8
 /fi-desktop/develop/startup-onboarding:
-  en: 5e2d62207a603d81
-  zh: 5fb863d4906f4a67
-/fi-desktop/develop/welcome-window-appearance:
-  en: 7220801ccc3b2e6b
-  zh: 042dc97976aef979
+  en: 2b65815d3734a392
+  zh: 63c5e6d23d3259b1
 /fi-desktop/package:
   en: 4cd8a8da6977928d
   zh: 9f624855a2edac37
@@ -57,8 +54,8 @@
   en: b4d5baebf7af9602
   zh: ed654159e2019aa6
 /fi-desktop/updates:
-  en: d5cbb13018d64ff2
-  zh: 8a37a7a08498c21d
+  en: 9f7a87e5c529c98f
+  zh: f6416378a3f32165
 /fi-desktop/updates/mandatory-update-policy:
   en: 2f789a4949fafb12
   zh: d8b28c01cfee11b7

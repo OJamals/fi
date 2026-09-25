@@ -10,6 +10,25 @@
 - id: web-search-deepseek
   disabled: true
 
+# fi is model-universal: first-run and Models-page onboarding are fi's own
+# (client-ui-model-signin's subscription cards, ui-settings-models'
+# ModelSetupDialog), never a DeepSeek-account sign-in or DeepSeek-API-key
+# gate. Disabling these rows here (rather than in the upstream base/web-app
+# bundles) turns off DeepSeek's own account UI/Remote and its account-based
+# LLM route; DeepSeek stays available as an ordinary provider through
+# `llm-deepseek`'s API key on the Models page.
+- id: ui-settings-account
+  disabled: true
+
+- id: account-controller
+  disabled: true
+
+- id: deepseek-account
+  disabled: true
+
+- id: llm-deepseek-account
+  disabled: true
+
 - insert:
     - id: fi-authorization-controller
       name: '@fi/api-authorization-controller'

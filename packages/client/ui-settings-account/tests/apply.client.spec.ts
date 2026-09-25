@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, expect, vi } from 'vitest'
 import { ok } from '@deepseek-ai/dsh-remote-mock'
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
-import { createClientTest, type TestClient, webApp } from '@deepseek-ai/dsh-client-test-runtime/src/assembly/index.ts'
+import { bundleRoster, createClientTest, type TestClient } from '@deepseek-ai/dsh-client-test-runtime/src/assembly/index.ts'
 import type {
   AccountBonusBatch, AccountBonusOrderId, AccountDetails, AccountUserId, AccountView, SignInAttemptId,
 } from '@deepseek-ai/dsh-deepseek-account/types'
@@ -22,7 +22,16 @@ import type { AccountPlatformHostInjected } from '../src/client/AccountPlatformH
 import { AccountQuotaNotice } from '../src/client/AccountQuotaNotice.tsx'
 import type { AccountQuotaNoticeInjected } from '../src/client/AccountQuotaNotice.tsx'
 
-const it = createClientTest({ roster: webApp })
+// The `webApp` roster (dsh-base + dsh-web-app + @fi/authorization-bundle, the profile fi
+// actually ships) disables this package's own row: fi's own onboarding is model-universal, never
+// a DeepSeek-account gate (packages/fi/authorization-bundle/cordis.patch.yml). This suite tests
+// the package's own behavior as the upstream dsh-base/dsh-web-app composition mounts it,
+// independent of that product choice, so it composes the roster without fi's layer.
+const it = createClientTest({
+  roster: bundleRoster(['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'], undefined, {
+    get: (name: string) => name === 'profileContext' ? { name: 'web' } : undefined,
+  }),
+})
 const SELF = '@deepseek-ai/dsh-client-ui-settings-account'
 const view: AccountView = {
   status: 'signed-out', attempt: null,
