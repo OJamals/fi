@@ -28,6 +28,7 @@ import { WelcomeNotice } from './WelcomeNotice.tsx'
 import type { WelcomeNoticeInjected } from './WelcomeNotice.tsx'
 import { WelcomeNoticeStore } from './welcome-store.ts'
 import { ModelsSettingsStore } from './store.ts'
+import { refreshIfLoaded } from './refresh-if-loaded.ts'
 import { ModelSettingsSubscriptions } from './subscriptions.ts'
 import { createModelsOperations } from './operations.ts'
 import { createSettingsSchemaOperations } from './schema-operations.ts'
@@ -56,16 +57,6 @@ export type {
   ModelsSettingsState, ProviderDirectoryEntry, ProviderRow,
 } from './store.ts'
 export type { ModelDiscoveryOutcome, ModelsOperations, SettingsWriteOutcome } from './operations.ts'
-
-/**
- * Refetch the page snapshot only after its first load: an unopened Models
- * page must not fetch on background invalidations.
- * @param controller - the page store.
- */
-export function refreshIfLoaded(controller: ModelsSettingsStore): void {
-  if (controller.store.getSnapshot().status === 'idle') return
-  void controller.load()
-}
 
 /**
  * Required services (cordis fiber inject). The target slot is declared by

@@ -34,7 +34,6 @@ import { GoalCommandInputView } from './GoalCommandInputView.tsx'
 import { goalCommandInputDefinition } from './goal-command-input.ts'
 import { en, zh, type GoalKey } from './locales.ts'
 
-export { GoalBar, GoalDock } from './GoalBar.tsx'
 export type {
   GoalActionResult, GoalBarActions,
 } from './slots.ts'
