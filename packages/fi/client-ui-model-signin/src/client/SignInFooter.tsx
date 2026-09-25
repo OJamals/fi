@@ -1,18 +1,8 @@
 /**
- * The Models page's subscription sign-in section: one area listing every
- * provider whose value is a subscription the user already holds — Claude
- * Pro/Max, ChatGPT Plus/Pro, SuperGrok/X Premium, and Antigravity — with its
- * live state, and driving the whole flow (sign in, then adopt) from one
- * button.
- *
- * This is the ONLY sign-in surface this package renders. Earlier revisions
- * also extended each provider row through `settings.models.provider-card`;
- * that put credential UI between the model rows, which read as clutter, so
- * the section now carries everything: unsigned providers offer "Add",
- * signed-in ones show their state with "Sign in again" and "Remove
- * sign-in". The provider rows themselves stay plain route rows — the
- * settings route is what makes a provider servable, and it belongs to the
- * page's own list.
+ * The Models page's subscription sign-in section: one selector for providers
+ * whose value is a subscription the user already holds — Claude Pro/Max,
+ * ChatGPT Plus/Pro, SuperGrok/X Premium, and Antigravity. It shows the
+ * selected provider's grant state and starts sign-in, adoption, and removal.
  *
  * The rows come from the Host's `list` joined to the package's OFFERED
  * whitelist, so a composition missing an adapter (or a pi-ai release that
@@ -25,8 +15,8 @@
 
 import type { InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SignInRow, SignInState } from './store.ts'
-import type { ReactNode } from 'react'
-import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
+import { useEffect, useId, useState, type ReactNode } from 'react'
+import { Button, DisclosureRow } from '@deepseek-ai/dsh-client-ui-primitives'
 
 import { AttemptView } from './SignInCard.tsx'
 import type { SignInStore } from './store.ts'
@@ -53,8 +43,7 @@ function routeVerb(token: 'created' | 'already' | 'skipped', t: SignInFooterInje
 }
 
 /**
- * One row of the section: one subscription provider, its state dot, and the
- * actions that state allows. Both sign-in verbs route through the same
+ * The selected provider's state and actions. Both sign-in verbs route through the same
  * stream and chain the same adopt — on an already-routed provider adopt
  * answers `already`, so "Sign in again" needs no separate path.
  */
@@ -65,12 +54,11 @@ function SubscriptionRow({ row, adoptable, controller, t, busy }: {
   t: SignInFooterInjected['t']
   busy: boolean
 }): ReactNode {
-  const method = row.methods[0]?.label ?? row.label
+  const rowBusy = busy || row.inFlight
   return (
     <div className={styles['row']}>
       <span className={styles['identity']}>
         <span className={row.stored ? styles['dotSignedIn'] : styles['dotSignedOut']} aria-hidden="true" />
-        <span className={styles['label']}>{row.label}</span>
         <span className={styles['stateText']}>
           {row.stored ? t('stateSignedIn') : t('stateSignedOut')}
         </span>
@@ -80,10 +68,23 @@ function SubscriptionRow({ row, adoptable, controller, t, busy }: {
           ? (
             <Button
               variant="outline"
-              disabled={busy}
+              disabled={rowBusy}
+              aria-label={t(row.stored ? 'setupActionFor' : 'adoptActionFor', { provider: row.label })}
+              onClick={() => { void (row.stored ? controller.adopt(row.key) : controller.signInAndAdopt(row.key)) }}
+            >
+              {row.stored ? t('setupAction') : t('adoptAction')}
+            </Button>
+          )
+          : null}
+        {row.stored
+          ? (
+            <Button
+              variant="outline"
+              disabled={rowBusy}
+              aria-label={t('signInAgainFor', { provider: row.label })}
               onClick={() => { void controller.signInAndAdopt(row.key) }}
             >
-              {row.stored ? t('signInAgain', { method }) : t('adoptAction', { provider: row.label })}
+              {t('signInAgain')}
             </Button>
           )
           : null}
@@ -91,7 +92,8 @@ function SubscriptionRow({ row, adoptable, controller, t, busy }: {
           ? (
             <Button
               variant="ghost"
-              disabled={busy}
+              disabled={rowBusy}
+              aria-label={t('removeSignInFor', { provider: row.label })}
               onClick={() => { void controller.remove(row.key) }}
             >
               {t('removeSignIn')}
@@ -123,6 +125,22 @@ function Bound({ controller, useSnapshot, t }: {
   t: SignInFooterInjected['t']
 }): ReactNode {
   const state = useSnapshot((snapshot: SignInState) => snapshot)
+  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [modelsOpen, setModelsOpen] = useState(false)
+  const selectorId = useId()
+  const activeAttemptKey = state.attempt !== null && (state.attempt.settled === null || state.attempt.adopting === true)
+    ? state.attempt.key
+    : null
+
+  useEffect(() => {
+    if (activeAttemptKey !== null && state.rows.some(row => row.key === activeAttemptKey)) setSelectedKey(activeAttemptKey)
+  }, [activeAttemptKey, state.rows])
+
+  useEffect(() => {
+    if (state.adopted === null) return
+    setSelectedKey(state.adopted.key)
+    setModelsOpen(false)
+  }, [state.adopted])
 
   // The section exists only when the Host actually registered at least one
   // of the offered flows: a composition without the adapters shows nothing,
@@ -130,31 +148,73 @@ function Bound({ controller, useSnapshot, t }: {
   // registered row renders in both directions of the stored flag, so a
   // revoke anywhere (this section, another tab, a CLI) turns the row back
   // into a sign-in offer on the next load rather than a dead end.
-  if (state.status !== 'ready' || state.rows.length === 0) return null
+  if (state.status === 'loading' || state.status === 'failed') {
+    return (
+      <section className={styles['section']} aria-label={t('footerTitle')}>
+        <h3 className={styles['title']}>{t('footerTitle')}</h3>
+        <p className={styles['intro']}>{t('footerHint')}</p>
+        {state.status === 'loading'
+          ? <p className={styles['loading']} role="status">{t('footerLoading')}</p>
+          : (
+            <div className={styles['error']} role="alert">
+              <p>{t('footerLoadError', { message: state.error ?? t('failed') })}</p>
+              <Button variant="outline" onClick={() => { void controller.load() }}>{t('retry')}</Button>
+            </div>
+          )}
+      </section>
+    )
+  }
+  if (state.status !== 'ready') return null
+  const firstRow = state.rows[0]
+  if (firstRow === undefined) return null
   const adoptableKeys = new Set(state.adoptEntries.map(entry => entry.key))
-  const busy = state.attempt !== null
+  const busy = state.busy === true || (state.attempt !== null && (state.attempt.settled === null || state.attempt.adopting === true))
+  const attemptRow = state.attempt === null ? undefined : state.rows.find(row => row.key === state.attempt?.key)
+  const selectedRow = (busy ? attemptRow : undefined)
+    ?? state.rows.find(row => row.key === selectedKey)
+    ?? state.rows.find(row => row.key === state.adopted?.key)
+    ?? firstRow
+  const adopted = state.adopted?.key === selectedRow.key ? state.adopted : null
 
   return (
     <section className={styles['section']} aria-label={t('footerTitle')}>
       <h3 className={styles['title']}>{t('footerTitle')}</h3>
       <p className={styles['intro']}>{t('footerHint')}</p>
-      <ul className={styles['rows']}>
-        {state.rows.map(row => (
-          <li key={row.key} className={styles['rowLi']}>
-            <SubscriptionRow
-              row={row}
-              adoptable={adoptableKeys.has(row.key)}
-              controller={controller}
-              t={t}
-              busy={busy}
-            />
-          </li>
-        ))}
-      </ul>
+      <div className={styles['controlsRow']} data-managed={selectedRow.stored ? 'true' : undefined}>
+        <div className={styles['providerPicker']}>
+          <label className={styles['pickerLabel']} htmlFor={selectorId}>{t('footerProvider')}</label>
+          <select
+            id={selectorId}
+            name="fi-subscription-provider"
+            className={styles['providerSelect']}
+            data-fi-subscription-provider-select
+            value={selectedRow.key}
+            disabled={busy}
+            onChange={(event) => {
+              setSelectedKey(event.target.value)
+              setModelsOpen(false)
+            }}
+          >
+            {state.rows.map(row => <option key={row.key} value={row.key}>{row.label}</option>)}
+          </select>
+        </div>
+        <div className={styles['selectedRow']}>
+          <SubscriptionRow
+            row={selectedRow}
+            adoptable={adoptableKeys.has(selectedRow.key)}
+            controller={controller}
+            t={t}
+            busy={busy}
+          />
+        </div>
+      </div>
       {state.attempt === null
         ? null
         : (
           <div className={styles['attempt']}>
+            <p className={styles['attemptLabel']} role="status">
+              {t('footerAttempt', { provider: attemptRow?.label ?? state.attempt.key })}
+            </p>
             <AttemptView attempt={state.attempt} controller={controller} t={t} />
           </div>
         )}
@@ -165,27 +225,33 @@ function Bound({ controller, useSnapshot, t }: {
             {t('footerError', { message: state.error })}
           </div>
         )}
-      {state.adopted === null
+      {adopted === null
         ? null
         : (
           <div className={styles['adopted']} role="status" aria-live="polite">
             <p className={styles['adoptedTitle']}>
               {t('footerAdopted', {
-                provider: state.rows.find(row => row.key === state.adopted?.key)?.label
-                  ?? state.adopted.key,
-                route: routeVerb(state.adopted.route, t),
-                count: String(state.adopted.models.length),
+                provider: selectedRow.label,
+                route: routeVerb(adopted.route, t),
+                count: String(adopted.models.length),
               })}
             </p>
-            {state.adopted.models.length === 0
+            {adopted.models.length === 0
               ? null
               : (
-                <div>
-                  <h4 className={styles['modelsTitle']}>{t('footerModelsTitle')}</h4>
+                <DisclosureRow
+                  icon={<span className={styles['modelsDisclosureIcon']} aria-hidden="true" />}
+                  title={t('footerModelsTitle')}
+                  open={modelsOpen}
+                  expandable
+                  expandOnRowClick
+                  onToggle={() => { setModelsOpen(open => !open) }}
+                  collapsedContent={<span className={styles['modelsCount']}>{String(adopted.models.length)}</span>}
+                >
                   <ol className={styles['modelsList']}>
-                    {state.adopted.models.map((id: string) => <li key={id} className={styles['modelRow']}>{id}</li>)}
+                    {adopted.models.map((id: string) => <li key={id} className={styles['modelRow']}>{id}</li>)}
                   </ol>
-                </div>
+                </DisclosureRow>
               )}
           </div>
         )}

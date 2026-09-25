@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包让以 `official` profile 构建的客户端在侧栏和新会话首屏显示自带 fi 字样的图稿。浅色模式使用默认图稿；深色模式把其中的深色填充替换为白色，同时保留青色与紫色强调色。侧栏把完整构建元数据放在图稿下方，不在旁边重复 fi 文本。其他构建 profile 保留外壳的鱼形标志与本地构建标签。品牌为 fi 的部署应选择本包；使用其他品牌的部署应提供替代品牌包。本包不保留运行时状态，也不影响模型请求。
+本包让以 `official` profile 构建的客户端在侧栏和新会话首屏显示自带 fi 字样的图稿。浅色模式使用默认图稿；深色模式把其中的深色填充替换为白色，同时保留青色与紫色强调色。侧栏只渲染图稿，不显示相邻 fi 文本或构建版本徽标。其他构建 profile 保留外壳的鱼形标志与本地构建标签。品牌为 fi 的部署应选择本包；使用其他品牌的部署应提供替代品牌包。本包不保留运行时状态，也不影响模型请求。
 
 ## 目录
 
@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 选择 profile
 
-`DSH_CLIENT_BUILD_PROFILE` 决定渲染哪个品牌。`official` 构建按侧栏请求的 48px 方形显示自带 fi 字样的图稿，并把构建元数据放在图稿下方；会话首屏显示不带元数据的同一图稿。图稿与元数据徽标共用侧栏的左侧锚点；徽标保持白底黑字。两个界面都跟随共享的 `body[data-ds-dark-theme]` 状态：浅色模式读取 `/fi-logo.png`，深色模式读取比例匹配且透明的 `/fi-logo-dark-background.png`。任何其他 profile 都让外壳回退——鱼形标志与本地构建标签——保持原样。两种情况下插件都会照常加载并通过校验；只有注册受 profile 门控。
+`DSH_CLIENT_BUILD_PROFILE` 决定渲染哪个品牌。`official` 构建只按侧栏请求的 40px 方形显示自带 fi 字样的图稿，并在会话首屏显示同一图稿。两个界面都跟随共享的 `body[data-ds-dark-theme]` 状态：浅色模式读取 `/fi-logo.png`，深色模式读取比例匹配且透明的 `/fi-logo-dark-background.png`。任何其他 profile 都让外壳回退——鱼形标志与本地构建标签——保持原样。两种情况下插件都会照常加载并通过校验；只有注册受 profile 门控。
 
 ### 替换品牌
 
@@ -43,7 +43,7 @@ kind: "package-reference"
 <details>
 <summary>实现细节——点击展开</summary>
 
-三个填充作为一组声明感知的注册安装：嵌套的 `ctx.slots.inject()` 调用等待侧栏与会话首屏声明，因此无论本行在声明者之前还是之后激活，这组注册都能工作；任一声明消失时所有填充一并撤回，HMR 期间也不会留下残缺的品牌混合。侧栏 name 填充故意不渲染内容；由于图稿已经写出 fi，这会抑制通用的相邻标签。侧栏 mark 从 owner 接收构建元数据并将其放在图像下方。浏览器半部是 [`src/client/index.ts`](src/client/index.ts)；node 半部是一个空 Loader 座位。浏览器标题是构建环境的事（`DSH_CLIENT_TITLE`），不在 slot 系统之内。
+三个填充作为一组声明感知的注册安装：嵌套的 `ctx.slots.inject()` 调用等待侧栏与会话首屏声明，因此无论本行在声明者之前还是之后激活，这组注册都能工作；任一声明消失时所有填充一并撤回，HMR 期间也不会留下残缺的品牌混合。侧栏 name 填充故意不渲染内容；由于图稿已经写出 fi，这会抑制通用的相邻标签。浏览器半部是 [`src/client/index.ts`](src/client/index.ts)；node 半部是一个空 Loader 座位。浏览器标题是构建环境的事（`DSH_CLIENT_TITLE`），不在 slot 系统之内。
 
 </details>
 

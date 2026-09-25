@@ -15,7 +15,7 @@
  * @module @fi/llm-antigravity/catalog
  */
 
-import { staticAntigravityTextModelIds } from './transport.ts'
+import { staticAntigravityModelIds } from './transport.ts'
 
 /** One selectable Antigravity model. */
 export interface AntigravityCatalogEntry {
@@ -46,10 +46,10 @@ export function antigravityModelName(id: string): string {
 }
 
 /**
- * The static catalog: every text model the transport can name without a
+ * The static catalog: every text or image model the transport can name without a
  * network call, in the transport's own order. Surfaces merge live catalog
  * ids ahead of this list when a grant makes `fetchAvailableModels`
  * reachable.
  */
 export const ANTIGRAVITY_STATIC_CATALOG: readonly AntigravityCatalogEntry[] =
-  staticAntigravityTextModelIds().map(id => ({ id, name: antigravityModelName(id) }))
+  staticAntigravityModelIds().map(id => ({ id, name: antigravityModelName(id) }))

@@ -14,6 +14,8 @@ export interface ModelSelectInjected {
   available: boolean
   /** The session's shared directory store (same instance the /model popup reads). */
   directory: SnapshotStore<ModelDirectoryState>
+  /** Provider route ids displayed in a separate bottom section; selection ids remain unchanged. */
+  subscriptionProviders?: SnapshotStore<readonly string[]>
   /** Ensure the shared advisory catalog is loaded (errors land on the store). */
   load: () => void
   /**

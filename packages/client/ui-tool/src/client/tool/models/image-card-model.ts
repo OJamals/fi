@@ -13,8 +13,8 @@ import { parsedToolCall } from './raw-tool-call.ts'
  * it nor derives a path from it.
  */
 export interface ImageCardModel {
-  /** Card label: the read path, shortened the way every other card's is. */
-  label: string
+  /** Optional card label. read_image supplies its resolved display path. */
+  label?: string | undefined
   /** The durable images this result returned, in result order. */
   images: readonly { readonly attachment: ImageAttachmentRef }[]
   /**
@@ -152,22 +152,18 @@ function imageReferences(content: readonly unknown[]): ImageAttachmentRef[] | nu
 /**
  * Read the text of every text block of a settled image result, joined in order.
  *
- * The envelope is one of them; a post-execute hook that appends further text
- * blocks keeps them visible under the gallery instead of being dropped. The
- * envelope shape is still the recognition gate: a result without it is not a
- * well-formed image read and declines.
+ * A post-execute hook that appends further text blocks keeps them visible under
+ * the gallery instead of being dropped.
  * @param content - the settled result's content blocks.
- * @returns the joined text, or null when no envelope-shaped block is present.
+ * @returns the joined text, or null when no text block is present.
  */
 function imageTexts(content: readonly { type: string; text?: string }[]): string | null {
   const parts: string[] = []
-  let sawEnvelope = false
   for (const part of content) {
     if (part.type !== 'text' || typeof part.text !== 'string') continue
-    if (IMAGE_ENVELOPE.test(part.text)) sawEnvelope = true
     parts.push(part.text)
   }
-  return sawEnvelope && parts.length > 0 ? parts.join('\n') : null
+  return parts.length > 0 ? parts.join('\n') : null
 }
 
 /**
@@ -190,7 +186,24 @@ function fullyRendered(content: readonly unknown[]): boolean {
 }
 
 /**
- * Derive a settled image card after validating the call head, persisted
+ * Derive a name-agnostic image card from one successful result whose complete
+ * content is supported text and image blocks. Results that carry any other
+ * block decline so the generic result renderer remains responsible for it.
+ * @param block - running or settled Tool block.
+ * @returns image references and result text, or null when generic text output must render instead.
+ */
+export function imageCardModel(block: ToolCallBlock): ImageCardModel | null {
+  if (!('kind' in block) || block.isError) return null
+  if (!fullyRendered(block.content)) return null
+  const refs = imageReferences(block.content)
+  if (refs === null) return null
+  // Generated-image tools commonly return only the durable image block. That
+  // is a complete successful result; text stays optional for generic cards.
+  return { images: refs.map(ref => ({ attachment: ref })), text: imageTexts(block.content) ?? '' }
+}
+
+/**
+ * Derive the strict read_image card after validating the call head, persisted
  * metadata (or its argument fallback), and the model-facing image envelope.
  *
  * The card is result-side only: a call carries no content until `execute`
@@ -204,7 +217,7 @@ function fullyRendered(content: readonly unknown[]): boolean {
  * @param home - host account home; a leftover POSIX home path displays as `~`.
  * @returns the image-card props, or null for the generic path.
  */
-export function imageCardModel(
+export function readImageCardModel(
   block: ToolCallBlock,
   sessionCwd?: string,
   home?: string,
@@ -224,18 +237,12 @@ export function imageCardModel(
   const metaPath = imageMeta(block.meta)?.path
   const path = metaPath ?? (block.parentCallId !== undefined ? filePath : null)
   if (path === null) return null
-  // The card renders only text and image blocks; a block of any other type must
-  // not be silently hidden, so the whole card declines to the generic form.
-  if (!fullyRendered(block.content)) return null
-  // The references come from the result's own image blocks, the single source of
-  // truth; `meta` contributes only the path, which the content does not carry.
-  const refs = imageReferences(block.content)
-  if (refs === null) return null
-  const text = imageTexts(block.content)
-  if (text === null) return null
+  const image = imageCardModel(block)
+  if (image === null) return null
+  if (!block.content.some(part => part.type === 'text' && typeof part.text === 'string' && IMAGE_ENVELOPE.test(part.text))) return null
   return {
     label: abbreviateHomePath(relativizeToCwd(path, sessionCwd), home),
-    images: refs.map(ref => ({ attachment: ref })),
-    text,
+    images: image.images,
+    text: image.text,
   }
 }

@@ -6,11 +6,13 @@ Status: implemented
 
 profile 修改与恢复遵循[直接修改 profile 决策](2026-09-09-desktop-in-place-profile.zh.md)。
 
+[FI 数据 home 决策](2026-09-15-fi-desktop-data-home.zh.md)取代本 Note 关于共享 `.dsh` 根目录的假设；打包、更新和 profile 归属决策仍然有效。
+
 ## 问题
 
 DeepSeek Harness 需要一个复用 Web UI 的 Electron 桌面应用。该应用无需系统 Node.js 或 pnpm 即可工作，通过应用内置 pnpm 安装 dsh 与桌面插件，并通过一个面向用户的流程更新完整桌面发布。
 
-桌面应用与通过 npm 安装的 dsh 共享 `.dsh` 数据根目录，但两者可能使用不同的 dsh 与插件版本。它们必须共享受支持的产品数据，同时不得共享可执行包、lockfile、`node_modules`、插件激活状态或包管理器配置。
+桌面应用与通过 npm 安装的 dsh 可能使用不同的 dsh 与插件版本。Desktop 必须独立管理可执行包、lockfile、`node_modules`、插件激活状态和包管理器配置；FI 数据 home 决策还规定默认情况下分开保存持久数据。
 
 当前 GUI 协议绑定 Web 客户端与后端版本。Electron 产物与其中通过 内置 dsh 如果独立定版本，就会产生未经验证的壳、客户端、后端与插件组合，也无法明确判断更新是否可用。
 
@@ -18,7 +20,7 @@ DeepSeek Harness 需要一个复用 Web UI 的 Electron 桌面应用。该应用
 
 交付一个小型 Electron 壳，其中内置上游 Node.js 可执行文件和固定版本的 pnpm。Electron 把私有 Desktop Host 包作为隔离子进程启动；该包组合已安装的 dsh 后端与匹配的客户端图。Fetch 元数据及有界的原始请求与响应分块通过两条带版本的分帧字节管道传递，Node IPC 只承载就绪、致命失败和关闭，Electron 通过 `dsh-app://` 提供经过验证的资源；它不会打开监听端口。每个帧都包含固定标记、类型、单调 stream id、负载长度和经过验证的负载。串行 writer 遵守 pipe drain，请求或响应 stream 施加背压时 reader 会全局暂停，取消会关闭匹配的 stream，已退役 stream 的迟到响应帧保持无效。Connection 插件无需 `webServer` 即可提供与载体无关的 RPC 与 Fetch 注册表，Client Modules 则向 shell-owned carrier 提供与广告内容完全一致的组合 bundle 响应；Web 组合为两者挂载可选 HTTP route。渲染进程保留相同的 Fetch、RPC 与 Remote-stream 格式，子进程载体则避免 Base64 膨胀，也不依赖 Electron 与内置上游 Node.js 之间的 V8 序列化兼容性。发送 shutdown 后，Electron 会关闭自己持有的请求管道写端，以便在等待子进程退出前释放 Windows 上仍在进行的管道读取。该设计沿用 [GUI 分层与 RPC 协议 Agent Note](../../archived/architecture/2026-07-19-gui-layering-and-rpc-protocol.md)中的 Electron 预留。
 
-Electron 拥有 `.dsh/profiles/desktop` 保留 profile。[内置运行时决策](2026-09-08-desktop-bundled-runtime-and-external-plugins.zh.md)负责核心资源存储、外部插件依赖、共享包链接和 profile 协调。私有 Desktop Host 保持独立于公共 CLI 包，且不会发布到 npm。
+Electron 拥有 `$DSH_HOME/profiles/desktop` 保留 profile。[内置运行时决策](2026-09-08-desktop-bundled-runtime-and-external-plugins.zh.md)负责核心资源存储、外部插件依赖、共享包链接和 profile 协调。私有 Desktop Host 保持独立于公共 CLI 包，且不会发布到 npm。
 
 一个 Desktop 发布号同时标识 Electron 产物及其精确的 `@deepseek-ai/dsh` 与 `@deepseek-ai/dsh-desktop-host` 依赖。发布不能在构建或运行时选择不同的核心版本。因此，即使壳代码没有变化，更新 dsh 也必须产生新的 Electron 发布。
 
@@ -33,7 +35,7 @@ Electron 拥有 `.dsh/profiles/desktop` 保留 profile。[内置运行时决策]
 | Desktop profile | 由内置运行时决策定义的外部插件依赖、已启用 bundle 顺序和共享链接 |
 | 私有 Desktop Host 包 | 与 dsh 一起安装、但不进入公共 CLI 包或 npm 发布的 Electron 专用子进程入口与组合 overlay |
 | 已安装 dsh 包 | 后端、匹配的 Web UI、启动 manifest、客户端包和产品行为 |
-| 共享 `.dsh` owner | 会话、设置、凭据、工作区和存储，由其现有锁与格式版本保护 |
+| Desktop Harness home | 会话、设置、凭据、工作区和存储，由其现有锁与格式版本保护 |
 | 通过 npm 安装的 dsh | 自己的可执行安装和用户管理的 profile；不能访问保留 desktop profile 或包状态 |
 
 渲染进程使用 `nodeIntegration: false`、`contextIsolation: true` 和 `sandbox: true`。Preload 暴露类型化 RPC、生命周期、更新、locale 与桌面插件操作，而不暴露原始 `ipcRenderer`、文件系统访问、shell 命令或 pnpm 参数。Electron 根据应用 locale 选择类型化的中英文字典，并以英文作为 fallback；菜单、原生对话框与插件管理渲染进程使用这些由 locale 持有的文案。
@@ -41,7 +43,7 @@ Electron 拥有 `.dsh/profiles/desktop` 保留 profile。[内置运行时决策]
 ## 文件系统布局
 
 ```text
-~/.dsh/
+$DSH_HOME/
   desktop/
     pnpm/
       store/
@@ -61,7 +63,7 @@ Electron 拥有 `.dsh/profiles/desktop` 保留 profile。[内置运行时决策]
   storages/
 ```
 
-`.dsh/profiles/desktop` 是唯一活动桌面 profile。其可执行包归属及允许解析的目录遵循[内置运行时决策](2026-09-08-desktop-bundled-runtime-and-external-plugins.zh.md)。插件包内容使用 `.dsh/desktop/pnpm/store`。
+`$DSH_HOME/profiles/desktop` 是唯一活动桌面 profile。其可执行包归属及允许解析的目录遵循[内置运行时决策](2026-09-08-desktop-bundled-runtime-and-external-plugins.zh.md)。插件包内容使用 `$DSH_HOME/desktop/pnpm/store`。
 
 ## 安装与解析
 
@@ -138,15 +140,15 @@ NSIS 先解压到私有的 `7z-out` 目录，再把文件复制到应用目录�
 
 - 没有系统 Node.js 或 pnpm 的干净离线机器能够启动内置 dsh，无需安装核心依赖。
 - 签名应用记录最终运行时文件清单；每个 macOS 原生文件都具有发布 Developer ID、安全时间戳和 hardened runtime，每个 Windows 产物都具有配置的硬件 EV 签名。
-- `.dsh/profiles/desktop/node_modules` 能解析共享宿主链接和每个通过 GUI 安装的桌面插件。
-- 每个桌面 pnpm 操作都使用内置可执行文件和 `.dsh/desktop/pnpm/store`；不读取用户 `PATH`、配置、store 或 profile `node_modules`。
+- `$DSH_HOME/profiles/desktop/node_modules` 能解析共享宿主链接和每个通过 GUI 安装的桌面插件。
+- 每个桌面 pnpm 操作都使用内置可执行文件和 `$DSH_HOME/desktop/pnpm/store`；不读取用户 `PATH`、配置、store 或 profile `node_modules`。
 - Electron-only GUI 安装、删除和更新普通 npm 插件包，而不暴露原始 pnpm 参数。
 - 后端与浏览器应用不能修改桌面包。
 - npm/CLI dsh 与 Electron 绝不从对方的 `node_modules` 解析或安装插件。
 - 在产品 UI 加载前，活跃后端与 Web UI 报告相同 dsh 版本和兼容壳 API。
 - 包操作或 Host 失败后保留部分 profile 修改，并提供恢复控件；不承诺自动回滚 profile。
 - 一个 Desktop 版本绑定 Electron 与 dsh；每次 dsh 更新都通过一个 Electron 更新弹窗交付，并产生一次用户可见的重启。
-- 共享 `.dsh` 数据在迁移或修改前拒绝不兼容的读取方。
+- 显式共享的 Harness-home 数据在迁移或修改前拒绝不兼容的读取方。
 - 不打开回环监听端口，沙箱渲染进程不能访问任意文件系统或 Electron API。
 - Workspace 开发无需下载发布资源即可运行当前已构建代码，未封装安装器的应用验证仍保留生产安装路径。
 - Windows 发布打包要求已验证的 SignTool、EV Token、匹配的公开叶证书、Token Password 和明确的密钥容器，绝不会回退到未签名产物或可导出的密钥文件。
@@ -170,7 +172,7 @@ NSIS 先解压到私有的 `7z-out` 目录，再把文件复制到应用目录�
 
 更新绑定的 dsh 可能使插件 peer dependency 或原生模块失效。校准会验证变化的依赖并重建原生包；失败后需要通过恢复 UI 显式修复。
 
-通过 npm 安装的 dsh 与桌面 dsh 可能在共享持久化数据时使用不同版本。每个共享 owner 都必须在读取、迁移或写入前执行格式版本与进程锁。
+通过 npm 安装的 dsh 与桌面 dsh 可能使用不同版本。显式共享 `DSH_HOME` 时，每个数据 owner 都必须在读取、迁移或写入前执行格式版本与进程锁。
 
 中断的包操作保留未完成标记。已安装产物测试必须验证后续启动会重试锁定依赖的安装和获准的原生构建。
 

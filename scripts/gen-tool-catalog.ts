@@ -7,6 +7,8 @@
  */
 
 import { globSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { basename, resolve } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import LlmRuntime from '@deepseek-ai/dsh-llm'
@@ -25,6 +27,8 @@ import * as BashEnvPlugin from '@deepseek-ai/dsh-shell-env'
 import { PwshLocalExecutor } from '@deepseek-ai/dsh-pwsh-local'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
+import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
+import * as ToolImageGeneration from '@fi/tool-image-generation'
 import { AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import type { ImageAttachmentLimits, ImageAttachmentRef, SaveImageAttachment, StoredImageAttachment } from '@deepseek-ai/dsh-attachment'
 import UserQuestionService from '@deepseek-ai/dsh-user-questions'
@@ -188,6 +192,29 @@ export interface ToolPackage {
  * guard proves it is exhaustive against the on-disk glob.
  */
 const TOOL_PACKAGES: ToolPackage[] = [
+  {
+    pkg: '@fi/tool-image-generation',
+    dir: 'tool-image-generation',
+    source: 'packages/fi/tool-image-generation/src/tool.ts',
+    requires: ['ctx.tools', 'ctx.attachments', 'ctx.fs', 'ctx.credentials'],
+    writes: ['tool/call', 'fs/observed for reference images', 'tool/result with durable ImageBlock'],
+    async mount(ctx) {
+      const home = await mkdtemp(resolve(tmpdir(), 'dsh-image-tool-catalog-'))
+      ctx.effect(() => () => rm(home, { recursive: true, force: true }))
+      await ctx.plugin(LocalFileSystem, { cwd: home })
+      await ctx.plugin(CatalogAttachmentStore)
+      await ctx.plugin(LocalCredentialProvider, { path: resolve(home, 'credentials.yml'), watch: false })
+      await ctx.plugin(ToolImageGeneration, {
+        defaultProvider: 'codex',
+        targets: {
+          codex: { imageModel: 'gpt-image-2' },
+          grok: { imageModel: 'grok-imagine-image-2.0' },
+          antigravity: { imageModel: 'gemini-3.1-flash-image' },
+        },
+      })
+    },
+    note: 'The optional FI authorization bundle configures these targets. Provider selection is explicit; no fallback occurs. Schema collection makes no provider request.',
+  },
   {
     pkg: '@deepseek-ai/dsh-tool-ask-user',
     dir: 'tool-ask-user',

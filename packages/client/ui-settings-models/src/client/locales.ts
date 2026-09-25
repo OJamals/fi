@@ -4,6 +4,7 @@
 export const en = {
   nav: 'Models',
   title: 'Models',
+  subscriptions: 'Subscriptions',
   intro: 'Enter your API keys to use models from the following providers.',
   edit: 'Edit',
   editProvider: 'Edit {provider}',
@@ -110,6 +111,7 @@ export type ModelsKey = keyof typeof en
 export const zh: { [Key in keyof typeof en]: string } = {
   nav: '模型',
   title: '模型',
+  subscriptions: '订阅',
   intro: '填入各提供方的 API 密钥即可使用其模型。',
   edit: '编辑',
   editProvider: '编辑 {provider}',

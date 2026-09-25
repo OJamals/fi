@@ -1,6 +1,9 @@
 /** Electron-builder fields asserted by the Desktop release tests. */
 export interface DesktopElectronBuilderConfig {
   readonly appId: string
+  readonly extraMetadata: {
+    readonly name: 'fi'
+  }
   readonly directories: {
     readonly output: string
   }
@@ -23,6 +26,17 @@ export interface DesktopElectronBuilderConfig {
     readonly include: string
   }
   readonly artifactBuildCompleted: (artifact: { readonly file: string }) => Promise<void> | undefined
+  readonly afterPack: (context: {
+    readonly appOutDir: string
+    readonly packager: {
+      readonly appInfo: {
+        readonly channel: string | null
+        readonly updaterCacheDirName: string
+        readonly version: string
+      }
+      getResourcesDir(appOutDir: string): string
+    }
+  }) => Promise<void>
   readonly publish: readonly [
     | { readonly provider: 'generic', readonly url: string }
     | { readonly provider: 'github', readonly owner: 'OJamals', readonly repo: 'fi', readonly channel: string },

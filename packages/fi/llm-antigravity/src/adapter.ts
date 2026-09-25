@@ -14,15 +14,21 @@
  * `modifyRecord` when it nears expiry, so two concurrent calls never lose a
  * refresh.
  *
- * Capability honesty: text only, for now. `ImageBlock`/`FileBlock` bytes are
- * owned by the attachment service and this adapter does not resolve them, so
- * `listModels` declares `inputModalities: ['text']` and surfaces refuse image
- * attachments for these models instead of silently dropping them.
+ * Durable image references resolve through the attachment service into bounded
+ * Gemini inline data. Durable files keep the harness-wide behavior: request
+ * assembly projects them to deterministic handle text before adapter dispatch.
  *
  * @module @fi/llm-antigravity/adapter
  */
 
-import { LlmAdapter } from '@deepseek-ai/dsh-llm'
+import {
+  contentHasImage,
+  LlmAdapter,
+  LlmError,
+  offloadedImageText,
+  offloadRequestImagesWithPolicy,
+  requestImageHandleText,
+} from '@deepseek-ai/dsh-llm'
 import type {
   ContentBlock,
   FinishReason,
@@ -31,15 +37,34 @@ import type {
   LlmProviderInfo,
   LlmResolvedModelInfo,
   Message,
+  ReplayEnvelope,
   StreamChunk,
   ToolCallId,
 } from '@deepseek-ai/dsh-llm'
-
+import type {
+  AttachmentId,
+  AttachmentStore,
+  FileAttachmentRef,
+  ImageAttachmentRef,
+  ImageMediaType,
+  RequestImageAttachment,
+  SaveImageAttachment,
+} from '@deepseek-ai/dsh-attachment'
 import { ANTIGRAVITY_STATIC_CATALOG, antigravityModelName } from './catalog.ts'
 import {
   callAntigravityChat,
   listAntigravityModels,
 } from './transport.ts'
+import {
+  antigravityNativeStreamPart,
+  antigravityReplay,
+  antigravityReplayEnvelope,
+} from './replay.ts'
+import type {
+  AntigravityNativeReplayPart,
+  AntigravityNativeStreamPart,
+  AntigravityReplayBlock,
+} from './replay.ts'
 
 /** The grant facts one upstream call needs, resolved by the owning plugin. */
 export interface AntigravityGrant {
@@ -68,13 +93,101 @@ interface OpenAIMessage {
   tool_call_id?: string
   tool_calls?: readonly unknown[]
   name?: string
+  antigravity_native_parts?: readonly unknown[]
 }
 
-/** Text of the blocks the model may read, joined in block order. */
-function textOf(blocks: readonly ContentBlock[]): string {
-  return blocks
-    .flatMap(block => block.type === 'text' ? [block.text] : [])
-    .join('\n')
+/** Cloud Code's captured inline-media ceiling. */
+const MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024
+function unsupported(message: string): never {
+  throw new LlmError(message, 'UNSUPPORTED_CONTENT')
+}
+
+/** Text-only nested content accepted in one tool result. */
+function resultText(blocks: readonly ContentBlock[]): string {
+  return blocks.map((block) => {
+    if (block.type === 'text') return block.text
+    if (block.type === 'image') return ''
+    if (block.type === 'tool-result') return resultText(block.content)
+    return unsupported(`Antigravity cannot represent ${block.type} inside a tool result`)
+  }).join('\n')
+}
+
+function collectImageRefs(blocks: readonly ContentBlock[], refs: Map<AttachmentId, ImageAttachmentRef>): void {
+  for (const block of blocks) {
+    if (block.type === 'image') refs.set(block.attachment.attachmentId, block.attachment)
+    else if (block.type === 'tool-result') collectImageRefs(block.content, refs)
+  }
+}
+
+async function prepareImages(
+  messages: readonly Message[],
+  attachments: AttachmentStore,
+  signal?: AbortSignal,
+): Promise<{
+  messages: readonly Message[]
+  images: ReadonlyMap<AttachmentId, RequestImageAttachment>
+  originals: ReadonlyMap<AttachmentId, { data: Uint8Array; mediaType: ImageMediaType }>
+}> {
+  const policy = {
+    maxPixels: attachments.imageLimits.maxImagePixels,
+    maxBytes: attachments.imageLimits.maxImageBytes,
+  }
+  const projected = offloadRequestImagesWithPolicy(messages, {
+    representation: 'base64',
+    maxBytes: MAX_REQUEST_IMAGE_BYTES,
+    byteQuantum: 1,
+    byteLength: ref => Math.ceil(Math.min(ref.bytes, policy.maxBytes) / 3) * 4,
+    placeholder: ref => offloadedImageText(ref),
+  })
+  const refs = new Map<AttachmentId, ImageAttachmentRef>()
+  for (const message of projected) collectImageRefs(message.content, refs)
+  const pairs = await Promise.all([...refs.values()].map(async ref => (
+    [ref.attachmentId, await attachments.readImageRequest(ref, policy, signal)] as const
+  )))
+  const images = new Map<AttachmentId, RequestImageAttachment>(pairs)
+  const exact = offloadRequestImagesWithPolicy(projected, {
+    representation: 'base64',
+    maxBytes: MAX_REQUEST_IMAGE_BYTES,
+    byteQuantum: 1,
+    byteLength: ref => Math.ceil((images.get(ref.attachmentId) as RequestImageAttachment).bytes / 3) * 4,
+    placeholder: ref => offloadedImageText(ref),
+  })
+  const originalRefs = new Map<AttachmentId, {
+    attachment: FileAttachmentRef
+    mediaType: ImageMediaType
+  }>()
+  for (const message of exact) {
+    const replay = antigravityReplay(message)
+    for (const part of replay?.nativeParts ?? []) {
+      if (part.type !== 'image' || part.original === undefined) continue
+      originalRefs.set(part.original.attachment.attachmentId, part.original)
+    }
+  }
+  const originals = new Map<AttachmentId, { data: Uint8Array; mediaType: ImageMediaType }>()
+  for (const original of originalRefs.values()) {
+    if (original.attachment.bytes > attachments.imageLimits.maxImageBytes) {
+      unsupported('Antigravity signed image replay exceeds the attachment image-byte limit')
+    }
+    signal?.throwIfAborted()
+    const chunks: Uint8Array[] = []
+    let bytes = 0
+    for await (const chunk of attachments.readFileStream(original.attachment, signal)) {
+      bytes += chunk.byteLength
+      if (bytes > original.attachment.bytes) {
+        unsupported('Antigravity signed image replay exceeds its durable byte count')
+      }
+      chunks.push(chunk)
+    }
+    signal?.throwIfAborted()
+    if (bytes !== original.attachment.bytes) {
+      unsupported('Antigravity signed image replay does not match its durable byte count')
+    }
+    originals.set(original.attachment.attachmentId, {
+      mediaType: original.mediaType,
+      data: Uint8Array.from(Buffer.concat(chunks.map(chunk => Buffer.from(chunk)), bytes)),
+    })
+  }
+  return { messages: exact, images, originals }
 }
 
 /**
@@ -84,39 +197,118 @@ function textOf(blocks: readonly ContentBlock[]): string {
  * carry tool results, which become their own `tool` messages ahead of any
  * remaining user text.
  */
-function projectMessage(message: Message): OpenAIMessage[] {
+function projectMessage(
+  message: Message,
+  images: ReadonlyMap<AttachmentId, RequestImageAttachment>,
+  originals: ReadonlyMap<AttachmentId, { data: Uint8Array; mediaType: ImageMediaType }>,
+): OpenAIMessage[] {
   if (message.role === 'system') {
-    return [{ role: 'system', content: textOf(message.content) }]
+    const text = resultText(message.content)
+    return [{ role: 'system', content: text }]
   }
   if (message.role === 'assistant') {
-    const text = textOf(message.content)
-    const toolCalls = message.content.flatMap(block =>
+    const replay = antigravityReplay(message)
+    if (replay?.nativeParts !== undefined) {
+      const nativeParts = replay.nativeParts.map((part): unknown => {
+        if (part.type !== 'image') return part
+        const block = message.content[part.contentIndex]
+        if (block?.type !== 'image') unsupported('Antigravity image replay does not match assistant content')
+        const image = part.original === undefined
+          ? images.get(block.attachment.attachmentId)
+          : originals.get(part.original.attachment.attachmentId)
+        if (image === undefined) unsupported('Antigravity image replay is missing its durable bytes')
+        return {
+          type: 'image',
+          mimeType: image.mediaType,
+          data: Buffer.from(image.data).toString('base64'),
+          ...part.thoughtSignature === undefined ? {} : { thoughtSignature: part.thoughtSignature },
+        }
+      })
+      return [{ role: 'assistant', antigravity_native_parts: nativeParts }]
+    }
+    const content: Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> = []
+    const toolCalls = message.content.flatMap((block, index) =>
       block.type === 'tool-call'
         ? [{
           id: block.id,
           type: 'function',
           function: { name: block.name, arguments: block.arguments },
+          ...replay?.blocks[index]?.type === 'tool-call' && replay.blocks[index].thoughtSignature !== undefined
+            ? { extra_content: { google: { thought_signature: replay.blocks[index].thoughtSignature } } }
+            : {},
         }]
         : [])
-    if (text.length === 0 && toolCalls.length === 0) return []
+    for (const block of message.content) {
+      if (block.type === 'text') {
+        if (block.text.length > 0) content.push({ type: 'text', text: block.text })
+        continue
+      }
+      if (block.type === 'reasoning' || block.type === 'tool-call') continue
+      if (block.type === 'image') {
+        const image = images.get(block.attachment.attachmentId)
+        if (image === undefined) unsupported('Antigravity assistant image projection is missing a resolved attachment')
+        content.push({
+          type: 'image_url',
+          image_url: { url: `data:${image.mediaType};base64,${Buffer.from(image.data).toString('base64')}` },
+        })
+        continue
+      }
+      unsupported(`Antigravity cannot represent ${block.type} in assistant history`)
+    }
+    if (content.length === 0 && toolCalls.length === 0) return []
     return [{
       role: 'assistant',
-      ...(text.length > 0 ? { content: text } : {}),
+      ...(content.length > 0 ? { content } : {}),
       ...(toolCalls.length > 0 ? { tool_calls: toolCalls } : {}),
     }]
   }
-  const results = message.content.flatMap(block =>
-    block.type === 'tool-result'
-      ? [{
-        role: 'tool' as const,
-        tool_call_id: block.toolCallId,
-        content: textOf(block.content),
-      }]
-      : [])
-  const text = textOf(message.content.filter(block => block.type !== 'tool-result'))
+  const results = message.content.flatMap((block): OpenAIMessage[] => {
+    if (block.type !== 'tool-result') return []
+    const imageContent: Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> = []
+    const appendImages = (blocks: readonly ContentBlock[]): void => {
+      for (const nested of blocks) {
+        if (nested.type === 'image') {
+          const image = images.get(nested.attachment.attachmentId)
+          if (image === undefined) unsupported('Antigravity image projection is missing a resolved attachment')
+          imageContent.push({ type: 'text', text: requestImageHandleText(nested.attachment, image) })
+          imageContent.push({
+            type: 'image_url',
+            image_url: { url: `data:${image.mediaType};base64,${Buffer.from(image.data).toString('base64')}` },
+          })
+        } else if (nested.type === 'tool-result') {
+          appendImages(nested.content)
+        }
+      }
+    }
+    appendImages(block.content)
+    return [{
+      role: 'tool',
+      tool_call_id: block.toolCallId,
+      content: resultText(block.content),
+    }, ...imageContent.length > 0 ? [{ role: 'user' as const, content: imageContent }] : []]
+  })
+  const regular = message.content.filter(block => block.type !== 'tool-result')
+  const content: Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> = []
+  for (const block of regular) {
+    if (block.type === 'text') {
+      if (block.text.length > 0) content.push({ type: 'text', text: block.text })
+      continue
+    }
+    if (block.type === 'image') {
+      const image = images.get(block.attachment.attachmentId)
+      if (image === undefined) unsupported('Antigravity image projection is missing a resolved attachment')
+      content.push({ type: 'text', text: requestImageHandleText(block.attachment, image) })
+      content.push({
+        type: 'image_url',
+        image_url: { url: `data:${image.mediaType};base64,${Buffer.from(image.data).toString('base64')}` },
+      })
+      continue
+    }
+    unsupported(`Antigravity cannot represent ${block.type} in user history`)
+  }
   return [
     ...results,
-    ...(text.length > 0 ? [{ role: 'user' as const, content: text }] : []),
+    ...(content.length > 0 ? [{ role: 'user' as const, content }] : []),
   ]
 }
 
@@ -125,13 +317,16 @@ function projectMessage(message: Message): OpenAIMessage[] {
  * section declares, since the grant — not the route — picks the account.
  */
 export class AntigravityAdapter extends LlmAdapter {
-  constructor(private readonly grants: AntigravityGrantResolver) {
+  constructor(
+    private readonly grants: AntigravityGrantResolver,
+    private readonly resolveAttachments?: () => AttachmentStore | undefined,
+  ) {
     super()
   }
 
   /** @inheritdoc */
   override providerInfo(provider: string): LlmProviderInfo {
-    return { id: provider, name: 'Antigravity' }
+    return { id: provider, name: provider }
   }
 
   /**
@@ -150,11 +345,8 @@ export class AntigravityAdapter extends LlmAdapter {
         const live = await listAntigravityModels({
           token: { accessToken: grant.accessToken, antigravityProjectId: grant.projectId },
         })
-        // The transport merges image-generation ids into its reply; an LLM
-        // surface lists text models only, and the transport's own static
-        // filter sets the `image` substring convention.
-        const textIds = live.map(model => model.id).filter(id => !id.includes('image'))
-        if (textIds.length > 0) ids = textIds
+        const liveIds = live.map(model => model.id)
+        if (liveIds.length > 0) ids = liveIds
       } catch {
         // Static fallback: the signed-out answer is still truthful.
       }
@@ -163,7 +355,7 @@ export class AntigravityAdapter extends LlmAdapter {
       provider,
       id,
       name: antigravityModelName(id),
-      inputModalities: ['text'],
+      inputModalities: ['text', 'image'],
     }))
   }
 
@@ -201,9 +393,21 @@ export class AntigravityAdapter extends LlmAdapter {
       return
     }
 
+    const hasImages = options.messages.some(message => contentHasImage(message.content))
+    const attachments = this.resolveAttachments?.()
+    if (hasImages && attachments === undefined) {
+      unsupported('Antigravity image input requires the durable attachment service')
+    }
+    const prepared = attachments === undefined || !hasImages
+      ? {
+        messages: options.messages,
+        images: new Map<AttachmentId, RequestImageAttachment>(),
+        originals: new Map<AttachmentId, { data: Uint8Array; mediaType: ImageMediaType }>(),
+      }
+      : await prepareImages(options.messages, attachments, options.signal)
     const messages = [
       ...(options.system === undefined ? [] : [{ role: 'system' as const, content: options.system }]),
-      ...options.messages.flatMap(projectMessage),
+      ...prepared.messages.flatMap(message => projectMessage(message, prepared.images, prepared.originals)),
     ]
     const response = await callAntigravityChat({
       body: {
@@ -222,7 +426,6 @@ export class AntigravityAdapter extends LlmAdapter {
     })
 
     if (!response.ok || response.body === null) {
-      const detail = await response.text().catch(() => '')
       yield {
         type: 'finish',
         reason: {
@@ -230,14 +433,14 @@ export class AntigravityAdapter extends LlmAdapter {
           failure: {
             code: 'fi-antigravity/upstream',
             status: response.status,
-            message: `Antigravity upstream answered ${response.status}${detail.length > 0 ? `: ${detail.slice(0, 300)}` : ''}`,
+            message: `Antigravity upstream answered ${response.status}`,
           },
         },
       }
       return
     }
 
-    yield* projectSseToChunks(response.body)
+    yield* projectSseToChunks(response.body, options.provider, options.model, attachments, options.signal)
   }
 }
 
@@ -247,7 +450,14 @@ interface OpenAIStreamChunk {
     delta?: {
       content?: string
       reasoning_content?: string
-      tool_calls?: { id?: string; function?: { name?: string; arguments?: string } }[]
+      tool_calls?: {
+        id?: string
+        function?: { name?: string; arguments?: string }
+        extra_content?: { google?: { thought_signature?: unknown } }
+      }[]
+      images?: unknown[]
+      files?: unknown[]
+      antigravity_native_parts?: unknown
     }
     finish_reason?: string | null
   }[]
@@ -266,6 +476,53 @@ interface OpenBlock {
   text: string
   id?: ToolCallId
   name?: string
+  thoughtSignature?: string
+}
+
+class GeneratedImageOutputError extends Error {}
+
+function decodedBase64Bytes(value: string): number {
+  if (value.length === 0 || value.length % 4 === 1 || !/^[A-Za-z0-9+/]*={0,2}$/.test(value)
+    || /=/.test(value.slice(0, -2)) || (value.includes('=') && value.length % 4 !== 0)) {
+    throw new GeneratedImageOutputError('invalid image base64')
+  }
+  const padding = value.endsWith('==') ? 2 : value.endsWith('=') ? 1 : 0
+  const unpadded = padding > 0 ? value.slice(0, -padding) : value
+  const lastSextet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'.indexOf(unpadded.at(-1) ?? '')
+  const remainder = unpadded.length % 4
+  if (lastSextet < 0 || (remainder === 2 && (lastSextet & 0x0f) !== 0)
+    || (remainder === 3 && (lastSextet & 0x03) !== 0)) {
+    throw new GeneratedImageOutputError('invalid image base64')
+  }
+  const bytes = Math.floor((value.length * 3) / 4) - padding
+  if (bytes < 1) throw new GeneratedImageOutputError('empty image')
+  return bytes
+}
+
+function generatedImageInput(
+  value: unknown,
+  attachments: AttachmentStore,
+): { mediaType: ImageMediaType; base64: string; bytes: number } {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new GeneratedImageOutputError('invalid image record')
+  }
+  const record = value as Record<string, unknown>
+  const imageUrl = record.image_url
+  if (record.type !== 'image_url' || typeof imageUrl !== 'object' || imageUrl === null || Array.isArray(imageUrl)) {
+    throw new GeneratedImageOutputError('invalid image record')
+  }
+  const url = (imageUrl as Record<string, unknown>).url
+  if (typeof url !== 'string') throw new GeneratedImageOutputError('invalid image URL')
+  const match = /^data:(image\/[^;,]+);base64,([A-Za-z0-9+/]*={0,2})$/.exec(url)
+  if (match === null) throw new GeneratedImageOutputError('invalid image data URL')
+  const mediaType = match[1] as ImageMediaType
+  const base64 = match[2] as string
+  const bytes = decodedBase64Bytes(base64)
+  if (!attachments.imageLimits.mediaTypes.includes(mediaType)
+    || bytes > attachments.imageLimits.maxImageBytes) {
+    throw new GeneratedImageOutputError('image exceeds attachment policy')
+  }
+  return { mediaType, base64, bytes }
 }
 
 /**
@@ -274,15 +531,26 @@ interface OpenBlock {
  * (the upstream never interleaves reasoning back into text) and everything
  * still open closes at the finish reason.
  */
-async function* projectSseToChunks(body: ReadableStream<Uint8Array>): AsyncGenerator<StreamChunk> {
+async function* projectSseToChunks(
+  body: ReadableStream<Uint8Array>,
+  provider: string,
+  model: string,
+  attachments: AttachmentStore | undefined,
+  signal?: AbortSignal,
+): AsyncGenerator<StreamChunk> {
   const reader = body.getReader()
   const decoder = new TextDecoder()
   let buffered = ''
   let event = ''
   let nextIndex = 0
+  let sourceDone = false
   const open = new Map<number, OpenBlock>()
+  const replayBlocks: AntigravityReplayBlock[] = []
+  const replayNativeParts: AntigravityNativeReplayPart[] = []
   let textIndex: number | undefined
   let reasoningIndex: number | undefined
+  let imageCount = 0
+  let imageBytes = 0
   const toolBlockById = new Map<string, OpenBlock>()
 
   const openBlock = function* (kind: OpenBlock['kind']): Generator<StreamChunk, OpenBlock> {
@@ -299,6 +567,12 @@ async function* projectSseToChunks(body: ReadableStream<Uint8Array>): AsyncGener
       : block.kind === 'reasoning'
         ? { type: 'reasoning', text: block.text }
         : { type: 'text', text: block.text }
+    replayBlocks[block.index] = block.kind === 'tool-call'
+      ? {
+        type: 'tool-call',
+        ...block.thoughtSignature === undefined ? {} : { thoughtSignature: block.thoughtSignature },
+      }
+      : { type: block.kind }
     yield { type: 'block-end', index: block.index, block: assembled }
   }
 
@@ -316,65 +590,262 @@ async function* projectSseToChunks(body: ReadableStream<Uint8Array>): AsyncGener
     return { kind: 'stop' }
   }
 
-  const handleData = function* (payload: string): Generator<StreamChunk> {
-    if (event === 'error') {
-      let message = payload
-      try {
-        const parsed = JSON.parse(payload) as { error?: { message?: string } }
-        message = parsed.error?.message ?? payload
-      } catch { /* keep raw payload */ }
-      yield {
-        type: 'finish',
-        reason: { kind: 'error', failure: { code: 'fi-antigravity/upstream', message: message.slice(0, 300) } },
-      }
-      return
+  const errorFinish = (code: string, message: string): StreamChunk => ({
+    type: 'finish',
+    reason: { kind: 'error', failure: { code, message: message.slice(0, 300) } },
+  })
+
+  const closeToolBlocks = function* (): Generator<StreamChunk> {
+    const tools = [...open.values()]
+      .filter(block => block.kind === 'tool-call')
+      .sort((a, b) => a.index - b.index)
+    for (const block of tools) yield* closeBlock(block)
+  }
+
+  const emitReasoning = function* (text: string): Generator<StreamChunk> {
+    if (text.length === 0) return
+    yield* closeToolBlocks()
+    if (textIndex !== undefined && open.has(textIndex)) {
+      yield* closeBlock(open.get(textIndex) as OpenBlock)
+      textIndex = undefined
     }
-    if (payload === '[DONE]') return
+    if (reasoningIndex === undefined || !open.has(reasoningIndex)) {
+      reasoningIndex = (yield* openBlock('reasoning')).index
+    }
+    const block = open.get(reasoningIndex) as OpenBlock
+    block.text += text
+    yield { type: 'reasoning-delta', index: reasoningIndex, text }
+  }
+
+  const emitText = function* (text: string): Generator<StreamChunk> {
+    if (text.length === 0) return
+    yield* closeToolBlocks()
+    if (reasoningIndex !== undefined && open.has(reasoningIndex)) {
+      yield* closeBlock(open.get(reasoningIndex) as OpenBlock)
+      reasoningIndex = undefined
+    }
+    if (textIndex === undefined || !open.has(textIndex)) {
+      textIndex = (yield* openBlock('text')).index
+    }
+    const block = open.get(textIndex) as OpenBlock
+    block.text += text
+    yield { type: 'text-delta', index: textIndex, text }
+  }
+
+  const emitToolCall = function* (
+    callId: string,
+    name: string | undefined,
+    args: string,
+    signature: unknown,
+  ): Generator<StreamChunk, boolean> {
+    if (textIndex !== undefined && open.has(textIndex)) {
+      yield* closeBlock(open.get(textIndex) as OpenBlock)
+      textIndex = undefined
+    }
+    if (reasoningIndex !== undefined && open.has(reasoningIndex)) {
+      yield* closeBlock(open.get(reasoningIndex) as OpenBlock)
+      reasoningIndex = undefined
+    }
+    let block = toolBlockById.get(callId)
+    if (block === undefined) {
+      block = yield* openBlock('tool-call')
+      block.id = callId as ToolCallId
+      block.name = name
+      toolBlockById.set(callId, block)
+    }
+    if (signature !== undefined) {
+      if (typeof signature !== 'string' || signature.length === 0) return false
+      if (block.thoughtSignature !== undefined && block.thoughtSignature !== signature) return false
+      block.thoughtSignature = signature
+    }
+    if (args.length > 0) {
+      block.text += args
+      yield {
+        type: 'tool-call-delta',
+        index: block.index,
+        id: callId as ToolCallId,
+        name,
+        argumentsDelta: args,
+      }
+    }
+    return true
+  }
+
+  const handleData = async function* (payload: string): AsyncGenerator<StreamChunk, boolean> {
+    if (event === 'error') {
+      yield* closeAll()
+      yield errorFinish('fi-antigravity/upstream', 'Antigravity stream failed')
+      return true
+    }
+    if (payload === '[DONE]') return false
     let chunk: OpenAIStreamChunk
     try {
-      chunk = JSON.parse(payload)
+      const parsed: unknown = JSON.parse(payload)
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new Error('not an object')
+      chunk = parsed
     } catch {
-      return // a partial or non-JSON data line carries nothing actionable
+      yield* closeAll()
+      yield errorFinish('fi-antigravity/malformed-event', 'Antigravity emitted malformed SSE JSON')
+      return true
     }
     const choice = chunk.choices?.[0]
     const delta = choice?.delta
-    if (typeof delta?.reasoning_content === 'string' && delta.reasoning_content.length > 0) {
-      if (textIndex !== undefined && open.has(textIndex)) {
-        yield* closeBlock(open.get(textIndex) as OpenBlock)
-        textIndex = undefined
+    let nativeParts: readonly AntigravityNativeStreamPart[] | undefined
+    if (delta?.antigravity_native_parts !== undefined) {
+      if (!Array.isArray(delta.antigravity_native_parts)) {
+        yield* closeAll()
+        yield errorFinish('fi-antigravity/invalid-signature', 'Antigravity returned invalid native replay metadata')
+        return true
       }
-      if (reasoningIndex === undefined) {
-        reasoningIndex = (yield* openBlock('reasoning')).index
+      try {
+        nativeParts = delta.antigravity_native_parts.map((part, index) => (
+          antigravityNativeStreamPart(part, `response part ${replayNativeParts.length + index}`)
+        ))
+      } catch {
+        yield* closeAll()
+        yield errorFinish('fi-antigravity/invalid-signature', 'Antigravity returned invalid native replay metadata')
+        return true
       }
-      const block = open.get(reasoningIndex) as OpenBlock
-      block.text += delta.reasoning_content
-      yield { type: 'reasoning-delta', index: reasoningIndex, text: delta.reasoning_content }
     }
-    if (typeof delta?.content === 'string' && delta.content.length > 0) {
-      if (reasoningIndex !== undefined && open.has(reasoningIndex)) {
-        yield* closeBlock(open.get(reasoningIndex) as OpenBlock)
-        reasoningIndex = undefined
-      }
-      if (textIndex === undefined) {
-        textIndex = (yield* openBlock('text')).index
-      }
-      const block = open.get(textIndex) as OpenBlock
-      block.text += delta.content
-      yield { type: 'text-delta', index: textIndex, text: delta.content }
+    if ((delta?.files?.length ?? 0) > 0) {
+      yield* closeAll()
+      yield errorFinish(
+        'fi-antigravity/unsupported-content',
+        'Antigravity returned a file output that this adapter cannot represent',
+      )
+      return true
     }
-    for (const call of delta?.tool_calls ?? []) {
-      const callId = call.id ?? `call_${nextIndex}`
-      let block = toolBlockById.get(callId)
-      if (block === undefined) {
-        block = yield* openBlock('tool-call')
-        block.id = callId as ToolCallId
-        block.name = call.function?.name
-        toolBlockById.set(callId, block)
+    const rawImages = delta?.images ?? []
+    if (!Array.isArray(rawImages)) {
+      yield* closeAll()
+      yield errorFinish('fi-antigravity/invalid-image-output', 'Antigravity image output failed attachment admission')
+      return true
+    }
+    const nativeImageParts = nativeParts?.filter(
+      (part): part is Extract<AntigravityNativeStreamPart, { type: 'image' }> => part.type === 'image',
+    ) ?? []
+    let savedImages: readonly ImageAttachmentRef[] = []
+    const savedOriginals = new Map<number, {
+      attachment: FileAttachmentRef
+      mediaType: ImageMediaType
+    }>()
+    if (rawImages.length > 0) {
+      if (attachments === undefined || nativeImageParts.length !== rawImages.length
+        || new Set(nativeImageParts.map(part => part.imageIndex)).size !== rawImages.length
+        || nativeImageParts.some(part => part.imageIndex >= rawImages.length)) {
+        yield* closeAll()
+        yield errorFinish('fi-antigravity/invalid-image-output', 'Antigravity image output failed attachment admission')
+        return true
       }
-      const args = call.function?.arguments ?? ''
-      if (args.length > 0) {
-        block.text += args
-        yield { type: 'tool-call-delta', index: block.index, id: callId as ToolCallId, name: call.function?.name, argumentsDelta: args }
+      try {
+        const prepared = rawImages.map(image => generatedImageInput(image, attachments))
+        const nextImageCount = imageCount + prepared.length
+        const nextImageBytes = imageBytes + prepared.reduce((total, image) => total + image.bytes, 0)
+        if (nextImageCount > attachments.imageLimits.maxImagesPerMessage
+          || nextImageBytes > attachments.imageLimits.maxMessageImageBytes) {
+          throw new GeneratedImageOutputError('image response exceeds attachment policy')
+        }
+        signal?.throwIfAborted()
+        const inputs: SaveImageAttachment[] = prepared.map(image => ({
+          mediaType: image.mediaType,
+          data: Uint8Array.from(Buffer.from(image.base64, 'base64')),
+        }))
+        savedImages = await attachments.saveImages(inputs)
+        signal?.throwIfAborted()
+        for (const part of nativeImageParts) {
+          if (part.thoughtSignature === undefined) continue
+          const input = inputs[part.imageIndex]
+          const image = prepared[part.imageIndex]
+          if (input === undefined || image === undefined) {
+            throw new GeneratedImageOutputError('signed image is missing its original bytes')
+          }
+          const extension = image.mediaType === 'image/jpeg'
+            ? 'jpg'
+            : image.mediaType.slice('image/'.length)
+          signal?.throwIfAborted()
+          const attachment = await attachments.saveFile({
+            data: input.data,
+            name: `antigravity-generated.${extension}`,
+          })
+          signal?.throwIfAborted()
+          savedOriginals.set(part.imageIndex, { attachment, mediaType: image.mediaType })
+        }
+        imageCount = nextImageCount
+        imageBytes = nextImageBytes
+      } catch (error: unknown) {
+        if (signal?.aborted) throw error
+        yield* closeAll()
+        yield errorFinish('fi-antigravity/invalid-image-output', 'Antigravity image output failed attachment admission')
+        return true
+      }
+    } else if (nativeImageParts.length > 0) {
+      yield* closeAll()
+      yield errorFinish('fi-antigravity/invalid-image-output', 'Antigravity image output failed attachment admission')
+      return true
+    }
+
+    if (nativeParts !== undefined) {
+      for (const part of nativeParts) {
+        if (part.type === 'image') {
+          yield* closeAll()
+          const index = nextIndex++
+          const attachment = savedImages[part.imageIndex]
+          if (attachment === undefined) {
+            yield errorFinish('fi-antigravity/invalid-image-output', 'Antigravity image output failed attachment admission')
+            return true
+          }
+          const original = savedOriginals.get(part.imageIndex)
+          replayBlocks[index] = { type: 'image' }
+          replayNativeParts.push({
+            type: 'image',
+            contentIndex: index,
+            ...original === undefined ? {} : { original },
+            ...part.thoughtSignature === undefined ? {} : { thoughtSignature: part.thoughtSignature },
+          })
+          yield { type: 'block-start', index, blockType: 'image' }
+          yield { type: 'block-end', index, block: { type: 'image', attachment } }
+          continue
+        }
+        if (part.type === 'reasoning') {
+          replayNativeParts.push(part)
+          yield* emitReasoning(part.text)
+          continue
+        }
+        if (part.type === 'text') {
+          replayNativeParts.push(part)
+          yield* emitText(part.text)
+          continue
+        }
+        replayNativeParts.push(part)
+        const args = typeof part.args === 'string' ? part.args : JSON.stringify(part.args ?? {})
+        const accepted = yield* emitToolCall(part.id, part.name, args, part.thoughtSignature)
+        if (!accepted) {
+          yield* closeAll()
+          yield errorFinish('fi-antigravity/signature-conflict', 'Antigravity changed a tool call thought signature mid-stream')
+          return true
+        }
+      }
+    } else {
+      if (rawImages.length > 0) {
+        yield* closeAll()
+        yield errorFinish('fi-antigravity/invalid-image-output', 'Antigravity image output failed attachment admission')
+        return true
+      }
+      if (typeof delta?.reasoning_content === 'string') yield* emitReasoning(delta.reasoning_content)
+      if (typeof delta?.content === 'string') yield* emitText(delta.content)
+      for (const call of delta?.tool_calls ?? []) {
+        const callId = call.id ?? `call_${nextIndex}`
+        const accepted = yield* emitToolCall(
+          callId,
+          call.function?.name,
+          call.function?.arguments ?? '',
+          call.extra_content?.google?.thought_signature,
+        )
+        if (!accepted) {
+          yield* closeAll()
+          yield errorFinish('fi-antigravity/signature-conflict', 'Antigravity changed a tool call thought signature mid-stream')
+          return true
+        }
       }
     }
     if (chunk.usage !== undefined) {
@@ -391,38 +862,53 @@ async function* projectSseToChunks(body: ReadableStream<Uint8Array>): AsyncGener
     }
     if (typeof choice?.finish_reason === 'string') {
       yield* closeAll()
-      yield { type: 'finish', reason: mapFinish(choice.finish_reason) }
+      const reason = mapFinish(choice.finish_reason)
+      const replayState: ReplayEnvelope | undefined = reason.kind === 'error'
+        ? undefined
+        : antigravityReplayEnvelope(provider, model, replayBlocks, replayNativeParts)
+      yield {
+        type: 'finish',
+        reason,
+        ...replayState === undefined ? {} : { replayState },
+      }
+      return true
     }
+    return false
   }
 
   try {
     while (true) {
       const { done, value } = await reader.read()
-      if (done) break
+      if (done) {
+        sourceDone = true
+        break
+      }
       buffered += decoder.decode(value, { stream: true })
       let newline = buffered.indexOf('\n')
       while (newline >= 0) {
         const line = buffered.slice(0, newline).trim()
         buffered = buffered.slice(newline + 1)
         if (line.startsWith('event:')) event = line.slice(6).trim()
-        else if (line.startsWith('data:')) yield* handleData(line.slice(5).trim())
+        else if (line.startsWith('data:')) {
+          const terminal = yield* handleData(line.slice(5).trim())
+          if (terminal) return
+        }
         else if (line === '') event = ''
         newline = buffered.indexOf('\n')
       }
+      if (new TextEncoder().encode(buffered).byteLength > 256 * 1024 * 1024) {
+        yield* closeAll()
+        yield errorFinish('fi-antigravity/frame-too-large', 'Antigravity projected SSE line exceeded 268435456 bytes')
+        return
+      }
     }
   } finally {
+    if (!sourceDone) await reader.cancel(signal?.reason).catch(() => {})
     reader.releaseLock()
   }
+  if (signal?.aborted) return
   // The transport refuses to serve a truncated reply as complete; the chunk
   // protocol matches it: ending without a finish reason is an error finish.
-  if (open.size > 0) {
-    yield* closeAll()
-    yield {
-      type: 'finish',
-      reason: {
-        kind: 'error',
-        failure: { code: 'fi-antigravity/truncated', message: 'Antigravity stream ended before a finish reason' },
-      },
-    }
-  }
+  yield* closeAll()
+  yield errorFinish('fi-antigravity/truncated', 'Antigravity stream ended before a finish reason')
 }

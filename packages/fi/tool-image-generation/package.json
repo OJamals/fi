@@ -1,0 +1,58 @@
+{
+  "name": "@fi/tool-image-generation",
+  "description": "Opt-in Codex, Grok, and Antigravity image generation and editing through stored subscription OAuth",
+  "version": "0.1.0-preview.4",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "scripts": {
+    "bundle": "tsdown",
+    "test": "vitest run"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^",
+    "@earendil-works/pi-ai": "^0.85.1"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-attachment": "workspace:^",
+    "@deepseek-ai/dsh-fs": "workspace:^",
+    "@deepseek-ai/dsh-llm": "workspace:^",
+    "@deepseek-ai/dsh-llm-pi-ai": "workspace:^",
+    "@deepseek-ai/dsh-tools": "workspace:^",
+    "@deepseek-ai/dsh-util-crypto": "workspace:^",
+    "@fi/llm-antigravity": "workspace:^",
+    "@fi/provider-compat": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/cordis-plugin-loader": "workspace:^",
+    "@deepseek-ai/dsh-attachment": "workspace:^",
+    "@deepseek-ai/dsh-attachment-local": "workspace:^",
+    "@deepseek-ai/dsh-credentials-local": "workspace:^",
+    "@deepseek-ai/dsh-fs": "workspace:^",
+    "@deepseek-ai/dsh-fs-local": "workspace:^",
+    "@deepseek-ai/dsh-llm": "workspace:^",
+    "@deepseek-ai/dsh-llm-pi-ai": "workspace:^",
+    "@deepseek-ai/dsh-system-prompt": "workspace:^",
+    "@deepseek-ai/dsh-tools": "workspace:^",
+    "@deepseek-ai/dsh-util-crypto": "workspace:^",
+    "@fi/llm-antigravity": "workspace:^",
+    "@fi/provider-compat": "workspace:^",
+    "@types/node": "^22.20.2",
+    "vitest": "^4.1.8"
+  }
+}

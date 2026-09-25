@@ -1,10 +1,7 @@
 /**
  * The attempt conversation view shared by this package's sign-in surfaces:
  * notices (the URL to open, the device code to type), the live prompt form,
- * and the settled outcome. It is its own module because the footer's
- * subscription section renders it below the provider list while an earlier
- * revision rendered it inside per-row cards — the conversation component is
- * identical either way, and keeping it here keeps that history visible.
+ * and the settled outcome.
  */
 
 import { useState } from 'react'
@@ -130,7 +127,7 @@ export function AttemptView({ attempt, controller, t }: {
           </div>
         )}
       <PromptForm attempt={attempt} controller={controller} t={t} />
-      <Button variant="ghost" onClick={() => { controller.dismiss() }}>{t('cancel')}</Button>
+      <Button variant="ghost" onClick={() => { void controller.cancel() }}>{t('cancel')}</Button>
     </div>
   )
 }

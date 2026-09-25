@@ -3372,6 +3372,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'payload', description: '.change - fresh current projection or clear tombstone.' }],
   },
   {
+    name: 'llm-pi-ai/request-transport',
+    mode: 'waterfall',
+    signature: '\'llm-pi-ai/request-transport\'( request: PiAiRequestTransportContext, next: () => Promise<PiAiRequestTransport | undefined>, ): Promise<PiAiRequestTransport | undefined>',
+    summary: 'Add provider-specific HTTP headers or a request-scoped fetch function to a pi-ai request.',
+    description: 'Add provider-specific HTTP headers or a request-scoped fetch function to a pi-ai request. The adapter accepts the result only for stored subscription OAuth and never exposes the grant to listeners.',
+    parameters: [{ name: 'request', description: 'non-secret route, model, session, and timeout facts.' }, { name: 'next', description: 'continue to the next transport listener.' }],
+  },
+  {
     name: 'llm/adapters-updated',
     mode: 'emit',
     signature: '\'llm/adapters-updated\'(): void',
@@ -4826,6 +4834,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PermissionSelect',
     declaration: 'export interface PermissionSelect {\n    options: PresetOption[];\n    currentValue: string;\n}',
+  },
+  {
+    name: 'PiAiRequestTransport',
+    declaration: 'export interface PiAiRequestTransport {\n    transformHeaders?: (headers: ProviderHeaders) => ProviderHeaders | Promise<ProviderHeaders>;\n    fetch?: FetchFunction;\n    websocketFactory?: WebSocketFactory;\n}',
+  },
+  {
+    name: 'PiAiRequestTransportContext',
+    declaration: 'export interface PiAiRequestTransportContext {\n    provider: string;\n    model: string;\n    sessionId?: string;\n    timeoutMs: number;\n    harnessUserAgent: string;\n}',
   },
   {
     name: 'PostToolDecision',

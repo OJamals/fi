@@ -23,14 +23,18 @@ import { WelcomeNotice } from './WelcomeNotice.tsx'
 import type { WelcomeNoticeInjected } from './WelcomeNotice.tsx'
 import { decodeWelcomeSection, WelcomeNoticeStore } from './welcome-store.ts'
 import { ModelsSettingsStore } from './store.ts'
+import { ModelSettingsSubscriptions } from './subscriptions.ts'
 import { createModelsOperations } from './operations.ts'
 import { createSettingsSchemaOperations } from './schema-operations.ts'
 import { en, zh, type ModelsKey } from './locales.ts'
 import { WELCOME_NOTICE_SETTINGS_NAMESPACE } from '../onboarding-copy.ts'
 
 export type { ModelsSectionInjected, ModelsSectionProps } from './ModelsSection.tsx'
-export type { ModelsFooterOwnerProps, ProviderCardExtrasOwnerProps } from './slot-contract.ts'
+export type {
+  ModelsFooterOwnerProps, ProviderCardExtrasOwnerProps, ProviderEditorOwnerProps,
+} from './slot-contract.ts'
 export type { ModelsKey } from './locales.ts'
+export { ModelSettingsSubscriptions } from './subscriptions.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -73,6 +77,7 @@ export const inject = [
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
+  ctx.plugin(ModelSettingsSubscriptions)
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-settings-models: copy dictionaries')
 
   const schema = createSettingsSchemaOperations(ctx.settingsSchema)
@@ -83,9 +88,9 @@ export function apply(ctx: ClientContext): void {
   // Registration-time text (the nav label thunk) and the inject faces share
   // one bound translate; copy freshness rides the locale revision.
   const t = ctx.locale.bind(NS) as ModelsSectionInjected['t']
-  const injected = (): ModelsSectionInjected => ({
+  const injected = (subscriptions: ModelSettingsSubscriptions['store']): ModelsSectionInjected => ({
     controller,
-    hooks: { snapshot: controller.store },
+    hooks: { snapshot: controller.store, subscriptions },
     operations,
     schema,
     t,
@@ -126,17 +131,20 @@ export function apply(ctx: ClientContext): void {
     }
   }, 'ui-settings-models: pushed invalidations')
 
-  ctx.slots.inject('settings.section', () => ctx.slots.register({
-    name: 'settings.section',
-    id: 'models',
-    order: 10,
-    label: () => t('nav'),
-    inject: injected,
-    children: {
-      'settings.models.provider-card': { kind: 'keyed', scope: 'root' },
-      'settings.models.footer': { kind: 'list', scope: 'root' },
-    },
-  }, ModelsSection))
+  ctx.inject(['slots', 'modelSettingsSubscriptions'], (scope) => {
+    scope.slots.inject('settings.section', () => scope.slots.register({
+      name: 'settings.section',
+      id: 'models',
+      order: 10,
+      label: () => t('nav'),
+      inject: () => injected(scope.modelSettingsSubscriptions.store),
+      children: {
+        'settings.models.provider-editor': { kind: 'keyed', scope: 'root' },
+        'settings.models.provider-card': { kind: 'keyed', scope: 'root' },
+        'settings.models.footer': { kind: 'list', scope: 'root' },
+      },
+    }, ModelsSection))
+  })
   ctx.slots.inject('settings.onboarding', () => ctx.slots.register({
     name: 'settings.onboarding',
     id: 'welcome-notice',

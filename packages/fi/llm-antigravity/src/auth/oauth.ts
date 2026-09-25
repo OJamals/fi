@@ -67,7 +67,10 @@ function base64url(bytes: Uint8Array): string {
   return Buffer.from(bytes).toString('base64url')
 }
 
-/** Generate the verifier and S256 challenge used by Google's installed app. */
+/**
+ * Generate the verifier and S256 challenge used by Google's installed app.
+ * @returns a fresh PKCE verifier and its S256 challenge.
+ */
 export function generateAntigravityPKCE(): PKCECodes {
   const codeVerifier = base64url(randomBytes(96))
   const codeChallenge = base64url(createHash('sha256').update(codeVerifier).digest())
@@ -100,10 +103,11 @@ async function tokenRequest(params: URLSearchParams, signal?: AbortSignal | null
     },
     body: params,
     signal: signal ?? null,
+    redirect: 'error',
   })
   if (!response.ok) {
-    const detail = await response.text()
-    throw new Error(`Antigravity OAuth token request failed (${response.status}): ${detail}`)
+    await response.body?.cancel().catch(() => {})
+    throw new Error(`Antigravity OAuth token request failed (${response.status})`)
   }
   return await response.json() as GoogleTokenResponse
 }
@@ -115,8 +119,12 @@ async function getUserEmail(accessToken: string, signal?: AbortSignal): Promise<
       'User-Agent': ANTIGRAVITY_USER_AGENT,
     },
     signal: signal ?? null,
+    redirect: 'error',
   })
-  if (!response.ok) throw new Error(`Antigravity user info request failed (${response.status})`)
+  if (!response.ok) {
+    await response.body?.cancel().catch(() => {})
+    throw new Error(`Antigravity user info request failed (${response.status})`)
+  }
   const data = await response.json() as { email?: unknown }
   if (typeof data.email !== 'string' || data.email.length === 0) {
     throw new Error('Google user info response omitted email')
@@ -124,7 +132,12 @@ async function getUserEmail(accessToken: string, signal?: AbortSignal): Promise<
   return data.email
 }
 
-/** Discover the Cloud Code project attached to an OAuth grant. */
+/**
+ * Discover the Cloud Code project attached to an OAuth grant.
+ * @param accessToken - current Google OAuth access token.
+ * @param signal - optional cancellation for project discovery.
+ * @returns the Cloud Code project id.
+ */
 export async function discoverAntigravityProject(
   accessToken: string,
   signal?: AbortSignal | null,
@@ -141,11 +154,12 @@ export async function discoverAntigravityProject(
     },
     body: JSON.stringify({ metadata: { ideType: 'ANTIGRAVITY' } }),
     signal: signal ?? null,
+    redirect: 'error',
   })
   const status = response.status
   if (!response.ok) {
-    const detail = await response.text().catch(() => '')
-    throw new Error(`Antigravity project discovery failed (${status}): ${detail}`)
+    await response.body?.cancel().catch(() => {})
+    throw new Error(`Antigravity project discovery failed (${status})`)
   }
   const data = await response.json() as {
     cloudaicompanionProject?: string | { id?: string }
@@ -163,14 +177,21 @@ export async function discoverAntigravityProject(
   )
 }
 
-/** Resolve the callback listener address from the configured redirect URI. */
+/**
+ * Resolve the callback listener address from the configured redirect URI.
+ * @returns loopback port and callback path.
+ */
 export function getAntigravityOAuthCallback(): { callbackPort: number; callbackPath: string } {
   const redirect = new URL(process.env.ANTIGRAVITY_OAUTH_REDIRECT_URI || ANTIGRAVITY_REDIRECT_URI)
   const callbackPort = Number(redirect.port || (redirect.protocol === 'https:' ? 443 : 80))
   return { callbackPort, callbackPath: redirect.pathname || '/callback' }
 }
 
-/** Start the one-shot loopback callback listener used by the browser flow. */
+/**
+ * Start the one-shot loopback callback listener used by the browser flow.
+ * @param options - listener address, timeout, and cancellation.
+ * @returns the callback authorization code and state.
+ */
 export function waitForAntigravityCallback(
   options: AntigravityCallbackOptions = {},
 ): Promise<AntigravityCallbackResult> {
@@ -206,8 +227,8 @@ export function waitForAntigravityCallback(
       response.end('<!doctype html><title>Login successful</title><p>You can close this tab.</p>')
       finish(undefined, { code, state })
     })
-    const timer = setTimeout(() => finish(new Error('Antigravity OAuth callback timeout')), timeoutMs)
-    const onAbort = (): void => finish(abortError(options.signal?.reason))
+    const timer = setTimeout(() => { finish(new Error('Antigravity OAuth callback timeout')) }, timeoutMs)
+    const onAbort = (): void => { finish(abortError(options.signal?.reason)) }
 
     const finish = (error?: Error, result?: AntigravityCallbackResult): void => {
       if (settled) return
@@ -220,7 +241,7 @@ export function waitForAntigravityCallback(
       else reject(new Error('Antigravity OAuth callback ended without a result'))
     }
 
-    server.once('error', error => finish(error))
+    server.once('error', (error) => { finish(error) })
     options.signal?.addEventListener('abort', onAbort, { once: true })
     if (options.signal?.aborted) {
       onAbort()
@@ -230,7 +251,12 @@ export function waitForAntigravityCallback(
   })
 }
 
-/** Build Google's OAuth authorization URL for one state and PKCE pair. */
+/**
+ * Build Google's OAuth authorization URL for one state and PKCE pair.
+ * @param state - unguessable state checked when the callback returns.
+ * @param pkce - verifier challenge pair for this authorization attempt.
+ * @returns the browser authorization URL.
+ */
 export function generateAntigravityAuthURL(state: string, pkce: PKCECodes): string {
   const config = getOAuthConfig()
   const params = new URLSearchParams({
@@ -247,7 +273,15 @@ export function generateAntigravityAuthURL(state: string, pkce: PKCECodes): stri
   return `${AUTH_URL}?${params.toString()}`
 }
 
-/** Exchange a callback code, then resolve the user's email and Cloud Code project. */
+/**
+ * Exchange a callback code, then resolve the user's email and Cloud Code project.
+ * @param code - authorization code returned to the loopback listener.
+ * @param returnedState - state returned with the callback.
+ * @param expectedState - state generated before browser authorization.
+ * @param pkce - verifier challenge pair used for authorization.
+ * @param signal - optional cancellation for exchange and discovery calls.
+ * @returns the complete Antigravity OAuth grant.
+ */
 export async function exchangeAntigravityCode(
   code: string,
   returnedState: string,
@@ -288,7 +322,12 @@ export async function exchangeAntigravityCode(
   }
 }
 
-/** Refresh an Antigravity access token while retaining its refresh token. */
+/**
+ * Refresh an Antigravity access token while retaining its refresh token.
+ * @param refreshToken - durable refresh token from the stored grant.
+ * @param signal - optional cancellation for the refresh request.
+ * @returns the rotated access-token data.
+ */
 export async function refreshAntigravityTokens(
   refreshToken: string,
   signal?: AbortSignal | null,

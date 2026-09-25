@@ -29,25 +29,13 @@ kind: "package-reference"
 
 ### 列出可登录的对象
 
-```ts
-const response = await ctx.remote.authorization.list()
-// [{ key: 'llm-pi-ai/anthropic', label: 'Anthropic',
-//    methods: [{ id: 'oauth', label: 'Anthropic (Claude Pro/Max)' }],
-//    inFlight: false, stored: true }]
-```
+调用 `remote.authorization.list()`，先检查 Remote 响应的 `ok` 判别字段，再读取 `value`。每行包含凭据键、提供方名称、支持的方法、`inFlight` 和 `stored`。
 
 `stored` 关联了凭据 seam，因此页面无需第二次往返即可渲染“已登录”。只要有任何界面持有该 key，`inFlight` 即为 true——seam 会拒绝第二次并发尝试而非将其合并，因为两者会通过同一个流程向不同的人提问。
 
 ### 运行一次尝试
 
-```ts
-for await (const frame of ctx.remote.authorization.begin({ key, method: 'oauth' }, signal)) {
-  if (frame.kind === 'notice') show(frame.message, frame.url, frame.code)
-  if (frame.kind === 'prompt') await ctx.remote.authorization.answer(key, frame.id, await ask(frame.prompt))
-  if (frame.kind === 'withdraw') retire(frame.id)
-  if (frame.kind === 'settled') finish(frame.status, frame.message)
-}
-```
+以异步可迭代对象消费 `remote.authorization.begin({ key, method }, signal)`。渲染 `notice` 帧，通过 `answer` 回答 `prompt` 帧，移除已撤回的问题，并显示终止 `settled` 帧的状态。单次调用的响应可以通过 `ok: false` 报告失败而不抛出异常；在答案被接受前保留问题。
 
 该流始终以恰好一个 `settled` 帧结束，失败也不例外，因此界面从该帧渲染终态，而不是从载体关闭去推断——连接中断与登录被拒绝绝不会看起来一样。
 
@@ -94,7 +82,9 @@ for await (const frame of ctx.remote.authorization.begin({ key, method: 'oauth' 
 
 <a id="known-limitations-and-deferred-work"></a>
 
-一次尝试绑定于开启它的载体，因此登录过程中页面刷新会丢失该对话并须重新开始；若流程此前已提交授权，则该授权不受影响。观察某个并非自己发起的 key 的第二个界面只能得知该 key 处于 `inFlight`，并在下一次 `list` 时看到结果——seam 的 `authorization/settled` 事件未被转发，因为应用的转发事件白名单是一个上游文件，本包刻意不去触碰。
+- 一次尝试绑定于开启它的载体。页面刷新会丢失对话；流程已经提交的授权仍然保留。
+- 第二个界面可获知 key 处于 `inFlight`，并在下一次 `list` 时观察结果；controller 不转发 `authorization/settled`。
+- 模型发现失败时报告 `authorization/adopt-blocked`；授权和设置路由仍然保留，可重试配置。
 
 <a id="dev-note"></a>
 ### 开发备注

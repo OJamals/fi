@@ -29,7 +29,9 @@ Mount this plugin alongside `ui-conversation` and the commands package; the comp
 
 ### Model and effort
 
-Models stay grouped by provider. The composer menu shows model and effort names only. The `/model` popup shows provider names and catalog descriptions; it localizes the two built-in DeepSeek descriptions and leaves external provider descriptions verbatim. The popup applies the selected model's default effort; the composer can then choose any advertised effort. An adapter without reasoning metadata leaves the Effort row absent; there is no arbitrary effort input.
+Models stay grouped by provider. The composer Model pane opens every provider collapsed; each provider header reveals its models without changing the selection, and the search field matches provider and model names or ids without case or whitespace sensitivity. Search reveals matching models without changing the saved provider expansion, so clearing it restores the browsing state. The composer menu shows model and effort names only. The `/model` popup shows provider names and catalog descriptions; it localizes the two built-in DeepSeek descriptions and leaves external provider descriptions verbatim. The popup applies the selected model's default effort; the composer can then choose any advertised effort. An adapter without reasoning metadata leaves the Effort row absent; there is no arbitrary effort input.
+
+Installed client plugins can register provider route ids through `ctx.modelSubscriptions` for a labeled Subscriptions section at the bottom of the composer Model pane. Regular providers retain catalog order above it, and subscription providers retain catalog order within it. The section appears only when at least one registered provider has visible models; search and model selection use the same ids and behavior as other groups. Registrations are disposable and update an open picker; blank or duplicate ids are rejected at registration. The `/model` popup keeps its Host catalog order.
 
 ### Unroutable sessions
 
@@ -58,6 +60,7 @@ Read these pages when the model surface is not enough. They move from the browse
 - [ui-conversation](../ui-conversation/README.md) — declares the composer's `conversation.input.model` seat and the composer block.
 - [dsh-agent-default-model](../../core/agent-default-model/README.md) — the default-model service for sessions that never choose.
 - [Client package map](../README.md) — adjacent browser UI packages.
+- [Agent Note: Subscription providers in the composer model picker](../../../.agents/notes/implemented/feature/2026-09-15-subscription-model-picker-section.md) — grouping ownership and preserved routing semantics.
 
 -----
 

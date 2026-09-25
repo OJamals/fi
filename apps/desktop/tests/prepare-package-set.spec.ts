@@ -36,6 +36,11 @@ describe('desktop package-set selection', () => {
       ['@deepseek-ai/cordis', packed('@deepseek-ai/cordis')],
       ['@deepseek-ai/platform-package', packed('@deepseek-ai/platform-package')],
       ['@deepseek-ai/unused', packed('@deepseek-ai/unused')],
+      ['@fi/authorization-bundle', packed('@fi/authorization-bundle', {
+        dependencies: { '@fi/provider-compat': '1.0.0' },
+      })],
+      ['@fi/provider-compat', packed('@fi/provider-compat')],
+      ['@fi/unused', packed('@fi/unused')],
     ])
     expect(selectDesktopPackageClosure(available).map(entry => entry.manifest.name)).toEqual([
       '@deepseek-ai/cordis',
@@ -43,6 +48,8 @@ describe('desktop package-set selection', () => {
       '@deepseek-ai/dsh-base',
       '@deepseek-ai/dsh-desktop-host',
       '@deepseek-ai/platform-package',
+      '@fi/authorization-bundle',
+      '@fi/provider-compat',
     ])
   })
 
@@ -54,11 +61,27 @@ describe('desktop package-set selection', () => {
       ['@deepseek-ai/dsh-desktop-host', packed('@deepseek-ai/dsh-desktop-host', {
         dependencies: { '@deepseek-ai/dsh': '^1.0.0' },
       })],
+      ['@fi/authorization-bundle', packed('@fi/authorization-bundle')],
     ])
     expect(() => selectDesktopPackageClosure(available)).toThrow(/unpacked internal package/u)
     expect(() => selectDesktopPackageClosure(new Map([
       ['@deepseek-ai/dsh', packed('@deepseek-ai/dsh')],
     ]))).toThrow(/omit @deepseek-ai\/dsh-desktop-host/u)
+    expect(() => selectDesktopPackageClosure(new Map([
+      ['@deepseek-ai/dsh', packed('@deepseek-ai/dsh')],
+      ['@deepseek-ai/dsh-desktop-host', packed('@deepseek-ai/dsh-desktop-host')],
+    ]))).toThrow(/omit @fi\/authorization-bundle/u)
+  })
+
+  it('rejects a required FI package absent from the packed Desktop inputs', () => {
+    const available = new Map<string, PackedDesktopPackage>([
+      ['@deepseek-ai/dsh', packed('@deepseek-ai/dsh')],
+      ['@deepseek-ai/dsh-desktop-host', packed('@deepseek-ai/dsh-desktop-host')],
+      ['@fi/authorization-bundle', packed('@fi/authorization-bundle', {
+        dependencies: { '@fi/provider-compat': '1.0.0' },
+      })],
+    ])
+    expect(() => selectDesktopPackageClosure(available)).toThrow(/unpacked internal package @fi\/provider-compat/u)
   })
 
   it('requires the Desktop Host entry and its packaged overlay', () => {

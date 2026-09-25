@@ -29,7 +29,9 @@ Web GUI 允许用户通过 `/model` 弹窗或 composer 模型控件切换既有�
 
 ### 模型与推理强度
 
-模型按提供方分组。composer 菜单只显示模型与推理强度名称。`/model` 弹窗显示提供方名称与目录说明；其中两个内置 DeepSeek 模型的说明使用当前语言，外部提供方说明保持原文。弹窗应用所选模型的默认推理强度；composer 随后可以选择任一已公布的推理强度。适配器没有推理元数据时不显示 Effort 行；不存在任意推理强度输入。
+模型按提供方分组。composer 的 Model 面板打开时，所有提供方均为折叠状态；每个提供方标题可以显示其模型而不更改选择，搜索框匹配提供方和模型的名称或 id，且不区分大小写和空白。搜索会显示匹配模型，但不会更改保存的提供方展开状态，因此清除搜索后会恢复浏览状态。composer 菜单只显示模型与推理强度名称。`/model` 弹窗显示提供方名称与目录说明；其中两个内置 DeepSeek 模型的说明使用当前语言，外部提供方说明保持原文。弹窗应用所选模型的默认推理强度；composer 随后可以选择任一已公布的推理强度。适配器没有推理元数据时不显示 Effort 行；不存在任意推理强度输入。
+
+已安装的客户端插件可通过 `ctx.modelSubscriptions` 注册提供方路由 id，使它们显示在 composer Model 面板底部、带“订阅服务”标签的分区。普通提供方在上方保持目录顺序，订阅提供方在分区内保持目录顺序。只有已注册的提供方含有可见模型时才显示分区；搜索和模型选择继续使用与其他分组相同的 id 与行为。注册可撤销，并会更新已打开的选择器；空白或重复 id 在注册时被拒绝。`/model` 弹窗保持 Host 目录顺序。
 
 ### 不可路由的会话
 
@@ -58,6 +60,7 @@ Web GUI 允许用户通过 `/model` 弹窗或 composer 模型控件切换既有�
 - [ui-conversation](../ui-conversation/README.zh.md)——声明 composer 的 `conversation.input.model` 位与 composer 阻塞块。
 - [dsh-agent-default-model](../../core/agent-default-model/README.zh.md)——为从未选择的会话提供默认模型的默认模型服务。
 - [客户端包映射](../README.zh.md)——相邻的浏览器 UI 包。
+- [Agent Note：composer 模型选择器中的订阅提供方](../../../.agents/notes/implemented/feature/2026-09-15-subscription-model-picker-section.zh.md)——分组归属与保持不变的路由语义。
 
 -----
 

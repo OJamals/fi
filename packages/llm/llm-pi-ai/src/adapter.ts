@@ -31,12 +31,15 @@ import type {
   Api,
   AuthContext,
   CredentialStore,
+  FetchFunction,
   Model,
   Models,
   ModelThinkingLevel,
   MutableModels,
+  ProviderHeaders,
   SimpleStreamOptions,
   ThinkingLevel,
+  WebSocketFactory,
 } from '@earendil-works/pi-ai'
 import {
   attributionHeaders,
@@ -70,6 +73,35 @@ interface PiAiSnapshot {
   models: Models
 }
 
+/** Request facts safe to expose to provider-specific transport plugins. */
+export interface PiAiRequestTransportContext {
+  /** Configured pi-ai provider route. */
+  provider: string
+  /** Exact model selected for this request. */
+  model: string
+  /** Harness session identity when the caller supplied one. */
+  sessionId?: string
+  /** Effective provider request timeout in milliseconds. */
+  timeoutMs: number
+  /** Harness attribution preserved when a provider requires its own User-Agent. */
+  harnessUserAgent: string
+}
+
+/** Transport-only additions accepted from a provider-specific plugin. */
+export interface PiAiRequestTransport {
+  /** Transform authentication and request headers before provider-native header assembly. */
+  transformHeaders?: (headers: ProviderHeaders) => ProviderHeaders | Promise<ProviderHeaders>
+  /** Request-scoped HTTP implementation; it does not affect WebSocket transports. */
+  fetch?: FetchFunction
+  /** Prepare authenticated WebSocket headers before SDK connection reuse; HTTP fallback still uses fetch. */
+  websocketFactory?: WebSocketFactory
+}
+
+interface AuthenticatedPiAiRequestTransport extends PiAiRequestTransport {
+  /** OAuth access token resolved once by pi-ai and frozen for this request. */
+  apiKey: string
+}
+
 /** Constructor options for {@link PiAiAdapter}: the two resolution hooks the plugin owns. */
 export interface PiAiAdapterOptions {
   /** Current validated profiles by provider route; called once per operation. */
@@ -92,6 +124,15 @@ export interface PiAiAdapterOptions {
    * every request no matter how often the human signed in.
    */
   auth: PiAiAuthInjection
+  /**
+   * Resolve optional provider transport additions. The adapter applies a
+   * returned patch only to a stored subscription OAuth grant when no explicit
+   * profile API key won request authentication. Credentials, signals, retries,
+   * model parameters, and payloads are not part of this extension point.
+   */
+  resolveRequestTransport?: (
+    request: PiAiRequestTransportContext,
+  ) => Promise<PiAiRequestTransport | undefined>
   /** Resolve the optional durable attachment service at request time. */
   resolveAttachments?: () => AttachmentStore | undefined
   /** Bridge one attachment reference into the current model-tool execution world. */
@@ -102,6 +143,9 @@ export interface PiAiAdapterOptions {
    */
   onReplayDegrade?: (detail: { provider: string; model: string; reason: string }) => void
 }
+
+/** pi-ai's documented provider-request default. */
+const DEFAULT_REQUEST_TIMEOUT_MS = 600_000
 
 /** The two auth injectables a pi-ai collection is built with. */
 export interface PiAiAuthInjection {
@@ -208,6 +252,43 @@ function requestHeaders(headers: Readonly<Record<string, string>> | undefined): 
   return {
     ...Object.fromEntries(Object.entries(headers ?? {}).filter(([name]) => !reserved.has(name.toLowerCase()))),
     ...attribution,
+  }
+}
+
+function requestAuthorization(input: Parameters<FetchFunction>[0], init: RequestInit | undefined): string | null {
+  const headers = new Headers(input instanceof Request ? input.headers : undefined)
+  new Headers(init?.headers).forEach((value, name) => { headers.set(name, value) })
+  return headers.get('authorization')
+}
+
+/** Refuse a transport patch unless the SDK put the frozen OAuth token on the actual HTTP request. */
+function authenticatedFetch(apiKey: string, delegate: FetchFunction): FetchFunction {
+  return (input, init) => {
+    if (requestAuthorization(input, init) !== `Bearer ${apiKey}`) {
+      throw new LlmError('pi-ai subscription transport authorization changed before dispatch', 'AUTH')
+    }
+    return delegate(input, init)
+  }
+}
+
+/** Validate each handshake, including cache hits, against the frozen OAuth result. */
+function authenticatedWebSocket(apiKey: string, delegate: WebSocketFactory): WebSocketFactory {
+  return (url, headers, env) => {
+    const expected = `Bearer ${apiKey}`
+    if (new Headers(headers).get('authorization') !== expected) {
+      throw new LlmError('pi-ai subscription WebSocket authorization changed before dispatch', 'AUTH')
+    }
+    const result = delegate(url, headers, env)
+    const prepared = Object.freeze({
+      url: result.url,
+      headers: Object.freeze({ ...result.headers }),
+      ...result.proxyUrl === undefined ? {} : { proxyUrl: result.proxyUrl },
+      connect: result.connect,
+    })
+    if (new Headers(prepared.headers).get('authorization') !== expected) {
+      throw new LlmError('pi-ai subscription WebSocket authorization changed during preparation', 'AUTH')
+    }
+    return prepared
   }
 }
 
@@ -377,15 +458,24 @@ export class PiAiAdapter extends LlmAdapter {
             maxBytes: profile.requestImageMaxBytes,
           },
         }, onReplayDegrade)
+      const requestTransport = apiKey === undefined
+        ? await this.subscriptionRequestTransport(snapshot, model, profile, options, watchdog.signal)
+        : undefined
       const events = snapshot.models.streamSimple(model, context, {
-        ...profileOptions(profile, reasoning, apiKey),
+        ...profileOptions(profile, reasoning, requestTransport?.apiKey ?? apiKey),
         ...options.temperature === undefined ? {} : { temperature: options.temperature },
         ...options.maxTokens === undefined ? {} : { maxTokens: options.maxTokens },
         ...options.sessionId === undefined ? {} : { sessionId: String(options.sessionId) },
         signal: watchdog.signal,
-        // Profile headers are deployment-owned; attribution names are
-        // Harness-owned and therefore win collisions.
+        // Profile headers are deployment-owned; Harness attribution wins its
+        // reserved name. A subscription transport may preserve that value in
+        // a separate header when its provider owns the wire User-Agent.
         headers: requestHeaders(profile.headers),
+        ...requestTransport?.transformHeaders === undefined
+          ? {}
+          : { transformHeaders: requestTransport.transformHeaders },
+        ...requestTransport?.fetch === undefined ? {} : { fetch: requestTransport.fetch },
+        ...requestTransport?.websocketFactory === undefined ? {} : { websocketFactory: requestTransport.websocketFactory },
       })
       const iterator = toStreamChunks(events, model.contextWindow, options.signal, model.id)[Symbol.asyncIterator]()
       let exhausted = false
@@ -420,6 +510,42 @@ export class PiAiAdapter extends LlmAdapter {
       throw error
     } finally {
       consumer.abort('pi-ai stream consumer stopped')
+    }
+  }
+
+  /** Resolve and authorize one optional transport patch without exposing its grant. */
+  private async subscriptionRequestTransport(
+    snapshot: PiAiSnapshot,
+    model: Model<Api>,
+    profile: ResolvedPiAiProviderProfile,
+    options: GenerateOptions,
+    signal: AbortSignal,
+  ): Promise<AuthenticatedPiAiRequestTransport | undefined> {
+    if (this.config.resolveRequestTransport === undefined) return undefined
+    const harnessUserAgent = attributionHeaders()['user-agent']
+    if (harnessUserAgent === undefined) {
+      throw new LlmError('Harness attribution lacks User-Agent', 'AUTH')
+    }
+    const candidate = await this.config.resolveRequestTransport({
+      provider: options.provider,
+      model: options.model,
+      ...options.sessionId === undefined ? {} : { sessionId: String(options.sessionId) },
+      timeoutMs: profile.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
+      harnessUserAgent,
+    })
+    if (candidate === undefined) return undefined
+    const provider = snapshot.models.getProvider(model.provider)
+    if (provider?.auth.oauth?.isSubscription !== true) return undefined
+    const resolution = await snapshot.models.getAuth(model, { signal })
+    if (resolution?.source !== 'OAuth' || typeof resolution.auth.apiKey !== 'string') return undefined
+    const apiKey = resolution.auth.apiKey
+    return {
+      ...candidate,
+      apiKey,
+      fetch: authenticatedFetch(apiKey, candidate.fetch ?? globalThis.fetch),
+      ...candidate.websocketFactory === undefined ? {} : {
+        websocketFactory: authenticatedWebSocket(apiKey, candidate.websocketFactory),
+      },
     }
   }
 }

@@ -6,6 +6,8 @@
 
 源码：[`packages/llm/llm/src/types.ts`](../../packages/llm/llm/src/types.ts)
 
+pi-ai 适配器另外导出 `PiAiRequestTransportContext`（提供方、模型、可选会话 id、超时与 Harness User-Agent）和 `PiAiRequestTransport`（可选请求头变换、单次请求的 HTTP fetch 与 WebSocket 握手准备）。可选的 `llm-pi-ai/request-transport` waterfall 不携带凭据字段。返回的传输仅用于订阅 OAuth，并与实际请求授权核对；没有 contribution 时保留普通分派。配置档的传输设置仍具权威性，包括自动优先 WebSocket 与 HTTP 回退。认证与传输所有权见[适配器参考](../../packages/llm/llm-pi-ai/README.zh.md)。这些扩展不改变共享请求、重放信封或 Session 格式。
+
 <a id="content-blocks-and-messages"></a>
 
 ## 内容块与消息
@@ -1093,4 +1095,28 @@ Waterfall around every streaming model call (retry, replay, routing). Bound to t
 ```
 
 Source: [`packages/llm/llm/src/index.ts`](../../packages/llm/llm/src/index.ts)
+
+<a id="llm-pi-ai-events"></a>
+
+### `llm-pi-ai/*` events
+
+<a id="llm-pi-airequest-transport--waterfall"></a>
+
+#### `llm-pi-ai/request-transport` — waterfall
+
+Add provider-specific HTTP headers or a request-scoped fetch function to a pi-ai request. The adapter accepts the result only for stored subscription OAuth and never exposes the grant to listeners.
+
+```ts cordis-catalog
+/**
+ * Add provider-specific HTTP headers or a request-scoped fetch function to
+ * a pi-ai request. The adapter accepts the result only for stored
+ * subscription OAuth and never exposes the grant to listeners.
+ * @param request - non-secret route, model, session, and timeout facts.
+ * @param next - continue to the next transport listener.
+ * @mode waterfall
+ */
+'llm-pi-ai/request-transport'( request: PiAiRequestTransportContext, next: () => Promise<PiAiRequestTransport | undefined>, ): Promise<PiAiRequestTransport | undefined>
+```
+
+Source: [`packages/llm/llm-pi-ai/src/index.ts`](../../packages/llm/llm-pi-ai/src/index.ts)
 <!-- END GENERATED cordis-surface -->

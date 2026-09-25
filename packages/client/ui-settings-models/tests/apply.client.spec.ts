@@ -80,7 +80,8 @@ describe('ui-settings-models apply', () => {
     const entry = before.slots.entries('settings.section')[0]!
     expect(entry.component).toBe(ModelsSection)
     expect(entry.options).toMatchObject({ id: 'models', order: 10 })
-    // The section claims its two extension seats in the same registration.
+    // The section claims its three extension seats in the same registration.
+    expect(before.slots.spec('settings.models.provider-editor')).toMatchObject({ kind: 'keyed', scope: 'root' })
     expect(before.slots.spec('settings.models.provider-card')).toMatchObject({ kind: 'keyed', scope: 'root' })
     expect(before.slots.spec('settings.models.footer')).toMatchObject({ kind: 'list', scope: 'root' })
     // The nav label is a locale-following thunk; owners resolve at read time.
@@ -164,13 +165,18 @@ describe('ui-settings-models apply', () => {
     declare(b.slots)
     const fiber = b.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
-    // A keyed card extension and a footer entry register through the ordinary
-    // ledger once the section's registration declared the seats.
+    // Keyed editor/card extensions and a footer entry register through the
+    // ordinary ledger once the section's registration declared the seats.
+    b.slots.register(
+      { name: 'settings.models.provider-editor', key: 'adapter-example' } as never,
+      () => null,
+    )
     const disposeCard = b.slots.register(
       { name: 'settings.models.provider-card', key: 'llm-pi-ai' } as never,
       () => null,
     )
     b.slots.register({ name: 'settings.models.footer', id: 'extra', order: 0 } as never, () => null)
+    expect(b.slots.entries('settings.models.provider-editor')).toHaveLength(1)
     expect(b.slots.entries('settings.models.provider-card')).toHaveLength(1)
     expect(b.slots.entries('settings.models.footer')).toHaveLength(1)
     // Extension-side HMR safety: its own disposer removes the entry.
@@ -178,6 +184,7 @@ describe('ui-settings-models apply', () => {
     expect(b.slots.entries('settings.models.provider-card')).toHaveLength(0)
     // Declarer unload cascades whatever extension entries remain.
     await fiber.dispose()
+    expect(b.slots.entries('settings.models.provider-editor')).toHaveLength(0)
     expect(b.slots.entries('settings.models.footer')).toHaveLength(0)
   })
 

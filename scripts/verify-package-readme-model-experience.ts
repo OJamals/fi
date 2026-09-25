@@ -123,9 +123,11 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   // a composition patch, a configuration-surface Remote owner, and a browser
   // settings card. (@fi/llm-antigravity mounts a real LlmAdapter and carries
   // the structured form above instead.)
-  'packages/fi/authorization-bundle': { kind: 'none', reason: 'Composition patch document; registers nothing model-facing.' },
+  'packages/fi/authorization-bundle': { kind: 'indirect', reason: 'The composition patch mounts the image-generation tool, whose package owns the model-facing schema and results.' },
   'packages/fi/api-authorization-controller': { kind: 'none', reason: 'Configuration-surface Remote owner; registers nothing model-facing.' },
   'packages/fi/client-ui-model-signin': { kind: 'none', reason: 'Browser-side UI plugin layer; registers nothing model-facing.' },
+  'packages/fi/provider-compat': { kind: 'none', reason: 'Changes OAuth HTTP headers and endpoint routing without adding model-visible content.' },
+  'packages/fi/web-search-subscription': { kind: 'indirect', reason: 'Returns native search evidence through the web service; dsh-tool-web owns the logged model-facing result and tool schema.' },
   'packages/client/locale': { kind: 'none', reason: 'Browser-side UI plugin layer; registers nothing model-facing.' },
   'packages/client/web': { kind: 'none', reason: 'Browser-side UI plugin layer; registers nothing model-facing.' },
   'packages/context/file-reference': { kind: 'indirect', reason: 'The discovery seam and grammar delegate model guidance to the composed provider.' },

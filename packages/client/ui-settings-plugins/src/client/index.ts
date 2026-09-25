@@ -97,7 +97,7 @@ export function apply(ctx: ClientContext): void {
 
   // The shared SettingsScope mirror updates after document commits and reconnects.
   const configurable = new ConfigurablePluginsTabController(
-    ctx.settingsScope.describe(), () => ctx.slots.entries('settings.plugin.item'))
+    ctx.settingsScope.describe(), () => ctx.slots.entriesOfSlot('settings.plugin.item'))
   ctx.effect(() => () => { configurable.dispose() }, 'ui-settings-plugins: tab directory')
   // A card registered after the first read joins the list without a wire call.
   ctx.effect(

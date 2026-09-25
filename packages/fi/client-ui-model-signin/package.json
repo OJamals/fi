@@ -1,7 +1,7 @@
 {
   "name": "@fi/client-ui-model-signin",
   "description": "Subscription sign-in card for the Models page: OAuth login for Claude Pro/Max and ChatGPT Plus/Pro through the authorization seam",
-  "version": "0.1.0-preview.1",
+  "version": "0.1.0-preview.4",
   "private": true,
   "type": "module",
   "main": "lib/index.js",
@@ -22,6 +22,7 @@
     "client": {
       "inject": [
         "@deepseek-ai/dsh-client-ui-settings-models",
+        "@deepseek-ai/dsh-client-ui-model-selection",
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-api-remotes"
       ],
@@ -39,6 +40,7 @@
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-api-remotes": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-model-selection": "workspace:^",
     "@deepseek-ai/dsh-client-locale": "workspace:^",
     "@deepseek-ai/dsh-client-store": "workspace:^",
     "@deepseek-ai/dsh-client-test-runtime": "workspace:^",

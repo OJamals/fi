@@ -150,6 +150,24 @@ describe('ui-settings-plugins apply', () => {
     })
   })
 
+  it('dispatches one namespace when a lower-priority card shadows a shipped card', async () => {
+    const { ctx, slots } = await bench(['web-search-deepseek'])
+    declareRoot(slots)
+    await ctx.plugin({ inject: [...inject], apply }).await()
+
+    const tab = slots.entries('settings.plugins.tab')[0]!
+    const face = (tab.inject as unknown as () => ConfigurablePluginsTabFace)()
+    slots.register({
+      name: 'settings.plugin.item',
+      key: 'web-search-deepseek',
+      priority: -1,
+    } as never, () => null)
+
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(face.hooks.configurablePlugins.getSnapshot().namespaces)
+      .toEqual(['web-search-deepseek'])
+  })
+
   it('re-reads the served namespaces when the Host commits a settings document', async () => {
     // Which namespaces the Host serves is a registration fact the wire never
     // announces on its own, so the tab rides the invalidation that can

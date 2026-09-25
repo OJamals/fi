@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context, Service } from '@deepseek-ai/cordis'
 import AuthorizationService from '@deepseek-ai/dsh-authorization'
 import type { AuthorizationSession } from '@deepseek-ai/dsh-authorization'
@@ -16,6 +16,7 @@ import type { AuthorizationFrameView } from '../src/types.ts'
 
 const KEY = 'llm-pi-ai/anthropic'
 const dirs: string[] = []
+const contexts: Context[] = []
 
 /** In-memory settings provider: the smallest real SettingsProvider subclass. */
 class MemorySettings extends SettingsProvider {
@@ -74,6 +75,7 @@ async function harness(options?: { settings?: boolean; llm?: boolean; doc?: Reco
   const dir = await mkdtemp(join(tmpdir(), 'fi-auth-ctl-'))
   dirs.push(dir)
   const ctx = new Context()
+  contexts.push(ctx)
   await ctx.plugin(LocalCredentialProvider, { path: join(dir, '.credentials.yaml'), watch: false })
   if (options?.settings === true) {
     await ctx.plugin(MemorySettings, { doc: options.doc ?? {} })
@@ -124,6 +126,8 @@ async function drain(stream: AsyncIterable<AuthorizationFrameView>): Promise<Aut
 }
 
 afterEach(async () => {
+  vi.restoreAllMocks()
+  for (const ctx of contexts.splice(0)) await ctx.fiber.dispose()
   for (const dir of dirs.splice(0)) await rm(dir, { recursive: true, force: true })
 })
 
@@ -284,7 +288,7 @@ describe('begin', () => {
 describe('answer', () => {
   it('refuses an answer no question is waiting for', async () => {
     const ctx = await harness()
-    expect(() => ctx.fiAuthorizationController.answer(KEY, 7, 'x')).toThrow(/no authorization prompt 7/)
+    expect(() => { ctx.fiAuthorizationController.answer(KEY, 7, 'x') }).toThrow(/no authorization prompt 7/)
   })
 })
 
@@ -384,6 +388,22 @@ describe('revoke', () => {
 })
 
 describe('adopt', () => {
+  it('reports discovery failure and retains the grant and route for retry', async () => {
+    const ctx = await harness({ settings: true, llm: true })
+    await commit(ctx)
+    const discovery = vi.spyOn(ctx.llm, 'discoverModels')
+      .mockRejectedValueOnce(new Error('provider unavailable: sensitive upstream detail'))
+
+    await expect(ctx.fiAuthorizationController.adopt(KEY)).rejects.toMatchObject({
+      code: 'authorization/adopt-blocked',
+      message: `models for "${KEY}" could not be loaded; retry provider setup`,
+    })
+    expect(routedProviders(ctx)).toEqual({ anthropic: {} })
+    expect((await ctx.credentials.describeRecord(credentialKey('llm-pi-ai', 'anthropic'))).configured).toBe(true)
+    expect((await ctx.fiAuthorizationController.adopt(KEY)).models).toHaveLength(3)
+    expect(discovery).toHaveBeenCalledTimes(2)
+  })
+
   it('creates the route and lists the catalog models after a successful sign-in', async () => {
     const ctx = await harness({ settings: true, llm: true })
     registerFlow(ctx, async () => { await commit(ctx) })

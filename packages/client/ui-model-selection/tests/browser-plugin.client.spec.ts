@@ -184,6 +184,25 @@ async function bench(locale: 'zh' | 'en' = 'zh') {
 const projection = (id: string) => ({ sessionId: sid(id) })
 
 describe('ui-model-selection dual entry', () => {
+  it('tracks registered subscription routes only in the composer seat', async () => {
+    const b = await bench()
+    expect(() => b.ctx.modelSubscriptions.register([''])).toThrow()
+    expect(() => b.ctx.modelSubscriptions.register(['anthropic', 'anthropic'])).toThrow()
+    b.mint('s1')
+    const subscriptionStore = b.seat().inject!(sid('s1')).subscriptionProviders!
+    expect(subscriptionStore.getSnapshot()).toEqual([])
+    const dispose = b.ctx.modelSubscriptions.register(['anthropic', 'antigravity'])
+    expect(subscriptionStore.getSnapshot()).toEqual(['anthropic', 'antigravity'])
+    const disposeOther = b.ctx.modelSubscriptions.register(['antigravity', 'xai'])
+    expect(subscriptionStore.getSnapshot()).toEqual(['anthropic', 'antigravity', 'xai'])
+    expect((await b.popup().options(projection('s1'), new AbortController().signal))
+      .map((row: SelectOption) => row.label)).toEqual(['DeepSeek-V4-Flash', 'DeepSeek-V4-Pro', 'External Flash'])
+    dispose()
+    expect(subscriptionStore.getSnapshot()).toEqual(['antigravity', 'xai'])
+    disposeOther()
+    expect(subscriptionStore.getSnapshot()).toEqual([])
+  })
+
   it('registers the /model contribution and the composer model seat', async () => {
     const b = await bench()
     expect(b.contribution().name).toBe('model')

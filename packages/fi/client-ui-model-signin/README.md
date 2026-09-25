@@ -1,5 +1,5 @@
 ---
-description: "The Models-page subscription sign-in card for users reaching Claude Pro/Max, ChatGPT Plus/Pro, and SuperGrok/X Premium inference, and maintainers extending which providers it offers."
+description: "The Models-page subscription sign-in section for users reaching Claude Pro/Max, ChatGPT Plus/Pro, and SuperGrok/X Premium inference, and maintainers extending which providers it offers."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@fi/client-ui-model-signin` adds one subscription sign-in section to the Models settings page for providers whose value is a subscription the user already holds — Claude Pro/Max, ChatGPT Plus/Pro, SuperGrok/X Premium, and Antigravity. It renders through the Models section's own footer extension slot, so the section is not modified. A row appears only when the Host has actually registered an OAuth flow for that provider, which makes the offer self-correcting: a composition without the adapter, or a pi-ai release that drops a login, simply shows nothing. Choose the API-key field when the provider authenticates with a key instead.
+`@fi/client-ui-model-signin` adds one subscription sign-in section to the Models settings page for providers whose value is a subscription the user already holds — Claude Pro/Max, ChatGPT Plus/Pro, SuperGrok/X Premium, and Antigravity. It renders through the Models section's footer extension slot. A compact selector lists only providers for which the Host has registered an OAuth flow, so a composition without an adapter simply omits it. Choose the API-key field when the provider authenticates with a key instead.
 
 ## Table of Contents
 
@@ -29,29 +29,31 @@ Mount it in a browser composition that also mounts the Models page and [`@fi/api
 
 ### What the user sees
 
-One "Sign in with your subscription" section below the Models page's provider rows lists every subscription provider the Host registered — Anthropic (Claude Pro/Max), OpenAI Codex (ChatGPT Plus/Pro), xAI (SuperGrok/X Premium), and Antigravity — each with a state dot and an accessible state label. An unsigned provider offers **Add**; clicking it runs the whole chain: the flow's live conversation (the page to open, the device code to type, any question the flow asks), then the Host's `adopt(key)`, which upserts the provider's settings route and reads back the models it now serves. The adoption banner reports the route outcome (created or already present) and lists every model id, in the installed catalog's order; the Models section's own `settings/document-updated` refresh brings the new route row in beside the rows the page already managed.
+One "Sign in with your subscription" section below the Models page's API-key provider rows presents a compact, accessible provider selector for Anthropic (Claude Pro/Max), OpenAI Codex (ChatGPT Plus/Pro), xAI (SuperGrok/X Premium), and Antigravity. Configured keyless routes for offered OAuth flows appear below those sign-in controls, with their edit and delete actions; a profile with `apiKeyEnv` stays in the main Models list. The selector has a bounded width beside an unsigned provider's state and action; signed-in management actions take a full row beneath it. On narrow screens the controls stack without horizontal scrolling. The selected provider shows its state dot, accessible state label, and only its available actions. An unsigned provider offers **Add provider**; clicking it runs the live sign-in conversation and then the Host's `adopt(key)`, which upserts the provider's settings entry and reads back its models. A stored grant offers **Set up provider**, so a provider that has already authorized can complete or retry setup without another OAuth round trip. The adoption result reports the entry outcome and keeps its model list behind a disclosure.
 
-A signed-in provider shows its state in the same row and offers two actions: **Sign in again**, which is how an expired refresh token is replaced (the adopt chain answers `already` for the standing route), and **Remove sign-in**, which revokes the stored grant (Host verb `revoke`, the Remote client's namespace service owning `remove`) and turns the row back into an Add offer without touching the route. The section refreshes on `credentials/record-updated` as well as `credentials/reference-updated`, so a grant deleted anywhere — this section, another tab, a CLI — re-offers the sign-in instead of leaving a dead row. Two failure-semantics rules keep the surface honest: starting any attempt clears the previous provider's adoption banner (it would otherwise read as the new attempt's outcome), and a failed adopt replaces the banner with an inline error naming the Host's diagnostic rather than leaving the earlier list behind.
+A signed-in provider shows **Sign in again**, which replaces an expired refresh token, and **Remove sign-in**, which revokes the stored grant without touching its settings entry. The selector only changes the visible provider; it never starts authentication or changes inference selection. An unfinished local authorization or adoption disables the selector. A live sign-in conversation names its provider, while a completed adoption selects its provider and shows that result. The section refreshes on `credentials/record-updated` and `credentials/reference-updated`, so a grant deleted anywhere re-offers sign-in. It renders loading and failed list states with retry, checks every unary Remote reply, and preserves a rejected action's diagnostic. Starting an operation clears an earlier adoption banner, while an operation identity prevents a dismissed or superseded sign-in from publishing a late adoption result.
 
-This section is the only sign-in surface: the provider rows in the Models list stay plain route rows, with no credential UI interleaved.
+This section is the only sign-in surface: provider rows in either location stay plain route rows, with no credential UI interleaved. Antigravity's native **Add provider** editor only adopts an already-stored grant; without one, it directs the person back to this section rather than opening another sign-in conversation.
 
 ### Offering another provider
 
-`OFFERED` in `src/client/store.ts` is the list and the order. Adding an entry is one line; a provider the Host has not registered is skipped, so the list is advisory rather than authoritative. Only the `oauth` method is ever offered — the Models page already collects an API key as an ordinary field, and a second door to the same room would be a worse page.
+`SUBSCRIPTION_PROVIDER_IDS` in `src/client/store.ts` owns the route ids and order; `OFFERED` derives their credential keys. A provider the Host has not registered is skipped. The joined offered rows register through `ctx.modelSettingsSubscriptions`, so the Models page groups only available OAuth routes and restores their rows to the main list if a flow disappears. When the generic model selector is mounted, this plugin registers the static ids with its `ctx.modelSubscriptions` service, placing available subscription model groups in a labeled bottom section without changing selection or authentication. Only the `oauth` method is offered; the Models page collects API keys separately.
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
-Registration goes through `settings.models.footer`, the slot the Models section declares for plugins distributed outside its own package. The section's row set is the package's `OFFERED` whitelist joined to the Host's registered flows, so Antigravity renders in the same section despite living outside pi-ai's catalog, and the adoptable join comes from `listAdoptable`, whose scope→route map both adapter families share.
+Registration goes through `settings.models.footer` and the keyed `settings.models.provider-editor` slot. The latter replaces only Antigravity's generic editor and shares the footer's store, so it can adopt a stored grant without duplicating a sign-in flow. The section's row set is the package's `OFFERED` whitelist joined to the Host's registered flows, so Antigravity renders in the same section despite living outside pi-ai's catalog, and the adoptable join comes from `listAdoptable`, whose scope→route map both adapter families share. The footer keeps selection locally, derives the active provider from an unfinished attempt, and falls back to the first remaining provider after an external refresh removes the selection.
 
-The store holds one attempt at a time and folds each stream frame into it. `applyFrame` is a pure function over that state, which is what makes the conversation's ordering rules testable without a carrier: a `withdraw` retires only the question currently on screen, and a settlement always clears any question still showing. No secret is held in this state — a typed answer goes straight back out over `answer` and the draft is dropped.
+The store holds one attempt at a time and folds each stream frame into it. `applyFrame` is pure over that state: a `withdraw` retires only the question currently on screen, and a settlement clears any question still showing. Each sign-in, adoption, and removal has an operation identity, so a late Remote response cannot alter a newer snapshot. No secret is held in this state — a typed answer goes straight back out over `answer` and the draft is dropped.
 
 <a id="further-exploration"></a>
 ## Further Exploration
 
 - [`@fi/api-authorization-controller`](../api-authorization-controller/README.md) — the Remote namespace this card drives.
 - [`@deepseek-ai/dsh-client-ui-settings-models`](../../client/ui-settings-models/README.md) — the page it extends, and the slot contract it registers into.
+- [`@deepseek-ai/dsh-client-ui-model-selection`](../../client/ui-model-selection/README.md) — the display-only subscription grouping it contributes to.
 - [Agent Note: Subscription OAuth sign-in in Models settings](../../../.agents/notes/implemented/feature/2026-09-11-subscription-oauth-sign-in.md)
+- [Agent Note: Subscription providers in the composer model picker](../../../.agents/notes/implemented/feature/2026-09-15-subscription-model-picker-section.md)
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -66,13 +68,13 @@ None; this package neither assembles nor sends a provider request.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-Revoking a sign-in deletes the grant but leaves the settings route standing; deleting the route is the Models page's own action, and the two are kept apart deliberately so an expired-token reset never rewrites provider configuration.
+- Revoking a sign-in deletes the grant but leaves the settings entry standing; deleting that entry is the Models page's own action, so an expired-token reset does not rewrite provider configuration.
 
-The section reloads its rows on credential invalidations (`reference-updated` for keys, `record-updated` for grants) and after its own attempts; an OAuth completion in a second tab announces itself through the same record event.
+- The section reloads its rows on credential invalidations (`reference-updated` for keys and `record-updated` for grants) and after its own operations; an OAuth completion in a second tab announces itself through the same record event.
 
 <a id="dev-note"></a>
 ### Dev Note
 
-The card's tests drive it over a scripted store rather than a live carrier, and the ordering rules live in `applyFrame` precisely so they can be asserted that way.
+The tests use scripted Remote replies, including a manually released adoption response, to cover response failures and superseded asynchronous work.
 
 **Runtime invariant:** No companion is published. The Host is the single fact source; the card's state is rebuilt from `list` and from the frames of the attempt it started.

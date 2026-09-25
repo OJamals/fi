@@ -9,6 +9,11 @@ import { runtimeFixture } from './runtime-fixture.ts'
 
 const roots: string[] = []
 const releaseWorkers: Array<() => Promise<void>> = []
+const BUILT_IN_BUNDLES = [
+  '@deepseek-ai/dsh-base',
+  '@deepseek-ai/dsh-web-app',
+  '@fi/authorization-bundle',
+] as const
 function temporaryRoot(): string {
   const root = mkdtempSync(join(tmpdir(), 'dsh-desktop-test-'))
   roots.push(root)
@@ -60,6 +65,11 @@ function calls(root: string): { args: string[]; registry: string }[] {
   const path = join(root, 'pnpm-log.jsonl')
   return existsSync(path) ? readFileSync(path, 'utf8').trim().split('\n').map(line => JSON.parse(line) as { args: string[]; registry: string }) : []
 }
+function profileBundles(manager: DesktopProjectManager): string[] {
+  return (JSON.parse(readFileSync(join(manager.paths.profile, 'package.json'), 'utf8')) as {
+    dsh: { profile: { bundles: string[] } }
+  }).dsh.profile.bundles
+}
 afterEach(async () => {
   const cleanups = releaseWorkers.splice(0)
   const directories = roots.splice(0)
@@ -92,13 +102,9 @@ describe('desktop external plugin profile', () => {
     const patch = join(manager.paths.profile, 'node_modules/plugin/bundle.yml')
     unlinkSync(patch)
     await manager.mutate({ type: 'plugins-disable-all' }, hooks({ afterChange: async () => {
-      expect((JSON.parse(readFileSync(join(manager.paths.profile, 'package.json'), 'utf8')) as {
-        dsh: { profile: { bundles: string[] } }
-      }).dsh.profile.bundles).not.toContain('plugin')
+      expect(profileBundles(manager)).toEqual(BUILT_IN_BUNDLES)
     } }))
-    expect((JSON.parse(readFileSync(join(manager.paths.profile, 'package.json'), 'utf8')) as {
-      dsh: { profile: { bundles: string[] } }
-    }).dsh.profile.bundles).not.toContain('plugin')
+    expect(profileBundles(manager)).toEqual(BUILT_IN_BUNDLES)
     expect(existsSync(join(manager.paths.profile, 'node_modules/plugin/package.json'))).toBe(true)
     expect(calls(root)).toHaveLength(2)
     await expect(manager.applyRelease()).resolves.toBe(false)
@@ -133,6 +139,7 @@ describe('desktop external plugin profile', () => {
       },
     }))
     expect(manager.listPlugins()).toEqual([])
+    expect(profileBundles(manager)).toEqual(BUILT_IN_BUNDLES)
     expect(existsSync(join(profile, 'node_modules/plugin'))).toBe(false)
     expect(existsSync(join(profile, 'cordis.patch.yml'))).toBe(false)
     expect(existsSync(join(profile, '.env'))).toBe(false)
@@ -219,10 +226,48 @@ describe('desktop external plugin profile', () => {
     await expect(manager.applyRelease()).resolves.toBe(true)
     await expect(manager.applyRelease()).resolves.toBe(false)
     expect(manager.listPlugins()).toEqual([])
+    expect(profileBundles(manager)).toEqual(BUILT_IN_BUNDLES)
     expect(calls(root)).toEqual([])
     expect(existsSync(manager.paths.pnpm.store)).toBe(false)
     expect(realpathSync(join(manager.paths.profile, 'node_modules/@deepseek-ai/cordis'))).toBe(realpathSync(join(manager.runtime.dsh, 'node_modules/@deepseek-ai/cordis')))
     expect(JSON.parse(readFileSync(join(manager.paths.profile, 'package.json'), 'utf8'))).toMatchObject({ dependencies: {} })
+  })
+
+  it('upgrades the previous built-in prefix without changing enabled third-party plugins', async () => {
+    const { root, manager } = setup()
+    await manager.applyRelease()
+    await manager.mutate({ type: 'plugin-add', spec: 'plugin@1.0.0' }, hooks())
+    const manifestPath = join(manager.paths.profile, 'package.json')
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+      dsh: { profile: { bundles: string[] } }
+    }
+    manifest.dsh.profile.bundles = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', 'plugin']
+    writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`)
+
+    await expect(manager.applyRelease()).resolves.toBe(true)
+    expect(profileBundles(manager)).toEqual([...BUILT_IN_BUNDLES, 'plugin'])
+    expect(manager.listPlugins()).toEqual([{ name: 'plugin', version: '1.0.0', enabled: true }])
+    expect(calls(root)).toHaveLength(2)
+  })
+
+  it('coalesces a manually appended FI bundle into the built-in prefix during upgrade', async () => {
+    const { manager } = setup()
+    await manager.applyRelease()
+    await manager.mutate({ type: 'plugin-add', spec: 'plugin@1.0.0' }, hooks())
+    const manifestPath = join(manager.paths.profile, 'package.json')
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+      dsh: { profile: { bundles: string[] } }
+    }
+    manifest.dsh.profile.bundles = [
+      '@deepseek-ai/dsh-base',
+      '@deepseek-ai/dsh-web-app',
+      'plugin',
+      '@fi/authorization-bundle',
+    ]
+    writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`)
+
+    await expect(manager.applyRelease()).resolves.toBe(true)
+    expect(profileBundles(manager)).toEqual([...BUILT_IN_BUNDLES, 'plugin'])
   })
 
   it('repairs a removed managed link without running pnpm', async () => {

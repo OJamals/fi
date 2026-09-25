@@ -1730,10 +1730,12 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     hookContext: '',
     slotInject: '',
     declaredBy: 'an entry in \'settings.section\' (client-ui-settings-models), so it exists while that entry is mounted',
-    occupants: [],
+    occupants: [
+      '@fi/client-ui-model-signin SignInFooter',
+    ],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.models.footer\', () => ctx.slots.register(\n      { name: \'settings.models.footer\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-settings-models/src/client/slot-contract.ts:38',
+    source: 'packages/client/ui-settings-models/src/client/slot-contract.ts:44',
   },
   {
     key: 'settings.models.provider-card',
@@ -1770,7 +1772,46 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     occupants: [],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.models.provider-card\', () => ctx.slots.register(\n      { name: \'settings.models.provider-card\', key: \'<one key the owner dispatches>\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-settings-models/src/client/slot-contract.ts:33',
+    source: 'packages/client/ui-settings-models/src/client/slot-contract.ts:39',
+  },
+  {
+    key: 'settings.models.provider-editor',
+    kind: 'keyed',
+    scope: 'root',
+    summary: 'One provider\'s complete editing UI, dispatched with `entryKey = settingsNs`.',
+    doc: 'One provider\'s complete editing UI, dispatched with `entryKey = settingsNs`.\nWithout a registrant, the Models page renders its built-in editor.',
+    registerOptions: [
+      {
+        name: 'key',
+        requirement: 'required',
+        type: 'string',
+        doc: 'Your cell key: the entry renders where the owner dispatches this exact key. Registering an already-occupied key replaces that occupant.',
+      },
+    ],
+    ownerProps: [
+      '/** Owner share of one provider-editor occurrence. */\nexport interface ProviderEditorOwnerProps {\n  /** The card\'s directory row (route id, display name, settings address, live state). */\n  provider: ProviderDirectoryEntry\n  /** Whether any layer configures this provider. */\n  configured: boolean\n  /** Whether the active settings provider accepts writes. */\n  readOnly: boolean\n  /** Close the editor; `changed` requests a fresh Models-page snapshot. */\n  onClose: (changed: boolean) => void\n}',
+    ],
+    ownerPropsReferences: [
+      'ProviderDirectoryEntry',
+    ],
+    standardProps: [
+      'useResource: UseResource',
+      'useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>',
+      'usePanelInfo: UsePanelInfo',
+      'useSessions: UseSessions',
+      'useSessionPendingInteraction: UseSessionPendingInteraction',
+      'useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>',
+    ],
+    keyDomain: 'open: any string the owner dispatches (no compile-time key set), already taken: fi-antigravity',
+    hookContext: '',
+    slotInject: '',
+    declaredBy: 'an entry in \'settings.section\' (client-ui-settings-models), so it exists while that entry is mounted',
+    occupants: [
+      '@fi/client-ui-model-signin AntigravityProviderEditor key \'fi-antigravity\'',
+    ],
+    replaceRisk: 'shadows-shipped-ui',
+    example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.models.provider-editor\', () => ctx.slots.register(\n      { name: \'settings.models.provider-editor\', key: \'<one key the owner dispatches>\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
+    source: 'packages/client/ui-settings-models/src/client/slot-contract.ts:30',
   },
   {
     key: 'settings.onboarding',
@@ -1857,6 +1898,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'client-ui-settings-plugins AgentLoopCard',
       'client-ui-settings-plugins SubagentModelSelectionCard',
       'client-ui-settings-plugins WebSearchCard',
+      '@fi/client-ui-web-search-preferences PreferredSearchCard',
     ],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.plugin.item\', () => ctx.slots.register(\n      { name: \'settings.plugin.item\', key: \'<one key the owner dispatches>\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
@@ -2077,7 +2119,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     doc: 'Brand mark rendered in the expanded brand row and collapsed rail.\nDeclared by this package\'s `sidebar` entry; deployments may replace\nthe shell\'s fish fallback without replacing the surrounding controls.',
     registerOptions: [],
     ownerProps: [
-      '/** Geometry supplied to the sidebar brand-mark occupant. */\nexport interface SidebarBrandMarkOwnerProps {\n  /** Requested square edge in pixels. */\n  size: number\n  /** Complete build identifier rendered beneath an expanded product mark. */\n  version?: string | undefined\n}',
+      '/** Geometry supplied to the sidebar brand-mark occupant. */\nexport interface SidebarBrandMarkOwnerProps {\n  /** Requested square edge in pixels. */\n  size: number\n}',
     ],
     ownerPropsReferences: [],
     standardProps: [
@@ -2561,7 +2603,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     kind: 'single',
     scope: 'session',
     summary: 'Durable images of a settled image-bearing Tool call, rendered through the attachment presentation plugin.',
-    doc: 'Durable images of a settled image-bearing Tool call, rendered through\nthe attachment presentation plugin. The Tool layer never imports an\nattachment implementation: a toolview declares this slot as a child and\nrenders it with the image card\'s references plus the session-authorized\nloader it received in its owner, and the attachment plugin fills the\ngallery. Composing no attachment presentation plugin renders nothing,\nwhich is why the image card keeps its own envelope text beside the\ngallery. A child slot is declared by exactly one entry: registering a\nsecond toolview that declares the same child throws at load, so a\nfuture image-bearing tool must reuse this entry or own a distinct\nslot.',
+    doc: 'Durable images of a settled image-bearing Tool call, rendered through\nthe attachment presentation plugin. The Tool tree declares this child\nonce and supplies its renderer to every atomic view, so the generic\nfallback and keyed views use the same session-authorized gallery.',
     registerOptions: [],
     ownerProps: [
       '/** Owner currency of the Tool image gallery slot: references plus the loader. */\nexport interface ToolImagesOwnerProps {\n  /** Durable references or submission-echo previews in result order. */\n  images: readonly MessageImageSource[]\n  /** Session-authorized image URL loader for the durable arm. */\n  loadImage: MessageImageLoader\n  /** Horizontal placement inside the owning record. */\n  align: \'start\' | \'end\'\n}',
@@ -2589,13 +2631,13 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     keyDomain: '',
     hookContext: '',
     slotInject: '',
-    declaredBy: 'an entry in \'tool.call.toolview\' (client-ui-tool), so it exists while that entry is mounted',
+    declaredBy: 'an entry in \'conversation.chat.node\' (client-ui-tool), so it exists while that entry is mounted',
     occupants: [
       'client-ui-attachment MessageImages',
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'tool.call.images\', () => ctx.slots.register(\n      { name: \'tool.call.images\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-tool/src/client/contract/slots.ts:40',
+    source: 'packages/client/ui-tool/src/client/contract/slots.ts:34',
   },
   {
     key: 'tool.call.toolview',
@@ -2612,12 +2654,13 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       },
     ],
     ownerProps: [
-      '/** Standard owner currency supplied to every atomic Tool view. */\nexport interface ToolCallOwnerProps {\n  /** Tool call identity, stable across running and settled forms. */\n  callId: string\n  /** Wire Tool name and keyed dispatch value. */\n  toolName: string\n  /** Frozen running call or settled result node. */\n  block: ToolCallBlock\n  /** Session workspace root for relative summaries. */\n  cwd?: string | undefined\n  /** Host account home; POSIX home-rooted summaries display as `~`. */\n  home?: string | undefined\n  /**\n   * Open a Tool argument path. A view that knows which line the call was about\n   * passes it, and the opened surface lands there.\n   */\n  openFile: (path: string, options?: OpenFileOptions) => void\n  /**\n   * Session-authorized image loader for the `tool.call.images` slot, supplied\n   * by the chat node that owns this call. A composed chat node always\n   * supplies it (`ChatNodeOwnerProps.loadImage` is required), so the tool\n   * layer never imports an attachment implementation nor handles URL\n   * authorization.\n   */\n  loadImage: MessageImageLoader\n  /** Inspect this call in the trajectory view when available. */\n  inspect?: (() => void) | undefined\n}',
+      '/** Standard owner currency supplied to every atomic Tool view. */\nexport interface ToolCallOwnerProps {\n  /** Tool call identity, stable across running and settled forms. */\n  callId: string\n  /** Wire Tool name and keyed dispatch value. */\n  toolName: string\n  /** Frozen running call or settled result node. */\n  block: ToolCallBlock\n  /** Session workspace root for relative summaries. */\n  cwd?: string | undefined\n  /** Host account home; POSIX home-rooted summaries display as `~`. */\n  home?: string | undefined\n  /**\n   * Open a Tool argument path. A view that knows which line the call was about\n   * passes it, and the opened surface lands there.\n   */\n  openFile: (path: string, options?: OpenFileOptions) => void\n  /**\n   * Session-authorized image loader for the `tool.call.images` slot, supplied\n   * by the chat node that owns this call. A composed chat node always\n   * supplies it (`ChatNodeOwnerProps.loadImage` is required), so the tool\n   * layer never imports an attachment implementation nor handles URL\n   * authorization.\n   */\n  loadImage: MessageImageLoader\n  /**\n   * Optional renderer for durable result images through the Tool tree\'s\n   * declared gallery slot. ToolCall /* …truncated — full shape in source */',
     ],
     ownerPropsReferences: [
       'ChatNodeOwnerProps',
       'MessageImageLoader',
       'OpenFileOptions',
+      'RenderToolImages',
     ],
     standardProps: [
       'useResource: UseResource',
@@ -2660,7 +2703,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'tool.call.toolview\', () => ctx.slots.register(\n      { name: \'tool.call.toolview\', key: \'<one key the owner dispatches>\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-tool/src/client/contract/slots.ts:26',
+    source: 'packages/client/ui-tool/src/client/contract/slots.ts:27',
   },
   {
     key: 'tool.view.cordis',

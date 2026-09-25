@@ -438,15 +438,64 @@ describe('pi-ai request context conversion', () => {
     })
   })
 
-  it('handles in-history system and assistant messages explicitly on the image path', async () => {
-    for (const role of ['system', 'assistant'] as const) {
-      const readImageRequest = vi.fn()
-      const store = projectionStore(readImageRequest)
-      await expect(toPiContext(request([
-        history(role, [{ type: 'image', attachment: ref }]),
-      ]), imageContext(store, { maxRequestImageBytes: 1 }))).rejects.toMatchObject({ code: 'UNSUPPORTED_CONTENT' })
-      expect(readImageRequest).not.toHaveBeenCalled()
-    }
+  it('rejects system images but preserves assistant image history as text without reading pixels', async () => {
+    const systemReadImageRequest = vi.fn()
+    await expect(toPiContext(request([
+      history('system', [{ type: 'image', attachment: ref }]),
+    ]), imageContext(projectionStore(systemReadImageRequest), { maxRequestImageBytes: 1 }))).rejects.toMatchObject({
+      code: 'UNSUPPORTED_CONTENT',
+    })
+    expect(systemReadImageRequest).not.toHaveBeenCalled()
+
+    const assistantRef = { ...ref, name: 'generated.png', bytes: 3 }
+    const assistantReadImageRequest = vi.fn()
+    const context = await toPiContext(request([
+      history('assistant', [{ type: 'image', attachment: assistantRef }]),
+    ]), imageContext(projectionStore(assistantReadImageRequest), {
+      maxRequestImageBytes: 1,
+      resolveImageAccess: () => ({ readonlyPath: '/sandbox/attachments/generated.png' }),
+    }))
+    expect(context.messages).toMatchObject([{
+      role: 'assistant',
+      content: [{
+        type: 'text',
+        text: expect.stringContaining(`Image "generated.png" (${assistantRef.attachmentId})`) as string,
+      }],
+    }])
+    const assistant = context.messages[0] as { role: string; content: { text: string }[] }
+    expect(assistant.role).toBe('assistant')
+    expect(assistant.content[0]?.text).toBe(
+      `[Image "generated.png" (${assistantRef.attachmentId}); ${ref.width}x${ref.height}px, ${ref.mediaType}, 3 bytes.`
+      + ' No image pixels were sent for this historical assistant output.'
+      + ' Read-only normalized copy: "/sandbox/attachments/generated.png".]',
+    )
+    expect(JSON.stringify(context)).toContain('No image pixels were sent for this historical assistant output.')
+    expect(assistantReadImageRequest).not.toHaveBeenCalled()
+
+    const nestedReadImageRequest = vi.fn()
+    const nested = await toPiContext(request([
+      history('assistant', [{
+        type: 'tool-result',
+        toolCallId: ToolCallId('generated-image'),
+        content: [
+          {
+            type: 'tool-result',
+            toolCallId: ToolCallId('plain-nested-result'),
+            content: [{ type: 'text', text: 'not an image' }],
+          },
+          {
+            type: 'tool-result',
+            toolCallId: ToolCallId('nested-generated-image'),
+            content: [{ type: 'image', attachment: assistantRef }],
+          },
+        ],
+      }]),
+    ]), imageContext(projectionStore(nestedReadImageRequest)))
+    expect(nested.messages).toMatchObject([{
+      role: 'assistant',
+      content: [{ type: 'text', text: expect.stringContaining(String(assistantRef.attachmentId)) as string }],
+    }])
+    expect(nestedReadImageRequest).not.toHaveBeenCalled()
 
     await expect(toPiContext(request([
       history('system', [{ type: 'text', text: 'history system' }]),
@@ -460,9 +509,9 @@ describe('pi-ai request context conversion', () => {
       ],
     })
 
-    expect(() => toPiAssistant(
+    expect(toPiAssistant(
       history('assistant', [{ type: 'image', attachment: ref }]),
-    )).toThrow(/assistant image output/)
+    )).toMatchObject({ role: 'assistant', content: [{ type: 'text' }] })
   })
 
 })

@@ -29,25 +29,13 @@ Mount it in a composition that already mounts `@deepseek-ai/dsh-authorization` �
 
 ### List what can be signed into
 
-```ts
-const response = await ctx.remote.authorization.list()
-// [{ key: 'llm-pi-ai/anthropic', label: 'Anthropic',
-//    methods: [{ id: 'oauth', label: 'Anthropic (Claude Pro/Max)' }],
-//    inFlight: false, stored: true }]
-```
+Call `remote.authorization.list()` and inspect the Remote response's `ok` discriminant before reading `value`. Each row carries the credential key, provider label, supported methods, `inFlight`, and `stored`.
 
 `stored` joins the credential seam, so a page renders "signed in" without a second round trip. `inFlight` is true while any surface holds the key — the seam refuses a second concurrent attempt rather than joining it, because the two would be prompting different humans through the same flow.
 
 ### Run one attempt
 
-```ts
-for await (const frame of ctx.remote.authorization.begin({ key, method: 'oauth' }, signal)) {
-  if (frame.kind === 'notice') show(frame.message, frame.url, frame.code)
-  if (frame.kind === 'prompt') await ctx.remote.authorization.answer(key, frame.id, await ask(frame.prompt))
-  if (frame.kind === 'withdraw') retire(frame.id)
-  if (frame.kind === 'settled') finish(frame.status, frame.message)
-}
-```
+Consume `remote.authorization.begin({ key, method }, signal)` as an asynchronous iterable. Render `notice` frames, answer `prompt` frames through `answer`, remove withdrawn prompts, and display the status of the terminal `settled` frame. Unary responses can report failure through `ok: false` without throwing; preserve the prompt until its answer is accepted.
 
 The stream always ends with exactly one `settled` frame, failures included, so a surface renders a terminal state from the frame rather than inferring it from a closed carrier — a dropped connection and a refused login never look alike.
 
@@ -94,7 +82,9 @@ None; this package neither assembles nor sends a provider request.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-An attempt is bound to the carrier that opened it, so a page reloaded mid-sign-in loses the conversation and must start again; the grant is unaffected if the flow already committed it. A second surface watching a key it did not start learns only that the key is `inFlight`, and sees the settlement on its next `list` — the seam's `authorization/settled` event is not forwarded, because the application's forwarded-event allowlist is an upstream file this package deliberately leaves alone.
+- An attempt is bound to the carrier that opened it. Reloading the page loses the conversation; a grant already committed by the flow remains stored.
+- A second surface learns the key is `inFlight` and observes settlement on its next `list`; the controller does not forward `authorization/settled`.
+- Model discovery failure reports `authorization/adopt-blocked`; the grant and settings route remain available for a setup retry.
 
 <a id="dev-note"></a>
 ### Dev Note

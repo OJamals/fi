@@ -1,0 +1,68 @@
+{
+  "stream": [
+    {
+      "type": "block-start",
+      "index": 0,
+      "blockType": "tool-call"
+    },
+    {
+      "type": "tool-call-delta",
+      "index": 0,
+      "id": "c1",
+      "name": "get_time",
+      "argumentsDelta": "{\"city\":\"NYC\"}"
+    },
+    {
+      "type": "block-end",
+      "index": 0,
+      "block": {
+        "type": "tool-call",
+        "id": "c1",
+        "name": "get_time",
+        "arguments": "{\"city\":\"NYC\"}"
+      }
+    },
+    {
+      "type": "finish",
+      "reason": {
+        "kind": "tool-calls"
+      },
+      "replayState": {
+        "response": {
+          "kind": "fi-antigravity",
+          "version": 1,
+          "provider": "antigravity",
+          "model": "claude-sonnet-4-6",
+          "nativeParts": [
+            {
+              "type": "tool-call",
+              "id": "c1",
+              "name": "get_time",
+              "args": {
+                "city": "NYC"
+              },
+              "thoughtSignature": "signed-thought"
+            }
+          ]
+        },
+        "blocks": [
+          {
+            "type": "tool-call",
+            "thoughtSignature": "signed-thought"
+          }
+        ]
+      }
+    }
+  ],
+  "finishCount": 1,
+  "replayedAssistantPart": {
+    "functionCall": {
+      "id": "c1",
+      "name": "get_time",
+      "args": {
+        "city": "NYC"
+      }
+    },
+    "thoughtSignature": "signed-thought"
+  }
+}

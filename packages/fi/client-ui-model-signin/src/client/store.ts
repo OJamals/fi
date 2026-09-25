@@ -39,12 +39,13 @@ const PI_AI_SCOPE = 'llm-pi-ai'
  * Host (an older pi-ai, a composition without the adapter) simply does not
  * appear — the join below keeps this list advisory, never authoritative.
  */
-const OFFERED = [
-  `${PI_AI_SCOPE}/anthropic`,
-  `${PI_AI_SCOPE}/openai-codex`,
-  `${PI_AI_SCOPE}/xai`,
-  'fi-antigravity/antigravity',
+export const SUBSCRIPTION_PROVIDER_IDS = [
+  'anthropic', 'openai-codex', 'xai', 'antigravity',
 ] as const
+
+const OFFERED = SUBSCRIPTION_PROVIDER_IDS.map(provider => provider === 'antigravity'
+  ? 'fi-antigravity/antigravity'
+  : `${PI_AI_SCOPE}/${provider}`)
 
 /** One question the running attempt is waiting on. */
 export interface SignInPrompt {
@@ -71,6 +72,8 @@ export interface SignInAttempt {
     /** What became of the provider's settings route, present after a successful sign-in. */
     readonly route?: 'created' | 'already' | 'skipped'
   } | null
+  /** Whether the successful sign-in is still being adopted into Models settings. */
+  readonly adopting?: boolean
 }
 
 /** One sign-in row the card renders. */
@@ -98,6 +101,8 @@ export interface SignInState {
   readonly attempt: SignInAttempt | null
   /** Why the last load failed, or null. */
   readonly error: string | null
+  /** Whether this surface owns an unfinished authorization, adoption, or revoke operation. */
+  readonly busy?: boolean
   /**
    * Providers the sign-in surface can adopt into a settings route, in flow
    * order. Modeled separately from `rows` because adoption needs the route
@@ -116,7 +121,7 @@ export interface SignInState {
 }
 
 const INITIAL: SignInState = {
-  status: 'idle', rows: [], attempt: null, error: null, adoptEntries: [], adopted: null,
+  status: 'idle', rows: [], attempt: null, error: null, busy: false, adoptEntries: [], adopted: null,
 }
 
 /**
@@ -166,18 +171,22 @@ export function applyFrame(attempt: SignInAttempt, frame: AuthorizationFrameView
         },
       }
     case 'prompt':
+    {
+      const prompt = frame.prompt
+      const placeholder = prompt.kind === 'select' ? undefined : prompt.placeholder
       return {
         ...attempt,
         prompt: {
           id: frame.id,
-          kind: frame.prompt.kind,
-          message: frame.prompt.message,
-          ...'placeholder' in frame.prompt && frame.prompt.placeholder !== undefined
-            ? { placeholder: frame.prompt.placeholder }
-            : {},
-          ...frame.prompt.kind === 'select' ? { options: frame.prompt.options } : {},
+          kind: prompt.kind,
+          message: prompt.message,
+          ...placeholder === undefined
+            ? {}
+            : { placeholder },
+          ...prompt.kind === 'select' ? { options: prompt.options } : {},
         },
       }
+    }
     case 'withdraw':
       // Only the question actually on screen is retired; a withdraw racing a
       // newer prompt must not blank the newer one.
@@ -206,33 +215,60 @@ export class SignInStore {
   /** Withdraws the running attempt's stream. */
   private running: AbortController | undefined
 
+  /** Every user operation owns a number that retires its later publications. */
+  private operation = 0
+
   /** @param ctx - the page plugin's context, whose `remote.authorization` namespace carries the flows. */
   constructor(private readonly ctx: ClientContext) {}
 
-  /** Refresh the offered rows from the Host. */
-  async load(): Promise<void> {
+  /**
+   * Refresh the offered rows from the Host.
+   * @param preserveError - retain an action diagnostic while refreshing its row state.
+   */
+  async load(preserveError = false): Promise<void> {
     const generation = ++this.generation
     const current = this.store.getSnapshot()
-    this.store.set({ ...current, status: current.status === 'ready' ? 'ready' : 'loading' })
-    const response = await this.ctx.remote.authorization.list()
-    if (generation !== this.generation) return
-    if (!response.ok) {
-      this.store.set({ ...this.store.getSnapshot(), status: 'failed', error: response.error.message })
-      return
-    }
-    // The adopt list rides its own call because it may exist without any
-    // flow's in-flight/stored facts changing: the scope→namespace map is a
-    // Host constant, and the Models page's own writes do not move what the
-    // authorization seam registered.
-    const adoptResponse = await this.ctx.remote.authorization.listAdoptable()
-    if (generation !== this.generation) return
     this.store.set({
-      ...this.store.getSnapshot(),
-      status: 'ready',
-      error: null,
-      rows: selectOfferedRows(response.value),
-      adoptEntries: adoptResponse.ok ? adoptResponse.value : this.store.getSnapshot().adoptEntries,
+      ...current,
+      status: current.status === 'ready' ? 'ready' : 'loading',
+      error: preserveError ? current.error : null,
     })
+    try {
+      const response = await this.ctx.remote.authorization.list()
+      if (generation !== this.generation) return
+      if (!response.ok) {
+        const state = this.store.getSnapshot()
+        this.store.set({ ...state, status: state.rows.length === 0 ? 'failed' : 'ready', error: response.error.message })
+        return
+      }
+      // The adopt list rides its own call because it may exist without any
+      // flow's in-flight/stored facts changing: the scope→namespace map is a
+      // Host constant, and the Models page's own writes do not move what the
+      // authorization seam registered.
+      const adoptResponse = await this.ctx.remote.authorization.listAdoptable()
+      if (generation !== this.generation) return
+      const rows = selectOfferedRows(response.value)
+      const state = this.store.getSnapshot()
+      const adopted = state.adopted !== null && rows.some(row => row.key === state.adopted?.key && row.stored)
+        ? state.adopted
+        : null
+      this.store.set({
+        ...state,
+        status: 'ready',
+        error: preserveError ? state.error : adoptResponse.ok ? null : adoptResponse.error.message,
+        rows,
+        adoptEntries: adoptResponse.ok ? adoptResponse.value : state.adoptEntries,
+        adopted,
+      })
+    } catch (error: unknown) {
+      if (generation !== this.generation) return
+      const state = this.store.getSnapshot()
+      this.store.set({
+        ...state,
+        status: state.rows.length === 0 ? 'failed' : 'ready',
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
   }
 
   /**
@@ -241,7 +277,7 @@ export class SignInStore {
    * @param method - the method to run; defaults to the flow's first.
    */
   async begin(key: string, method?: string): Promise<void> {
-    await this.drive(key, method, undefined)
+    await this.drive(key, method, false)
   }
 
   /**
@@ -254,42 +290,39 @@ export class SignInStore {
    * @param key - the credential record to authorize and adopt.
    */
   async signInAndAdopt(key: string): Promise<void> {
-    // `authorized` is folded from the stream inside `drive`; a failure
-    // short-circuits the adopt call below.
-    await this.drive(key, 'oauth', async () => {
-      const state = this.store.getSnapshot()
-      if (state.attempt?.settled?.status === 'authorized') {
-        await this.adopt(key)
-      }
-    })
+    await this.drive(key, 'oauth', true)
   }
 
   /**
    * Run one attempt to completion: set the attempt on the snapshot, consume
-   * its frames, and when it ends run the caller's settle hook. The hook is
-   * where an adopt chains onto a successful sign-in, so it runs before the
-   * attempt's `finally` re-loads the rows — the Models page's credential join
-   * and the footer's adoption banner stay the same read.
+   * its frames, then adopts a successful OAuth grant when requested. The
+   * operation number owns the complete chain, including the refresh and
+   * adoption, so a dismissed or superseded attempt cannot publish afterward.
    * @param key - the credential record to authorize.
    * @param method - the method to run, or undefined for the flow's first.
-   * @param settle - hook invoked once the attempt has settled (may be a noop).
+   * @param adopt - whether an authorized settlement should add its provider.
    */
-  private async drive(key: string, method: string | undefined, settle: (() => Promise<void>) | undefined): Promise<void> {
-    // A running attempt locks the surface. A settled one does not: the next
-    // action supersedes it, exactly as its Close button would — otherwise a
-    // completed sign-in would leave every other provider's button dead.
-    const standing = this.store.getSnapshot().attempt
-    if (standing !== null && standing.settled === null) return
+  private async drive(key: string, method: string | undefined, adopt: boolean): Promise<void> {
+    // A running attempt or adoption locks the surface. A settled attempt with
+    // no pending adoption does not, so it does not leave other rows disabled.
+    const standing = this.store.getSnapshot()
+    if (
+      standing.busy === true
+      || (standing.attempt !== null && (standing.attempt.settled === null || standing.attempt.adopting === true))
+    ) return
+    const operation = ++this.operation
     const controller = new AbortController()
     this.running = controller
     this.store.set({
-      ...this.store.getSnapshot(),
-      attempt: { key, notice: null, prompt: null, settled: null },
+      ...standing,
+      attempt: { key, notice: null, prompt: null, settled: null, adopting: false },
+      busy: true,
       // A new attempt supersedes whatever an earlier provider's adopt left
       // on screen: keeping it would read as this attempt's outcome.
       adopted: null,
       error: null,
     })
+    let settlement: SignInAttempt['settled'] = null
     try {
       const stream = this.ctx.remote.authorization.begin(
         { key, ...method === undefined ? {} : { method } },
@@ -299,28 +332,48 @@ export class SignInStore {
         const state = this.store.getSnapshot()
         // A dismissed card abandons its attempt; frames still in flight are
         // not ours to fold into whatever the user opened next.
-        if (state.attempt === null || state.attempt.key !== key) return
-        this.store.set({ ...state, attempt: applyFrame(state.attempt, frame) })
+        if (operation !== this.operation || state.attempt === null || state.attempt.key !== key) return
+        const attempt = applyFrame(state.attempt, frame)
+        settlement = attempt.settled
+        this.store.set({ ...state, attempt })
       }
     } catch (error: unknown) {
       const state = this.store.getSnapshot()
       if (controller.signal.aborted) return
-      if (state.attempt === null || state.attempt.key !== key) return
+      if (operation !== this.operation || state.attempt === null || state.attempt.key !== key) return
+      settlement = { status: 'failed', message: error instanceof Error ? error.message : String(error) }
       this.store.set({
         ...state,
         attempt: {
           ...state.attempt,
           prompt: null,
-          settled: { status: 'failed', message: error instanceof Error ? error.message : String(error) },
+          settled: settlement,
         },
       })
     } finally {
       if (this.running === controller) this.running = undefined
-      // Reload first, settle second: the stored/in-flight facts moved, so the
-      // rows refresh from the Host, and only then does the hook's outcome —
-      // an adoption banner or its error — land, so the reload cannot wipe it.
+      if (operation !== this.operation) return
+      const state = this.store.getSnapshot()
+      if (settlement === null && state.attempt !== null && state.attempt.key === key) {
+        settlement = { status: 'failed', message: 'authorization flow ended without a result' }
+        this.store.set({ ...state, attempt: { ...state.attempt, prompt: null, settled: settlement } })
+      }
+      if (adopt && settlement?.status === 'authorized') {
+        const current = this.store.getSnapshot()
+        if (current.attempt !== null && current.attempt.key === key) {
+          this.store.set({ ...current, attempt: { ...current.attempt, adopting: true } })
+        }
+      }
       await this.load()
-      if (settle !== undefined) await settle()
+      if (operation !== this.operation) return
+      if (adopt && settlement?.status === 'authorized') await this.adoptForOperation(key, operation)
+      if (operation !== this.operation) return
+      const current = this.store.getSnapshot()
+      this.store.set({
+        ...current,
+        busy: false,
+        attempt: current.attempt?.key === key ? { ...current.attempt, adopting: false } : current.attempt,
+      })
     }
   }
 
@@ -332,19 +385,46 @@ export class SignInStore {
     const state = this.store.getSnapshot()
     const attempt = state.attempt
     if (attempt?.prompt == null) return
+    const operation = this.operation
     const id = attempt.prompt.id
     // Cleared before the round trip: the question is answered from the
     // human's point of view, and leaving it on screen invites a second submit
     // that the Host would refuse as `authorization/no-prompt`.
     this.store.set({ ...state, attempt: { ...attempt, prompt: null } })
-    await this.ctx.remote.authorization.answer(attempt.key, id, value)
+    try {
+      const response = await this.ctx.remote.authorization.answer(attempt.key, id, value)
+      if (operation !== this.operation) return
+      if (response.ok) return
+      const current = this.store.getSnapshot()
+      if (current.attempt?.key === attempt.key && current.attempt.prompt === null && current.attempt.settled === null) {
+        this.store.set({ ...current, error: response.error.message, attempt: { ...current.attempt, prompt: attempt.prompt } })
+      }
+    } catch (error: unknown) {
+      if (operation !== this.operation) return
+      const current = this.store.getSnapshot()
+      if (current.attempt?.key === attempt.key && current.attempt.prompt === null && current.attempt.settled === null) {
+        this.store.set({
+          ...current,
+          error: error instanceof Error ? error.message : String(error),
+          attempt: { ...current.attempt, prompt: attempt.prompt },
+        })
+      }
+    }
   }
 
   /** Withdraw the running attempt, if any. */
   async cancel(): Promise<void> {
     const attempt = this.store.getSnapshot().attempt
     if (attempt === null) return
-    await this.ctx.remote.authorization.cancel(attempt.key)
+    const operation = this.operation
+    try {
+      const response = await this.ctx.remote.authorization.cancel(attempt.key)
+      if (operation !== this.operation) return
+      if (!response.ok) this.store.set({ ...this.store.getSnapshot(), error: response.error.message })
+    } catch (error: unknown) {
+      if (operation !== this.operation) return
+      this.store.set({ ...this.store.getSnapshot(), error: error instanceof Error ? error.message : String(error) })
+    }
   }
 
   /**
@@ -357,29 +437,38 @@ export class SignInStore {
    * @returns the adopt outcome, or undefined when the call itself failed.
    */
   async adopt(key: string): Promise<void> {
-    const response = await this.ctx.remote.authorization.adopt(key)
-    if (!response.ok) {
+    if (this.store.getSnapshot().busy === true) return
+    const operation = ++this.operation
+    this.store.set({ ...this.store.getSnapshot(), busy: true, adopted: null, error: null })
+    await this.adoptForOperation(key, operation)
+    if (operation === this.operation) this.store.set({ ...this.store.getSnapshot(), busy: false })
+  }
+
+  /** Publish one adoption response only while its initiating operation owns the snapshot. */
+  private async adoptForOperation(key: string, operation: number): Promise<void> {
+    try {
+      const response = await this.ctx.remote.authorization.adopt(key)
+      if (operation !== this.operation) return
+      if (!response.ok) {
+        this.store.set({ ...this.store.getSnapshot(), status: 'ready', adopted: null, error: response.error.message })
+        return
+      }
+      const state = this.store.getSnapshot()
+      this.store.set({
+        ...state,
+        status: 'ready',
+        error: null,
+        adopted: { key, route: response.value.route, models: response.value.models },
+      })
+    } catch (error: unknown) {
+      if (operation !== this.operation) return
       this.store.set({
         ...this.store.getSnapshot(),
         status: 'ready',
-        // A failed adopt must not leave an earlier provider's banner behind:
-        // it would read as this provider's model list.
         adopted: null,
-        error: response.error.message,
+        error: error instanceof Error ? error.message : String(error),
       })
-      return
     }
-    const state = this.store.getSnapshot()
-    this.store.set({
-      ...state,
-      status: 'ready',
-      error: null,
-      adopted: {
-        key,
-        route: response.value.route,
-        models: response.value.models,
-      },
-    })
   }
 
   /**
@@ -391,27 +480,38 @@ export class SignInStore {
    * @param key - the credential record to revoke.
    */
   async remove(key: string): Promise<void> {
+    if (this.store.getSnapshot().busy === true) return
+    const operation = ++this.operation
+    this.store.set({ ...this.store.getSnapshot(), busy: true, error: null })
+    let failure: string | null = null
     try {
-      await this.ctx.remote.authorization.revoke(key)
+      const response = await this.ctx.remote.authorization.revoke(key)
+      if (!response.ok) failure = response.error.message
+      else this.store.set({ ...this.store.getSnapshot(), adopted: null })
+    } catch (error: unknown) {
+      failure = error instanceof Error ? error.message : String(error)
     } finally {
-      await this.load()
+      if (operation !== this.operation) return
+      if (failure !== null) this.store.set({ ...this.store.getSnapshot(), error: failure })
+      await this.load(failure !== null)
+      if (operation === this.operation) this.store.set({ ...this.store.getSnapshot(), busy: false })
     }
   }
 
-  /** Dismiss the attempt card, withdrawing it if it is still running. */
+  /** Dismiss a settled attempt and retire any adoption that still belongs to it. */
   dismiss(): void {
     const state = this.store.getSnapshot()
     if (state.attempt === null) return
-    if (state.attempt.settled === null) {
-      void this.ctx.remote.authorization.cancel(state.attempt.key)
-    }
+    ++this.operation
     this.running?.abort()
     this.running = undefined
-    this.store.set({ ...state, attempt: null })
+    this.store.set({ ...state, attempt: null, busy: false })
   }
 
   /** Withdraw anything in flight; the plugin's disposer calls this. */
   dispose(): void {
+    ++this.generation
+    ++this.operation
     this.running?.abort()
     this.running = undefined
   }

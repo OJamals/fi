@@ -1,0 +1,7 @@
+version: 1
+scenario: subscription-image-output
+profile: headless
+composition: image
+recording: authored
+header:
+  class: image

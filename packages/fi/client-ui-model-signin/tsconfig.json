@@ -30,6 +30,9 @@
       "path": "../../client/ui-settings-models"
     },
     {
+      "path": "../../client/ui-model-selection"
+    },
+    {
       "path": "../../client/locale"
     },
     {

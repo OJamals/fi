@@ -1,8 +1,9 @@
-/** Signed local npm package set that supplies the Desktop-owned dsh runtime and private Host. */
+/** Signed local npm package set that supplies the Desktop-owned dsh runtime, private Host, and FI bundle. */
 
 import { createHash } from 'node:crypto'
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { FI_DESKTOP_BUNDLE } from './desktop-profile.ts'
 
 /** Descriptor copied beside every Desktop profile's local core tarballs. */
 export const DESKTOP_PACKAGE_SET_FILE = 'desktop-packages.json'
@@ -28,7 +29,7 @@ export interface DesktopCorePackageRecord {
   readonly integrity: string
 }
 
-/** Complete union of the first-party package closures rooted at dsh and its private Desktop Host. */
+/** Complete union of the first-party package closures rooted at dsh, the private Host, and the FI bundle. */
 export interface DesktopCorePackageSet {
   readonly schemaVersion: 1
   readonly packages: readonly DesktopCorePackageRecord[]
@@ -39,7 +40,8 @@ const VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.+_-]*$/u
 const FILE_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]*\.tgz$/u
 const INTEGRITY_PATTERN = /^sha512-[A-Za-z0-9+/]+={0,2}$/u
 const DSH_PACKAGE = '@deepseek-ai/dsh'
-const RELEASE_PACKAGES = [DSH_PACKAGE, DESKTOP_HOST_PACKAGE] as const
+const RELEASE_PACKAGES: readonly string[] = [DSH_PACKAGE, DESKTOP_HOST_PACKAGE]
+const REQUIRED_PACKAGES = [...RELEASE_PACKAGES, FI_DESKTOP_BUNDLE] as const
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -83,10 +85,11 @@ export function parseDesktopCorePackageSet(
   if (JSON.stringify(sorted) !== JSON.stringify(packages)) {
     throw new Error('desktop package set: packages must be sorted by name')
   }
-  for (const name of RELEASE_PACKAGES) {
+  for (const name of REQUIRED_PACKAGES) {
     const entry = packages.find(candidate => candidate.name === name)
     if (entry === undefined) throw new Error(`desktop package set: missing ${name}`)
-    if (expectedReleaseVersion !== undefined && entry.version !== expectedReleaseVersion) {
+    if (expectedReleaseVersion !== undefined && RELEASE_PACKAGES.includes(name)
+      && entry.version !== expectedReleaseVersion) {
       throw new Error(`desktop package set: ${name}@${entry.version} does not match Desktop ${expectedReleaseVersion}`)
     }
   }

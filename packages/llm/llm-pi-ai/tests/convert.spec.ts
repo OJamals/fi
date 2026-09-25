@@ -255,6 +255,46 @@ describe('toPiContext', () => {
     })
   })
 
+  it('keeps native replay metadata around assistant image history fallbacks', () => {
+    const state = toPiReplayState(assistant({ content: [
+      { type: 'text', text: 'generated', textSignature: 'text-signature' },
+      { type: 'toolCall', id: 'c1', name: 'inspect', arguments: {}, thoughtSignature: 'tool-signature' },
+    ] }))
+    const context = toPiContext({
+      provider: 'deepseek',
+      model: 'deepseek-v4-flash',
+      messages: [createMessage({
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'generated' },
+          {
+            type: 'image',
+            attachment: {
+              attachmentId: AttachmentId(`sha256:${'d'.repeat(64)}`),
+              mediaType: 'image/png', bytes: 3, width: 1, height: 1,
+            },
+          },
+          { type: 'tool-call', id: ToolCallId('c1'), name: 'inspect', arguments: '{}' },
+        ],
+        source: {
+          kind: 'model',
+          provider: 'deepseek',
+          model: 'deepseek-v4-flash',
+          replayState: state,
+        },
+      })],
+    })
+
+    expect(context.messages[0]).toMatchObject({ api: 'openai-completions', provider: 'deepseek' })
+    expect((context.messages[0] as AssistantMessage).content).toEqual([
+      { type: 'text', text: 'generated', textSignature: 'text-signature' },
+      { type: 'text', text: expect.stringContaining('No image pixels were sent') as string },
+      {
+        type: 'toolCall', id: 'c1', name: 'inspect', arguments: {}, thoughtSignature: 'tool-signature',
+      },
+    ])
+  })
+
   it('parses malformed tool-call arguments to {}', () => {
     const context = toPiContext({
       provider: 'deepseek',

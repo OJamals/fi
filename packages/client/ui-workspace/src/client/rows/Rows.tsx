@@ -6,7 +6,7 @@
  * and workspace hover cards are suppressed while a menu is open. Right-click
  * opens the same row menu at the pointer wherever the ... button would.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type Dispatch, type DragEvent, type MouseEvent, type MutableRefObject, type SetStateAction } from 'react'
 import clsx from 'clsx'
 import {
   HoverCard, IconAlarmClockOutline16, IconArchiveOutline20, IconBranchOutline16,
@@ -91,6 +91,43 @@ interface WorkspaceRowDragProps {
   end: () => void
 }
 
+/** Coordinates retained while a row menu uses the context-pointer as its anchor. */
+type ContextMenuPoint = { x: number; y: number }
+
+/** Open a row menu at the pointer that requested it. */
+function openMenuAtPointer(
+  point: MutableRefObject<ContextMenuPoint | null>,
+  setMenuOpen: Dispatch<SetStateAction<boolean>>,
+): (event: MouseEvent<HTMLElement>) => void {
+  return (event) => {
+    event.preventDefault()
+    point.current = { x: event.clientX, y: event.clientY }
+    setMenuOpen(true)
+  }
+}
+
+/** Give a menu its pointer anchor only while the current open came from a context click. */
+function contextMenuAnchor(point: MutableRefObject<ContextMenuPoint | null>): {
+  getAnchorRect?: () => DOMRect | null
+} {
+  if (point.current === null) return {}
+  return {
+    getAnchorRect: () => {
+      const current = point.current
+      return current === null ? null : new DOMRect(current.x, current.y, 0, 0)
+    },
+  }
+}
+
+/** Start a compatible drag with the row's stable identifier as its transfer payload. */
+function beginRowDrag(id: string, drag: Pick<RowDragProps, 'start'>): (event: DragEvent<HTMLDivElement>) => void {
+  return (event) => {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', id)
+    drag.start()
+  }
+}
+
 /** Pointer-position half of a row (insert line above or below). */
 function rowHalf(e: { clientY: number; currentTarget: HTMLElement }): 'before' | 'after' {
   const rect = e.currentTarget.getBoundingClientRect()
@@ -129,7 +166,7 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
   const [menuOpen, setMenuOpen] = useState(false)
   // Right-click opens the same menu at the pointer: the point lives until the
   // menu closes, so the ... button keeps its measured-anchor placement.
-  const contextPoint = useRef<{ x: number; y: number } | null>(null)
+  const contextPoint = useRef<ContextMenuPoint | null>(null)
   const closeMenu = (): void => {
     contextPoint.current = null
     setMenuOpen(false)
@@ -144,19 +181,9 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
       role="treeitem"
       aria-expanded={row.expanded}
       onClick={onToggle}
-      onContextMenu={actions === undefined ? undefined : (e) => {
-        e.preventDefault()
-        contextPoint.current = { x: e.clientX, y: e.clientY }
-        setMenuOpen(true)
-      }}
+      onContextMenu={actions === undefined ? undefined : openMenuAtPointer(contextPoint, setMenuOpen)}
       draggable={drag !== undefined}
-      onDragStart={drag === undefined
-        ? undefined
-        : (e) => {
-          e.dataTransfer.effectAllowed = 'move'
-          e.dataTransfer.setData('text/plain', row.key)
-          drag.start()
-        }}
+      onDragStart={drag === undefined ? undefined : beginRowDrag(row.key, drag)}
       onDragEnd={drag?.end}
     >
       <span className={clsx(css.slot, css.folder, active && css.folderActive)}>
@@ -185,12 +212,7 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
             }}
             portal
             closeOnPointerLeave
-            {...contextPoint.current === null ? {} : {
-              getAnchorRect: () => {
-                const point = contextPoint.current
-                return point === null ? null : new DOMRect(point.x, point.y, 0, 0)
-              },
-            }}
+            {...contextMenuAnchor(contextPoint)}
             anchor={(
               <button
                 type="button"
@@ -425,7 +447,7 @@ export function SessionNodeItem({
   const [menuOpen, setMenuOpen] = useState(false)
   // Right-click opens the same menu at the pointer: the point lives until the
   // menu closes, so the ... button keeps its measured-anchor placement.
-  const contextPoint = useRef<{ x: number; y: number } | null>(null)
+  const contextPoint = useRef<ContextMenuPoint | null>(null)
   const closeMenu = (): void => {
     contextPoint.current = null
     setMenuOpen(false)
@@ -457,19 +479,9 @@ export function SessionNodeItem({
       role="treeitem"
       aria-selected={selected}
       onClick={() => { onOpen(node.id) }}
-      onContextMenu={row.blank ? undefined : (e) => {
-        e.preventDefault()
-        contextPoint.current = { x: e.clientX, y: e.clientY }
-        setMenuOpen(true)
-      }}
+      onContextMenu={row.blank ? undefined : openMenuAtPointer(contextPoint, setMenuOpen)}
       draggable={drag !== undefined}
-      onDragStart={drag === undefined
-        ? undefined
-        : (e) => {
-          e.dataTransfer.effectAllowed = 'move'
-          e.dataTransfer.setData('text/plain', node.id)
-          drag.start()
-        }}
+      onDragStart={drag === undefined ? undefined : beginRowDrag(node.id, drag)}
       onDragEnd={drag?.end}
       onDragOver={drag === undefined
         ? undefined
@@ -516,12 +528,7 @@ export function SessionNodeItem({
             }}
             portal
             closeOnPointerLeave
-            {...contextPoint.current === null ? {} : {
-              getAnchorRect: () => {
-                const point = contextPoint.current
-                return point === null ? null : new DOMRect(point.x, point.y, 0, 0)
-              },
-            }}
+            {...contextMenuAnchor(contextPoint)}
             anchor={(
               <button
                 type="button"

@@ -1,0 +1,10 @@
+{
+  "content": "Fact",
+  "sources": [
+    {
+      "url": "https://example.com/source",
+      "title": "Source"
+    }
+  ],
+  "truncated": false
+}

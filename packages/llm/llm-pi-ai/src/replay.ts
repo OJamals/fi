@@ -9,7 +9,8 @@
  */
 
 import { LlmError } from '@deepseek-ai/dsh-llm'
-import type { Message, ModelMessageSource, ReplayEnvelope } from '@deepseek-ai/dsh-llm'
+import type { ContentBlock, ImageAttachmentAccess, ImageAttachmentAccessResolver, Message, ModelMessageSource, ReplayEnvelope } from '@deepseek-ai/dsh-llm'
+import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type { Api, AssistantMessage, Usage as PiUsage } from '@earendil-works/pi-ai'
 
 /** Per-block half of the pi-ai replay envelope, one entry per content block. */
@@ -62,6 +63,41 @@ function emptyPiUsage(): PiUsage {
     cacheWrite: 0,
     totalTokens: 0,
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+  }
+}
+
+/**
+ * Describe an assistant-produced image that pi-ai cannot carry in its native
+ * assistant history vocabulary. This records the durable identity and current
+ * tool-readable normalized copy without representing or sending image bytes.
+ * @param ref - durable image occurrence in assistant history.
+ * @param access - optional read-only normalized copy in the current execution world.
+ * @returns deterministic model-visible fallback text.
+ */
+export function assistantImageHistoryText(ref: ImageAttachmentRef, access?: ImageAttachmentAccess): string {
+  const identity = ref.name === undefined
+    ? String(ref.attachmentId)
+    : `${JSON.stringify(ref.name)} (${ref.attachmentId})`
+  const metadata = `${ref.width}x${ref.height}px, ${ref.mediaType}, ${ref.bytes} bytes`
+  const normalized = access === undefined
+    ? ' No read-only normalized image path is available.'
+    : ` Read-only normalized copy: ${JSON.stringify(access.readonlyPath)}.`
+  return `[Image ${identity}; ${metadata}.`
+    + ` No image pixels were sent for this historical assistant output.${normalized}]`
+}
+
+/** Append fallbacks for image occurrences that a non-native assistant block nests. */
+function appendNestedAssistantImageFallbacks(
+  blocks: readonly ContentBlock[],
+  content: AssistantMessage['content'],
+  resolveImageAccess?: ImageAttachmentAccessResolver,
+): void {
+  for (const block of blocks) {
+    if (block.type === 'image') {
+      content.push({ type: 'text', text: assistantImageHistoryText(block.attachment, resolveImageAccess?.(block.attachment)) })
+    } else if (block.type === 'tool-result') {
+      appendNestedAssistantImageFallbacks(block.content, content, resolveImageAccess)
+    }
   }
 }
 
@@ -150,7 +186,7 @@ function readReplayState(value: unknown): PiAiReplayState {
 }
 
 /** Convert provider-neutral blocks without trusting them as same-model replay. */
-function foreignAssistant(message: Message): AssistantMessage {
+function foreignAssistant(message: Message, resolveImageAccess?: ImageAttachmentAccessResolver): AssistantMessage {
   const source = message.source.kind === 'model' ? message.source : undefined
   const content: AssistantMessage['content'] = []
   for (const block of message.content) {
@@ -163,8 +199,13 @@ function foreignAssistant(message: Message): AssistantMessage {
         name: block.name,
         arguments: parseArguments(block.arguments),
       }); break
-      case 'image':
-        throw new LlmError('pi-ai chat history cannot represent structured assistant image output', 'UNSUPPORTED_CONTENT')
+      case 'image': content.push({
+        type: 'text',
+        text: assistantImageHistoryText(block.attachment, resolveImageAccess?.(block.attachment)),
+      }); break
+      case 'tool-result':
+        appendNestedAssistantImageFallbacks(block.content, content, resolveImageAccess)
+        break
       default:
         // plugin-added block types are not representable in pi-ai.
         break
@@ -185,13 +226,24 @@ function foreignAssistant(message: Message): AssistantMessage {
 }
 
 /** Recombine durable Harness content with validated pi-ai replay metadata. */
-function replayedAssistant(message: Message, source: ModelMessageSource, rawState: unknown): AssistantMessage {
+function replayedAssistant(
+  message: Message,
+  source: ModelMessageSource,
+  rawState: unknown,
+  resolveImageAccess?: ImageAttachmentAccessResolver,
+): AssistantMessage {
   const state = readReplayState(rawState)
   if (state.response.provider !== source.provider) return invalidReplay('provider does not match assistant source')
   if (state.response.model !== source.model) return invalidReplay('model does not match assistant source')
-  if (state.blocks.length !== message.content.length) return invalidReplay('block count does not match assistant content')
+  const replayableBlocks = message.content.filter(block => block.type !== 'image')
+  if (state.blocks.length !== replayableBlocks.length) return invalidReplay('block count does not match assistant content')
+  let replayIndex = 0
   const content: AssistantMessage['content'] = message.content.map((block, index) => {
-    const replay = state.blocks[index]
+    if (block.type === 'image') return {
+      type: 'text',
+      text: assistantImageHistoryText(block.attachment, resolveImageAccess?.(block.attachment)),
+    }
+    const replay = state.blocks[replayIndex++]
     if (replay === undefined || replay.type !== block.type) return invalidReplay(`block ${index} does not match assistant content`)
     switch (block.type) {
       case 'text': return {
@@ -244,18 +296,23 @@ function replayedAssistant(message: Message, source: ModelMessageSource, rawStat
  * @param message - assistant content with required source and optional adapter-owned replay metadata.
  * @param onDegrade - called with the diagnostic reason when an unusable replay
  *   state falls back to provider-neutral conversion.
+ * @param resolveImageAccess - resolves an assistant image's current read-only normalized copy.
  * @returns a native pi-ai assistant message reconstructed from durable content.
  */
-export function toPiAssistant(message: Message, onDegrade?: (reason: string) => void): AssistantMessage {
+export function toPiAssistant(
+  message: Message,
+  onDegrade?: (reason: string) => void,
+  resolveImageAccess?: ImageAttachmentAccessResolver,
+): AssistantMessage {
   const source = message.source
-  if (source.kind !== 'model' || source.replayState === undefined) return foreignAssistant(message)
+  if (source.kind !== 'model' || source.replayState === undefined) return foreignAssistant(message, resolveImageAccess)
   try {
-    return replayedAssistant(message, source, source.replayState)
+    return replayedAssistant(message, source, source.replayState, resolveImageAccess)
   } catch (error: unknown) {
     /* v8 ignore next -- replayedAssistant throws only INVALID_REPLAY_STATE LlmErrors; the
        guard keeps a future non-replay failure loud instead of silently degrading it */
     if (!(error instanceof LlmError) || error.code !== 'INVALID_REPLAY_STATE') throw error
     onDegrade?.(error.message)
-    return foreignAssistant(message)
+    return foreignAssistant(message, resolveImageAccess)
   }
 }

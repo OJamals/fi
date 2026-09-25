@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-工具调用在对话中显示为卡片：一个根调用树带其嵌套子调用，每个原子调用由所属视图渲染。用户看到运行中、成功、失败与中断状态，这些状态只来自冻结的调用/结果切片，并可通过宿主回调打开文件或检查调用。
+工具调用在对话中显示为卡片：一个根调用树带其嵌套子调用，每个原子调用由所属视图渲染。用户看到运行中、成功、失败与中断状态，这些状态只来自冻结的调用/结果切片，并可通过宿主回调打开文件或检查调用。未注册工具的成功结果若包含持久图像且没有不受支持的区块，会通过与内置图像卡片相同的授权 slot 立即打开图库；文本是可选的。混合或不受支持的内容仍显示压平输出。
 
 ### 注册业务工具视图
 
@@ -39,7 +39,7 @@ ctx.slots.inject('tool.call.toolview', () =>
   }, BusinessToolRow))
 ```
 
-owner 载荷为 `ToolCallOwnerProps`：`callId`、`toolName`、冻结的 `block`、可选 `cwd` 与 `home`、会话授权的 `loadImage` loader（供结果携带持久图像的视图使用），以及普通的 `openFile`/`inspect` 回调。Code Dispatch 块保留事件的 `parentCallId`；根会话调用没有该字段，因此后代调用都走同一条按 key 分发路径：已注册视图的调用（如 `read_image`）也会在嵌套处渲染对应卡片，未注册的后代调用则保持通用压平形式。路径摘要先相对会话 cwd 缩短，再把剩余的 POSIX Host home 写成 `~`；`filePath` 与 Host 打开仍使用作者给出的文件系统路径。注册项会收到常规的会话 slot 运行时共享数据，但不会收到 React 节点或运行时服务。
+owner 载荷为 `ToolCallOwnerProps`：`callId`、`toolName`、冻结的 `block`、可选 `cwd` 与 `home`、会话授权的 `loadImage` loader、可选的 `renderImages` 回调，以及普通的 `openFile`/`inspect` 回调。Tool tree 提供 `renderImages`；手工构造的 owner 未提供它时，仍保留通用压平输出。Code Dispatch 块保留事件的 `parentCallId`；根会话调用没有该字段，因此后代调用都走同一条按 key 分发路径：已注册视图的调用（如 `read_image`）也会在嵌套处渲染对应卡片，未注册的后代调用则保持通用压平形式。路径摘要先相对会话 cwd 缩短，再把剩余的 POSIX Host home 写成 `~`；`filePath` 与 Host 打开仍使用作者给出的文件系统路径。注册项会收到常规的会话 slot 运行时共享数据，但不会收到 React 节点或运行时服务。
 
 ### 内置视图
 

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { AttachmentId } from '@deepseek-ai/dsh-attachment'
 import { EMPTY_CHAT_SNAPSHOT, type MessageImagesProps } from '@deepseek-ai/dsh-client-ui-chat/client'
+import { AssistantMarkdown, type AssistantMarkdownProps } from '@deepseek-ai/dsh-client-ui-chat/src/client/chat/AssistantMarkdown.tsx'
 import { EMPTY_CONVERSATION_SNAPSHOT } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { ImageGallery, MessageImage } from '../src/MessageImage.tsx'
 import type { MessageImageLabels } from '../src/MessageImage.tsx'
@@ -24,6 +25,8 @@ const labels: MessageImageLabels = {
   loadFailed: '图片加载失败，点击重试',
   lightbox: { dialog: '原图预览', close: '关闭原图预览' },
 }
+
+const chatT = ((key: string) => key) as AssistantMarkdownProps['t']
 
 const attachment = {
   attachmentId: AttachmentId(`sha256:${'a'.repeat(64)}`),
@@ -297,5 +300,31 @@ describe('ImageGallery', () => {
     await waitFor(() => { expect(view.getByAltText('history.png')).toBeTruthy() })
     expect(view.getByRole('button', { name: 'history.png，点击查看原图' })).toBeTruthy()
     expect(view.container.querySelector('[data-align="end"]')).not.toBeNull()
+  })
+})
+
+describe('assistant image presentation', () => {
+  it('renders a durable assistant ImageBlock through the production gallery', async () => {
+    const load = vi.fn().mockResolvedValue('blob:assistant-image')
+    const view = render(
+      <AssistantMarkdown
+        t={chatT}
+        blocks={[{ kind: 'image', attachment }]}
+        streaming={false}
+        renderMessageImages={({ images, align, compact }) => (
+          <ImageGallery
+            images={images}
+            load={load}
+            align={align}
+            {...compact === undefined ? {} : { compact }}
+            labels={labels}
+          />
+        )}
+      />,
+    )
+
+    await waitFor(() => { expect(view.getByAltText('history.png')).toBeTruthy() })
+    expect(view.container.querySelector('[data-align="start"]')).not.toBeNull()
+    expect(load).toHaveBeenCalledWith(attachment)
   })
 })

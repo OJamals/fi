@@ -63,6 +63,7 @@ import type {} from '@deepseek-ai/dsh-fs'
 import type {} from '@deepseek-ai/dsh-settings'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
 import { PiAiAdapter } from './adapter.ts'
+import type { PiAiRequestTransport, PiAiRequestTransportContext } from './adapter.ts'
 import { authContextFrom, credentialStoreFrom } from './auth.ts'
 import { catalogProviderIds } from './catalog.ts'
 import { assertServiceable, Config, resolveProfiles } from './config.ts'
@@ -72,7 +73,11 @@ import type { StoredModelDiscoveryProfile } from './discovery.ts'
 import { registerPiAiFlows } from './login.ts'
 
 export { PiAiAdapter } from './adapter.ts'
-export type { PiAiAdapterOptions } from './adapter.ts'
+export type {
+  PiAiAdapterOptions,
+  PiAiRequestTransport,
+  PiAiRequestTransportContext,
+} from './adapter.ts'
 export { Config } from './config.ts'
 export type {
   PiAiCompatProfile,
@@ -84,11 +89,28 @@ export type {
   PiAiThinkingFormat,
   ResolvedPiAiProviderProfile,
 } from './config.ts'
-export { recordKeyFor } from './auth.ts'
+export { authContextFrom, credentialStoreFrom, recordKeyFor } from './auth.ts'
 export { supportedProtocols } from './provider.ts'
 
 export const name = 'llm-pi-ai'
 export const inject = ['llm']
+
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /**
+     * Add provider-specific HTTP headers or a request-scoped fetch function to
+     * a pi-ai request. The adapter accepts the result only for stored
+     * subscription OAuth and never exposes the grant to listeners.
+     * @param request - non-secret route, model, session, and timeout facts.
+     * @param next - continue to the next transport listener.
+     * @mode waterfall
+     */
+    'llm-pi-ai/request-transport'(
+      request: PiAiRequestTransportContext,
+      next: () => Promise<PiAiRequestTransport | undefined>,
+    ): Promise<PiAiRequestTransport | undefined>
+  }
+}
 
 const NS = 'llm-pi-ai'
 
@@ -198,6 +220,11 @@ export function apply(ctx: Context, config: Config): void {
     profiles,
     resolveApiKey,
     auth,
+    resolveRequestTransport: request => ctx.waterfall(
+      'llm-pi-ai/request-transport',
+      request,
+      () => Promise.resolve(undefined),
+    ),
     resolveAttachments: () => ctx.get('attachments'),
     resolveImageAccess: (attachments, ref) => resolveImageAttachmentAccess(
       attachments,

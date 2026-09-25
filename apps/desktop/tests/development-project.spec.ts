@@ -62,9 +62,15 @@ describe('desktop development project', () => {
       .toBe(realpathSync(join(dependencies, '@scope', 'dependency')))
     const manifest = JSON.parse(readFileSync(join(project, 'package.json'), 'utf8')) as {
       dependencies: Record<string, string>
+      dsh: { profile: { bundles: string[] } }
     }
     expect(manifest.dependencies['@deepseek-ai/dsh']).toBe('1.2.3')
     expect(manifest.dependencies['@deepseek-ai/dsh-desktop-host']).toBe('1.2.3')
+    expect(manifest.dsh.profile.bundles).toEqual([
+      '@deepseek-ai/dsh-base',
+      '@deepseek-ai/dsh-web-app',
+      '@fi/authorization-bundle',
+    ])
   })
 
   it('rejects a CLI package from another release', () => {

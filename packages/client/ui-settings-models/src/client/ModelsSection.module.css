@@ -50,6 +50,24 @@
   gap: 8px;
 }
 
+.subscriptionRows {
+  margin-top: 0;
+}
+
+.subscriptionArea {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.subscriptionTitle {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+}
+
 /* A configured provider: outlined on the panel fill, so the filled editor
    card it expands into reads as the nested object. */
 .rowCard {

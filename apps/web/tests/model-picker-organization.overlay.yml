@@ -1,0 +1,23 @@
+# The browser scenario owns a deterministic large catalog below.  It starts on
+# one of those routes and mounts only the FI authorization/UI contribution the
+# compact subscription control renders through.
+- id: agent-default-model
+  config:
+    provider: openrouter
+    model: openrouter-model-000
+
+- insert:
+    - id: fi-authorization
+      name: '@deepseek-ai/dsh-authorization'
+
+    - id: fi-authorization-controller
+      name: '@fi/api-authorization-controller'
+
+    - id: fi-ui-model-signin
+      name: '@fi/client-ui-model-signin'
+
+    - id: fi-llm-antigravity
+      name: '@fi/llm-antigravity'
+
+    - id: fi-provider-compat
+      name: '@fi/provider-compat'

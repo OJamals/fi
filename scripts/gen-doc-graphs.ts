@@ -272,6 +272,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Configuration carries references to secrets; providers own the values. Consumers resolve per operation, so a rotated credential reaches the very next request; the settings controller exposes value-free views and write-only storage.',
   },
   {
+    key: 'fiAuthorizationController',
+    pkg: 'api-authorization-controller',
+    title: 'Subscription authorization Remote',
+    mode: 'core',
+    consumers: ['client-ui-model-signin'],
+    note: 'Projects provider sign-in, cancellation, credential removal, and route adoption into the authorization Remote namespace.',
+  },
+  {
     key: 'authorization',
     pkg: 'authorization',
     title: 'Authorization flow registry',

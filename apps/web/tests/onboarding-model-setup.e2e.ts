@@ -272,6 +272,7 @@ describe.skipIf(MODE === 'record')('web e2e: first-run model-universal setup', (
     await modelTrigger.waitFor({ timeout: 10_000 })
     await modelTrigger.click()
     await page.getByRole('menuitem', { name: /模型/ }).click()
+    await page.getByRole('menuitem', { name: 'DeepSeek', exact: true }).click()
     expect(await page.getByText('Configured Flash', { exact: true }).count()).toBe(0)
     await page.getByRole('menuitemradio', { name: 'Private Preview' }).waitFor({ timeout: 10_000 })
     expect(tripwire.warnings).toEqual([])

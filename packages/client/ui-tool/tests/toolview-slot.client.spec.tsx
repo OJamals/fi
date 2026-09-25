@@ -2,6 +2,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
+import { AttachmentId } from '@deepseek-ai/dsh-attachment'
 import type { ISession } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
@@ -14,6 +15,7 @@ import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { apply as applyConversation, inject as injectConversation } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { apply as applyTool, inject as injectTool } from '@deepseek-ai/dsh-client-ui-tool/client'
 import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/client'
+import type { ToolImagesOwnerProps } from '../src/client/contract/slots.ts'
 import { toolSessionEvents } from './tool-fixtures.client.ts'
 
 const SID = 's1' as SessionId
@@ -40,6 +42,19 @@ const toolResult = (seq: number, callId: string, name: string, args = '{"command
   call: { name, argsRaw: args },
   callTime: seq * 1_000 - 500,
   content: [], isError: false, subCalls: [],
+})
+
+const imageResult = (): ToolResultNode => ({
+  ...toolResult(3, 'image-1', 'unregistered_image_tool', '{"prompt":"a lighthouse"}'),
+  content: [
+    { type: 'text', text: 'Generated image' },
+    {
+      type: 'image',
+      attachment: {
+        attachmentId: AttachmentId('opaque-image-id'), mediaType: 'image/png', bytes: 10, width: 2, height: 5, name: 'generated.png',
+      },
+    },
+  ],
 })
 
 /** Test-owned AppFrame role: declares and renders the resident conversation area. */
@@ -93,6 +108,24 @@ async function bench(nodes: ToolResultNode[]) {
 }
 
 describe('keyed toolview hole through the real machinery', () => {
+  it('authorizes the generic fallback to render its image result through the shared image child', async () => {
+    const b = await bench([imageResult()])
+    let galleryOwner: ToolImagesOwnerProps | undefined
+    const Gallery = (owner: ToolImagesOwnerProps) => {
+      galleryOwner = owner
+      return <div data-testid="generic-image-gallery">{owner.images.length}</div>
+    }
+    b.slots.register({ name: 'tool.call.images' }, Gallery)
+    const view = b.runtime.renderRoot()
+    expect(view.getByTestId('generic-image-gallery').textContent).toBe('1')
+    expect(galleryOwner).toBeDefined()
+    if (galleryOwner === undefined) throw new Error('generic image gallery did not receive an owner')
+    expect(galleryOwner.images).toHaveLength(1)
+    expect(galleryOwner.loadImage).toBeTypeOf('function')
+    expect(galleryOwner.align).toBe('start')
+    await b.runtime.dispose()
+  })
+
   it('dispatches registered rows by entryKey and unregistered tools to the GenericToolCard fallback', async () => {
     const b = await bench([
       toolResult(3, 'c1', 'bash'),

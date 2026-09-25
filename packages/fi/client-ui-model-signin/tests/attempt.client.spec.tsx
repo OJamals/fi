@@ -113,7 +113,7 @@ describe('the terminal state', () => {
       prompt: null,
       settled: { status: 'authorized', route: 'created' },
     })
-    expect(screen.getByText('Signed in, and a route for anthropic was added below.')).toBeTruthy()
+    expect(screen.getByText('Signed in, and a provider entry for anthropic was added.')).toBeTruthy()
   })
 
   it('says the route already existed when it did', () => {
@@ -123,7 +123,7 @@ describe('the terminal state', () => {
       prompt: null,
       settled: { status: 'authorized', route: 'already' },
     })
-    expect(screen.getByText('Signed in; the route below already covered anthropic.')).toBeTruthy()
+    expect(screen.getByText('Signed in; a provider entry already covered anthropic.')).toBeTruthy()
   })
 
   it('keeps the plain message when no route could be written', () => {

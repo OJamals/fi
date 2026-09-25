@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   desktopElectronBuilderArguments,
   desktopElectronBuilderEnvironment,
+  desktopPatchedDependencyPackArguments,
+  desktopPrivateBundlePackArguments,
   parseDesktopPackageInvocation,
   resolveDesktopPackageTarget,
   withoutDesktopUploadCredentials,
@@ -9,6 +11,28 @@ import {
 } from '../scripts/package-target.ts'
 
 describe('desktop package target', () => {
+  it('packs the private FI bundle closure without adding it to the public dsh release family', () => {
+    expect(desktopPrivateBundlePackArguments('/build/packed-dsh')).toEqual([
+      '--recursive',
+      '--filter',
+      '@fi/authorization-bundle...',
+      '--filter',
+      '!@deepseek-ai/*',
+      'pack',
+      '--pack-destination',
+      '/build/packed-dsh',
+    ])
+  })
+
+  it('packs the reviewed pi-ai patch into the isolated Desktop runtime closure', () => {
+    expect(desktopPatchedDependencyPackArguments('/build/packed-vendor')).toEqual([
+      '--config.ignore-scripts=true',
+      'pack',
+      '--pack-destination',
+      '/build/packed-vendor',
+    ])
+  })
+
   it('selects matching runtime and electron-builder architectures', () => {
     expect(resolveDesktopPackageTarget('mac-arm64', 'darwin', 'arm64')).toMatchObject({
       platform: 'darwin', arch: 'arm64', builderPlatform: '--mac', builderArch: '--arm64',

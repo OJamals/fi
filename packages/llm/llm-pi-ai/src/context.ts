@@ -15,7 +15,7 @@ import type {
   RequestImageAttachment,
 } from '@deepseek-ai/dsh-attachment'
 import type { Context as PiContext, ImageContent, Message as PiMessage, TextContent, Tool as PiTool } from '@earendil-works/pi-ai'
-import { toPiAssistant } from './replay.ts'
+import { assistantImageHistoryText, toPiAssistant } from './replay.ts'
 import { DEFAULT_REQUEST_IMAGE_MAX_BYTES, DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET } from './config.ts'
 
 /** Join the text blocks of a harness message. */
@@ -34,16 +34,53 @@ function toolResultText(blocks: readonly ContentBlock[]): string {
     : block.type === 'tool-result' ? toolResultText(block.content) : '').join('')
 }
 
-/** Reject image roles that pi-ai cannot replay before request-size offloading can replace them. */
+/** Reject system images because pi-ai cannot preserve their role or raster content. */
 function assertSupportedImageRoles(messages: readonly Message[]): void {
   for (const message of messages) {
-    if (message.role !== 'user' && contentHasImage(message.content)) {
+    if (message.role === 'system' && contentHasImage(message.content)) {
       throw new LlmError(
         `pi-ai cannot represent an image in an in-history ${message.role} message`,
         'UNSUPPORTED_CONTENT',
       )
     }
   }
+}
+
+/** Replace only assistant images before user-image request preparation and offload. */
+function projectAssistantImages(
+  blocks: readonly ContentBlock[],
+  resolveImageAccess: ImageAttachmentAccessResolver,
+): ContentBlock[] {
+  let next: ContentBlock[] | undefined
+  for (const [index, block] of blocks.entries()) {
+    if (block.type === 'image') {
+      next ??= blocks.slice(0, index)
+      next.push({ type: 'text', text: assistantImageHistoryText(block.attachment, resolveImageAccess(block.attachment)) })
+      continue
+    }
+    if (block.type === 'tool-result') {
+      const content = projectAssistantImages(block.content, resolveImageAccess)
+      if (content !== block.content) {
+        next ??= blocks.slice(0, index)
+        next.push({ ...block, content })
+        continue
+      }
+    }
+    next?.push(block)
+  }
+  return next ?? blocks as ContentBlock[]
+}
+
+/** Exclude assistant images from the user/tool-result native-image preparation path. */
+function requestImageHistory(
+  messages: readonly Message[],
+  resolveImageAccess: ImageAttachmentAccessResolver,
+): readonly Message[] {
+  return messages.map((message) => {
+    if (message.role !== 'assistant') return message
+    const content = projectAssistantImages(message.content, resolveImageAccess)
+    return content === message.content ? message : { ...message, content }
+  })
 }
 
 async function userContent(
@@ -166,8 +203,9 @@ function appendAssistant(
   messages: PiMessage[],
   toolNames: Map<ToolCallId, string>,
   onReplayDegrade?: (reason: string) => void,
+  resolveImageAccess?: ImageAttachmentAccessResolver,
 ): void {
-  const assistant = toPiAssistant(message, onReplayDegrade)
+  const assistant = toPiAssistant(message, onReplayDegrade, resolveImageAccess)
   for (const block of assistant.content) {
     if (block.type === 'toolCall') toolNames.set(brandString<ToolCallId>(block.id), block.name)
   }
@@ -180,7 +218,7 @@ function textOnlyContext(options: GenerateOptions, onReplayDegrade?: (reason: st
   const toolNames = new Map<ToolCallId, string>()
   const messages: PiMessage[] = []
   for (const message of split.messages) {
-    if (contentHasImage(message.content)) {
+    if (message.role === 'user' && contentHasImage(message.content)) {
       throw new LlmError('pi-ai image conversion requires the durable attachment service', 'UNSUPPORTED_CONTENT')
     }
     if (message.role === 'system') {
@@ -277,7 +315,8 @@ async function toPiContextWithImages(
   }
   assertSupportedImageRoles(options.messages)
   const split = splitSystemPrompt(options)
-  const requestMessages = offloadRequestImagesWithPolicy(split.messages, {
+  const safeHistory = requestImageHistory(split.messages, resolveImageAccess)
+  const requestMessages = offloadRequestImagesWithPolicy(safeHistory, {
     representation: 'base64',
     ...maxRequestImageBytes === undefined ? {} : { maxBytes: maxRequestImageBytes },
     byteQuantum: 1,
@@ -295,7 +334,7 @@ async function toPiContextWithImages(
   const toolNames = new Map<ToolCallId, string>()
   const messages: PiMessage[] = []
 
-  for (const message of exactMessages) {
+  for (const [index, message] of exactMessages.entries()) {
     if (message.role === 'system') {
       // pi-ai has a single systemPrompt slot; a system message that did not
       // supply it folds into a user message to preserve order.
@@ -303,7 +342,7 @@ async function toPiContextWithImages(
       continue
     }
     if (message.role === 'assistant') {
-      appendAssistant(message, messages, toolNames, onReplayDegrade)
+      appendAssistant(split.messages[index] as Message, messages, toolNames, onReplayDegrade, resolveImageAccess)
       continue
     }
     // user role: text + tool results (each result becomes its own message).

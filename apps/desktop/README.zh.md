@@ -12,7 +12,7 @@
 | 运行时 | Electron 的 Node.js 带有 Electron 补丁、fuse、ABI 与生命周期约束，而系统运行时和包管理器状态不可控。 | dsh 通过内置的上游 Node.js 运行，所有包操作都使用内置 pnpm。Electron 的 Node.js、系统 Node.js、系统 pnpm 与用户的包管理器配置都不进入执行路径。 |
 | 包来源 | 即使离线，启动时安装核心依赖也会增加开销。 | `extraResources/dsh` 携带完整生产依赖树；profile 只安装外部插件。 |
 | 共享模块 | 宿主 API 可能依赖模块实例身份。 | Desktop 用目录软链接或 Windows junction 把每个内置第一方包连接到 profile；普通插件依赖保留在本地。 |
-| 状态归属 | 共享可执行依赖图会让 CLI（命令行界面）与 Desktop 相互改变 dsh、Cordis、插件或原生模块版本，而两个桌面进程还可能争用同一个 profile。 | Electron 在访问任何 profile 前获取进程生命周期单实例锁，并独占 `$DSH_HOME/profiles/desktop` 及其包管理器状态。CLI 与 Desktop 共享 `$DSH_HOME` 下受支持的产品数据，但绝不共享可执行包、插件激活、锁文件或 `node_modules`。 |
+| 状态归属 | 共享 CLI 的 home 会让 CLI 与 Desktop 争用同一会话写锁；共享可执行依赖图还会让两者相互修改包。 | Electron 在访问 profile 前获取进程生命周期单实例锁，并使用独立的 Harness home 保存会话、设置、凭据、存储和 `$DSH_HOME/profiles/desktop`。显式 `DSH_HOME` 可以选择共享 home。可执行包和插件激活仍由 Desktop 独占。 |
 | 通信 | 监听 Web 服务会引入端口归属、认证、CORS 与暴露风险；Electron 与上游 Node.js 之间也需要明确的跨进程协议。 | 应用不打开 Web 端口。`dsh-app://` 承载 Web 资源和 Fetch 流量；分帧字节管道以背压传输有界请求与响应分块，Node IPC 只承载子进程生命周期控制。 |
 | 窗口外观 | 单独的 macOS 标题栏会让原生窗口控件与应用界面割裂。 | 主窗口使用 `hiddenInset`；32px 可拖动行延续侧边栏和主区背景，并承载距顶部 16px 的原生红黄绿按钮。辅助窗口保留标准原生外观。 |
 | 插件变更 | 包安装和 Host 启动可能失败。 | Desktop 停止 Host 后直接修改当前 profile。失败保留部分修改供用户修复，不自动回滚 profile。 |
@@ -20,9 +20,11 @@
 
 [Electron 打包与更新 Agent Note](../../.agents/notes/implemented/architecture/2026-08-25-electron-desktop-packaging-and-updates.zh.md) 记录了这些决策背后的理由、替代方案、安全约束和发布验证要求。
 
+[FI 数据 home 决策](../../.agents/notes/implemented/architecture/2026-09-15-fi-desktop-data-home.zh.md) 规定默认 Harness home 与显式 `DSH_HOME` 覆盖。
+
 ## 安装归属
 
-Electron 拥有 `$DSH_HOME/profiles/desktop`。其 `dependencies` 只包含已安装外部插件的精确版本；`dsh.profile.bundles` 包含内置 bundle，后接已启用插件。签名应用从 `resources/dsh` 提供 dsh、私有 Desktop Host 及其生产依赖。共享包链接解析到这些实际目录。宿主与插件在同一个内置上游 Node 进程中执行，使用正常的 realpath 解析；Desktop 不启用 `--preserve-symlinks`。CLI 不能启动或修改此 profile。
+默认情况下，Electron 使用 `<Electron userData>/harness` 作为 Harness home。在 macOS 上，该路径为 `~/Library/Application Support/fi/harness`；其他平台使用 Electron 的 `userData` 目录。CLI dsh 继续使用自己的默认 home。Desktop 的新 home 中没有 CLI 的会话历史、设置、凭据、插件或存储；两个 home 都不会被移动或删除。启动 FI 前设置非空 `DSH_HOME` 可选择已有 home。Electron 与 Host 接收同一个解析后的 home，Electron 拥有 `$DSH_HOME/profiles/desktop`。其 `dependencies` 只包含已安装外部插件的精确版本；`dsh.profile.bundles` 依次以 `@deepseek-ai/dsh-base`、`@deepseek-ai/dsh-web-app` 和 `@fi/authorization-bundle` 开头，后接已启用插件。签名应用从 `resources/dsh` 提供 dsh、私有 Desktop Host、私有 FI bundle 及其生产依赖。共享包链接解析到这些实际目录。宿主与插件在同一个内置上游 Node 进程中执行，使用正常的 realpath 解析；Desktop 不启用 `--preserve-symlinks`。CLI 不能启动或修改此 profile。
 
 本地启动页提供 fi 启动状态和可用恢复操作；加载后的 dsh 渲染进程仅接收桌面协议标记。主窗口在加载时和应用导航后都保留同一个可拖动顶行。独立插件窗口接收结构化的列表、安装、删除、更新和更新检查操作；两个渲染进程都无法访问文件系统、原始 Electron IPC、shell 或任意 pnpm 参数。
 
@@ -32,7 +34,7 @@ Electron 根据应用 locale 选择类型化的英文或中文桌面壳文案，
 
 签名资源中的 `resources/dsh/desktop-runtime.json` 绑定 shell 版本、内置 Node 版本、平台、架构、共享包版本和最终文件清单。启动读取元数据，并检查共享包记录。发布 schema、shell 版本、目标兼容性和文件完整性在打包时验证。首次启动不会把核心包复制到 profile 存储或通过 pnpm 安装核心包。
 
-1. 主窗口在 profile 准备或后端启动前显示本地加载页。新 profile 创建清单和共享包链接，保留无关文件，然后启动一次实际后端。未变化的启动复用 profile，不扫描已安装插件的清单。
+1. 主窗口在 profile 准备或后端启动前显示本地加载页。新 profile 使用固定的内置 bundle 顺序创建清单和共享包链接，保留无关文件，然后启动一次实际后端。使用旧版 base 加 Web 前缀的现有 profile 会加入 FI bundle，且不改变第三方后缀。未变化的启动复用 profile，不扫描已安装插件的清单。
 2. 兼容的应用升级在当前 profile 中刷新共享链接，并检查已启用插件的 peer 要求。插件文件、配置、版本和锁文件留在原处；不运行 pnpm。
 3. 内置 Node 版本、平台或架构变化时，禁用脚本重新安装锁定的插件依赖图，验证并链接宿主包，然后运行已批准的待执行构建并再次验证。
 4. 插件添加、更新和删除使用内置 pnpm 及 Desktop 独有的包管理器状态。保留的宿主包必须声明为 peer；共享包的嵌套副本和别名会被验证拒绝。普通插件依赖必须解析到 profile 内部。
@@ -40,13 +42,13 @@ Electron 根据应用 locale 选择类型化的英文或中文桌面壳文案，
 
 加载页不依赖 Host。错误页提供重启和重装指导。只有已打包应用的资源支持 profile 恢复时，才提供禁用插件和重置 Desktop；开发模式和早期初始化失败只提供重启。应用菜单仍提供插件管理器入口。每次后端启动前都会检查运行时标识；插件修改不自动回滚。
 
-重置删除 `$DSH_HOME/profiles/desktop` 中除所持事务锁外的所有条目，然后初始化内置 profile。它删除 Desktop 配置和已安装第三方包，不保留备份。共享任务、设置和 Harness-home `.env` 保持不变。壳资源和 preload 失败时使用独立文档显示可用恢复操作和诊断；其控件不依赖 preload。
+重置删除 `$DSH_HOME/profiles/desktop` 中除所持事务锁外的所有条目，然后初始化内置 profile。它删除 Desktop 配置和已安装第三方包，不保留备份。会话、设置和 Harness-home `.env` 保持不变。壳资源和 preload 失败时使用独立文档显示可用恢复操作和诊断；其控件不依赖 preload。
 
 包事务独占持有 `$DSH_HOME/profiles/desktop/lock`，直到 pnpm 进程退出。重置保留目录及其锁，直到初始化和 Host 启动完成。共享链接在 macOS/Linux 使用目录软链接，在 Windows 使用 junction；清理只移除链接，不删除其目标。共享包使用文件系统的规范路径识别，因此 Windows 路径大小写变化不会单独触发 profile 激活。原生构建遵循 profile 中经过审查的 `allowBuilds` 列表；新安装的包如果需要构建但未在列表中获准，事务会失败。
 
 ## 开发
 
-`dev:desktop` 会构建当前 Host、客户端 bundle、Web 前端和 Electron 壳，把已构建的 CLI 包、私有 Desktop Host 包及其 workspace 依赖投影为一次性桌面 npm 项目，然后直接启动 Electron；这条路径不下载安装包内的 Node.js，也不从 npm 解析 dsh：
+`dev:desktop` 会构建当前 Host、客户端 bundle、Web 前端和 Electron 壳，把已构建的 CLI、私有 Desktop Host 和私有 FI bundle 闭包投影为一次性桌面 npm 项目，然后直接启动 Electron；这条路径不下载安装包内的 Node.js，也不从 npm 解析 dsh：
 
 ```sh
 pnpm run dev:desktop
@@ -60,7 +62,7 @@ pnpm run dev:desktop
 pnpm run start:desktop
 ```
 
-Workspace 开发使用调用命令的 Node.js 运行当前 CLI 与私有 Desktop Host 包，并禁用桌面包修改；只有该模式明确链接的一次性 profile 可以从自身目录外解析 bundle。需要验证内置 Node.js、内置 pnpm、内置 dsh 资源、插件安装和修复时，应运行未封装安装器的应用目录。
+Workspace 开发使用调用命令的 Node.js 运行当前 CLI、私有 Desktop Host 和私有 FI bundle，并禁用桌面包修改；只有该模式明确链接的一次性 profile 可以从自身目录外解析 bundle。需要验证内置 Node.js、内置 pnpm、内置 dsh 资源、插件安装和修复时，应运行未封装安装器的应用目录。
 
 ## 打包
 
@@ -92,6 +94,8 @@ macOS arm64 命令要求 Apple Silicon。macOS x64 命令可以在 Intel macOS �
 
 每个目标都在 `apps/desktop/.desktop-build/targets/<target>/` 下持有自己的打包输入、已准备运行时、包集合、dsh 依赖树、pnpm 准备状态、未打包应用、更新元数据和最终产物。Node.js 归档缓存继续由 `.desktop-build/downloads` 共享，因为每个归档文件名都包含版本、平台和架构，并且在解包前经过验证。目标构建绝不读取其他目标的可变准备状态。
 
+私有 FI 闭包需要仓库审核过的 `@earendil-works/pi-ai` 补丁。Desktop 将已安装的补丁依赖打包进目标包集合，并从本地 tarball 安装。隔离运行时不能将其替换为注册表中未打补丁的包。
+
 ### 运行时文件筛选
 
 生产包首先经过 npm 发布规则和依赖安装。[桌面文件规则](scripts/runtime-file-policy.ts)随后在签名和完整性封存之前过滤不可变的 `resources/dsh/node_modules` 副本。它排除 TypeScript 声明、明确属于 JavaScript/CSS/TypeScript 的 source map、TypeScript 构建缓存、Domino 测试目录、指定的原生编译产物，以及其他平台的 node-pty 预构建文件。它保留运行时 JavaScript、原生模块及其 DLL/EXE 辅助程序、WASM、未知资源、许可证和声明。规则不会修改 npm tarball、内置包管理器或用户安装的插件文件。
@@ -120,7 +124,7 @@ export DOWNLOAD_TEST_COS_SECRET_KEY='<test COS SecretKey>'
 pnpm run upload:mac:arm64
 ```
 
-生成 GitHub Release 的已签名产物前需设置 `DSH_DESKTOP_AUTO_UPDATE_ENV=production`。打包不要求仓库 token，并继续禁用 electron-builder 自动发布；发布仍是显式 release 操作。已发布的稳定 release 是稳定安装的官方更新流；preview 安装会跟随已发布的 preview prerelease。草稿 release 永远不会到达 updater。因为 electron-builder 不会为 GitHub 推断预发布频道，生产打包会根据 Desktop 版本为 GitHub provider 显式设置频道。每个 release 都必须包含平台更新元数据及其引用的全部产物。`fi Preview 01` 仅发布 macOS arm64，因此它的 `preview-mac.yml` 包含 arm64 ZIP 条目，不包含 x64 条目。
+生成 GitHub Release 的已签名产物前需设置 `DSH_DESKTOP_AUTO_UPDATE_ENV=production`。打包不要求仓库 token，并继续禁用 electron-builder 自动发布；发布仍是显式 release 操作。已发布的稳定 release 是稳定安装的官方更新流；preview 安装会跟随已发布的 preview prerelease。草稿 release 永远不会到达 updater。因为 electron-builder 不会为 GitHub 推断预发布频道，生产打包会根据 Desktop 版本为 GitHub provider 显式设置频道。每个 release 都必须包含平台更新元数据及其引用的全部产物。`fi Preview 04` 仅发布 macOS arm64，因此它的 `preview-mac.yml` 包含 arm64 ZIP 条目，不包含 x64 条目。
 
 测试上传会先验证完成记录、根与 Desktop 版本、频道元数据、产物名称、大小和 SHA-512，再读取 COS 凭据对。它先上传不可变且带版本的产物，最后以 `no-cache` 上传根据版本得出的频道元数据。稳定构建使用 `latest-mac.yml` 或 `latest.yml`；预发布构建使用频道名，例如 `alpha-mac.yml` 或 `alpha.yml`。
 
@@ -175,7 +179,7 @@ pnpm run prepare:desktop
 
 这条诊断命令是另一种停止位置，并非两条命令构建流程的前半段。之后执行 `package:desktop*` 时仍会重新完成正式构建与准备，避免使用陈旧的 dsh 包、运行时文件或 dsh 内容。
 
-每条打包命令都会构建仓库，打包以 dsh 和私有 Desktop Host 为根的第一方生产依赖闭包，并准备目标专用的 Node 与 pnpm 可执行文件。`prepare:dsh` 在构建时安装一次生产依赖图，把物化包复制到 `extraResources/dsh`，移除包管理器元数据，并生成包含共享包版本和最终文件哈希的 `desktop-runtime.json`。在 macOS 上，它先签名并验证原生文件，再生成清单；electron-builder 不对已签名的此目录重复进行嵌套签名。资源映射明确包含默认根目录过滤器会忽略的 `dsh/node_modules`；复制后的清单在签名前及签名后分别验证。签名安装包、公证、已安装应用升级和各目标原生模块的验收需要发布环境。
+每条打包命令都会构建仓库，打包以 dsh、私有 Desktop Host 和私有 FI authorization bundle 为根的第一方生产依赖闭包，并准备目标专用的 Node 与 pnpm 可执行文件。FI 包不进入公开 `@deepseek-ai/dsh` manifest，只打包进 Desktop 的本地包集。`prepare:dsh` 在构建时安装一次生产依赖图，把物化包复制到 `extraResources/dsh`，移除包管理器元数据，并生成包含共享包版本和最终文件哈希的 `desktop-runtime.json`。在 macOS 上，它先签名并验证原生文件，再生成清单；electron-builder 不对已签名的此目录重复进行嵌套签名。资源映射明确包含默认根目录过滤器会忽略的 `dsh/node_modules`；复制后的清单在签名前及签名后分别验证。签名安装包、公证、已安装应用升级和各目标原生模块的验收需要发布环境。
 
 未压缩产物包含 Electron、物化后的 dsh 生产依赖树、上游 Node.js 与 pnpm，以及壳应用。安装包大小与文件系统占用不同；发布验收需要测量两者，以及 profile 插件存储和首次启动耗时。此布局用更多应用内文件换取消除用户机器上的核心包安装过程。
 
@@ -194,4 +198,4 @@ pnpm run prepare:desktop
 - Desktop 禁用 Web 的「在本地应用中打开…」操作，因为其 Host 插件依赖 HTTP 路由，而 Desktop 不提供 `webServer`。
 - 发布签名、公证、更新托管和跨上一版本的已安装产物验证需要生产发布环境。
 - 依赖包含 lifecycle script 的桌面插件，只有其包名进入桌面项目经过评审的 `allowBuilds` 策略后才能安装。
-- 桌面壳与 CLI dsh 共享 `$DSH_HOME` 下的会话、设置、凭据、工作区和存储，但可执行包、插件激活、锁文件与包管理器状态彼此隔离。
+- 默认情况下，桌面壳将会话、设置、凭据、工作区、存储及其 profile 保存在独立的 `$DSH_HOME` 下；显式 `DSH_HOME` 可以与 CLI dsh 共享该 home。可执行包、插件激活、锁文件与包管理器状态仍由 Desktop 独占。

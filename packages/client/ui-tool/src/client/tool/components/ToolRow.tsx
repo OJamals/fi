@@ -1,15 +1,15 @@
-import { useMemo, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import clsx from 'clsx'
 import {
   CodeBlock, DiffBlock, DisclosureRow, IconInspectOutline12, ReadBlock, SearchBlock, StateDot, TerminalBlock, WebBlock,
   diffTotals,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { PropsRenderSlots, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
+import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import type { OpenFileOptions } from '@deepseek-ai/dsh-client-ui-chat/client'
-import type { MessageImageLoader } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { CHAT_DIFF_MAX_LINES, type DiffCardModel } from '../models/diff-card-model.ts'
 import { CHAT_READ_MAX_LINES, type ReadCardModel } from '../models/read-card-model.ts'
 import type { ImageCardModel } from '../models/image-card-model.ts'
+import type { RenderToolImages } from '../../contract/slots.ts'
 import { CHAT_SEARCH_MAX_LINES, type SearchCardModel } from '../models/search-card-model.ts'
 import {
   localizeTerminalCardModel, terminalBlockLabels, type TerminalCardModel,
@@ -61,16 +61,15 @@ export interface ToolRowProps {
    */
   image?: ImageCardModel | null | undefined
   /**
-   * Dispatch the image gallery through the tool-owned `tool.call.images`
-   * slot, supplied by the toolview that owns this row together with the
-   * session-authorized loader.
+   * Dispatch the image gallery through the Tool tree's `tool.call.images`
+   * child, which supplies the session-authorized loader.
    */
-  renderSlot?: PropsRenderSlots<'tool.call.images'>['renderSlot'] | undefined
-  /** Session-authorized image URL loader for the gallery slot. */
-  loadImage?: MessageImageLoader | undefined
+  renderImages?: RenderToolImages | undefined
   search?: SearchCardModel | null | undefined
   web?: WebCardModelProps | null | undefined
   state: ToolRowState
+  /** Whether the row opens initially and on its first false-to-true transition before a user toggle. */
+  defaultExpanded?: boolean | undefined
   /**
    * Filesystem path from tool args; when set with onOpenFile, the summary
    * renders as a hover-underline link that opens the host default app.
@@ -124,17 +123,28 @@ export function ToolRow({
   diff,
   read,
   image,
-  renderSlot,
-  loadImage,
+  renderImages,
   search,
   web,
   state,
+  defaultExpanded = false,
   filePath,
   filePathLine,
   onOpenFile,
   inspect,
 }: ToolRowProps) {
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(defaultExpanded)
+  const previousDefaultExpanded = useRef(defaultExpanded)
+  const userToggled = useRef(false)
+  // A generic call is first mounted while running, then its image result lands
+  // on the same row. Reveal that deliverable once it becomes available, while a
+  // disclosure the user has touched remains entirely theirs.
+  useEffect(() => {
+    if (!previousDefaultExpanded.current && defaultExpanded && !userToggled.current) {
+      setExpanded(true)
+    }
+    previousDefaultExpanded.current = defaultExpanded
+  }, [defaultExpanded])
   const terminalLabels = useMemo(() => terminalBlockLabels(t), [t])
   const diffLabels = useMemo(() => diffBlockLabels(t), [t])
   const readLabels = useMemo(() => readBlockLabels(t), [t])
@@ -145,7 +155,7 @@ export function ToolRow({
     : localizeTerminalCardModel(terminal, t)
   const diffBody = diff ?? null
   const readBody = read ?? null
-  const imageBody = image !== undefined && image !== null && renderSlot !== undefined && loadImage !== undefined
+  const imageBody = image !== undefined && image !== null && renderImages !== undefined
     ? image
     : null
   const searchBody = search ?? null
@@ -174,6 +184,7 @@ export function ToolRow({
   const suffix = failureLine === null ? summarySuffix ?? diffStat : null
   const fileLink = filePath !== undefined && onOpenFile !== undefined && failureLine === null
   const toggleExpand = () => {
+    userToggled.current = true
     setExpanded(v => !v)
   }
   const openFile = (event: MouseEvent<HTMLButtonElement>) => {
@@ -261,13 +272,12 @@ export function ToolRow({
                          attachment slot can render nothing, and then this line is the
                          only evidence an image was returned. */
                       <div className={css.imageBody}>
-                        <div className={css.imageLabel}>{imageBody.label}</div>
-                        {renderSlot !== undefined && loadImage !== undefined && renderSlot('tool.call.images', {
+                        {imageBody.label !== undefined && <div className={css.imageLabel}>{imageBody.label}</div>}
+                        {renderImages !== undefined && renderImages({
                           images: imageBody.images,
-                          loadImage,
                           align: 'start',
                         })}
-                        <div className={css.imageMeta}>{imageBody.text}</div>
+                        {imageBody.text !== '' && <div className={css.imageMeta}>{imageBody.text}</div>}
                       </div>
                     )
                     : searchBody !== null

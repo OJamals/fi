@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Tool calls appear in the conversation as cards: a root call tree with its nested subcalls, each atomic call rendered by its owning view. Users see running, successful, failed, and interrupted states that come only from the frozen call/result slice, and can open files or inspect calls through the Host callbacks.
+Tool calls appear in the conversation as cards: a root call tree with its nested subcalls, each atomic call rendered by its owning view. Users see running, successful, failed, and interrupted states that come only from the frozen call/result slice, and can open files or inspect calls through the Host callbacks. A successful unregistered result containing durable images and no unsupported blocks opens its gallery immediately through the same authorized slot as built-in image cards; its text is optional. Mixed or unsupported content retains flattened output.
 
 ### Registering a business tool view
 
@@ -39,7 +39,7 @@ ctx.slots.inject('tool.call.toolview', () =>
   }, BusinessToolRow))
 ```
 
-The owner payload is `ToolCallOwnerProps`: `callId`, `toolName`, the frozen `block`, optional `cwd` and `home`, the session-authorized `loadImage` loader (for a view whose result carries durable images), and plain `openFile`/`inspect` callbacks. A Code Dispatch block retains its event's `parentCallId`; a root Session call has no such field, so descendants route through the same keyed dispatch — a registered view such as `read_image` renders its card there, and unregistered descendants keep the generic flattened form. Path summaries relativize to the Session cwd first, then replace a leftover POSIX Host home with `~`; `filePath` and Host open keep the authored filesystem path. The registration receives the normal Session slot runtime share but no React node or Runtime service.
+The owner payload is `ToolCallOwnerProps`: `callId`, `toolName`, the frozen `block`, optional `cwd` and `home`, the session-authorized `loadImage` loader, optional `renderImages` callback, and plain `openFile`/`inspect` callbacks. The Tool tree supplies `renderImages`; a manually constructed owner without it keeps generic flattened output. A Code Dispatch block retains its event's `parentCallId`; a root Session call has no such field, so descendants route through the same keyed dispatch — a registered view such as `read_image` renders its card there, and unregistered descendants keep the generic flattened form. Path summaries relativize to the Session cwd first, then replace a leftover POSIX Host home with `~`; `filePath` and Host open keep the authored filesystem path. The registration receives the normal Session slot runtime share but no React node or Runtime service.
 
 ### Built-in views
 

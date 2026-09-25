@@ -1,0 +1,18 @@
+# Live composition for one subscription-native preference routed through the FI selector.
+- id: web
+  name: '@deepseek-ai/dsh-web'
+  config:
+    searchProvider: fi-preferred-search
+    fetchProvider: http
+
+- id: web-search-deepseek
+  disabled: true
+
+- insert:
+    - id: fi-web-search-preferences
+      name: '@fi/web-search-preferences'
+      config:
+        provider: subscription-native
+        subscriptionProvider: codex
+        subscriptionModel: gpt-5.6-sol
+        subscriptionMaxResponseBytes: 4096

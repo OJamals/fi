@@ -91,10 +91,8 @@ const answerRequestSchema = z.object({
 /** Parse the domain constraints that are more specific than generated codecs. */
 function parseRequest<T>(method: string, schema: z.ZodType<T>, value: unknown): T {
   const parsed = schema.safeParse(value)
-  if (!parsed.success) {
-    throw new RemoteError('gateway/bad-request', `invalid payload for ${method}`, { issues: parsed.error.issues })
-  }
-  return parsed.data
+  if (parsed.success) return parsed.data
+  throw new RemoteError('gateway/bad-request', `invalid payload for ${method}`, { issues: parsed.error.issues })
 }
 
 /**
@@ -107,7 +105,7 @@ function brandKey(wire: string): CredentialKey {
   /* v8 ignore next 3 -- every caller parses through `keySchema` first, which
      enforces this same pattern; the guard keeps a future caller that forgets
      from reaching `credentialKey` with a string it would throw on. */
-  if (match === undefined || match === null) {
+  if (match === null) {
     throw new RemoteError('gateway/bad-request', `"${wire}" is not a credential key`, {})
   }
   const [, scope, id] = match as unknown as [string, string, string]
@@ -522,17 +520,18 @@ export class FiAuthorizationController extends TypertRemoteService {
     const llm = this.ctx.get('llm')
     if (llm === undefined) throw new RemoteError('gateway/internal', 'llm service is absent: cannot enumerate models', {})
 
-    let models: string[] = []
+    let discovered: Awaited<ReturnType<typeof llm.discoverModels>>
     try {
-      const discovered = await llm.discoverModels(settingsNs, { provider: parsed.key.slice(parsed.key.indexOf('/') + 1) })
-      models = discovered.map(model => model.id)
-    } catch {
-      // A catalog-shipped provider answers from the registry; failure means the
-      // route namespace isn't connected to discovery — the route still stands
-      // from `ensureRoute`, so report the gap and keep the grant.
-      models = []
+      discovered = await llm.discoverModels(settingsNs, { provider: parsed.key.slice(parsed.key.indexOf('/') + 1) })
+    } catch (_discoveryFailure) {
+      // Upstream errors can contain account details; the stored grant and route remain retryable.
+      throw new RemoteError(
+        'authorization/adopt-blocked',
+        `models for "${parsed.key}" could not be loaded; retry provider setup`,
+        { key: parsed.key },
+      )
     }
-    return { route, models }
+    return { route, models: discovered.map(model => model.id) }
   }
 
   /**

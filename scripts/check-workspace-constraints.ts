@@ -55,8 +55,10 @@ const publishedRepositoryUrl = 'git+https://github.com/OJamals/fi.git'
 const experimentalPackageDirectory = /^packages\/experimental\/[^/]+$/
 /** npm namespace reserved for experimental packages. */
 const experimentalPackageNamePrefix = '@deepseek-ai/dsh-experimental-'
+/** Private FI packages are named after their direct package directory. */
+const fiPackageDirectory = /^packages\/fi\/([^/]+)$/
 /** Ordinary directories whose packages this repository publishes: one release member each. */
-const standardReleaseMemberDirectory = /^(?:packages\/(?!experimental\/)[^/]+\/[^/]+|apps\/(?!desktop(?:-host)?$)[^/]+|vendor\/[^/]+)$/
+const standardReleaseMemberDirectory = /^(?:packages\/(?!experimental\/|fi\/)[^/]+\/[^/]+|apps\/(?!desktop(?:-host)?$)[^/]+|vendor\/[^/]+)$/
 /** Installable application assembled by electron-builder rather than published to npm. */
 const desktopApplicationDirectory = 'apps/desktop'
 const localArtifactDirs = new Set(['node_modules'])
@@ -322,6 +324,16 @@ export function checkDshFamilyVersion(manifest: PackageManifest, expected: strin
 export function checkWorkspaceManifest({ dir, manifest }: WorkspaceManifest): string[] {
   const errors = checkExperimentalManifest({ dir, manifest })
   const label = manifest.name ?? dir
+  const fiPackageName = fiPackageDirectory.exec(dir)?.[1]
+  if (fiPackageName !== undefined) {
+    const expectedName = `@fi/${fiPackageName}`
+    if (manifest.name !== expectedName) {
+      errors.push(`${label}: FI package name must be ${JSON.stringify(expectedName)}`)
+    }
+    if (manifest.private !== true) {
+      errors.push(`${label}: FI package must set "private": true`)
+    }
+  }
   const familyVersionError = checkDshFamilyVersion(manifest, repositoryVersion)
   if (familyVersionError !== undefined) errors.push(familyVersionError)
   const isNativePackageDir = dir.startsWith('native/system/packages/')
@@ -363,7 +375,7 @@ export function checkWorkspaceManifest({ dir, manifest }: WorkspaceManifest): st
       || manifest.repository.directory !== dir) {
       errors.push(`${label}: release member repository must use ${publishedRepositoryUrl} with directory ${dir}`)
     }
-  } else if (!experimentalPackageDirectory.test(dir) && manifest.private !== true) {
+  } else if (fiPackageName === undefined && !experimentalPackageDirectory.test(dir) && manifest.private !== true) {
     errors.push(`${label}: package.json must set "private": true`)
   }
 

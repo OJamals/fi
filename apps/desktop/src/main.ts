@@ -13,7 +13,7 @@ import {
   type IpcMainInvokeEvent,
   type MenuItemConstructorOptions,
 } from 'electron'
-import { resolveDesktopPaths } from './paths.ts'
+import { resolveDesktopHarnessHome, resolveDesktopPaths } from './paths.ts'
 import { DesktopProjectManager, type DesktopProjectHooks } from './project-manager.ts'
 import { DesktopHostProcess } from './host-process.ts'
 import { DesktopBackendController, type DesktopBackendState } from './backend-controller.ts'
@@ -174,7 +174,8 @@ async function serveShellAsset(request: Request): Promise<Response> {
 
 async function main(): Promise<void> {
   const resources = runtimeResources()
-  const paths = resolveDesktopPaths()
+  const dshHome = resolveDesktopHarnessHome(app.getPath('userData'))
+  const paths = resolveDesktopPaths(dshHome)
   const development = app.isPackaged ? undefined : join(app.getAppPath(), '.desktop-build', 'development', 'project')
   const activeProject = development ?? paths.profile
   const manager = new DesktopProjectManager(paths, resources)
@@ -229,7 +230,7 @@ async function main(): Promise<void> {
     if (development === undefined) manager.assertProfileRuntime(activeProject)
     const hostInspectPort = developmentHostInspectPort(development !== undefined)
     const host = new DesktopHostProcess(resources.node, development ?? resources.dsh, activeProject,
-      hostInspectPort, process.env, onFailure)
+      hostInspectPort, { ...process.env, DSH_HOME: dshHome }, onFailure)
     return {
       start: () => host.start(),
       stop: () => host.stop(),

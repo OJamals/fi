@@ -28,8 +28,9 @@ const ToolCall = memo(function ToolCall({
     cwd,
     home,
     loadImage,
+    renderImages: imageOwner => renderSlot('tool.call.images', { ...imageOwner, loadImage }),
     inspect: () => { inspectCall(callId) },
-  }), [callId, toolName, block, openFile, cwd, home, loadImage, inspectCall])
+  }), [callId, toolName, block, openFile, cwd, home, loadImage, renderSlot, inspectCall])
   return (
     <div
       className={css.callRow}

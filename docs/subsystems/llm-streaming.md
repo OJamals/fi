@@ -6,6 +6,8 @@ The conversation and streaming types from [`packages/llm`](../../packages/llm/RE
 
 Source: [`packages/llm/llm/src/types.ts`](../../packages/llm/llm/src/types.ts)
 
+The pi-ai adapter additionally exports `PiAiRequestTransportContext` (provider, model, optional session id, timeout, and Harness User-Agent) and `PiAiRequestTransport` (optional header transformation, request-scoped HTTP fetch, and WebSocket handshake preparation). Its optional `llm-pi-ai/request-transport` waterfall carries no credential fields. A returned transport is restricted to subscription OAuth and checked against the actual request authorization; absent contributions preserve ordinary dispatch. Profile transport settings remain authoritative, including automatic WebSocket-first selection and HTTP fallback. See the [adapter reference](../../packages/llm/llm-pi-ai/README.md) for authentication and transport ownership. These additions do not change shared requests, replay envelopes, or Session formats.
+
 <a id="content-blocks-and-messages"></a>
 
 ## Content blocks and messages
@@ -1087,4 +1089,28 @@ Waterfall around every streaming model call (retry, replay, routing). Bound to t
 ```
 
 Source: [`packages/llm/llm/src/index.ts`](../../packages/llm/llm/src/index.ts)
+
+<a id="llm-pi-ai-events"></a>
+
+### `llm-pi-ai/*` events
+
+<a id="llm-pi-airequest-transport--waterfall"></a>
+
+#### `llm-pi-ai/request-transport` — waterfall
+
+Add provider-specific HTTP headers or a request-scoped fetch function to a pi-ai request. The adapter accepts the result only for stored subscription OAuth and never exposes the grant to listeners.
+
+```ts cordis-catalog
+/**
+ * Add provider-specific HTTP headers or a request-scoped fetch function to
+ * a pi-ai request. The adapter accepts the result only for stored
+ * subscription OAuth and never exposes the grant to listeners.
+ * @param request - non-secret route, model, session, and timeout facts.
+ * @param next - continue to the next transport listener.
+ * @mode waterfall
+ */
+'llm-pi-ai/request-transport'( request: PiAiRequestTransportContext, next: () => Promise<PiAiRequestTransport | undefined>, ): Promise<PiAiRequestTransport | undefined>
+```
+
+Source: [`packages/llm/llm-pi-ai/src/index.ts`](../../packages/llm/llm-pi-ai/src/index.ts)
 <!-- END GENERATED cordis-surface -->

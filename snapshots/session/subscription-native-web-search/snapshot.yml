@@ -1,0 +1,12 @@
+version: 1
+scenario: subscription-native-web-search
+profile: headless
+composition: subscription-native-web-search
+recording: authored
+header:
+  class: subscription-native-web-search
+  pin: true
+  systemPromptSource: text-turn
+  toolSchemasSource: text-turn
+replay:
+  override: true

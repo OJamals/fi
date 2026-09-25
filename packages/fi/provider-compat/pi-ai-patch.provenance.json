@@ -1,0 +1,16 @@
+{
+  "package": "@earendil-works/pi-ai",
+  "version": "0.85.1",
+  "integrity": "sha512-+VgVIJDkDO2efYJKEEqvPTH4zmnIaXdAppGbO+vKFA9qy5PdhFiAenuFAkU+oiCSfOC4dMHDyrjdQeL4ZoC5CQ==",
+  "repository": "https://github.com/earendil-works/pi.git",
+  "repositoryDirectory": "packages/ai",
+  "patch": "patches/@earendil-works__pi-ai@0.85.1.patch",
+  "patchSha256": "2101e1593b4cc56a088d4306d318124549e9db4704354918f481330b2be7039a",
+  "originalFiles": {
+    "dist/api/openai-codex-responses.d.ts": "a1e45bf4733690b417c463f450c36c0c42b8060cfa14213b9281c0d35770d030",
+    "dist/types.d.ts": "8c11014ea6c454bf60c7c22b65cdb00bebd834e4e9ebb07d3f0fffb6a58ea78a",
+    "dist/api/simple-options.js": "1caf860e028e22639578aba3ec8b79e5be9650c27bd3f19471c78502976555f3",
+    "dist/api/openai-codex-responses.js": "f5705d45ae72102110238d6265a548df3aef50b777f654f1f91a32d563c91b3e"
+  },
+  "retirementCondition": "Remove when the installed upstream SDK supports final authenticated WebSocket preparation and credential/endpoint/metadata-isolated connection reuse, and FI wire, fallback, cancellation and live tests pass without this patch."
+}

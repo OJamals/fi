@@ -47,6 +47,6 @@ describe('registerAntigravityFlow', () => {
   it('does not register when the seam is absent', async () => {
     const ctx = new Context()
     // No AuthorizationService mounted: registerFlow should throw.
-    expect(() => registerAntigravityFlow(ctx)).toThrow()
+    expect(() => { registerAntigravityFlow(ctx) }).toThrow()
   })
 })

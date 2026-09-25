@@ -1,0 +1,25 @@
+- dialog "Model and reasoning effort":
+  - search:
+    - searchbox "Search models"
+  - menu "Model":
+    - group "DeepSeek":
+      - menuitem "DeepSeek":
+        - img
+        - text: DeepSeek
+    - group "OpenRouter":
+      - menuitem "OpenRouter":
+        - img
+        - text: OpenRouter
+    - group "Kilo":
+      - menuitem "Kilo":
+        - img
+        - text: Kilo
+    - group "Subscriptions":
+      - group "anthropic":
+        - menuitem "anthropic":
+          - img
+          - text: anthropic
+      - group "antigravity":
+        - menuitem "antigravity":
+          - img
+          - text: antigravity

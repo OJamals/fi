@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-从设置导航打开 Models 页面，即可看到每个已配置的提供方都有一行。其配置键未在任何位置配置的整分节提供方会渲染为其展开的设置卡片而非一行，但仅限首次运行姿态，且仅持续到用户关闭该卡片为止。每一类卡片各自持有自己的展开状态，因此关掉其中一张绝不会丢弃另一张里的草稿。
+从设置导航打开 Models 页面，已配置的 API 密钥提供方显示在主行列表中。没有 `apiKeyEnv`、且已挂载订阅界面提供其 OAuth 流程的已配置路由，显示在该界面登录控件下方的订阅区域。即使同一提供方也支持订阅登录，API 密钥 profile 仍留在主列表。两个位置都保留相同的编辑与删除操作；未挂载订阅界面时，所有已配置路由都留在主列表。其配置键未在任何位置配置的整分节提供方会渲染为其展开的设置卡片而非一行，但仅限首次运行姿态，且仅持续到用户关闭该卡片为止。每一类卡片各自持有自己的展开状态，因此关掉其中一张绝不会丢弃另一张里的草稿。
 
 存在已存储目录错误的提供方仍显示诊断以及编辑、删除入口。添加操作只面向已注册的 settings 命名空间，因此不可用的命名空间不会留下无法打开编辑器的按钮。保存被拒绝时，编辑器保持打开并展示 Host 诊断。
 
@@ -47,7 +47,7 @@ kind: "package-reference"
 
 ### 扩展 slot
 
-本分区为仓库外分发的插件声明两个席位，类型定义在 [`src/client/slot-contract.ts`](src/client/slot-contract.ts) 并从 `./client` 导出。`settings.models.provider-card`（keyed）渲染在每张展示目录行的卡片内部——已保存行的卡片、其首次运行 setup 形态、以及「添加提供方」草稿卡——以 `entryKey = settingsNs` 分发，owner props 携带该行的 `ConfigurableProviderView`、其 configured 状态与已确认的 api-key 凭据状态，因此以某适配器家族的 namespace 注册一次即可收到该家族的全部卡片，含手工声明的路由；手工声明的草稿卡尚无目录行，保存之前不分发。`settings.models.footer`（list）渲染在行列表与新增控件之后。注册方通过 `ctx.slots.inject` 激活，并以 type-only import 引入本包 `/client` 入口；没有注册方时两个席位均不渲染任何内容。
+本分区为仓库外分发的插件声明三个席位，类型定义在 [`src/client/slot-contract.ts`](src/client/slot-contract.ts) 并从 `./client` 导出。`settings.models.provider-editor`（keyed）替换展示目录行的内置编辑器，以 `entryKey = settingsNs` 分发；其 owner props 携带该行、configured 状态、只读状态和关闭回调。没有组件注册时，分区保留内置编辑器。`settings.models.provider-card`（keyed）渲染在每张展示目录行的卡片内部——任一位置的已保存行卡片、其首次运行 setup 形态，以及「添加提供方」草稿卡——以 `entryKey = settingsNs` 分发，owner props 携带该行的 `ConfigurableProviderView`、其 configured 状态与已确认的 api-key 凭据状态，因此以某适配器家族的 namespace 注册一次即可收到该家族的全部卡片，含手工声明的路由；手工声明的草稿卡尚无目录行，保存之前不分发。`settings.models.footer`（list）渲染在主行列表与新增控件之后、分组订阅行之前。注册方通过 `ctx.slots.inject` 激活，并以 type-only import 引入本包 `/client` 入口；没有注册方时编辑器保持默认，其他席位不渲染任何内容。订阅界面通过 `ctx.modelSettingsSubscriptions` 注册当前提供的 OAuth 路由 id，将匹配的无密钥已配置行移到 footer 下方，而 API 密钥 profile 留在主列表。
 
 -----
 

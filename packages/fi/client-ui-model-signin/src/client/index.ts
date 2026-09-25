@@ -1,22 +1,20 @@
 /**
  * Subscription sign-in plugin, browser half. It adds one OAuth sign-in
- * section to the Models page for the providers whose value is a
- * subscription the user already holds — Claude Pro/Max, ChatGPT Plus/Pro,
- * SuperGrok/X Premium, and Antigravity — by registering into the Models
- * section's own `settings.models.footer` extension slot.
+ * section to the Models page for the providers whose value is a subscription
+ * the user already holds — Claude Pro/Max, ChatGPT Plus/Pro, SuperGrok/X
+ * Premium, and Antigravity — and replaces the Antigravity route editor with
+ * its subscription-aware setup action.
  *
- * The Models section is not modified: the slot exists precisely so a plugin
- * can add to the page from outside. The section is the only sign-in surface
- * this plugin renders — an earlier revision also extended each provider row
- * through `settings.models.provider-card`, which interleaved credential UI
- * with the model rows and split Antigravity into a second section; one
- * section now carries all four providers and their states.
+ * The subscription section remains the only sign-in surface. The native
+ * editor can only adopt an existing grant, so it sends an unsigned user to
+ * that section instead of opening another OAuth flow.
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-// Type-only: pulls the Models page's SlotMap merge (the provider-card slot)
-// and its owner-props declaration into this program.
+// Type-only: pulls the Models page's SlotMap merge and editor owner props
+// into this program.
 import type {} from '@deepseek-ai/dsh-client-ui-settings-models/client'
+import type {} from '@deepseek-ai/dsh-client-ui-model-selection/client'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -27,13 +25,16 @@ import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import fiAuthorizationRemote from '@fi/api-authorization-controller/remote'
 import { SignInFooter } from './SignInFooter.tsx'
 import type { SignInFooterInjected } from './SignInFooter.tsx'
-import { SignInStore } from './store.ts'
+import { AntigravityProviderEditor } from './AntigravityProviderEditor.tsx'
+import type { AntigravityProviderEditorInjected } from './AntigravityProviderEditor.tsx'
+import { SignInStore, SUBSCRIPTION_PROVIDER_IDS } from './store.ts'
 import { en, zh, type SignInKey } from './locales.ts'
 
 export type { SignInFooterInjected, SignInFooterProps } from './SignInFooter.tsx'
 export type { SignInAttempt, SignInPrompt, SignInRow, SignInState } from './store.ts'
 export type { SignInKey } from './locales.ts'
 export { applyFrame, selectOfferedRows, SignInStore } from './store.ts'
+export { SUBSCRIPTION_PROVIDER_IDS } from './store.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -64,6 +65,12 @@ export const inject = ['slots', 'locale', 'remote']
  * @returns disposal of the scoped fiber and the mounted namespace.
  */
 export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
+  ctx.inject(['modelSubscriptions'], (scope) => {
+    scope.effect(
+      () => scope.modelSubscriptions.register(SUBSCRIPTION_PROVIDER_IDS),
+      'fi-model-signin: subscription model grouping',
+    )
+  })
   // $mount installs the namespace service synchronously as part of its
   // group before resolving, so the scoped fiber below starts with
   // `remote.authorization` already live rather than parking.
@@ -73,6 +80,23 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
 
     const controller = new SignInStore(ctx)
     const t = ctx.locale.bind(NS) as SignInFooterInjected['t']
+
+    ctx.inject(['modelSettingsSubscriptions'], (scope) => {
+      scope.effect(() => {
+        let registeredIds: readonly string[] = []
+        let disposeRoutes: () => void = () => {}
+        const syncRoutes = (): void => {
+          const ids = controller.store.getSnapshot().rows.map(row => row.provider)
+          if (ids.length === registeredIds.length && ids.every((id, index) => id === registeredIds[index])) return
+          disposeRoutes()
+          registeredIds = ids
+          disposeRoutes = scope.modelSettingsSubscriptions.register(ids)
+        }
+        const unsubscribe = controller.store.subscribe(syncRoutes)
+        syncRoutes()
+        return () => { unsubscribe(); disposeRoutes() }
+      }, 'fi-model-signin: offered OAuth routes in Models settings')
+    })
 
     // A grant committed anywhere — this card, a second tab, a CLI login —
     // moves the stored state these rows render, and the credential seam
@@ -99,16 +123,21 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
     // undeclared slot throws, so the registrations wait for the declarations
     // through slots.inject() — the same contract the Models page's own apply
     // uses for its parent slots. They re-run if the owner remounts.
-    const injectedFooter = (): SignInFooterInjected => ({
+    const injected = (): SignInFooterInjected & AntigravityProviderEditorInjected => ({
       controller,
       hooks: { snapshot: controller.store },
       t,
     })
     void controller.load()
+    ctx.slots.inject('settings.models.provider-editor', () => ctx.slots.register({
+      name: 'settings.models.provider-editor',
+      key: 'fi-antigravity',
+      inject: injected,
+    }, AntigravityProviderEditor))
     ctx.slots.inject('settings.models.footer', () => ctx.slots.register({
       name: 'settings.models.footer',
       id: NS,
-      inject: injectedFooter,
+      inject: injected,
     }, SignInFooter))
   })
   try {

@@ -4,20 +4,22 @@
  * OAuth project-discovery request checks the IDE type.
  */
 
+import { providerSettingsFor } from '@fi/provider-compat'
+
 const osType = process.platform === 'win32' ? 'windows' : process.platform
 const arch = process.arch === 'x64' ? 'amd64' : process.arch
+const cli = providerSettingsFor('antigravityCli')
 
-/** The Cloud Code endpoint used by Antigravity CLI 1.2.1. */
-export const ANTIGRAVITY_API_BASE_URL = 'https://daily-cloudcode-pa.googleapis.com/v1internal'
+/** The captured Cloud Code endpoint from canonical provider metadata. */
+export const ANTIGRAVITY_API_BASE_URL = cli.apiBaseUrl
 
-/** The project-discovery endpoint used immediately after Google OAuth. */
-export const ANTIGRAVITY_PROJECT_DISCOVERY_URL =
-  `${ANTIGRAVITY_API_BASE_URL}:loadCodeAssist?alt=json`
+/** The captured project-discovery endpoint used immediately after Google OAuth. */
+export const ANTIGRAVITY_PROJECT_DISCOVERY_URL = cli.projectDiscoveryUrl
 
 /** The captured Antigravity CLI wire fingerprint. */
 export const ANTIGRAVITY_USER_AGENT =
-  `antigravity/cli/1.2.1 (aidev_client; os_type=${osType}; `
-  + `arch=${arch}; cl=979485360; auth_method=consumer)`
+  `antigravity/cli/${cli.fingerprintCapturedVersion} (${cli.client}; os_type=${osType}; `
+  + `arch=${arch}; cl=${cli.build}; auth_method=${cli.authMethod})`
 
 /** The OAuth credential key scope owned by this adapter. */
 export const ANTIGRAVITY_CREDENTIAL_SCOPE = 'fi-antigravity'

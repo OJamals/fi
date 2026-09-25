@@ -1,0 +1,28 @@
+/* Antigravity contributes the action while the Models page owns the card chrome. */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hint {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.error {
+  margin: 0;
+  color: var(--dsw-alias-state-error-primary);
+  font-size: 13px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

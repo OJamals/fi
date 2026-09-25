@@ -1,0 +1,22 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": [
+    "src",
+    "src/provider-settings.json"
+  ],
+  "references": [
+    {
+      "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../llm/llm-pi-ai"
+    }
+  ]
+}

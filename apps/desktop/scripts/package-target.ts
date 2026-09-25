@@ -1,7 +1,7 @@
 /** Build one release target with matching Electron, Node.js, and dsh architecture. */
 
 import { spawn } from 'node:child_process'
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import { join, resolve } from 'node:path'
 import {
@@ -10,9 +10,14 @@ import {
 } from './desktop-auto-update-environment.mjs'
 import { desktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { packageMacOSArtifacts, type DesktopPrepackagedArtifact } from './package-macos.ts'
+import { FI_DESKTOP_BUNDLE } from '../src/desktop-profile.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
+const PATCHED_PI_AI_ROOT = join(
+  REPOSITORY_ROOT,
+  'packages/fi/provider-compat/node_modules/@earendil-works/pi-ai',
+)
 const WINDOWS_SIGNING_ENV_PREFIX = 'DSH_DESKTOP_WINDOWS_'
 const WINDOWS_SIGNING_ENV_NAMES = [
   'DSH_DESKTOP_WINDOWS_CER_FILE',
@@ -243,6 +248,30 @@ export function desktopElectronBuilderArguments(
   ]
 }
 
+/**
+ * Build pnpm arguments that pack Desktop's private FI dependency closure.
+ * @param destination - Existing Desktop tarball input directory.
+ * @returns Recursive pack arguments excluding public DeepSeek packages.
+ */
+export function desktopPrivateBundlePackArguments(destination: string): readonly string[] {
+  return [
+    '--recursive',
+    '--filter', `${FI_DESKTOP_BUNDLE}...`,
+    '--filter', '!@deepseek-ai/*',
+    'pack',
+    '--pack-destination', destination,
+  ]
+}
+
+/**
+ * Build pnpm arguments that preserve the reviewed pi-ai patch in the isolated Desktop runtime.
+ * @param destination - Existing Desktop tarball input directory.
+ * @returns Pack arguments that cannot run dependency lifecycle scripts.
+ */
+export function desktopPatchedDependencyPackArguments(destination: string): readonly string[] {
+  return ['--config.ignore-scripts=true', 'pack', '--pack-destination', destination]
+}
+
 function runPnpm(
   args: readonly string[],
   env: NodeJS.ProcessEnv = process.env,
@@ -294,7 +323,13 @@ async function main(): Promise<void> {
     '--pack-destination',
     buildPaths.packedDsh,
   ], buildEnv, REPOSITORY_ROOT)
+  await runPnpm(desktopPrivateBundlePackArguments(buildPaths.packedDsh), buildEnv, REPOSITORY_ROOT)
   await runPnpm(['run', 'release:pack', '--family', 'vendor', '--out', buildPaths.packedVendor], buildEnv, REPOSITORY_ROOT)
+  await runPnpm(
+    desktopPatchedDependencyPackArguments(buildPaths.packedVendor),
+    buildEnv,
+    realpathSync(PATCHED_PI_AI_ROOT),
+  )
   rmSync(buildPaths.packedLandlock, { recursive: true, force: true })
   mkdirSync(buildPaths.packedLandlock, { recursive: true })
   await runPnpm(['--dir', 'native/system', 'run', 'build:ts'], buildEnv, REPOSITORY_ROOT)

@@ -23,6 +23,7 @@ import { Context, Service } from '@deepseek-ai/cordis'
 // Type-only: pulls the seams' Context merges into this program
 // (ctx.authorization, ctx.credentials, ctx.llm, ctx.settings).
 import type {} from '@deepseek-ai/dsh-authorization'
+import type {} from '@deepseek-ai/dsh-attachment'
 import type {} from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-settings'
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
@@ -160,11 +161,16 @@ interface StoredGrantPayload {
  * profile fields through). Anything without an access token answers
  * `undefined`, which reads downstream as signed out rather than mis-shapen.
  */
-function grantPayload(record: CredentialRecord | undefined): StoredGrantPayload | undefined {
+function rawGrantPayload(record: CredentialRecord | undefined): Record<string, unknown> | undefined {
   if (record?.kind !== 'grant' || record.payload === null || typeof record.payload !== 'object') {
     return undefined
   }
-  const payload = record.payload as Record<string, unknown>
+  return record.payload as Record<string, unknown>
+}
+
+function grantPayload(record: CredentialRecord | undefined): StoredGrantPayload | undefined {
+  const payload = rawGrantPayload(record)
+  if (payload === undefined) return undefined
   if (typeof payload.access !== 'string' || payload.access.length === 0) return undefined
   const project = payload.antigravityProjectId ?? payload.accountUuid ?? payload.projectId
   return {
@@ -179,41 +185,46 @@ function grantPayload(record: CredentialRecord | undefined): StoredGrantPayload 
 const REFRESH_MARGIN_MS = 120_000
 
 /**
- * Resolve the current Antigravity grant for adapter calls. A near-expiry
+ * Resolve the current Antigravity grant for one provider call. A near-expiry
  * token with a refresh token rotates inside the seam's serialized
  * `modifyRecord`, so concurrent calls and processes cannot lose each other's
  * rotation; the refresh response omits the profile fields, so the stored
  * payload's email/account/project ride through untouched.
+ * @param ctx - context carrying the canonical credential store.
+ * @param signal - optional cancellation for an in-flight token refresh.
+ * @returns the current usable grant, or `undefined` when Antigravity is signed out.
  */
-function makeGrantResolver(ctx: Context): (signal?: AbortSignal) => Promise<AntigravityGrant | undefined> {
+export async function resolveAntigravityGrant(
+  ctx: Context,
+  signal?: AbortSignal,
+): Promise<AntigravityGrant | undefined> {
   const key = credentialKey(ANTIGRAVITY_CREDENTIAL_SCOPE, ANTIGRAVITY_CREDENTIAL_ID)
-  return async (signal) => {
-    let record = await ctx.credentials.readRecord(key)
-    let payload = grantPayload(record)
-    if (payload === undefined) return undefined
-    if (payload.expires !== undefined && payload.expires - Date.now() < REFRESH_MARGIN_MS
-      && payload.refresh !== undefined) {
-      record = await ctx.credentials.modifyRecord(key, async (current) => {
-        const currentPayload = grantPayload(current)
-        // Another caller may have rotated while this read was in flight.
-        if (currentPayload === undefined || currentPayload.refresh === undefined) return current
-        if (currentPayload.expires !== undefined
-          && currentPayload.expires - Date.now() >= REFRESH_MARGIN_MS) return current
-        const token = await refreshAntigravityTokens(currentPayload.refresh, signal)
-        return {
-          kind: 'grant',
-          payload: {
-            ...currentPayload,
-            access: token.accessToken,
-            refresh: token.refreshToken,
-            expires: new Date(token.expiresAt).getTime(),
-          },
-        } as CredentialRecord
-      })
-      payload = grantPayload(record) ?? payload
-    }
-    return { accessToken: payload.access, projectId: payload.projectId }
+  let record = await ctx.credentials.readRecord(key)
+  let payload = grantPayload(record)
+  if (payload === undefined) return undefined
+  if (payload.expires !== undefined && payload.expires - Date.now() < REFRESH_MARGIN_MS
+    && payload.refresh !== undefined) {
+    record = await ctx.credentials.modifyRecord(key, async (current) => {
+      const currentPayload = grantPayload(current)
+      const rawPayload = rawGrantPayload(current)
+      // Another caller may have rotated while this read was in flight.
+      if (currentPayload === undefined || rawPayload === undefined || currentPayload.refresh === undefined) return current
+      if (currentPayload.expires !== undefined
+        && currentPayload.expires - Date.now() >= REFRESH_MARGIN_MS) return current
+      const token = await refreshAntigravityTokens(currentPayload.refresh, signal)
+      return {
+        kind: 'grant',
+        payload: {
+          ...rawPayload,
+          access: token.accessToken,
+          refresh: token.refreshToken,
+          expires: new Date(token.expiresAt).getTime(),
+        },
+      }
+    })
+    payload = grantPayload(record) ?? payload
   }
+  return { accessToken: payload.access, projectId: payload.projectId }
 }
 
 /**
@@ -234,11 +245,14 @@ export class FiAntigravityService extends Service {
     super(ctx, 'fi-antigravity')
     registerAntigravityFlow(this.ctx)
 
-    const adapter = new AntigravityAdapter(makeGrantResolver(this.ctx))
+    const adapter = new AntigravityAdapter(
+      signal => resolveAntigravityGrant(this.ctx, signal),
+      () => this.ctx.get('attachments'),
+    )
     let source: () => FiAntigravityConfig = () => ({ providers: {} })
     let registration: AdapterRegistrationHandle | undefined
     const sync = (): void => {
-      const routes = Object.keys(source().providers ?? {})
+      const routes = Object.keys(source().providers)
       if (registration === undefined) {
         // Dormant bare mount: nothing registers until a section supplies a
         // profile, and an emptied section drops every route.

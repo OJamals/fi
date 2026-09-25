@@ -29,7 +29,7 @@ Open the Plugins section in Settings and select the **Plugin configuration** tab
 
 ### What appears here
 
-The tab reads which settings namespaces the Host serves and dispatches one slot key per namespace, so what renders is the intersection of two ledgers: the namespaces a live Host plugin registered, and the cards registered under those keys. A served namespace no card claims renders nothing, and a card whose namespace this deployment does not serve is never dispatched. The empty line waits for the Host's first answer, so an unanswered read never reads as "this deployment configures no plugin".
+The tab reads which settings namespaces the Host serves and dispatches one slot key per namespace, so what renders is the intersection of two ledgers: the namespaces a live Host plugin registered, and the elected cards registered under those keys. A lower-priority registration shadows a shipped card for the same namespace and still produces one dispatch. A served namespace no card claims renders nothing, and a card whose namespace this deployment does not serve is never dispatched. The empty line waits for the Host's first answer, so an unanswered read never reads as "this deployment configures no plugin".
 
 ### Editing and saving
 

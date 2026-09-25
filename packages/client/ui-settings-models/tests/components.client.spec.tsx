@@ -2,8 +2,10 @@
 /** Section, setup-card, and hand-written editor behavior over a scripted wire face. */
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { ReactNode } from 'react'
 import Schema from '@deepseek-ai/schemastery'
 import { bindSnapshotSelector, RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type {
   CredentialInfo, RemoteResult, SettingsNamespaceView,
 } from '@deepseek-ai/dsh-api-remotes/client'
@@ -28,6 +30,7 @@ import { settingsSchema } from './settings-schema.client.ts'
 afterEach(cleanup)
 
 const t: ModelsSectionInjected['t'] = key => en[key]
+const emptySubscriptions = bindSnapshotSelector(createSnapshotStore<readonly string[]>([]))
 const OPENAI_TARGET = { provider: 'openai', displayName: 'openai' }
 const openaiCopy = (template: string): string => providerCopy(template, OPENAI_TARGET)
 const DEEPSEEK_TARGET = { provider: 'deepseek-official', displayName: 'DeepSeek' }
@@ -238,11 +241,11 @@ function operationsWith(face: object): ModelsOperations {
 }
 
 /** One recorded child-slot dispatch: seat name, owner share, kind options. */
-type RenderSlotCall = [name: string, owner: Record<string, unknown>, opts?: { entryKey?: string }]
+type RenderSlotCall = [name: string, owner: Record<string, unknown>, opts?: { entryKey?: string; fallback?: ReactNode }]
 
-/** Child-slot dispatch stub: records every seat occurrence, renders nothing. */
+/** Child-slot dispatch stub: records every seat occurrence and renders its owner fallback. */
 function stubRenderSlot() {
-  return vi.fn((..._call: RenderSlotCall) => null)
+  return vi.fn((...call: RenderSlotCall) => call[2]?.fallback ?? null)
 }
 
 /** The provider-card seat dispatches a stub recorded, as (route id, configured, keyConfigured, entryKey). */
@@ -259,23 +262,27 @@ function cardSeatCalls(
     ])
 }
 
-async function mountFace(scripted: ReturnType<typeof scriptedFace>) {
+async function mountFace(
+  scripted: ReturnType<typeof scriptedFace>,
+  renderedSlot: ReturnType<typeof stubRenderSlot> = stubRenderSlot(),
+  subscriptionIds: readonly string[] = [],
+) {
   const { face, update, mutate, set, unset } = scripted
   const ctx = ctxWith(face)
   const mirror = new SettingsDescribeMirror(ctx)
   const controller = new ModelsSettingsStore(ctx, settingsSchema, mirror)
   await controller.load()
-  const renderSlot = stubRenderSlot()
   const injected: ModelsSectionProps = {
     controller,
     useSnapshot: bindSnapshotSelector(controller.store),
+    useSubscriptions: bindSnapshotSelector(createSnapshotStore(subscriptionIds)),
     operations: operationsWith(face),
     schema: settingsSchema,
     t,
-    renderSlot: renderSlot as unknown as ModelsSectionProps['renderSlot'],
+    renderSlot: renderedSlot as unknown as ModelsSectionProps['renderSlot'],
   }
   const view = render(<ModelsSection {...injected} />)
-  return { view, ctx, face, update, mutate, set, unset, controller, mirror, renderSlot }
+  return { view, ctx, face, update, mutate, set, unset, controller, mirror, renderSlot: renderedSlot }
 }
 
 async function mountSection(overrides: Parameters<typeof scriptedFace>[0] = {}) {
@@ -379,6 +386,48 @@ describe('ModelsSection', () => {
     ])
   })
 
+  it('places offered keyless routes below subscription sign-in while keeping API-key routes above', async () => {
+    const scripted = scriptedFace()
+    const namespaces = wireNamespaces().map(view => view.ns === 'llm-pi-ai'
+      ? { ...view,
+        value: { providers: {
+          openai: { apiKeyEnv: 'OPENAI_API_KEY', baseURL: 'https://proxy' },
+          anthropic: { baseURL: 'https://subscription' },
+        } },
+        user: { providers: { anthropic: { baseURL: 'https://subscription' } } },
+      }
+      : view)
+    scripted.face.settings.describe.mockResolvedValue(remoteOk({ writable: true, hasDocument: false, namespaces }))
+    const footer = stubRenderSlot()
+    footer.mockImplementation((name: string) => name === 'settings.models.footer' ? <h3>Sign in</h3> : null)
+    await mountFace(scripted, footer, ['openai', 'anthropic'])
+
+    const apiKeyRow = screen.getByRole('button', { name: openaiCopy(en.editProvider) }).closest('li')!
+    const subscriptionRow = screen.getByRole('button', { name: 'Edit anthropic' }).closest('li')!
+    const signIn = screen.getByRole('heading', { name: 'Sign in' })
+    expect(apiKeyRow.compareDocumentPosition(signIn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(signIn.compareDocumentPosition(subscriptionRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(apiKeyRow.parentElement).not.toBe(subscriptionRow.parentElement)
+    expect(within(screen.getByRole('region', { name: en.subscriptions })).getByRole('button', { name: 'Edit anthropic' })).toBeTruthy()
+    expect(within(subscriptionRow).getByRole('button', { name: 'Delete anthropic' })).toBeTruthy()
+  })
+
+  it('renders a namespace editor override instead of the generic provider editor', async () => {
+    const renderSlot = stubRenderSlot()
+    renderSlot.mockImplementation((name: string, _owner: object, options?: { entryKey?: string }) => {
+      if (name === 'settings.models.provider-editor' && options?.entryKey === 'llm-pi-ai') {
+        return <p>Native provider setup</p>
+      }
+      return null
+    })
+    await mountFace(scriptedFace(), renderSlot)
+
+    fireEvent.click(screen.getByRole('button', { name: openaiCopy(en.editProvider) }))
+
+    expect(screen.getByText('Native provider setup')).toBeTruthy()
+    expect(screen.queryByLabelText(en.keyInput)).toBeNull()
+  })
+
   it('dispatches the provider-card seat inside the first-run setup card', async () => {
     const { renderSlot } = await mountFirstRun()
     expect(cardSeatCalls(renderSlot)).toContainEqual(['deepseek-official', true, false, 'llm-deepseek'])
@@ -459,10 +508,11 @@ describe('ModelsSection', () => {
     render(<ModelsSection
       controller={controller}
       useSnapshot={bindSnapshotSelector(controller.store)}
+      useSubscriptions={emptySubscriptions}
       operations={operationsWith(face)}
       schema={settingsSchema}
       t={t}
-      renderSlot={() => null}
+      renderSlot={(_name, _owner, options) => options?.fallback ?? null}
     />)
 
     const missing = screen.getByRole('img', { name: en.credentialMissing })
@@ -484,10 +534,11 @@ describe('ModelsSection', () => {
     render(<ModelsSection
       controller={controller}
       useSnapshot={bindSnapshotSelector(controller.store)}
+      useSubscriptions={emptySubscriptions}
       operations={operationsWith(face)}
       schema={settingsSchema}
       t={t}
-      renderSlot={() => null}
+      renderSlot={(_name, _owner, options) => options?.fallback ?? null}
     />)
     // Now a row with an Edit button, not an open card.
     expect(screen.getAllByText(en.edit).length).toBeGreaterThan(1)
@@ -1210,10 +1261,11 @@ describe('ModelsSection', () => {
     render(<ModelsSection
       controller={controller}
       useSnapshot={bindSnapshotSelector(controller.store)}
+      useSubscriptions={emptySubscriptions}
       operations={operationsWith(face)}
       schema={settingsSchema}
       t={t}
-      renderSlot={() => null}
+      renderSlot={(_name, _owner, options) => options?.fallback ?? null}
     />)
     const key = await screen.findByLabelText<HTMLInputElement>(en.keyInput)
     expect(key.placeholder).toBe(en.keyPlaceholder)
@@ -1344,6 +1396,7 @@ describe('ModelsSection', () => {
     render(<ModelsSection
       controller={controller}
       useSnapshot={bindSnapshotSelector(controller.store)}
+      useSubscriptions={emptySubscriptions}
       operations={operationsWith(face.face)}
       schema={settingsSchema}
       t={t}
@@ -1367,6 +1420,7 @@ describe('ModelsSection', () => {
     render(<ModelsSection
       controller={controller}
       useSnapshot={bindSnapshotSelector(controller.store)}
+      useSubscriptions={emptySubscriptions}
       operations={operationsWith(face)}
       schema={settingsSchema}
       t={t}
@@ -1429,6 +1483,7 @@ describe('ModelsSection', () => {
     render(<ModelsSection
       controller={controller}
       useSnapshot={bindSnapshotSelector(controller.store)}
+      useSubscriptions={emptySubscriptions}
       operations={operationsWith(face)}
       schema={settingsSchema}
       t={t}

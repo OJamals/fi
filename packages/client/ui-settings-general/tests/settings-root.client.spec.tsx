@@ -180,6 +180,17 @@ describe('SettingsRoot trigger', () => {
 })
 
 describe('SettingsPanel chrome seats', () => {
+  it('portals the viewport layer to the body outside the sidebar tree', () => {
+    const { view } = mount()
+    openPanel()
+
+    const dialog = screen.getByRole('dialog')
+    const layer = dialog.parentElement!
+    expect(layer.getAttribute('role')).toBe('presentation')
+    expect(layer.parentElement).toBe(document.body)
+    expect(view.container.contains(layer)).toBe(false)
+  })
+
   it('names the dialog via aria-labelledby pointing at the header seat node', () => {
     mount()
     openPanel()

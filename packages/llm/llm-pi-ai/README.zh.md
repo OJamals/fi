@@ -132,6 +132,8 @@ Settings 写入会在合并组合层与用户层后严格校验每个新增或�
 
 适配器建立在不可变快照与按操作解析之上。每个操作都会在第一次 `await` 前捕获整个快照——profile 加一个持有每条路由所构建 `Provider` 的 `createModels()` 集合——配置变更会构建新集合而非修改使用中的集合，因此在一个配置下开始的请求绝不会在另一个配置下结束。路由自己的凭据引用经 harness seam 解析，并以请求 `apiKey` 选项传入，pi-ai 将其视为优先级最高的 auth 覆盖——这正是明确失败引用语义的所在。该覆盖未覆盖的一切都经集合自身的 auth 到达 pi-ai：凭据存储持有登录写入、刷新轮换的记录（以 `llm-pi-ai/<provider id>` 寻址），auth context 回答提供方解析时提出的 ambient 问题。两者跨快照保持稳定，因此配置变更重建集合时不会忘记谁已登录。
 
+在提供方原生认证之前，适配器向可选的 `llm-pi-ai/request-transport` waterfall 请求附加的请求头转换、请求级 fetch 或 WebSocket factory。没有 listener 或结果为 `undefined` 时，pi-ai 保持正常的单次 auth 解析与 transport 选择。适配器只在 pi-ai 解析出订阅 OAuth 后接受附加项，为延迟 SDK 调用冻结 access token，并在发送前验证最终 HTTP 或 WebSocket bearer 值。WebSocket 准备发生在连接复用之前，并复制其结果；提供方环境覆盖会传入 factory。显式 profile 凭据绕过 waterfall，profile transport 选项保持不变。resolver 只接收非秘密请求信息，不接收凭据、signal、重试设置、payload 或模型参数。传输 callback 会收到认证请求头，绝不能记录这些请求头。factory 所有者必须释放自己的连接和 SDK 缓存分区，且不得影响其他所有者。
+
 ### 源码地图
 
 | 文件 | 职责 |
@@ -153,7 +155,7 @@ Settings 写入会在合并组合层与用户层后严格校验每个新增或�
 
 ### 回放与词汇
 
-成功 assistant 响应会存储带版本的、无损 JSON 回放状态，与产生它们的提供方和模型放在一起——响应级事实加每个流式块一条逐块条目。请求时，`LlmRuntime` 仅当同一适配器实例拥有两条路由时才传递回放状态；适配器校验它并恢复原生响应 id、提供方签名与可选的 `providerThinkingLevel` effort 元数据，缺失的 effort 元数据仍保持缺失。回放会对照 assistant 来源校验请求模型身份，并在提供方解析别名或回退时单独恢复 Anthropic 响应模型。无法使用的状态会降级为提供方无关内容而不是让请求失败。pi-ai 工具调用参数是解析后的对象，因此适配器解析输入并重新字符串化输出，以符合 harness 原始 JSON 约定；pi-ai 流内错误事件映射为终止 `finish` 分片。
+成功 assistant 响应会存储带版本的、无损 JSON 回放状态，与产生它们的提供方和模型放在一起——响应级事实加每个流式块一条逐块条目。请求时，`LlmRuntime` 仅当同一适配器实例拥有两条路由时才传递回放状态；适配器校验它并恢复原生响应 id、提供方签名与可选的 `providerThinkingLevel` effort 元数据，缺失的 effort 元数据仍保持缺失。回放会对照 assistant 来源校验请求模型身份，并在提供方解析别名或回退时单独恢复 Anthropic 响应模型。无法使用的状态会降级为提供方无关内容而不是让请求失败。pi-ai 不能在 assistant message 中承载 raster content，因此 assistant image history 保持为 assistant message，并使用确定性的 identity 和可用的只读 normalized-path text；该 occurrence 从不发送像素，也不会扰动周围的 native replay metadata。pi-ai 工具调用参数是解析后的对象，因此适配器解析输入并重新字符串化输出，以符合 harness 原始 JSON 约定；pi-ai 流内错误事件映射为终止 `finish` 分片。
 
 </details>
 
@@ -223,7 +225,7 @@ pi-ai 事件变成 harness 的推理、文本、工具调用、用量与 finish 
 - **模态声明不受校验**——声明 `image` 而其网关不支持的模型会在提示词准入后被提供方拒绝。持久图片仍留在历史中，同一误声明模型可能再次失败；切换到纯文本模型仍然可行，因为共享 LLM 运行时会针对该请求把图片引用投影为稳定文本。
 - **未认证路由取决于其协议**——不点名凭据的路由解析为已配置但无密钥，但 pi-ai 的 OpenAI 兼容实现仍要求 API 密钥或 `Authorization` 标头，因此无密钥本地服务器需要由 `apiKeyEnv` 引用或 `headers` 中的 `Authorization` 条目提供的占位凭据。
 - **不支持 `GenerateOptions.stop`**——pi-ai 的通用流式选项无法跨提供方保证停止序列行为。
-- **只有历史中首条 `system` 消息会成为 pi-ai 的 `systemPrompt`**——pi-ai 只有一个系统槽位，因此后续的 `system` 消息，或在同时设置了 `GenerateOptions.system` 时的首条消息，会在原位置折叠为 `user` 消息；系统提示词的提供方专属放置遵循 pi-ai，而非 harness 自有的协议覆盖。system 或 assistant 历史中的图片（包括首条系统消息中的图片）在两条转换路径上都会以 `UNSUPPORTED_CONTENT` 失败。
+- **只有历史中首条 `system` 消息会成为 pi-ai 的 `systemPrompt`**——pi-ai 只有一个系统槽位，因此后续的 `system` 消息，或在同时设置了 `GenerateOptions.system` 时的首条消息，会在原位置折叠为 `user` 消息；系统提示词的提供方专属放置遵循 pi-ai，而非 harness 自有的协议覆盖。system 图片（包括首条 system 图片）会以 `UNSUPPORTED_CONTENT` 失败；assistant 图片改用 assistant-history text fallback。
 - **提供方 HTTP 状态不可用**——pi-ai 错误事件不跨提供方暴露稳定 HTTP 状态。
 - **重试策略由提供方自有，而非 SDK 重试**——pi-ai SDK 重试保持禁用，因此持久 agent（智能体）步骤与 `llm/retry` 事件拥有每个可见尝试，直接 `ctx.llm.stream()` 调用仍是单次尝试。
 

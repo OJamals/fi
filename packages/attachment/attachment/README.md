@@ -132,8 +132,8 @@ This Dev Note is working context for maintainers: undecided directions and open 
 
 Resumed and forked sessions may share immutable objects, so any retention policy needs a reference model that accounts for session lineage before objects can be collected. No decision is recorded yet; the local backend currently retains everything.
 
-#### Future: audio, video, and assistant-side output
+#### Future: audio and video
 
-Audio and video would need dedicated lifecycle and provider contracts beyond the verbatim file path, and the role-neutral `ImageBlock` leaves assistant-side image output as forward compatibility — current production adapters declare text-only output, so only user content carries images. Both directions are undecided.
+Audio and video would need dedicated lifecycle and provider contracts beyond the verbatim file path. Both directions are undecided.
 
 </details>

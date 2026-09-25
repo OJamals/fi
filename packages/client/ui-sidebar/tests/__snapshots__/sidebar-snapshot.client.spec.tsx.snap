@@ -124,9 +124,9 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
                 aria-hidden="true"
                 data-content="965fe321"
                 fill="none"
-                height="35.3160621761658"
+                height="29.430051813471497"
                 viewBox="0 0 23.16 17.04"
-                width="48"
+                width="40"
               />
             </div>
           </span>
@@ -254,9 +254,9 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
                 aria-hidden="true"
                 data-content="965fe321"
                 fill="none"
-                height="35.3160621761658"
+                height="29.430051813471497"
                 viewBox="0 0 23.16 17.04"
-                width="48"
+                width="40"
               />
             </div>
           </span>

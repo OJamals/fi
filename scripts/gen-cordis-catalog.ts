@@ -171,6 +171,8 @@ export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
   layout: 'client-side interface-typed browser service — packages/client/ui-layout/README.md owns the API',
   locale: 'client-side interface-typed browser service — packages/client/locale/README.md owns the API',
   modelDirectories: 'client-side interface-typed browser service — packages/client/ui-model-selection/README.md owns the API',
+  modelSubscriptions: 'client-side subscription-provider presentation registry — packages/client/ui-model-selection/README.md owns the API',
+  modelSettingsSubscriptions: 'client-side Models-page subscription route registry — packages/client/ui-settings-models/README.md owns the API',
   modules: 'client-side interface-typed browser service — packages/client/modules/README.md owns the API',
   remote: 'client-side interface-typed gateway accessor (ClientRemote) — packages/api/gateway/README.md owns the API',
   sessionLogDownload: 'client-side browser download controller — packages/session-query/session-log-export/README.md owns the API',
@@ -193,6 +195,7 @@ export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
  * {@link EVENT_WALK_EXEMPTIONS} names each one with its documentation owner.
  */
 export const EVENT_SCOPE_PAGE: Record<string, string> = {
+  'llm-pi-ai': 'llm-streaming.md',
   'agent': 'core.md',
   'agent-loop': 'core.md',
   'agent-preset': 'core.md',
@@ -281,6 +284,8 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   LlmImageRequestPricing: 'llm-streaming.md',
   LlmModelInfo: 'llm-streaming.md',
   LlmProviderInfo: 'llm-streaming.md',
+  PiAiRequestTransport: 'llm-streaming.md',
+  PiAiRequestTransportContext: 'llm-streaming.md',
   LlmConfigurableProvider: 'llm-streaming.md',
   LlmModelDiscoveryRequest: 'llm-streaming.md',
   LlmDiscoveredModel: 'llm-streaming.md',

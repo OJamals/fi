@@ -63,10 +63,10 @@ export interface ReasoningBlock {
 }
 
 /**
- * A durable raster image reference, valid in user or assistant content. The
- * block is deliberately role-neutral; assistant-side rendering is forward
- * compatibility — the current production adapters declare text-only output,
- * so only user messages may carry images.
+ * A durable raster image reference, valid in user or assistant content.
+ * Image-producing adapters publish attachment-backed blocks through the same
+ * stream and session representation used for input images. Provider support
+ * for consuming or generating images is independent of the block's role.
  */
 export interface ImageBlock {
   type: 'image'

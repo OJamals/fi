@@ -5,6 +5,7 @@ import {
   checkDshFamilyVersion,
   checkExperimentalDependencyIsolation,
   checkExperimentalManifest,
+  checkWorkspaceManifest,
   expectedDshPackageFiles,
   type WorkspaceManifest,
 } from './check-workspace-constraints.ts'
@@ -21,6 +22,55 @@ const publicExperimental: WorkspaceManifest = {
     publishConfig: { access: 'public' },
   },
 }
+
+const fiPackage: WorkspaceManifest = {
+  dir: 'packages/fi/llm-antigravity',
+  manifest: { name: '@fi/llm-antigravity', private: true },
+}
+
+describe('FI workspace constraints', () => {
+  it('accepts private FI packages without release metadata', () => {
+    expect(checkWorkspaceManifest(fiPackage)).toEqual([])
+  })
+
+  it('rejects public FI packages', () => {
+    expect(checkWorkspaceManifest({
+      ...fiPackage,
+      manifest: { ...fiPackage.manifest, private: false },
+    })).toContain(
+      'packages/fi/llm-antigravity/package.json: @fi/llm-antigravity: FI package must set "private": true',
+    )
+  })
+
+  it.each(['@example/llm-antigravity', '@fi/another-name'])(
+    'requires the FI package name to match its directory: %s',
+    (name) => {
+      expect(checkWorkspaceManifest({
+        ...fiPackage,
+        manifest: { ...fiPackage.manifest, name },
+      })).toEqual([
+        `packages/fi/llm-antigravity/package.json: ${name}: FI package name must be "@fi/llm-antigravity"`,
+      ])
+    },
+  )
+
+  it('continues enforcing public release policy for ordinary packages', () => {
+    const errors = checkWorkspaceManifest({
+      dir: 'packages/core/example',
+      manifest: { name: '@deepseek-ai/example', private: true },
+    })
+
+    expect(errors).toContain(
+      'packages/core/example/package.json: @deepseek-ai/example: release member must not set "private": true',
+    )
+    expect(errors).toContain(
+      'packages/core/example/package.json: @deepseek-ai/example: release member must set publishConfig.access to "public"',
+    )
+    expect(errors).toContain(
+      'packages/core/example/package.json: @deepseek-ai/example: release member repository must use git+https://github.com/OJamals/fi.git with directory packages/core/example',
+    )
+  })
+})
 
 describe('experimental workspace constraints', () => {
   it('requires the experimental package-name prefix', () => {

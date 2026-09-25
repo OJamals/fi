@@ -1,9 +1,10 @@
 /**
- * Models-page extension slots — the two seats through which a plugin
+ * Models-page extension slots — the seats through which a plugin
  * distributed outside this repository adds UI to the Models settings section
  * without editing it.
  *
- * `settings.models.provider-card` is keyed by the row's owning settings
+ * `settings.models.provider-editor` and `settings.models.provider-card` are
+ * keyed by the row's owning settings
  * namespace (`ProviderDirectoryEntry.settingsNs`): an adapter family's
  * companion plugin registers one entry under the family's namespace and
  * receives every card of that family — shipped, added, and hand-declared rows
@@ -23,6 +24,11 @@ import type { ProviderDirectoryEntry } from './store.ts'
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
     /**
+     * One provider's complete editing UI, dispatched with `entryKey = settingsNs`.
+     * Without a registrant, the Models page renders its built-in editor.
+     */
+    'settings.models.provider-editor': { kind: 'keyed'; scope: 'root'; owner: ProviderEditorOwnerProps }
+    /**
      * One provider card's adapter extension area, dispatched with
      * `entryKey = settingsNs` on every card that renders a directory row: a
      * saved row's card (its first-run setup posture included) and the
@@ -37,6 +43,18 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      */
     'settings.models.footer': { kind: 'list'; scope: 'root'; owner: ModelsFooterOwnerProps }
   }
+}
+
+/** Owner share of one provider-editor occurrence. */
+export interface ProviderEditorOwnerProps {
+  /** The card's directory row (route id, display name, settings address, live state). */
+  provider: ProviderDirectoryEntry
+  /** Whether any layer configures this provider. */
+  configured: boolean
+  /** Whether the active settings provider accepts writes. */
+  readOnly: boolean
+  /** Close the editor; `changed` requests a fresh Models-page snapshot. */
+  onClose: (changed: boolean) => void
 }
 
 /** Owner share of one provider-card extension occurrence. */

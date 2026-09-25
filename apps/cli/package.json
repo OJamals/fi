@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh",
   "description": "dsh CLI: profile boot, plugin management, and the browser UI alias",
-  "version": "0.1.0-preview.1",
+  "version": "0.1.0-preview.4",
   "publishConfig": {
     "access": "public"
   },
@@ -97,7 +97,6 @@
     "@deepseek-ai/dsh-webhook-github": "workspace:^",
     "@deepseek-ai/dsh-workflow-worker-thread": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^",
-    "@fi/authorization-bundle": "workspace:^",
     "commander": "^15.0.0",
     "js-yaml": "^4.2.0",
     "node-addon-require-builtin": "^0.1.4"

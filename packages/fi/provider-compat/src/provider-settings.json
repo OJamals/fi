@@ -1,0 +1,236 @@
+{
+  "grokCode": {
+    "version": "1.0.30",
+    "releaseUrl": "https://x.ai/cli/stable",
+    "oauthClientId": "b1a00492-073a-47ea-816f-4c329264a828",
+    "oauthScopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access",
+      "grok-cli:access",
+      "api:access",
+      "conversations:read",
+      "conversations:write",
+      "workspaces:read",
+      "workspaces:write"
+    ],
+    "cliBaseUrl": "https://cli-chat-proxy.grok.com/v1",
+    "apiBaseUrl": "https://api.x.ai/v1",
+    "tokenAuth": "xai-grok-cli",
+    "clientIdentifier": "grok-shell",
+    "clientMode": "headless",
+    "releaseEvidence": {
+      "version": "1.0.30",
+      "sourceUrl": "https://x.ai/cli/stable",
+      "retrievedAt": "2026-09-14T21:46:57.073Z",
+      "responseSha256": "2aa092243667791a5d0de79ef7a43605357e4bf8f6cf329bdf58539fe4b8a3d1"
+    }
+  },
+  "antigravityCli": {
+    "version": "1.2.1",
+    "fingerprintCapturedVersion": "1.2.1",
+    "client": "aidev_client",
+    "build": "979485360",
+    "authMethod": "consumer",
+    "apiBaseUrl": "https://daily-cloudcode-pa.googleapis.com/v1internal",
+    "projectDiscoveryUrl": "https://daily-cloudcode-pa.googleapis.com/v1internal:loadCodeAssist?alt=json",
+    "oauth": {
+      "authorizeUrl": "https://accounts.google.com/o/oauth2/v2/auth",
+      "tokenUrl": "https://oauth2.googleapis.com/token",
+      "redirectUri": "http://127.0.0.1:54545/callback",
+      "clientId": "REDACTED-ANTIGRAVITY-OAUTH-CLIENT-ID",
+      "scopes": [
+        "https://www.googleapis.com/auth/cloud-platform",
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/userinfo.profile",
+        "https://www.googleapis.com/auth/cclog",
+        "https://www.googleapis.com/auth/experimentsandconfigs"
+      ]
+    },
+    "releaseUrl": "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/darwin_arm64.json",
+    "corroborationUrl": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases/latest",
+    "latestReleaseVersion": "1.2.2",
+    "releaseEvidence": {
+      "version": "1.2.2",
+      "sourceUrl": "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/darwin_arm64.json",
+      "retrievedAt": "2026-09-14T21:46:57.073Z",
+      "responseSha256": "9ad164be829c106c9f49d44c5e2df45c7df665a3cf745c01137c45134a2b80e7",
+      "artifact": {
+        "name": "cli_mac_arm64.tar.gz",
+        "url": "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.2.2-6061403484848128/darwin-arm/cli_mac_arm64.tar.gz",
+        "sha512": "8a3b5edea51e107a74413cea5eed1c5b02dede945ba21c7625b7c86f477c2c8ac423581de0ed84ff2f97c3bf6818c1fc24ca84cf9a76c2fb02a50e89d8a0d29a"
+      },
+      "corroboration": {
+        "sourceUrl": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases/latest",
+        "responseSha256": "30f1f8fb71ef82dc858585e90047d80cfacb16f772e64505afc64039faaf3719",
+        "releasePageUrl": "https://github.com/google-antigravity/antigravity-cli/releases/tag/1.2.2",
+        "publishedAt": "2026-09-12T03:51:08Z",
+        "artifacts": [
+          {
+            "name": "agy_cli_linux_arm64.tar.gz",
+            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.2/agy_cli_linux_arm64.tar.gz",
+            "sha256": "00fc5cb50cd714b81cdf1298fcc90e63a59e3e564a4f8076454ab8457d36e6eb"
+          },
+          {
+            "name": "agy_cli_linux_x64.tar.gz",
+            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.2/agy_cli_linux_x64.tar.gz",
+            "sha256": "2cfa5c9a4a1edd96db6d4058f34970be60d3bcacda866e2bdce6aefb2451b48e"
+          },
+          {
+            "name": "agy_cli_mac_arm64.tar.gz",
+            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.2/agy_cli_mac_arm64.tar.gz",
+            "sha256": "f90ff6094a196f1be3854ac45d999a542d47ec66a1513aa882a8505b947b9a0f"
+          },
+          {
+            "name": "agy_cli_mac_x64.tar.gz",
+            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.2/agy_cli_mac_x64.tar.gz",
+            "sha256": "2b44ed726a73a0ef0a39956c80e07b5898c0b4fe21f8ecd383be74f1c0b65e5d"
+          },
+          {
+            "name": "agy_cli_windows_arm64.zip",
+            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.2/agy_cli_windows_arm64.zip",
+            "sha256": "00c4d0cc4d05372588eb4a016147e4a3d4a5b00ebdc692eaf46042e8de3cf6fd"
+          },
+          {
+            "name": "agy_cli_windows_x64.zip",
+            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.2/agy_cli_windows_x64.zip",
+            "sha256": "50ce727a034980d341ee03773d2b81a78fb3c7897ac2ff138f55db88cead4c03"
+          }
+        ]
+      },
+      "verifiedArtifact": {
+        "name": "cli_mac_arm64.tar.gz",
+        "url": "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.2.2-6061403484848128/darwin-arm/cli_mac_arm64.tar.gz",
+        "sha512": "8a3b5edea51e107a74413cea5eed1c5b02dede945ba21c7625b7c86f477c2c8ac423581de0ed84ff2f97c3bf6818c1fc24ca84cf9a76c2fb02a50e89d8a0d29a",
+        "sha256": "f90ff6094a196f1be3854ac45d999a542d47ec66a1513aa882a8505b947b9a0f",
+        "size": 49929659
+      }
+    }
+  },
+  "claudeCode": {
+    "version": "2.1.269",
+    "entrypoint": "sdk-cli",
+    "latestReleaseVersion": "2.1.270",
+    "fingerprintCapturedVersion": "2.1.269",
+    "fingerprintEvidence": {
+      "version": "2.1.269",
+      "capturedAt": "2026-09-11T23:38:11Z",
+      "method": "isolated-loopback-synthetic-oauth",
+      "authorizationValueRetained": false,
+      "artifact": {
+        "manifestUrl": "https://downloads.claude.ai/claude-code-releases/2.1.269/manifest.json",
+        "manifestSha256": "7f2a4706151f22cfd142be5b34390f9cb2dd0908660817af3a0acd00a3789758",
+        "buildDate": "2026-09-11T17:44:26Z",
+        "commit": "d0733697ad641a564c7cfcb19a6eb1eb9d61357e",
+        "platform": "darwin-arm64",
+        "binarySha256": "c942e1228b93cb4d52183b3dfbc77f28264f35aa947acd9c0853d029164cf450",
+        "size": 203150240,
+        "codeSignatureIdentifier": "com.anthropic.claude-code",
+        "codeSignatureTeamIdentifier": "Q6L2SF6YDW"
+      },
+      "messages": {
+        "route": "/v1/messages?beta=true",
+        "cases": [
+          "sonnet-default-tools",
+          "haiku-default-tools",
+          "sonnet-structured-output",
+          "sonnet-forced-tool-search"
+        ]
+      },
+      "countTokens": {
+        "route": "/v1/messages/count_tokens?beta=true",
+        "verification": "exact-artifact-static-inspection"
+      }
+    },
+    "releaseUrl": "https://registry.npmjs.org/@anthropic-ai/claude-code/latest",
+    "oauth": {
+      "authorizeUrl": "https://claude.com/cai/oauth/authorize",
+      "tokenUrl": "https://platform.claude.com/v1/oauth/token",
+      "manualRedirectUrl": "https://platform.claude.com/oauth/code/callback",
+      "clientId": "9d1c250a-e61b-44d9-88ed-5944d1962f5e",
+      "scopes": [
+        "org:create_api_key",
+        "user:profile",
+        "user:inference",
+        "user:sessions:claude_code",
+        "user:mcp_servers",
+        "user:file_upload"
+      ]
+    },
+    "stainless": {
+      "packageVersion": "0.112.1",
+      "runtime": "node",
+      "runtimeVersion": "v26.3.0"
+    },
+    "messageBetas": [
+      "claude-code-20250219",
+      "oauth-2025-04-20",
+      "interleaved-thinking-2025-05-14",
+      "thinking-token-count-2026-05-13",
+      "context-management-2025-06-27",
+      "prompt-caching-scope-2026-01-05",
+      "advanced-tool-use-2025-11-20",
+      "effort-2025-11-24",
+      "extended-cache-ttl-2025-04-11"
+    ],
+    "haikuMessageBetas": [
+      "oauth-2025-04-20",
+      "interleaved-thinking-2025-05-14",
+      "thinking-token-count-2026-05-13",
+      "context-management-2025-06-27",
+      "prompt-caching-scope-2026-01-05",
+      "claude-code-20250219",
+      "advanced-tool-use-2025-11-20",
+      "extended-cache-ttl-2025-04-11"
+    ],
+    "countTokensBetas": [
+      "claude-code-20250219",
+      "oauth-2025-04-20",
+      "interleaved-thinking-2025-05-14",
+      "context-management-2025-06-27",
+      "token-counting-2024-11-01"
+    ],
+    "haikuCountTokensBetas": [
+      "oauth-2025-04-20",
+      "interleaved-thinking-2025-05-14",
+      "context-management-2025-06-27",
+      "token-counting-2024-11-01"
+    ],
+    "releaseEvidence": {
+      "version": "2.1.270",
+      "sourceUrl": "https://registry.npmjs.org/@anthropic-ai/claude-code/latest",
+      "retrievedAt": "2026-09-14T21:46:57.073Z",
+      "responseSha256": "a25e60a553dda1e465de77290839ad801934bb7839e61d9623df03d97118ea93"
+    }
+  },
+  "codexCli": {
+    "version": "0.154.0",
+    "releaseUrl": "https://registry.npmjs.org/@openai/codex/latest",
+    "baseUrl": "https://chatgpt.com/backend-api",
+    "responsesPath": "/codex/responses",
+    "modelsPath": "/codex/models",
+    "responsesWebsocketBeta": "responses_websockets=2026-02-06",
+    "originator": "codex_cli_rs",
+    "oauth": {
+      "issuer": "https://auth.openai.com",
+      "clientId": "app_EMoamEEZ73f0CkXaXp7hrann",
+      "callbackPort": 1455,
+      "callbackPath": "/auth/callback",
+      "scopes": [
+        "openid",
+        "profile",
+        "email",
+        "offline_access",
+        "api.connectors.read",
+        "api.connectors.invoke"
+      ]
+    },
+    "releaseEvidence": {
+      "version": "0.154.0",
+      "sourceUrl": "https://registry.npmjs.org/@openai/codex/latest",
+      "retrievedAt": "2026-09-11T16:28:02.348Z",
+      "responseSha256": "785849486d93ebba5bda538f0ebd29cd9b659e2b7ec78518a529c8eaf439bb87"
+    }
+  }
+}

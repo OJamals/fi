@@ -252,6 +252,19 @@
       // session-log-export lives under session-query/, so the generated aliases map only its
       // bare name; the browser half needs this explicit subpath for source-mode dynamic imports.
       "@deepseek-ai/dsh-session-log-export/client": ["./packages/session-query/session-log-export/src/client"],
+      // FI extensions resolve through source during static checks and tests.
+      "@fi/api-authorization-controller": ["./packages/fi/api-authorization-controller/src/index.ts"],
+      "@fi/authorization-bundle": ["./packages/fi/authorization-bundle/src/index.ts"],
+      "@fi/client-ui-model-signin": ["./packages/fi/client-ui-model-signin/src/index.ts"],
+      "@fi/client-ui-model-signin/client": ["./packages/fi/client-ui-model-signin/src/client/index.ts"],
+      "@fi/client-ui-web-search-preferences": ["./packages/fi/client-ui-web-search-preferences/src/index.ts"],
+      "@fi/client-ui-web-search-preferences/client": ["./packages/fi/client-ui-web-search-preferences/src/client/index.ts"],
+      "@fi/llm-antigravity": ["./packages/fi/llm-antigravity/src/index.ts"],
+      "@fi/llm-antigravity/transport": ["./packages/fi/llm-antigravity/src/transport.ts"],
+      "@fi/provider-compat": ["./packages/fi/provider-compat/src/index.ts"],
+      "@fi/tool-image-generation": ["./packages/fi/tool-image-generation/src/index.ts"],
+      "@fi/web-search-preferences": ["./packages/fi/web-search-preferences/src/index.ts"],
+      "@fi/web-search-subscription": ["./packages/fi/web-search-subscription/src/index.ts"],
       // BEGIN generated package aliases — pnpm run gen-tsconfig-paths
       "@deepseek-ai/dsh-acp": ["./packages/acp/acp/src"],
       "@deepseek-ai/dsh-acp-app": ["./packages/bundle/acp-app/src"],

@@ -1,0 +1,24 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    { "path": "../../../vendor/cordis" },
+    { "path": "../../../vendor/schemastery" },
+    { "path": "../../credentials/credentials" },
+    { "path": "../../util/launch-environment" },
+    { "path": "../../core/agent" },
+    { "path": "../../core/session" },
+    { "path": "../../settings/settings" },
+    { "path": "../../web/web" },
+    { "path": "../../web/web-search-deepseek" },
+    { "path": "../../web/web-search-exa" },
+    { "path": "../../web/web-search-perplexity" },
+    { "path": "../web-search-subscription" }
+  ]
+}

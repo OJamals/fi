@@ -26,6 +26,7 @@ import {
 import type { DesktopPaths } from './paths.ts'
 import { removeOwnedDirectory } from './owned-directory.ts'
 import type { DesktopRelease } from './release.ts'
+import { DESKTOP_PROFILE_BUNDLES, FI_DESKTOP_BUNDLE } from './desktop-profile.ts'
 import { desktopRuntimeId, readDesktopRuntime, type DesktopRuntimeDescriptor } from './runtime-tree.ts'
 import {
   desktopPluginLockHash, linkDesktopHostPackages, readDesktopProfileState,
@@ -78,7 +79,7 @@ export type DesktopProjectMutation =
 const PROJECT_NAME = '@deepseek-ai/dsh-desktop-runtime'
 const DSH_PACKAGE = '@deepseek-ai/dsh'
 const CORE_BUILD_PACKAGE = '@deepseek-ai/dsh-subprocess-local'
-const DESKTOP_PROFILE_BUNDLES = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'] as const
+const PREVIOUS_DESKTOP_PROFILE_BUNDLES = DESKTOP_PROFILE_BUNDLES.slice(0, -1)
 const WORKSPACE_SETTINGS = 'nodeLinker: hoisted\nautoInstallPeers: false\nstrictDepBuilds: true\n'
 const PACKAGE_NAME_PATTERN = /^(?:@[a-z0-9][a-z0-9._~-]*\/[a-z0-9][a-z0-9._~-]*|[a-z0-9][a-z0-9._~-]*)$/u
 const VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.+_-]*$/u
@@ -166,15 +167,32 @@ function projectManifest(projectDir: string): DesktopProjectManifest {
 
 function profilePluginNames(projectDir: string): readonly string[] {
   const bundles = projectManifest(projectDir).dsh.profile.bundles
-  if (!DESKTOP_PROFILE_BUNDLES.every((bundle, index) => bundles[index] === bundle)) {
+  const prefixLength = DESKTOP_PROFILE_BUNDLES.every((bundle, index) => bundles[index] === bundle)
+    ? DESKTOP_PROFILE_BUNDLES.length
+    : PREVIOUS_DESKTOP_PROFILE_BUNDLES.every((bundle, index) => bundles[index] === bundle)
+      ? PREVIOUS_DESKTOP_PROFILE_BUNDLES.length
+      : undefined
+  if (prefixLength === undefined) {
     throw new Error('desktop project: profile must begin with the built-in desktop bundle list')
   }
-  const plugins = bundles.slice(DESKTOP_PROFILE_BUNDLES.length)
+  const plugins = bundles.slice(prefixLength)
   if (new Set(bundles).size !== bundles.length) {
     throw new Error('desktop project: profile bundle list contains a duplicate package')
   }
   for (const plugin of plugins) assertPackageName(plugin)
   return plugins
+}
+
+function upgradeProfileBundles(projectDir: string): boolean {
+  const manifest = projectManifest(projectDir)
+  const bundles = manifest.dsh.profile.bundles
+  if (DESKTOP_PROFILE_BUNDLES.every((bundle, index) => bundles[index] === bundle)) return false
+  const plugins = profilePluginNames(projectDir).filter(bundle => bundle !== FI_DESKTOP_BUNDLE)
+  writeJson(join(projectDir, 'package.json'), {
+    ...manifest,
+    dsh: { ...manifest.dsh, profile: { ...manifest.dsh.profile, bundles: [...DESKTOP_PROFILE_BUNDLES, ...plugins] } },
+  } satisfies DesktopProjectManifest)
+  return true
 }
 
 function pluginRecords(projectDir: string): readonly DesktopPluginRecord[] {
@@ -308,7 +326,8 @@ export class DesktopProjectManager {
       const target = this.readRuntime()
       this.descriptor = target
       const previous = readDesktopProfileState(this.paths.profile)
-      if (!existsSync(this.pendingPackages) && previous?.runtimeId === desktopRuntimeId(target)
+      const profileUpgraded = previous === undefined ? false : upgradeProfileBundles(this.paths.profile)
+      if (!profileUpgraded && !existsSync(this.pendingPackages) && previous?.runtimeId === desktopRuntimeId(target)
         && previous.lockHash === desktopPluginLockHash(this.paths.profile)
         && previous.links.length === target.sharedPackages.length
         && previous.links.every(link => existsSync(link.target)

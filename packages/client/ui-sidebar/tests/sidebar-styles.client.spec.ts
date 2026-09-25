@@ -64,10 +64,10 @@ describe('SidebarRoot.module.css', () => {
     expect(declarations('.collapsed .newSession')?.get('width')).toBe('36px')
   })
 
-  it('keeps the slotted brand row at the full artwork height', () => {
-    expect(declarations('.logoRow')?.get('height')).toBe('68px')
-    expect(declarations('.logoRow')?.get('padding')).toBe('4px 0 4px 2px')
-    expect(declarations('.brandIdentity')?.get('height')).toBe('60px')
+  it('gives the expanded mark equal block padding without reserving badge space', () => {
+    expect(declarations('.logoRow')?.get('height')).toBe('48px')
+    expect(declarations('.logoRow')?.get('padding')).toBe('4px 0 4px 6px')
+    expect(declarations('.brandIdentity')?.get('height')).toBe('40px')
     expect(declarations('.brandName')?.get('height')).toBe('36px')
     expect(declarations('.brandName')?.get('line-height')).toBe('24px')
     expect(declarations('.brandName')?.get('font-size')).toBe('18px')

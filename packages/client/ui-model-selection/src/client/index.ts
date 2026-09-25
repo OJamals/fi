@@ -25,6 +25,7 @@ import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import { IconDataOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ModelDirectoryState } from './directory.ts'
 import { ModelDirectoryResolver } from './service.ts'
+import { ModelSubscriptionProviders } from './subscriptions.ts'
 import type { ModelSelectInjected } from './slots.ts'
 import { ModelSelect } from './ModelSelect.tsx'
 import { en, zh, type ModelKey } from './locales.ts'
@@ -32,6 +33,7 @@ import { en, zh, type ModelKey } from './locales.ts'
 export { ModelDirectory } from './directory.ts'
 export type { ModelDirectoryState } from './directory.ts'
 export { ModelDirectoryResolver } from './service.ts'
+export { ModelSubscriptionProviders } from './subscriptions.ts'
 export type { ModelSelectInjected } from './slots.ts'
 export type { ModelKey } from './locales.ts'
 
@@ -126,6 +128,7 @@ export const inject = ['commandUi', 'locale', 'sessions', 'slots', 'remote', 're
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
+  ctx.plugin(ModelSubscriptionProviders)
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-model-selection: dictionaries')
 
   // Non-slot faces (the command description, the popup option builder) read
@@ -171,7 +174,7 @@ export function apply(ctx: ClientContext): void {
   })
 
   // Entry 2: the composer's named model seat over the SAME directory.
-  ctx.inject(['slots', 'modelDirectories'], (scope: ClientContext) => {
+  ctx.inject(['slots', 'modelDirectories', 'modelSubscriptions'], (scope: ClientContext) => {
     const models = scope.modelDirectories
     const sessions = scope.sessions
     scope.slots.inject('conversation.input.model', () => scope.slots.register({
@@ -183,6 +186,7 @@ export function apply(ctx: ClientContext): void {
         return {
           available,
           directory: directory.store,
+          subscriptionProviders: scope.modelSubscriptions.store,
           load: () => {
             if (available) directory.load().catch(() => { /* surfaced on the store */ })
           },

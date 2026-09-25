@@ -3440,6 +3440,176 @@ export interface Config {
 
 来源：[`packages/workflow/workflow-worker-thread/src/index.ts:32`](../packages/workflow/workflow-worker-thread/src/index.ts)
 
+<a id="fiprovider-compat"></a>
+
+## `@fi/provider-compat`
+
+```ts config-catalog
+/** Subscription transport limits configured by the FI deployment. */
+export interface Config {
+  /** Maximum received Codex WebSocket message size in bytes. */
+  websocketMaxPayloadBytes?: number
+}
+```
+
+来源：[`packages/fi/provider-compat/src/index.ts:17`](../packages/fi/provider-compat/src/index.ts)
+
+<a id="fitool-image-generation"></a>
+
+## `@fi/tool-image-generation`
+
+需要：`tools` · `attachments` · `fs` · `credentials`
+
+```ts config-catalog
+/** Explicit subscription image targets and operation bounds. */
+export interface Config {
+  /** Provider selected when a tool call omits its provider argument. */
+  defaultProvider: ImageGenerationProvider
+  /** Explicit model id for each enabled provider. */
+  targets: Partial<Record<ImageGenerationProvider, ImageGenerationTarget>>
+  /** Whole filesystem/auth/network/storage operation timeout in milliseconds. */
+  timeoutMs?: number
+  /** Maximum decoded provider output bytes before attachment validation. */
+  maxOutputBytes?: number
+}
+
+/** Subscription backends with a native raster generation transport. */
+export type ImageGenerationProvider = 'codex' | 'grok' | 'antigravity'
+
+/** Explicit model selection for one configured subscription backend. */
+export interface ImageGenerationTarget {
+  /** Exact provider image model id. */
+  readonly imageModel: string
+}
+```
+
+来源：[`packages/fi/tool-image-generation/src/index.ts:34`](../packages/fi/tool-image-generation/src/index.ts)
+
+<a id="fiweb-search-preferences"></a>
+
+## `@fi/web-search-preferences`
+
+需要：`web`
+
+```ts config-catalog
+/** User-controlled provider preference and provider-specific options. */
+export interface Config {
+  /** Provider used by the next search operation. */
+  provider: PreferredSearchProviderId
+  /** Legacy literal DeepSeek key; retained only for upstream settings compatibility. */
+  apiKey?: string
+  /** DeepSeek credential reference, preserving the upstream field name. */
+  apiKeyEnv?: string
+  /** DeepSeek Anthropic-compatible endpoint base, preserving the upstream field name. */
+  baseURL?: string
+  /** DeepSeek search model, preserving the upstream field name. */
+  model?: string
+  /** DeepSeek Anthropic protocol version, preserving the upstream field name. */
+  apiVersion?: string
+  /** DeepSeek generated-token limit, preserving the upstream field name. */
+  maxTokens?: number
+  /** DeepSeek native search-action limit, preserving the upstream field name. */
+  maxUses?: number
+  /** Credential reference for Exa. */
+  exaApiKeyEnv?: string
+  /** Exa endpoint base. */
+  exaBaseURL?: string
+  /** Exa retrieval mode. */
+  exaSearchType?: 'auto' | 'keyword' | 'neural'
+  /** Exa default result count. */
+  exaNumResults?: number
+  /** Exa highlight sentences requested per result. */
+  exaHighlightsPerResult?: number
+  /** Credential reference for Perplexity. */
+  perplexityApiKeyEnv?: string
+  /** Perplexity endpoint base. */
+  perplexityBaseURL?: string
+  /** Perplexity search model. */
+  perplexityModel?: string
+  /** Perplexity answer-token limit. */
+  perplexityMaxTokens?: number
+  /** Perplexity recency filter. */
+  perplexitySearchRecency?: PerplexityRecency
+  /** Credential reference for Parallel. */
+  parallelApiKeyEnv?: string
+  /** Parallel endpoint base. */
+  parallelBaseURL?: string
+  /** Parallel Search API quality and latency preset. */
+  parallelMode?: ParallelSearchMode
+  /** Credential reference for Tavily. */
+  tavilyApiKeyEnv?: string
+  /** Tavily endpoint base. */
+  tavilyBaseURL?: string
+  /** Credential reference for Serper. */
+  serperApiKeyEnv?: string
+  /** Serper endpoint base. */
+  serperBaseURL?: string
+  /** Credential reference for Brave Search. */
+  braveApiKeyEnv?: string
+  /** Brave Search endpoint base. */
+  braveBaseURL?: string
+  /** Stored-grant family used by subscription-native search. */
+  subscriptionProvider?: SubscriptionSearchFamily
+  /** Exact model id for subscription-native search. */
+  subscriptionModel?: string
+  /** Subscription operation timeout. */
+  subscriptionTimeoutMs?: number
+  /** Subscription response byte limit. */
+  subscriptionMaxResponseBytes?: number
+  /** Subscription native search-action limit. */
+  subscriptionMaxUses?: number
+  /** Subscription generated-token limit. */
+  subscriptionMaxOutputTokens?: number
+}
+
+/** Upstream and FI-owned provider ids selectable by the preference router. */
+export type PreferredSearchProviderId =
+  | 'deepseek-official'
+  | 'exa'
+  | 'perplexity'
+  | 'parallel'
+  | 'tavily'
+  | 'serper'
+  | 'brave'
+  | 'subscription-native'
+
+/** Parallel Search API quality and latency preset. */
+export type ParallelSearchMode = 'turbo' | 'fast' | 'basic' | 'advanced'
+```
+
+依赖：[`PerplexityRecency`](../packages/web/web-search-perplexity/src/index.ts) · [`SubscriptionSearchFamily`](../packages/fi/web-search-subscription/src/index.ts)
+
+来源：[`packages/fi/web-search-preferences/src/types.ts:55`](../packages/fi/web-search-preferences/src/types.ts)
+
+<a id="fiweb-search-subscription"></a>
+
+## `@fi/web-search-subscription`
+
+需要：`web` · `credentials`
+
+```ts config-catalog
+/** Explicit native-subscription search selection and resource limits. */
+export interface Config {
+  /** Subscription family; required because no account or provider is auto-selected. */
+  provider: SubscriptionSearchFamily
+  /** Exact upstream model id; required because the package does not choose a model. */
+  model: string
+  /** Whole-operation timeout in milliseconds. */
+  timeoutMs?: number
+  /** Maximum retained UTF-8 response bytes. */
+  maxResponseBytes?: number
+  /** Maximum native search actions accepted from one response. */
+  maxUses?: number
+  /** Maximum generated answer tokens requested from the search model. */
+  maxOutputTokens?: number
+}
+
+/** Subscription families with a proven native search transport. */
+export type SubscriptionSearchFamily = 'codex' | 'grok' | 'antigravity' | 'claude'
+```
+
+来源：[`packages/fi/web-search-subscription/src/index.ts:43`](../packages/fi/web-search-subscription/src/index.ts)
+
 ## 无配置的可加载插件
 
 这些插件通过 `cordis.yml` 中不含 `config:` 块的条目加载；它们未声明任何配置接口。
@@ -3527,6 +3697,10 @@ export interface Config {
 - `@deepseek-ai/dsh-user-questions`（[`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts)）
 - `@deepseek-ai/dsh-webhook` — 需要 `agents` · `agentDefaultModel` · `agentPresets` · `permissionPresets` · `sessionTitle` · `workspaceRegistry`（[`packages/webhook/webhook/src/index.ts`](../packages/webhook/webhook/src/index.ts)）
 - `@deepseek-ai/dsh-workspace` — 需要 `storageDomain` · `sessionPersistence`（[`packages/workspace/workspace/src/index.ts`](../packages/workspace/workspace/src/index.ts)）
+- `@fi/api-authorization-controller`（[`packages/fi/api-authorization-controller/src/index.ts`](../packages/fi/api-authorization-controller/src/index.ts)）
+- `@fi/client-ui-model-signin`（[`packages/fi/client-ui-model-signin/src/index.ts`](../packages/fi/client-ui-model-signin/src/index.ts)）
+- `@fi/client-ui-web-search-preferences`（[`packages/fi/client-ui-web-search-preferences/src/index.ts`](../packages/fi/client-ui-web-search-preferences/src/index.ts)）
+- `@fi/llm-antigravity` — 需要 `authorization` · `credentials` · `llm` · `settings`（[`packages/fi/llm-antigravity/src/index.ts`](../packages/fi/llm-antigravity/src/index.ts)）
 
 ## Seam 包（不可直接加载）
 
@@ -3604,3 +3778,4 @@ export interface Config {
 - `@deepseek-ai/dsh-util-values`（[`packages/util/values/src/index.ts`](../packages/util/values/src/index.ts)）
 - `@deepseek-ai/dsh-util-workspace-path`（[`packages/util/workspace-path/src/index.ts`](../packages/util/workspace-path/src/index.ts)）
 - `@deepseek-ai/dsh-win32-process`（[`packages/subprocess/win32-process/src/index.ts`](../packages/subprocess/win32-process/src/index.ts)）
+- `@fi/authorization-bundle`（[`packages/fi/authorization-bundle/src/index.ts`](../packages/fi/authorization-bundle/src/index.ts)）

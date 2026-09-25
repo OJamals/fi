@@ -1,33 +1,60 @@
 {
   "name": "@fi/llm-antigravity",
-  "version": "0.1.0",
+  "version": "0.1.0-preview.4",
+  "private": true,
   "description": "Antigravity OAuth adapter and Cloud Code transport for fi",
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./auth/*": "./src/auth/*.ts",
-    "./transport": "./src/transport.ts"
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./transport": {
+      "types": "./lib/types/transport.d.ts",
+      "default": "./lib/transport.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
   },
+  "files": [
+    "lib/index.js",
+    "lib/transport.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "MIT",
   "scripts": {
+    "bundle": "tsdown",
+    "watch": "tsdown --watch",
     "test": "vitest run"
   },
   "fi": {
     "kind": "package",
     "bundle": false
   },
-  "dependencies": {
+  "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-authorization": "workspace:^",
+    "@deepseek-ai/dsh-attachment": "workspace:^",
     "@deepseek-ai/dsh-credentials": "workspace:^",
     "@deepseek-ai/dsh-llm": "workspace:^",
-    "@deepseek-ai/dsh-settings": "workspace:^",
-    "@deepseek-ai/dsh-typert-protocol": "workspace:^",
+    "@deepseek-ai/dsh-settings": "workspace:^"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-util-crypto": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^",
-    "zod": "^4.4.3"
+    "@fi/provider-compat": "workspace:^"
   },
   "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-authorization": "workspace:^",
+    "@deepseek-ai/dsh-attachment": "workspace:^",
+    "@deepseek-ai/dsh-attachment-local": "workspace:^",
+    "@deepseek-ai/dsh-credentials": "workspace:^",
+    "@deepseek-ai/dsh-credentials-local": "workspace:^",
+    "@deepseek-ai/dsh-llm": "workspace:^",
+    "@deepseek-ai/dsh-settings": "workspace:^",
     "@types/node": "^22.20.2",
     "vitest": "^3.2.4"
   }

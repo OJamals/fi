@@ -8,7 +8,6 @@
 
 import type { ReactNode } from 'react'
 import { IconBrowseOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ToolCallViewProps } from '../../contract/slots.ts'
 import { toolRowModel } from '../models/tool-call-model.ts'
 import { ToolRow, type ToolRowProps } from '../components/ToolRow.tsx'
@@ -16,16 +15,15 @@ import { ToolRow, type ToolRowProps } from '../components/ToolRow.tsx'
 /** Full row props of a read-family toolview: the runtime share plus its locale seat. */
 export type ReadFamilyRowProps = ToolCallViewProps & { t: ToolRowProps['t'] }
 
-/** read_image row props: the runtime share, the declared image child slot, and the locale seat. */
-export type ReadImageRowProps = ReadFamilyRowProps & PropsRenderSlots<'tool.call.images'>
+/** read_image row props: the runtime share and locale seat. */
+export type ReadImageRowProps = ReadFamilyRowProps
 
 /**
  * The card material one read-family row contributes: exactly the ToolRow card
  * props that row owns. `read` supplies `read` and the line its call named;
- * `read_image` supplies `image` together with the slot dispatcher and loader
- * that draw it.
+ * `read_image` supplies `image` together with the Tool tree's gallery renderer.
  */
-export type ReadFamilyCard = Pick<ToolRowProps, 'read' | 'image' | 'renderSlot' | 'loadImage' | 'filePathLine'>
+export type ReadFamilyCard = Pick<ToolRowProps, 'read' | 'image' | 'renderImages' | 'filePathLine'>
 
 /**
  * Compose a read-family row: the shared chrome and model-derived fields, plus the
