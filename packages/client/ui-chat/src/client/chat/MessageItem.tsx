@@ -237,7 +237,7 @@ function UserStyleBubble({
  * @param props - Pending message content and conversation translator.
  * @returns the pending steering bubble.
  */
-export function PendingSteeringBubble({ content, renderMessageImages, t }: {
+export const PendingSteeringBubble = memo(function PendingSteeringBubble({ content, renderMessageImages, t }: {
   content: readonly unknown[]
   renderMessageImages: ChatNodeOwnerProps['renderMessageImages']
   t: ChatViewSlotProps['t']
@@ -258,7 +258,7 @@ export function PendingSteeringBubble({ content, renderMessageImages, t }: {
       )}
     />
   )
-}
+})
 
 /**
  * Render one local transcript or steering submission echo with the same
@@ -268,7 +268,7 @@ export function PendingSteeringBubble({ content, renderMessageImages, t }: {
  * @param props - the session snapshot's pending submission and render seats.
  * @returns the echoed user bubble.
  */
-export function PendingSubmissionBubble({ submission, renderMessageImages, t }: {
+export const PendingSubmissionBubble = memo(function PendingSubmissionBubble({ submission, renderMessageImages, t }: {
   submission: PendingSubmission
   renderMessageImages: ChatNodeOwnerProps['renderMessageImages']
   t: ChatViewSlotProps['t']
@@ -312,7 +312,7 @@ export function PendingSubmissionBubble({ submission, renderMessageImages, t }: 
       )}
     />
   )
-}
+})
 
 /** User and admitted-steering keyed Chat renderer. */
 export const UserMessageNodeView = memo(function UserMessageNodeView({

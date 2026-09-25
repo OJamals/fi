@@ -119,6 +119,20 @@ describe('list store projection', () => {
     await Promise.resolve()
     expect(b.svc.list.getSnapshot().ids).toContain('s2')
   })
+
+  it('keeps unrelated rows and the id list reference-stable across a refresh, and only re-mints a changed row', async ({ bench }) => {
+    const b = bench()
+    await feedList(b, [{ id: 's1' }, { id: 's2', running: false }])
+    const before = b.svc.list.getSnapshot()
+
+    await feedList(b, [{ id: 's1' }, { id: 's2', running: true }])
+    const after = b.svc.list.getSnapshot()
+
+    expect(after.ids).toBe(before.ids)
+    expect(after.byId[sid('s1')]).toBe(before.byId[sid('s1')])
+    expect(after.byId[sid('s2')]).not.toBe(before.byId[sid('s2')])
+    expect(after.byId[sid('s2')]?.running).toBe(true)
+  })
 })
 
 describe('search', () => {

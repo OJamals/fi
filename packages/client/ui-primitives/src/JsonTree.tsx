@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type {
   CSSProperties,
   KeyboardEvent as ReactKeyboardEvent,
@@ -496,7 +496,37 @@ function JsonString({
   )
 }
 
-function JsonTreeNode({
+/** Element-wise path comparison: each render rebuilds `path` as a new array. */
+function sameJsonPath(a: JsonPath, b: JsonPath): boolean {
+  if (a === b) return true
+  if (a.length !== b.length) return false
+  for (let index = 0; index < a.length; index += 1) {
+    if (a[index] !== b[index]) return false
+  }
+  return true
+}
+
+/**
+ * `path` is excluded from React.memo's default reference comparison since
+ * every ancestor rebuilds it fresh each render; every other prop keeps
+ * reference equality.
+ */
+function sameNodeProps(prev: JsonTreeNodeProps, next: JsonTreeNodeProps): boolean {
+  return prev.collapsedStringLines === next.collapsedStringLines
+    && prev.stringWrapping === next.stringWrapping
+    && prev.field === next.field
+    && prev.initialExpanded === next.initialExpanded
+    && prev.labels === next.labels
+    && prev.lastElement === next.lastElement
+    && prev.onClaimTabStop === next.onClaimTabStop
+    && prev.onRowHover === next.onRowHover
+    && sameJsonPath(prev.path, next.path)
+    && prev.renderCopy === next.renderCopy
+    && prev.tabStopId === next.tabStopId
+    && prev.value === next.value
+}
+
+const JsonTreeNode = memo(function JsonTreeNode({
   collapsedStringLines,
   stringWrapping,
   field,
@@ -629,7 +659,7 @@ function JsonTreeNode({
       )}
     </>
   ), expanded)
-}
+}, sameNodeProps)
 
 function formattedPath(path: JsonPath): string {
   return path.reduce<string>((result, part) => {
@@ -710,18 +740,18 @@ export function JsonTree({
   const [copyStore] = useState(createCopyStore)
   const [tabStopId, setTabStopId] = useState<string | null>(initialTabStopId)
 
-  const setActiveRow = (row: HTMLElement | undefined) => {
+  const setActiveRow = useCallback((row: HTMLElement | undefined) => {
     activeRowRef.current?.removeAttribute('data-json-copy-active')
     activeRowRef.current = row
     row?.setAttribute('data-json-copy-active', '')
-  }
+  }, [])
 
-  const clearCopyTarget = () => {
+  const clearCopyTarget = useCallback(() => {
     copySequence.current += 1
     if (resetTimer.current !== undefined) clearTimeout(resetTimer.current)
     setActiveRow(undefined)
     copyStore.set(undefined)
-  }
+  }, [copyStore, setActiveRow])
 
   useEffect(() => () => {
     copySequence.current += 1
@@ -734,12 +764,12 @@ export function JsonTree({
     setTabStopId(initialTabStopId)
   }, [data, expandTopLevel, initialTabStopId])
 
-  const handleRowHover = (row: HTMLElement, target: RowTarget) => {
+  const handleRowHover = useCallback((row: HTMLElement, target: RowTarget) => {
     if (!copyable || copyStore.get()?.menuOpen) return
     if (activeRowRef.current === row) return
     setActiveRow(row)
     copyStore.set({ id: pathId(target.path), target, state: 'idle', menuOpen: false })
-  }
+  }, [copyable, copyStore, setActiveRow])
 
   const handleRootMouseOver = (event: ReactMouseEvent<HTMLDivElement>) => {
     if (!copyable || copyStore.get()?.menuOpen) return
@@ -748,7 +778,7 @@ export function JsonTree({
     if (event.target.closest('[data-json-copy-button]') === null) clearCopyTarget()
   }
 
-  const copy = async (target: RowTarget, mode: CopyMode) => {
+  const copy = useCallback(async (target: RowTarget, mode: CopyMode) => {
     const sequence = ++copySequence.current
     const snapshot: CopySnapshot = {
       id: pathId(target.path), target, state: 'idle', menuOpen: false,
@@ -769,13 +799,13 @@ export function JsonTree({
       const current = copyStore.get()
       if (current?.target === target) copyStore.set({ ...current, state: 'idle' })
     }, 1_500)
-  }
+  }, [copyStore])
 
   const [rootOpen, rootClose] = bracketOf(data)
-  const renderCopy = copyable ? (target: RowTarget, persistent = false) => (
+  const renderCopy = useMemo(() => (copyable ? (target: RowTarget, persistent = false) => (
     <JsonCopyAction store={copyStore} target={target} persistent={persistent} labels={labels}
       onCopy={copy} onClose={clearCopyTarget} />
-  ) : undefined
+  ) : undefined), [copyable, copyStore, labels, copy, clearCopyTarget])
 
   return (
     <div

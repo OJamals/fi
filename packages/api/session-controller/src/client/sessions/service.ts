@@ -605,7 +605,8 @@ export class ClientSessions implements ISessions {
 
   /** Project the manager's list snapshot into the store (title derivation is display-only). */
   private projectList(): void {
-    const previousById = this.list.getSnapshot().byId
+    const previousSnapshot = this.list.getSnapshot()
+    const previousById = previousSnapshot.byId
     const {
       items, phase, projectionsBySession,
     } = this.manager.getListSnapshot()
@@ -613,21 +614,42 @@ export class ClientSessions implements ISessions {
     const byId: Record<SessionId, SessionSummary> = {}
     for (const entry of items) {
       ids.push(entry.sessionId)
-      byId[entry.sessionId] = {
-        id: entry.sessionId,
-        displayTitle: displayTitleOf(entry.title, entry.cwd, entry.sessionId),
-        running: entry.running,
-        retainedBy: this.retentionSnapshot(entry.sessionId).retainedBy,
-        blank: entry.blank,
-        updatedAt: entry.updatedAt,
-        ...(entry.projectionValues === undefined
-          ? {}
-          : { projectionValues: entry.projectionValues }),
-        ...(entry.title !== undefined ? { title: entry.title } : {}),
-        ...(entry.cwd !== undefined ? { cwd: entry.cwd } : {}),
-        ...(entry.parentSessionId !== undefined ? { parentId: entry.parentSessionId } : {}),
-        ...(entry.origin !== undefined ? { origin: entry.origin } : {}),
-      }
+      const retainedBy = this.retentionSnapshot(entry.sessionId).retainedBy
+      const displayTitle = displayTitleOf(entry.title, entry.cwd, entry.sessionId)
+      const previous = previousById[entry.sessionId]
+      // Every entry field below flows from `entry`/`retainedBy`, both already
+      // reference-stable across unrelated refreshes (see the manager's own
+      // entry-identity cache and the frozen per-scope retention record), so a
+      // by-value match here means the freshly-built summary would be
+      // structurally identical to `previous` — reuse it instead of minting a
+      // new object every notifier flush, or every SessionListItem memo misses.
+      byId[entry.sessionId] = previous !== undefined
+        && previous.displayTitle === displayTitle
+        && previous.running === entry.running
+        && previous.retainedBy === retainedBy
+        && previous.blank === entry.blank
+        && previous.updatedAt === entry.updatedAt
+        && previous.projectionValues === entry.projectionValues
+        && previous.title === entry.title
+        && previous.cwd === entry.cwd
+        && previous.parentId === entry.parentSessionId
+        && previous.origin === entry.origin
+        ? previous
+        : {
+          id: entry.sessionId,
+          displayTitle,
+          running: entry.running,
+          retainedBy,
+          blank: entry.blank,
+          updatedAt: entry.updatedAt,
+          ...(entry.projectionValues === undefined
+            ? {}
+            : { projectionValues: entry.projectionValues }),
+          ...(entry.title !== undefined ? { title: entry.title } : {}),
+          ...(entry.cwd !== undefined ? { cwd: entry.cwd } : {}),
+          ...(entry.parentSessionId !== undefined ? { parentId: entry.parentSessionId } : {}),
+          ...(entry.origin !== undefined ? { origin: entry.origin } : {}),
+        }
     }
     for (const [parentId, projection] of Object.entries(projectionsBySession)) {
       for (const child of projection.values.subagentCatalog ?? []) {
@@ -674,7 +696,9 @@ export class ClientSessions implements ISessions {
         ...(title === undefined ? {} : { title, displayTitle: title }),
       }
     }
-    this.list.set({ ids, byId, phase, projectionsBySession })
+    const sameIds = ids.length === previousSnapshot.ids.length
+      && ids.every((id, index) => id === previousSnapshot.ids[index])
+    this.list.set({ ids: sameIds ? previousSnapshot.ids : ids, byId, phase, projectionsBySession })
   }
 
   private startScopeDrop(
