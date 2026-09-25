@@ -205,7 +205,7 @@ describe('desktop macOS release signature', () => {
     expect(portablePath(config.directories.output)).toContain('/targets/mac-arm64/unsigned-artifacts')
     expect(config.artifactName).toBe('fi-${version}-${os}-${arch}-unsigned.${ext}')
     expect(config).toMatchObject({
-      mac: { identity: null, forceCodeSigning: false, hardenedRuntime: true, notarize: false },
+      mac: { identity: null, forceCodeSigning: false, hardenedRuntime: false, notarize: false },
       dmg: { sign: false },
       publish: null,
     })

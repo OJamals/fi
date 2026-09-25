@@ -71,8 +71,10 @@ export async function signMacOSRuntime(
 
 /**
  * Ad-hoc sign every materialized Mach-O file for a local unsigned-mode build, awaiting all signers on failure.
- * Entitlement handling matches {@link signMacOSRuntime} exactly; only the identity changes. Ad-hoc signing
- * needs no keychain and no network timestamp, so there is no signature cache to consult or populate.
+ * File selection matches {@link signMacOSRuntime} exactly, but omits hardened runtime: an ad-hoc identity
+ * carries no Team ID, so hardened runtime's library validation would reject a `dlopen` between two ad-hoc-
+ * signed files even though both are validly signed. Ad-hoc signing needs no keychain and no network
+ * timestamp, so there is no signature cache to consult or populate.
  * @param root - Self-contained production runtime without symlinks.
  * @param appId - Release application identifier.
  * @returns Number of ad-hoc-signed native files.

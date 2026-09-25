@@ -155,11 +155,12 @@ export function createElectronBuilderConfig(
         CFBundleLocalizations: ['en', 'zh_CN'],
         NSMicrophoneUsageDescription: 'fi uses your microphone to transcribe speech into message drafts.',
       },
-      // Unsigned local builds pass identity null: electron-builder falls back to an ad-hoc signature for
-      // an arm64 target (required to execute on Apple Silicon), and afterSign below covers the rest.
+      // Unsigned local builds pass identity null and disable hardened runtime: afterSign below always
+      // deep ad-hoc signs the assembled application itself, and an ad-hoc identity carries no Team ID, so
+      // hardened runtime's library validation would reject cross-file loading between ad-hoc-signed files.
       identity: unsigned ? null : macOSSigning?.signingIdentity,
       forceCodeSigning: !unsigned,
-      hardenedRuntime: true,
+      hardenedRuntime: !unsigned,
       // ASAR-unpacked native runtime files are pre-signed; PAK resources are sealed by their enclosing bundle.
       signIgnore: ['/Contents/Resources/app\\.asar\\.unpacked/dsh(?:/|$)', '/Contents/Resources/runtime/primary-runtime(?:/|$)', '\\.pak$'],
       notarize: !unsigned,

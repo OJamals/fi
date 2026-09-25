@@ -32,22 +32,12 @@ function fakeChild(code: number): ReturnType<typeof spawn> {
 afterEach(() => { vi.resetAllMocks() })
 
 describe('macOS ad-hoc signing', () => {
-  it('trusts an existing signature and never re-signs when verification already passes', async () => {
+  it('always re-signs the application deep and ad hoc, then verifies the result', async () => {
     vi.mocked(spawnSync).mockReturnValue({ pid: 1, output: [], stdout: '', stderr: '', status: 0, signal: null })
-    await adHocSignMacOSApplication('/build/fi.app')
-    expect(spawnSync).toHaveBeenCalledOnce()
-    expect(spawnSync).toHaveBeenCalledWith('/usr/bin/codesign', ['--verify', '--deep', '--strict', '--verbose=2', '/build/fi.app'], { encoding: 'utf8' })
-    expect(spawn).not.toHaveBeenCalled()
-  })
-
-  it('ad-hoc signs and re-verifies when no usable signature is present yet', async () => {
-    vi.mocked(spawnSync)
-      .mockReturnValueOnce({ pid: 1, output: [], stdout: '', stderr: 'code object is not signed at all', status: 1, signal: null })
-      .mockReturnValueOnce({ pid: 1, output: [], stdout: '', stderr: '', status: 0, signal: null })
     vi.mocked(spawn).mockImplementation(() => fakeChild(0))
     await adHocSignMacOSApplication('/build/fi.app')
     expect(spawn).toHaveBeenCalledExactlyOnceWith('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', '/build/fi.app'], { stdio: ['ignore', 'pipe', 'pipe'] })
-    expect(spawnSync).toHaveBeenCalledTimes(2)
+    expect(spawnSync).toHaveBeenCalledExactlyOnceWith('/usr/bin/codesign', ['--verify', '--deep', '--strict', '--verbose=2', '/build/fi.app'], { encoding: 'utf8' })
   })
 
   it('fails when the app is still unverifiable after ad-hoc signing', async () => {
@@ -56,12 +46,12 @@ describe('macOS ad-hoc signing', () => {
     await expect(adHocSignMacOSApplication('/build/fi.app')).rejects.toThrow('exited with 1')
   })
 
-  it('signs one runtime file ad hoc with no network timestamp and the given entitlements', async () => {
+  it('signs one runtime file ad hoc with no network timestamp, no hardened runtime, and the given entitlements', async () => {
     vi.mocked(spawn).mockImplementation(() => fakeChild(0))
     await signMacOSRuntimeCodeAdHoc('/build/runtime/node', 'com.example.app.runtime.abc', '/build/jit-entitlements.plist')
     expect(spawn).toHaveBeenCalledExactlyOnceWith('/usr/bin/codesign', [
       '--force', '--sign', '-', '--identifier', 'com.example.app.runtime.abc', '--timestamp=none',
-      '--options', 'runtime', '--entitlements', '/build/jit-entitlements.plist', '/build/runtime/node',
+      '--entitlements', '/build/jit-entitlements.plist', '/build/runtime/node',
     ], { stdio: ['ignore', 'pipe', 'pipe'] })
   })
 
@@ -70,7 +60,7 @@ describe('macOS ad-hoc signing', () => {
     await signMacOSRuntimeCodeAdHoc('/build/runtime/addon.node', 'com.example.app.runtime.def', undefined)
     expect(spawn).toHaveBeenCalledExactlyOnceWith('/usr/bin/codesign', [
       '--force', '--sign', '-', '--identifier', 'com.example.app.runtime.def', '--timestamp=none',
-      '--options', 'runtime', '/build/runtime/addon.node',
+      '/build/runtime/addon.node',
     ], { stdio: ['ignore', 'pipe', 'pipe'] })
   })
 

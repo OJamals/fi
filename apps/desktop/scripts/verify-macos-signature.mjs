@@ -181,18 +181,14 @@ export function verifyMacOSDiskImage(diskImagePath, expected) {
 
 /**
  * Ad-hoc sign a local, unsigned-mode macOS application so its Mach-O files can execute on Apple Silicon.
- * electron-builder already applies its own ad-hoc fallback for an arm64 target with no identity, so this
- * only re-signs when that fallback is absent (for example, on an Intel target); it always re-verifies.
+ * Always re-signs unconditionally, deep, without hardened runtime: an ad-hoc identity carries no Team ID,
+ * so hardened runtime's library validation would reject any cross-file `dlopen` between ad-hoc-signed
+ * code (for example a bundled native Node addon loading another) even though every file is validly signed.
+ * This does not rely on electron-builder's own arm64 ad-hoc fallback, which may apply hardened runtime.
  * @param {string} appPath - Path to the packaged `.app` directory.
  * @returns {Promise<void>} Resolves once `codesign --verify --deep --strict` passes.
  */
 export async function adHocSignMacOSApplication(appPath) {
-  try {
-    runCodeSign(['--verify', '--deep', '--strict', '--verbose=2', appPath])
-    return
-  } catch {
-    // No usable signature yet (electron-builder's own ad-hoc fallback did not cover this target); sign it here.
-  }
   await runAppleCommandAsync('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', appPath], 'codesign')
   runCodeSign(['--verify', '--deep', '--strict', '--verbose=2', appPath])
 }
@@ -200,6 +196,10 @@ export async function adHocSignMacOSApplication(appPath) {
 /**
  * Ad-hoc sign one runtime Mach-O file without a keychain-owned identity, for local unsigned-mode builds.
  * Uses `--timestamp=none`: a secure timestamp requires reaching Apple and is only meaningful for notarization.
+ * Omits hardened runtime: an ad-hoc identity carries no Team ID, so hardened runtime's library validation
+ * would reject a `dlopen` between two ad-hoc-signed files (for example Python loading a compiled extension)
+ * even though both are validly signed; entitlements are accepted for signature-shape symmetry with
+ * {@link signMacOSRuntimeCode} but have no effect without hardened runtime.
  * @param {string} path - Writable standalone Mach-O file.
  * @param {string} identifier - Stable code-signing identifier derived from the release app ID and CAS digest.
  * @param {string | undefined} entitlements - Optional entitlement plist for this executable.
@@ -211,7 +211,6 @@ export async function signMacOSRuntimeCodeAdHoc(path, identifier, entitlements) 
     '--sign', '-',
     '--identifier', identifier,
     '--timestamp=none',
-    '--options', 'runtime',
     ...(entitlements === undefined ? [] : ['--entitlements', entitlements]),
     path,
   ], 'codesign')

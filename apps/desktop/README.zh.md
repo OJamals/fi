@@ -310,7 +310,7 @@ pnpm run package:desktop:win:x64:unsigned
 pnpm run package:desktop:mac:arm64:unsigned
 ```
 
-该命令使用源码拥有的 `com.fi.app` 标识，只要求填写 `apps/desktop/.env.macos` 中的 `DSH_DESKTOP_APP_ID` 和强制更新策略字段；不需要 Developer ID 证书、公证凭据或更新源地址。命令将 `fi.app`、一个 DMG 和一个 ZIP 写入 `.desktop-build/targets/mac-arm64/unsigned-artifacts/`，省略自动更新配置，且不生成发布完成记录。electron-builder 会为 arm64 目标解析出临时（ad-hoc）身份，使应用及其 Mach-O 文件可以在 Apple Silicon 上执行；运行时准备以与已签名构建相同的 entitlement 处理方式对每个内嵌 Mach-O 文件进行临时签名，打包随后再次对组装完成的应用进行临时签名，并使用 `codesign --verify --deep --strict` 而非发布身份进行验证。`mac-x64` 同样接受 `--unsigned`（`pnpm --dir apps/desktop run package:mac:x64 --unsigned`），可在 Intel macOS 或带 Rosetta 的 Apple Silicon 上运行。签名打包、上传和手动签名检查命令仍遵循正式发布要求。
+该命令使用源码拥有的 `com.fi.app` 标识，只要求填写 `apps/desktop/.env.macos` 中的 `DSH_DESKTOP_APP_ID` 和强制更新策略字段；不需要 Developer ID 证书、公证凭据或更新源地址。命令将 `fi.app`、一个 DMG 和一个 ZIP 写入 `.desktop-build/targets/mac-arm64/unsigned-artifacts/`，省略自动更新配置，且不生成发布完成记录。运行时准备对每个内嵌 Mach-O 文件进行临时（ad-hoc）签名（`codesign -s -`），打包随后再次对组装完成的应用进行临时签名，并使用 `codesign --verify --deep --strict` 而非发布身份验证结果。未签名构建还会关闭 hardened runtime：临时身份没有 Team ID，若开启 hardened runtime，其库校验会拒绝一个内置解释器或 Node 原生模块在运行时加载另一个临时签名文件，即便两者签名都有效。`mac-x64` 同样接受 `--unsigned`（`pnpm --dir apps/desktop run package:mac:x64 --unsigned`），可在 Intel macOS 或带 Rosetta 的 Apple Silicon 上运行。签名打包、上传和手动签名检查命令仍遵循正式发布要求。
 
 ### Windows 安装界面
 
