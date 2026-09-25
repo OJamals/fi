@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
+import { credentialRef } from '@deepseek-ai/dsh-credentials'
+import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
 import WebRuntime from '@deepseek-ai/dsh-web'
 import {
   PerplexitySearchProvider,
@@ -7,6 +12,12 @@ import {
 } from '@deepseek-ai/dsh-web-search-perplexity'
 import * as perplexityPlugin from '@deepseek-ai/dsh-web-search-perplexity'
 import { mapPerplexityResponse } from '../src/provider.ts'
+
+/** Construct the provider over a fixed options value; production passes a live thunk. */
+import type { PerplexitySearchProviderOptions } from '@deepseek-ai/dsh-web-search-perplexity'
+
+const searchProvider = (options: PerplexitySearchProviderOptions): PerplexitySearchProvider =>
+  new PerplexitySearchProvider(() => options)
 
 const options = { apiKey: 'pplx-key', baseURL: 'https://api.perplexity.test', model: 'sonar', maxTokens: 1024 }
 
@@ -66,20 +77,20 @@ describe('Perplexity response mapping', () => {
 
 describe('PerplexitySearchProvider availability', () => {
   it('is unavailable without a key', () => {
-    expect(new PerplexitySearchProvider({ ...options, apiKey: '' }).available()).toBe(false)
+    expect(searchProvider({ ...options, apiKey: '' }).available()).toBe(false)
   })
 
   it('is available with a key', () => {
-    expect(new PerplexitySearchProvider(options).available()).toBe(true)
+    expect(searchProvider(options).available()).toBe(true)
   })
 
   it('is misconfigured when the base URL is unparseable', () => {
-    expect(new PerplexitySearchProvider({ ...options, baseURL: 'not a url' }).available()).toBe(false)
+    expect(searchProvider({ ...options, baseURL: 'not a url' }).available()).toBe(false)
   })
 
   it('is misconfigured when maxTokens is not a positive integer', () => {
-    expect(new PerplexitySearchProvider({ ...options, maxTokens: 0 }).available()).toBe(false)
-    expect(new PerplexitySearchProvider({ ...options, maxTokens: 1.5 }).available()).toBe(false)
+    expect(searchProvider({ ...options, maxTokens: 0 }).available()).toBe(false)
+    expect(searchProvider({ ...options, maxTokens: 1.5 }).available()).toBe(false)
   })
 })
 
@@ -87,7 +98,7 @@ describe('PerplexitySearchProvider request mapping', () => {
   it('sends a chat-completions request with the query, model and max_tokens', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({ choices: [{ message: { content: 'a' } }], citations: [] }))
     vi.stubGlobal('fetch', fetchMock)
-    await new PerplexitySearchProvider(options).search({ query: 'hello' })
+    await searchProvider(options).search({ query: 'hello' })
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
     expect(url).toBe('https://api.perplexity.test/chat/completions')
     expect(init).toMatchObject({ method: 'POST', redirect: 'error' })
@@ -98,10 +109,10 @@ describe('PerplexitySearchProvider request mapping', () => {
   it('sends search_recency_filter when configured, and omits it otherwise', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({ choices: [{ message: { content: 'a' } }], citations: [] }))
     vi.stubGlobal('fetch', fetchMock)
-    await new PerplexitySearchProvider({ ...options, searchRecency: 'week' }).search({ query: 'q' })
+    await searchProvider({ ...options, searchRecency: 'week' }).search({ query: 'q' })
     expect(JSON.parse((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body as string)).toMatchObject({ search_recency_filter: 'week' })
 
-    await new PerplexitySearchProvider(options).search({ query: 'q' })
+    await searchProvider(options).search({ query: 'q' })
     expect(JSON.parse((fetchMock.mock.calls[1] as unknown as [string, RequestInit])[1].body as string)).not.toHaveProperty('search_recency_filter')
   })
 
@@ -109,72 +120,179 @@ describe('PerplexitySearchProvider request mapping', () => {
     const fetchMock = vi.fn(async () => jsonResponse({ citations: [] }))
     vi.stubGlobal('fetch', fetchMock)
     const controller = new AbortController()
-    await new PerplexitySearchProvider(options).search({ query: 'q' }, controller.signal)
+    await searchProvider(options).search({ query: 'q' }, controller.signal)
     const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
     expect(init.signal).toBe(controller.signal)
   })
 })
 
+describe('PerplexitySearchProvider settings changes mid-search', () => {
+  it('serves one search from one section even when settings land during credential resolution', async () => {
+    // The section the search starts on, and the one a user commits while the
+    // credential is still resolving.
+    const before = { ...options, apiKey: '', baseURL: 'https://before.test', model: 'model-before' }
+    const after = { ...options, apiKey: '', baseURL: 'https://after.test', model: 'model-after' }
+    let current = before
+    let commitSettings = () => {}
+    const resolveApiKey = () => new Promise<string>((resolve) => {
+      commitSettings = () => { current = after; resolve('key-from-before') }
+    })
+    const fetchMock = vi.fn(async () => jsonResponse({ choices: [{ message: { content: 'a' } }], citations: [] }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const provider = new PerplexitySearchProvider(() => ({ ...current, resolveApiKey }))
+    const search = provider.search({ query: 'q' })
+    await vi.waitFor(() => { expect(typeof commitSettings).toBe('function') })
+    commitSettings()
+    await search
+
+    const [endpoint, init] = fetchMock.mock.calls[0] as unknown as [string, { headers: Record<string, string>; body: string }]
+    // The key resolved from `before` must never reach `after`'s origin.
+    expect(endpoint).toBe('https://before.test/chat/completions')
+    expect(init.headers['authorization']).toBe('Bearer key-from-before')
+    expect(JSON.parse(init.body)).toMatchObject({ model: 'model-before' })
+  })
+})
+
 describe('PerplexitySearchProvider error handling', () => {
+  it('does not start credential resolution or dispatch for a pre-aborted call', async () => {
+    const resolveApiKey = vi.fn(async () => 'late-key')
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const controller = new AbortController()
+    controller.abort(new Error('caller stopped'))
+    await expect(searchProvider({ ...options, apiKey: '', resolveApiKey }).search({ query: 'q' }, controller.signal))
+      .rejects.toThrow(expect.objectContaining({ code: 'WEB_ABORTED' }))
+    expect(resolveApiKey).not.toHaveBeenCalled()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('aborts while an uncooperative credential resolver remains pending', async () => {
+    const resolveApiKey = vi.fn(() => new Promise<string>(() => {}))
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const controller = new AbortController()
+    const search = searchProvider({ ...options, apiKey: '', resolveApiKey }).search({ query: 'q' }, controller.signal)
+    controller.abort(new Error('deadline'))
+    await expect(search).rejects.toThrow(expect.objectContaining({ code: 'WEB_ABORTED' }))
+    expect(resolveApiKey).toHaveBeenCalledOnce()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('resolves credentials under an active cancellation signal', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({ choices: [{ message: { content: 'a' } }], citations: [] }))
+    vi.stubGlobal('fetch', fetchMock)
+    const controller = new AbortController()
+    await expect(searchProvider({ ...options, apiKey: '', resolveApiKey: async () => 'resolved-key' })
+      .search({ query: 'q' }, controller.signal)).resolves.toMatchObject({ content: 'a' })
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect((init.headers as Record<string, string>)['authorization']).toBe('Bearer resolved-key')
+  })
+
+  it('maps a credential resolver rejection under an active signal to WEB_PROVIDER_ERROR', async () => {
+    const controller = new AbortController()
+    await expect(searchProvider({
+      ...options,
+      apiKey: '',
+      resolveApiKey: () => Promise.reject(new Error('credential backend failed')),
+    }).search({ query: 'q' }, controller.signal))
+      .rejects.toThrow(expect.objectContaining({
+        code: 'WEB_PROVIDER_ERROR',
+        message: 'Perplexity search credential resolution failed: Error: credential backend failed',
+      }))
+  })
+
+  it('uses the default credential reference when no resolver is configured', async () => {
+    await expect(searchProvider({ ...options, apiKey: '' }).search({ query: 'q' }))
+      .rejects.toThrow('Perplexity search has no API key for "PERPLEXITY_API_KEY"')
+  })
+
+  it('observes cancellation triggered synchronously by credential resolution', async () => {
+    const controller = new AbortController()
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(searchProvider({
+      ...options,
+      apiKey: '',
+      resolveApiKey: () => {
+        controller.abort(new Error('resolver cancelled caller'))
+        return Promise.resolve('unused-key')
+      },
+    }).search({ query: 'q' }, controller.signal))
+      .rejects.toThrow(expect.objectContaining({ code: 'WEB_ABORTED' }))
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('maps a custom abort reason to WEB_ABORTED', async () => {
+    const controller = new AbortController()
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) =>
+      await new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => { reject(new Error('custom abort reason')) }, { once: true })
+      })))
+    const search = searchProvider(options).search({ query: 'q' }, controller.signal)
+    controller.abort(new Error('timeout reason'))
+    await expect(search).rejects.toThrow(expect.objectContaining({ code: 'WEB_ABORTED' }))
+  })
+
   it('maps an HTTP error to WEB_PROVIDER_ERROR with the provider message', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ error: { message: 'rate limited' } }, { status: 429 })))
-    await expect(new PerplexitySearchProvider(options).search({ query: 'q' }))
+    await expect(searchProvider(options).search({ query: 'q' }))
       .rejects.toThrow(expect.objectContaining({ code: 'WEB_PROVIDER_ERROR', message: 'rate limited' }))
   })
 
   it('handles a string-form error body', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ error: 'bad request' }, { status: 400 })))
-    await expect(new PerplexitySearchProvider(options).search({ query: 'q' }))
+    await expect(searchProvider(options).search({ query: 'q' }))
       .rejects.toThrow(expect.objectContaining({ message: 'bad request' }))
   })
 
   it('maps a well-formed body of the wrong shape to WEB_PROVIDER_ERROR, not a raw TypeError', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ search_results: null }, { status: 200 })))
-    await expect(new PerplexitySearchProvider(options).search({ query: 'q' }))
+    await expect(searchProvider(options).search({ query: 'q' }))
       .rejects.toThrow(expect.objectContaining({ code: 'WEB_PROVIDER_ERROR' }))
   })
 
   it('keeps a status-line message when the error body is not JSON', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('upstream error', { status: 503 })))
-    await expect(new PerplexitySearchProvider(options).search({ query: 'q' }))
+    await expect(searchProvider(options).search({ query: 'q' }))
       .rejects.toThrow(expect.objectContaining({ message: 'Perplexity API error (HTTP 503)' }))
   })
 
   it('keeps the status-line message when the JSON error body carries no detail', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({}, { status: 500 })))
-    await expect(new PerplexitySearchProvider(options).search({ query: 'q' }))
+    await expect(searchProvider(options).search({ query: 'q' }))
       .rejects.toThrow(expect.objectContaining({ message: 'Perplexity API error (HTTP 500)' }))
   })
 
   it('maps an abort to WEB_ABORTED', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new DOMException('aborted', 'AbortError'))))
-    await expect(new PerplexitySearchProvider(options).search({ query: 'q' }))
+    await expect(searchProvider(options).search({ query: 'q' }))
       .rejects.toThrow(expect.objectContaining({ code: 'WEB_ABORTED' }))
   })
 
   it('maps an unparseable success body to WEB_PROVIDER_ERROR', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('not json', { status: 200 })))
-    await expect(new PerplexitySearchProvider(options).search({ query: 'q' }))
+    await expect(searchProvider(options).search({ query: 'q' }))
       .rejects.toThrow(expect.objectContaining({ code: 'WEB_PROVIDER_ERROR' }))
   })
 
   it('surfaces an abort during success-body parse as WEB_ABORTED, not provider error', async () => {
     const body = { json: () => Promise.reject(new DOMException('aborted', 'AbortError')), ok: true, status: 200 }
     vi.stubGlobal('fetch', vi.fn(async () => body as unknown as Response))
-    await expect(new PerplexitySearchProvider(options).search({ query: 'q' }))
+    await expect(searchProvider(options).search({ query: 'q' }))
       .rejects.toThrow(expect.objectContaining({ code: 'WEB_ABORTED' }))
   })
 
   it('surfaces an abort during error-body parse as WEB_ABORTED', async () => {
     const body = { json: () => Promise.reject(new DOMException('aborted', 'AbortError')), ok: false, status: 500 }
     vi.stubGlobal('fetch', vi.fn(async () => body as unknown as Response))
-    await expect(new PerplexitySearchProvider(options).search({ query: 'q' }))
+    await expect(searchProvider(options).search({ query: 'q' }))
       .rejects.toThrow(expect.objectContaining({ code: 'WEB_ABORTED' }))
   })
 
   it('maps a network failure to WEB_PROVIDER_ERROR', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('connection refused'))))
-    await expect(new PerplexitySearchProvider(options).search({ query: 'q' }))
+    await expect(searchProvider(options).search({ query: 'q' }))
       .rejects.toThrow(expect.objectContaining({ code: 'WEB_PROVIDER_ERROR' }))
   })
 })
@@ -227,17 +345,56 @@ describe('web-search-perplexity plugin registration', () => {
     }
   })
 
-  it('is unavailable when neither config nor env supplies a key', async () => {
+  it('reports an actionable credential error when neither config nor env supplies a key', async () => {
     const prev = process.env.PERPLEXITY_API_KEY
     delete process.env.PERPLEXITY_API_KEY
     try {
       const ctx = new Context()
       await ctx.plugin(WebRuntime, { searchProvider: PERPLEXITY_PROVIDER_ID })
       await ctx.plugin(perplexityPlugin, {})
-      await expect(ctx.web.search({ query: 'q' }))
-        .rejects.toThrow(expect.objectContaining({ code: 'WEB_PROVIDER_CONFIGURED_UNAVAILABLE' }))
+      let caught: unknown
+      try {
+        await ctx.web.search({ query: 'q' })
+      } catch (error: unknown) {
+        caught = error
+      }
+      expect(caught).toMatchObject({ code: 'WEB_PROVIDER_CREDENTIAL_MISSING' })
+      if (!(caught instanceof Error)) throw new Error('search did not throw an Error')
+      expect(caught.message).toMatch(/store it through the credentials service.*Models page/s)
     } finally {
       if (prev !== undefined) process.env.PERPLEXITY_API_KEY = prev
+    }
+  })
+
+  it('resolves the credential for each search so a stored or rotated key needs no restart', async () => {
+    const previous = process.env.PERPLEXITY_API_KEY
+    delete process.env.PERPLEXITY_API_KEY
+    const dir = await mkdtemp(join(tmpdir(), 'dsh-web-search-credentials-'))
+    const fetchMock = vi.fn(async () => jsonResponse({ choices: [{ message: { content: 'a' } }], citations: [] }))
+    vi.stubGlobal('fetch', fetchMock)
+    const ctx = new Context()
+    try {
+      await ctx.plugin(WebRuntime, { searchProvider: PERPLEXITY_PROVIDER_ID })
+      await ctx.plugin(LocalCredentialProvider, { path: join(dir, '.credentials.yaml'), watch: false })
+      await ctx.plugin(perplexityPlugin, { baseURL: 'https://api.perplexity.test' })
+
+      await expect(ctx.web.search({ query: 'missing' }))
+        .rejects.toThrow(expect.objectContaining({ code: 'WEB_PROVIDER_CREDENTIAL_MISSING' }))
+
+      const ref = credentialRef('PERPLEXITY_API_KEY')
+      await ctx.credentials.set(ref, 'stored-key')
+      await ctx.web.search({ query: 'stored' })
+      await ctx.credentials.set(ref, 'rotated-key')
+      await ctx.web.search({ query: 'rotated' })
+
+      const headers = (fetchMock.mock.calls as unknown as [string, RequestInit][])
+        .map(([, init]) => init.headers as Record<string, string>)
+      expect(headers.map(value => value['authorization'])).toEqual(['Bearer stored-key', 'Bearer rotated-key'])
+    } finally {
+      await ctx.fiber.dispose()
+      await rm(dir, { recursive: true, force: true })
+      if (previous === undefined) delete process.env.PERPLEXITY_API_KEY
+      else process.env.PERPLEXITY_API_KEY = previous
     }
   })
 })

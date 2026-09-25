@@ -34,7 +34,7 @@ async function observe(run: () => Promise<unknown>): Promise<string[]> {
 import { PerplexitySearchProvider } from '../src/provider.ts'
 describe('perplexity egress', () => {
   it('goes through the proxy', async () => {
-    const p = new PerplexitySearchProvider({ apiKey: 'probe', baseURL: 'http://ppx-probe.invalid', model: 'm', maxTokens: 16 })
+    const p = new PerplexitySearchProvider(() => ({ apiKey: 'probe', baseURL: 'http://ppx-probe.invalid', model: 'm', maxTokens: 16 }))
     expect(await observe(() => p.search({ query: 'probe' }))).toEqual(['REQ http://ppx-probe.invalid/chat/completions'])
   })
 })

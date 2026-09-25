@@ -1,5 +1,5 @@
 ---
-description: "The Exa-backed search provider for ctx.web: how deployments mount vendor-native web search with portable snippets and publication dates."
+description: "The Exa-backed search provider for ctx.web: how deployments mount vendor-native web search with portable snippets, publication dates, and per-search credential resolution."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-With `dsh-web-search-exa`, the harness searches the web through Exa and gets vendor-native results with portable snippets and publication dates. Choose it when a deployment has an Exa API key and wants Exa's keyword or neural search. Exa returns no generated answer, so results carry no `content` — only citeable sources. A result with no non-blank highlight is dropped, so a call can return fewer sources than requested. The model-facing `web_search` tool lives in `dsh-tool-web`.
+With `dsh-web-search-exa`, the harness searches the web through Exa and gets vendor-native results with portable snippets and publication dates. Choose it when a deployment wants Exa's keyword or neural search and an API key resolved fresh for each search, so a stored or rotated key needs no restart. Exa returns no generated answer, so results carry no `content` — only citeable sources. A result with no non-blank highlight is dropped, so a call can return fewer sources than requested. The model-facing `web_search` tool lives in `dsh-tool-web`.
 
 ## Table of Contents
 
@@ -29,28 +29,29 @@ Mount the provider in a composition that already loads the web service; it regis
 
 ### When to choose it
 
-Choose this backend when a deployment holds an Exa API key and wants Exa's keyword or neural search with per-result highlight snippets and publication dates. The provider is unavailable — and every search call fails with a structured error — when the key is empty or the endpoint base does not parse.
+Choose this backend when a deployment wants Exa's keyword or neural search with per-result highlight snippets and publication dates. The API key resolves through `ctx.credentials` when that service is mounted, otherwise from the process environment, so a key stored or rotated through the Models page takes effect on the next search without a restart. The provider is unavailable — and every search call fails with a structured error — when no key resolves or the endpoint base does not parse.
 
 ### Minimal configuration
 
-Load the web service and the provider; the API key falls back to `$EXA_API_KEY` from the launch environment, and all other settings have safe defaults.
+Load the web service and the provider; the key resolves from `ctx.credentials` when that service is mounted, otherwise from `$EXA_API_KEY` in the launch environment, and all other settings have safe defaults.
 
 ```yaml
 - name: '@deepseek-ai/dsh-web'
 - name: '@deepseek-ai/dsh-web-search-exa'
   config:
-    apiKey: !!js process.env.EXA_API_KEY
+    apiKeyEnv: EXA_API_KEY
 ```
 
 | Field | Default | Meaning |
 |---|---|---|
-| `apiKey` | `$EXA_API_KEY` | Exa API key; empty or absent makes the provider unavailable |
+| `apiKey` | omitted | Literal Exa API key; prefer `apiKeyEnv` so no secret enters configuration. A non-empty literal wins |
+| `apiKeyEnv` | `EXA_API_KEY` | Credential reference resolved for each search through `ctx.credentials`, or from the process environment when that service is absent. A missing value fails the call as `WEB_PROVIDER_CREDENTIAL_MISSING` |
 | `baseURL` | `https://api.exa.ai` | Endpoint base; `/search` is appended. An unparseable value makes the provider unavailable |
 | `searchType` | `auto` | Retrieval mode sent as Exa's `type`: `auto`, `keyword`, or `neural` |
 | `numResults` | (unset) | Default result count when a request carries no `maxResults`; must be a positive integer |
 | `highlightsPerResult` | `1` | Highlight sentences requested per result (Exa's `highlightsPerUrl`); must be a positive integer |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-web-search-exa) is the exhaustive source for every accepted field and its JSDoc.
+The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-web-search-exa) is the exhaustive source for every accepted field and its JSDoc. Each search captures options from the live Config references.
 
 ### What a search returns
 
@@ -58,7 +59,7 @@ Each Exa result maps to a `WebSearchSource`: `url`, `title`, the first non-blank
 
 ### Failures and recovery
 
-Provider failures — HTTP errors, network failures, unparseable or wrong-shape bodies — surface as `WebError` `WEB_PROVIDER_ERROR`; an aborted request surfaces as `WEB_ABORTED`. HTTP redirects are rejected before the `Location` target is contacted and surface as `WEB_PROVIDER_ERROR`. Callers route on the code; the model-facing `web_search` tool surfaces failures to the model under its own error wrapper.
+Failures throw `WebError` with a machine-routable code: a missing credential is `WEB_PROVIDER_CREDENTIAL_MISSING`, caller cancellation is `WEB_ABORTED`, and provider or transport failures — HTTP errors, network failures, unparseable or wrong-shape bodies — are `WEB_PROVIDER_ERROR`. HTTP redirects are rejected before the `Location` target is contacted. Callers route on the code; the model-facing `web_search` tool surfaces failures to the model under its own error wrapper.
 
 -----
 

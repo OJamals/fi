@@ -1,5 +1,5 @@
 ---
-description: "ctx.web 的 Exa 搜索提供方：部署方如何挂载厂商原生 web 搜索，获得可移植 snippet 与发布日期。"
+description: "ctx.web 的 Exa 搜索提供方：部署方如何挂载厂商原生 web 搜索，获得可移植 snippet、发布日期，以及逐次解析凭据。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-有了 `dsh-web-search-exa`，harness 可以通过 Exa 搜索 web，获得带可移植 snippet 与发布日期的厂商原生结果。当部署持有 Exa API 密钥、并希望使用 Exa 的关键词或神经搜索时选择它。Exa 不返回生成答案，因此结果不携带 `content`——只产出可引用的来源。没有非空白高亮的来源会被丢弃，因此一次调用返回的来源可能少于请求数量。面向模型的 `web_search` 工具位于 `dsh-tool-web`。
+有了 `dsh-web-search-exa`，harness 可以通过 Exa 搜索 web，获得带可移植 snippet 与发布日期的厂商原生结果。当部署希望使用 Exa 的关键词或神经搜索、且 API 密钥为每次搜索都重新解析（存储或轮换密钥无需重启）时选择它。Exa 不返回生成答案，因此结果不携带 `content`——只产出可引用的来源。没有非空白高亮的来源会被丢弃，因此一次调用返回的来源可能少于请求数量。面向模型的 `web_search` 工具位于 `dsh-tool-web`。
 
 ## 目录
 
@@ -29,28 +29,29 @@ kind: "package-reference"
 
 ### 何时选择
 
-当部署持有 Exa API 密钥，并希望使用 Exa 的关键词或神经搜索、获得每项结果的高亮 snippet 与发布日期时，选择此后端。密钥为空或端点基址无法解析时，提供方不可用——每次搜索调用都会以结构化错误失败。
+当部署希望使用 Exa 的关键词或神经搜索、获得每项结果的高亮 snippet 与发布日期时，选择此后端。API 密钥在已挂载 `ctx.credentials` 服务时从其解析，否则从进程环境解析，因此通过 Models 页面存储或轮换的密钥在下一次搜索时即生效，无需重启。没有密钥可解析或端点基址无法解析时，提供方不可用——每次搜索调用都会以结构化错误失败。
 
 ### 最小配置
 
-加载 web 服务与本提供方；API 密钥回退到启动环境中的 `$EXA_API_KEY`，其余设置都有安全默认值。
+加载 web 服务与本提供方；密钥在已挂载 `ctx.credentials` 服务时从其解析，否则从启动环境中的 `$EXA_API_KEY` 解析，其余设置都有安全默认值。
 
 ```yaml
 - name: '@deepseek-ai/dsh-web'
 - name: '@deepseek-ai/dsh-web-search-exa'
   config:
-    apiKey: !!js process.env.EXA_API_KEY
+    apiKeyEnv: EXA_API_KEY
 ```
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `apiKey` | `$EXA_API_KEY` | Exa API 密钥；为空或缺失时提供方不可用 |
+| `apiKey` | 未设置 | Exa API 密钥字面值；优先使用 `apiKeyEnv`，避免密钥进入配置。非空字面值优先 |
+| `apiKeyEnv` | `EXA_API_KEY` | 每次搜索通过 `ctx.credentials` 解析的凭据引用；没有该服务时从进程环境解析。值缺失时调用以 `WEB_PROVIDER_CREDENTIAL_MISSING` 失败 |
 | `baseURL` | `https://api.exa.ai` | 端点基址；追加 `/search`。无法解析时提供方不可用 |
 | `searchType` | `auto` | 以 Exa `type` 发送的检索模式：`auto`、`keyword` 或 `neural` |
 | `numResults` | （未设置） | 请求不含 `maxResults` 时使用的默认结果数；必须是正整数 |
 | `highlightsPerResult` | `1` | 每个结果请求的 highlight 句子数（Exa `highlightsPerUrl`）；必须是正整数 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-web-search-exa)是每个受支持字段及其 JSDoc 的穷尽式真源。
+生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-web-search-exa)是每个受支持字段及其 JSDoc 的穷尽式真源。每次搜索都会从当前 Config 引用中获取选项。
 
 ### 搜索返回什么
 
@@ -58,7 +59,7 @@ kind: "package-reference"
 
 ### 失败与恢复
 
-提供方失败——HTTP 错误、网络失败、响应体无法解析或结构不符——以 `WebError` `WEB_PROVIDER_ERROR` 呈现；中止请求以 `WEB_ABORTED` 呈现。HTTP 重定向会在访问 `Location` 指向的目标之前被拒绝，并以 `WEB_PROVIDER_ERROR` 呈现。调用方根据错误码进行分流；面向模型的 `web_search` 工具会在自己的错误包装层内把失败呈现给模型。
+失败抛出携带可按机器路由 code 的 `WebError`：凭据缺失为 `WEB_PROVIDER_CREDENTIAL_MISSING`，调用方取消为 `WEB_ABORTED`，提供方或传输失败——HTTP 错误、网络失败、响应体无法解析或结构不符——为 `WEB_PROVIDER_ERROR`。HTTP 重定向会在访问 `Location` 指向的目标之前被拒绝。调用方根据错误码进行分流；面向模型的 `web_search` 工具会在自己的错误包装层内把失败呈现给模型。
 
 -----
 

@@ -153,20 +153,24 @@ export async function resolveSelectedProvider(
     }
     case EXA_PROVIDER_ID: {
       const baseURL = requireHttpsEndpoint('Exa', config.exaBaseURL ?? EXA_DEFAULT_BASE_URL)
-      return new ExaSearchProvider({
+      const options = {
         apiKey: await resolveCredential(ctx, config.exaApiKeyEnv ?? EXA_API_KEY_ENV, signal),
         baseURL,
         searchType: config.exaSearchType ?? EXA_DEFAULT_SEARCH_TYPE,
         highlightsPerResult: config.exaHighlightsPerResult ?? EXA_DEFAULT_HIGHLIGHTS_PER_RESULT,
         ...config.exaNumResults === undefined ? {} : { numResults: config.exaNumResults },
-      })
+      }
+      // This router already resolves the credential fresh for every operation
+      // (this function's own doc comment) and rebuilds the provider around it,
+      // so the constructor's thunk is never invoked more than once here.
+      return new ExaSearchProvider(() => options)
     }
     case PERPLEXITY_PROVIDER_ID: {
       const baseURL = requireHttpsEndpoint(
         'Perplexity',
         config.perplexityBaseURL ?? PERPLEXITY_DEFAULT_BASE_URL,
       )
-      return new PerplexitySearchProvider({
+      const options = {
         apiKey: await resolveCredential(ctx, config.perplexityApiKeyEnv ?? PERPLEXITY_API_KEY_ENV, signal),
         baseURL,
         model: config.perplexityModel ?? PERPLEXITY_DEFAULT_MODEL,
@@ -174,7 +178,11 @@ export async function resolveSelectedProvider(
         ...config.perplexitySearchRecency === undefined
           ? {}
           : { searchRecency: config.perplexitySearchRecency },
-      })
+      }
+      // This router already resolves the credential fresh for every operation
+      // (this function's own doc comment) and rebuilds the provider around it,
+      // so the constructor's thunk is never invoked more than once here.
+      return new PerplexitySearchProvider(() => options)
     }
     case 'parallel': {
       const baseURL = requireHttpsEndpoint('Parallel', config.parallelBaseURL ?? PARALLEL_DEFAULT_BASE_URL)

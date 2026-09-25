@@ -3,14 +3,14 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/web/web-search-exa/README.md
 /:
-  en: 4b8ba0a939fdf9d4
-  zh: 8b8ddab7cef0f022
+  en: bf88fe959eaf1dd3
+  zh: d80edd61373b66ee
 /deepseek-ai-dsh-web-search-exa:
   en: 1e59112a8781b6f5
   zh: 858672d6f86534b5
 /deepseek-ai-dsh-web-search-exa/summary:
-  en: 0cd54ea674cbf9ff
-  zh: 62214ad882ff0e44
+  en: c089d61d578c3b9e
+  zh: 0f92864808f6a211
 /deepseek-ai-dsh-web-search-exa/table-of-contents:
   en: d152484eb41ac6b4
   zh: 09388d293f9be9cb
@@ -18,17 +18,17 @@
   en: 44ecd69ae3a9e8d3
   zh: b5f26aa1580f90fc
 /deepseek-ai-dsh-web-search-exa/use-this-package/when-to-choose-it:
-  en: d33f61122c271792
-  zh: e097094e69b3f425
+  en: 37f3a71686fee42f
+  zh: 1b528798acc292e7
 /deepseek-ai-dsh-web-search-exa/use-this-package/minimal-configuration:
-  en: a90f952a3cb9a155
-  zh: 27c8402fb6f85be2
+  en: c7ff118f430af17b
+  zh: 8e082939fba0d742
 /deepseek-ai-dsh-web-search-exa/use-this-package/what-a-search-returns:
   en: 72c9eb8a1563bfd6
   zh: 26f7069376a74090
 /deepseek-ai-dsh-web-search-exa/use-this-package/failures-and-recovery:
-  en: 5740595fa2cebf20
-  zh: 7316e46e09d8ad9f
+  en: a40c0d630ccb81b9
+  zh: 0bd3dd6bb7c4cda6
 /deepseek-ai-dsh-web-search-exa/understand-the-implementation:
   en: 9842c69ad3636bb3
   zh: 3cdc3f816cbdd0cb

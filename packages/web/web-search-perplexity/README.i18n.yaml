@@ -3,14 +3,14 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/web/web-search-perplexity/README.md
 /:
-  en: 526b58d952111706
-  zh: 463049f0091c6fa3
+  en: fd1b5e664807a46e
+  zh: 8f7bc3c019e64bd5
 /deepseek-ai-dsh-web-search-perplexity:
   en: 81fab27010167b07
   zh: 673d38ae33bd95c0
 /deepseek-ai-dsh-web-search-perplexity/summary:
-  en: 355bf2550d1655df
-  zh: c659fa3e25a02d91
+  en: 6a22f46a021acfae
+  zh: 0a0a6f3c12c148e7
 /deepseek-ai-dsh-web-search-perplexity/table-of-contents:
   en: d152484eb41ac6b4
   zh: 09388d293f9be9cb
@@ -18,17 +18,17 @@
   en: 1b854e582c65f3b4
   zh: 0e5dd9657ac6a721
 /deepseek-ai-dsh-web-search-perplexity/use-this-package/when-to-choose-it:
-  en: 194e1c83cf5a3281
-  zh: c262d5dd92b62ea7
+  en: fc7f39246ba2b2b8
+  zh: f98b475737d9f7b8
 /deepseek-ai-dsh-web-search-perplexity/use-this-package/minimal-configuration:
-  en: c253774c9d932f39
-  zh: 08f693d10dcd54ed
+  en: 74ce1db80e92dd14
+  zh: 453d1262a28dab8a
 /deepseek-ai-dsh-web-search-perplexity/use-this-package/what-a-search-returns:
   en: 99d01f74dcf5aed9
   zh: 3c7bdaa3bd35847f
 /deepseek-ai-dsh-web-search-perplexity/use-this-package/failures-and-recovery:
-  en: 5740595fa2cebf20
-  zh: d99555411a131d2f
+  en: a40c0d630ccb81b9
+  zh: 88cb7d9295a6bb1b
 /deepseek-ai-dsh-web-search-perplexity/understand-the-implementation:
   en: 9842c69ad3636bb3
   zh: 3cdc3f816cbdd0cb

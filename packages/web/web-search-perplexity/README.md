@@ -1,5 +1,5 @@
 ---
-description: "The Perplexity-backed search provider for ctx.web: how deployments mount OpenAI-compatible Perplexity search with generated answers and citations."
+description: "The Perplexity-backed search provider for ctx.web: how deployments mount OpenAI-compatible Perplexity search with generated answers, citations, and per-search credential resolution."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-With `dsh-web-search-perplexity`, the harness searches the web through Perplexity and gets a model-generated answer plus citeable sources in one call. Choose it when a deployment has a Perplexity API key and wants a generated answer. Perplexity has no result-count control, so the returned sources are truncated to the requested bound after the fact. When Perplexity omits structured result metadata, sources fall back to URL-only citations. The model-facing `web_search` tool lives in `dsh-tool-web`.
+With `dsh-web-search-perplexity`, the harness searches the web through Perplexity and gets a model-generated answer plus citeable sources in one call. Choose it when a deployment wants a generated answer and an API key resolved fresh for each search, so a stored or rotated key needs no restart. Perplexity has no result-count control, so the returned sources are truncated to the requested bound after the fact. When Perplexity omits structured result metadata, sources fall back to URL-only citations. The model-facing `web_search` tool lives in `dsh-tool-web`.
 
 ## Table of Contents
 
@@ -29,28 +29,29 @@ Mount the provider in a composition that already loads the web service; it regis
 
 ### When to choose it
 
-Choose this backend when a deployment holds a Perplexity API key and wants a model-generated answer plus citeable sources in one search. The provider is unavailable — and every search call fails with a structured error — when the key is empty or the endpoint base does not parse.
+Choose this backend when a deployment wants a model-generated answer plus citeable sources in one search. The API key resolves through `ctx.credentials` when that service is mounted, otherwise from the process environment, so a key stored or rotated through the Models page takes effect on the next search without a restart. The provider is unavailable — and every search call fails with a structured error — when no key resolves or the endpoint base does not parse.
 
 ### Minimal configuration
 
-Load the web service and the provider; the API key falls back to `$PERPLEXITY_API_KEY` from the launch environment, and all other settings have safe defaults.
+Load the web service and the provider; the key resolves from `ctx.credentials` when that service is mounted, otherwise from `$PERPLEXITY_API_KEY` in the launch environment, and all other settings have safe defaults.
 
 ```yaml
 - name: '@deepseek-ai/dsh-web'
 - name: '@deepseek-ai/dsh-web-search-perplexity'
   config:
-    apiKey: !!js process.env.PERPLEXITY_API_KEY
+    apiKeyEnv: PERPLEXITY_API_KEY
 ```
 
 | Field | Default | Meaning |
 |---|---|---|
-| `apiKey` | `$PERPLEXITY_API_KEY` | Perplexity API key; empty or absent makes the provider unavailable |
+| `apiKey` | omitted | Literal Perplexity API key; prefer `apiKeyEnv` so no secret enters configuration. A non-empty literal wins |
+| `apiKeyEnv` | `PERPLEXITY_API_KEY` | Credential reference resolved for each search through `ctx.credentials`, or from the process environment when that service is absent. A missing value fails the call as `WEB_PROVIDER_CREDENTIAL_MISSING` |
 | `baseURL` | `https://api.perplexity.ai` | Endpoint base; `/chat/completions` is appended. An unparseable value makes the provider unavailable |
 | `model` | `sonar` | Search model name |
 | `maxTokens` | `1024` | Upper bound on generated answer tokens (`max_tokens`); must be a positive integer |
 | `searchRecency` | (unset) | Recency window sent as `search_recency_filter`: `day`, `week`, `month`, or `year`. Unset sends no filter |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-web-search-perplexity) is the exhaustive source for every accepted field and its JSDoc.
+The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-web-search-perplexity) is the exhaustive source for every accepted field and its JSDoc. Each search captures options from the live Config references.
 
 ### What a search returns
 
@@ -58,7 +59,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 ### Failures and recovery
 
-Provider failures — HTTP errors, network failures, unparseable or wrong-shape bodies — surface as `WebError` `WEB_PROVIDER_ERROR`; an aborted request surfaces as `WEB_ABORTED`. HTTP redirects are rejected before the `Location` target is contacted and surface as `WEB_PROVIDER_ERROR`. Callers route on the code; the model-facing `web_search` tool surfaces failures to the model under its own error wrapper.
+Failures throw `WebError` with a machine-routable code: a missing credential is `WEB_PROVIDER_CREDENTIAL_MISSING`, caller cancellation is `WEB_ABORTED`, and provider or transport failures — HTTP errors, network failures, unparseable or wrong-shape bodies — are `WEB_PROVIDER_ERROR`. HTTP redirects are rejected before the `Location` target is contacted. Callers route on the code; the model-facing `web_search` tool surfaces failures to the model under its own error wrapper.
 
 -----
 
