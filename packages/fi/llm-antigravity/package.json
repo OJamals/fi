@@ -38,6 +38,7 @@
     "@deepseek-ai/dsh-authorization": "workspace:*",
     "@deepseek-ai/dsh-attachment": "workspace:*",
     "@deepseek-ai/dsh-credentials": "workspace:*",
+    "@deepseek-ai/dsh-launch-environment": "workspace:*",
     "@deepseek-ai/dsh-llm": "workspace:*",
     "@deepseek-ai/dsh-settings": "workspace:*",
     "@deepseek-ai/cordis-plugin-loader": "workspace:~"
@@ -54,6 +55,7 @@
     "@deepseek-ai/dsh-attachment-local": "workspace:*",
     "@deepseek-ai/dsh-credentials": "workspace:*",
     "@deepseek-ai/dsh-credentials-local": "workspace:*",
+    "@deepseek-ai/dsh-launch-environment": "workspace:*",
     "@deepseek-ai/dsh-llm": "workspace:*",
     "@deepseek-ai/dsh-settings": "workspace:*",
     "@types/node": "^22.20.0",

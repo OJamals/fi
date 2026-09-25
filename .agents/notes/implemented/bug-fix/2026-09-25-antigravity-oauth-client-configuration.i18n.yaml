@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-09-25-antigravity-oauth-client-configuration.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-25-antigravity-oauth-client-configuration.md
+/agent-note-antigravity-oauth-client-id-and-secret-move-to-the-credentials-seam:
+  en: d562286f087aa485
+  zh: cdb21fe65d901506
+/agent-note-antigravity-oauth-client-id-and-secret-move-to-the-credentials-seam/problem:
+  en: 41a239b514dc269c
+  zh: 4a97e7cd3092a775
+/agent-note-antigravity-oauth-client-id-and-secret-move-to-the-credentials-seam/decision:
+  en: 21c9835d2d211d17
+  zh: b245af012f95b6d9
+/agent-note-antigravity-oauth-client-id-and-secret-move-to-the-credentials-seam/alternatives-considered:
+  en: 62119491652ef24d
+  zh: 09eb32042d659f59
+/agent-note-antigravity-oauth-client-id-and-secret-move-to-the-credentials-seam/testing:
+  en: d776db35a58b2d18
+  zh: 3f45e408007469e4
+/agent-note-antigravity-oauth-client-id-and-secret-move-to-the-credentials-seam/consequences:
+  en: 940585fbd2ea8e16
+  zh: fe990473bf27935e

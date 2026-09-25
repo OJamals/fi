@@ -404,12 +404,33 @@ async function main(): Promise<void> {
     navigation = next
     return next.promise
   }
+  // Antigravity's Google OAuth client id/secret are packaged only when the
+  // release build set them (electron-builder.config.mjs's extraMetadata);
+  // an environment the person running fi already set takes precedence, so
+  // an unpackaged (unsigned/dev) build or a person's own configuration is
+  // never overridden. Unset at build, both stay absent and the packaged app
+  // behaves exactly like the source CLI: signed out until configured.
+  const packagedAntigravityOAuthEnv: Record<string, string> = {}
+  if (app.isPackaged) {
+    const manifest: unknown = JSON.parse(await readFile(join(app.getAppPath(), 'package.json'), 'utf8'))
+    if (typeof manifest === 'object' && manifest !== null) {
+      const record = manifest as Record<string, unknown>
+      if (process.env.ANTIGRAVITY_OAUTH_CLIENT_ID === undefined && typeof record.dshAntigravityOAuthClientId === 'string'
+        && record.dshAntigravityOAuthClientId.length > 0) {
+        packagedAntigravityOAuthEnv.ANTIGRAVITY_OAUTH_CLIENT_ID = record.dshAntigravityOAuthClientId
+      }
+      if (process.env.ANTIGRAVITY_OAUTH_CLIENT_SECRET === undefined && typeof record.dshAntigravityOAuthClientSecret === 'string'
+        && record.dshAntigravityOAuthClientSecret.length > 0) {
+        packagedAntigravityOAuthEnv.ANTIGRAVITY_OAUTH_CLIENT_SECRET = record.dshAntigravityOAuthClientSecret
+      }
+    }
+  }
   const platformView = new DesktopPlatformView(join(app.getAppPath(), 'lib', 'preload-platform-account.cjs'),
     () => locale.id === 'zh-CN' ? 'zh_CN' : 'en_US', process.platform === 'win32' ? 'win32' : 'darwin')
   const backend = new DesktopBackendController((onFailure) => {
     const hostInspectPort = developmentHostInspectPort(development)
     const host = new DesktopHostProcess(resources.node, resources.dsh, activeProject,
-      hostInspectPort, { ...process.env, DSH_HOME: dshHome }, onFailure,
+      hostInspectPort, { ...process.env, ...packagedAntigravityOAuthEnv, DSH_HOME: dshHome }, onFailure,
       primaryRuntime,
       resources, (next) => { platformView.setSession(next) })
     return {

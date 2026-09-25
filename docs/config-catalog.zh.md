@@ -4279,13 +4279,17 @@ export interface Config {
 
 - `inject`: `authorization` · `credentials` · `llm`
 - `refs`: `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/fi/llm-antigravity/src/index.ts:138`](../packages/fi/llm-antigravity/src/index.ts)
+- `source`: [`packages/fi/llm-antigravity/src/index.ts:210`](../packages/fi/llm-antigravity/src/index.ts)
 
 ```ts config-catalog
 /** The plugin Config: profiles keyed by route id, edited live through the profile-backed settings form. */
 export interface FiAntigravityConfig {
   /** Antigravity routes keyed by route id; each route serves through the signed-in Google grant. */
   providers: Volatile<Record<string, FiAntigravityProfile>>
+  /** Credential reference resolved per sign-in/refresh for the Google OAuth client id. */
+  oauthClientIdRef: Volatile<string>
+  /** Credential reference resolved per sign-in/refresh for the Google OAuth client secret. */
+  oauthClientSecretRef: Volatile<string>
 }
 
 /**

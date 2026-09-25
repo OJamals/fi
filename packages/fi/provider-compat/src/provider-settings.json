@@ -39,7 +39,6 @@
       "authorizeUrl": "https://accounts.google.com/o/oauth2/v2/auth",
       "tokenUrl": "https://oauth2.googleapis.com/token",
       "redirectUri": "http://127.0.0.1:54545/callback",
-      "clientId": "REDACTED-ANTIGRAVITY-OAUTH-CLIENT-ID",
       "scopes": [
         "https://www.googleapis.com/auth/cloud-platform",
         "https://www.googleapis.com/auth/userinfo.email",

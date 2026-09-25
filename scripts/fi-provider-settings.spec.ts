@@ -84,6 +84,26 @@ describe('FI provider-settings synchronization', () => {
     })).toThrow('credential material')
   })
 
+  it('projects Antigravity CLI oauth.clientId out while keeping other providers\' clientId', () => {
+    const settings = {
+      ...completeSettings(),
+      antigravityCli: {
+        version: '1.0.0',
+        fingerprintCapturedVersion: '1.0.0',
+        oauth: { authorizeUrl: 'https://accounts.google.test/auth', clientId: '123-fake.apps.example.test', scopes: ['openid'] },
+      },
+      codexCli: { version: '1.0.0', oauth: { scopes: ['openid'], clientId: 'app_kept' } },
+    }
+    const validated = validateProviderSettings(settings)
+    const antigravityCli = validated.antigravityCli as { oauth: Record<string, unknown> }
+    const codexCli = validated.codexCli as { oauth: Record<string, unknown> }
+    expect(antigravityCli.oauth).toMatchObject({ authorizeUrl: 'https://accounts.google.test/auth', scopes: ['openid'] })
+    expect(antigravityCli.oauth).not.toHaveProperty('clientId')
+    expect(codexCli.oauth).toMatchObject({ clientId: 'app_kept' })
+    // Idempotent: an already-stripped snapshot round-trips unchanged.
+    expect(JSON.parse(serializeProviderSettings(validated))).toEqual(validated)
+  })
+
   it('checks without writing and then atomically synchronizes', async () => {
     const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'fi-provider-settings-'))
     temporaryDirectories.push(directory)

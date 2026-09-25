@@ -30,7 +30,22 @@ export function createElectronBuilderConfig(
     productName: 'fi',
     executableName: 'fi',
     protocols: base.protocols.map(protocol => ({ ...protocol, name: 'fi' })),
-    extraMetadata: { ...base.extraMetadata, name: 'fi' },
+    extraMetadata: {
+      ...base.extraMetadata,
+      name: 'fi',
+      // Antigravity's Google OAuth client is never a repository literal (see
+      // @fi/llm-antigravity's README): when the packaging environment supplies
+      // it, it rides into the packaged manifest here instead, and main.ts
+      // reads it back to seed the Host process environment. Unset at build,
+      // the packaged app behaves exactly like the source CLI: signed out
+      // until the person running it configures the two refs themselves.
+      ...env.ANTIGRAVITY_OAUTH_CLIENT_ID === undefined
+        ? {}
+        : { dshAntigravityOAuthClientId: env.ANTIGRAVITY_OAUTH_CLIENT_ID },
+      ...env.ANTIGRAVITY_OAUTH_CLIENT_SECRET === undefined
+        ? {}
+        : { dshAntigravityOAuthClientSecret: env.ANTIGRAVITY_OAUTH_CLIENT_SECRET },
+    },
     artifactName: base.artifactName.replace(/^deepseek-harness-/, 'fi-'),
     ...update?.publish?.provider === 'github'
       ? { publish: [{ ...update.publish, channel: desktopUpdateChannel(version) }] }

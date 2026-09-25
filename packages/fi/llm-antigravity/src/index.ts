@@ -28,8 +28,9 @@ import type {} from '@deepseek-ai/dsh-attachment'
 import type {} from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-settings'
 import type {} from '@deepseek-ai/cordis-plugin-loader'
-import { credentialKey } from '@deepseek-ai/dsh-credentials'
-import type { CredentialRecord } from '@deepseek-ai/dsh-credentials'
+import { credentialKey, credentialRef } from '@deepseek-ai/dsh-credentials'
+import type { CredentialRecord, CredentialRef } from '@deepseek-ai/dsh-credentials'
+import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import type { AdapterRegistrationHandle } from '@deepseek-ai/dsh-llm'
 import z from '@deepseek-ai/schemastery'
 
@@ -38,6 +39,8 @@ import {
   ANTIGRAVITY_CREDENTIAL_KEY,
   ANTIGRAVITY_CREDENTIAL_SCOPE,
   ANTIGRAVITY_FLOW_LABEL,
+  ANTIGRAVITY_OAUTH_CLIENT_ID_REF,
+  ANTIGRAVITY_OAUTH_CLIENT_SECRET_REF,
   ANTIGRAVITY_PROVIDER_ID,
 } from './auth/compat.ts'
 import {
@@ -48,7 +51,7 @@ import {
   refreshAntigravityTokens,
   waitForAntigravityCallback,
 } from './auth/oauth.ts'
-import type { AntigravityTokenData } from './auth/oauth.ts'
+import type { AntigravityOAuthClient, AntigravityTokenData } from './auth/oauth.ts'
 import { AntigravityAdapter } from './adapter.ts'
 import type { AntigravityGrant } from './adapter.ts'
 
@@ -57,13 +60,75 @@ export {
   ANTIGRAVITY_CREDENTIAL_KEY,
   ANTIGRAVITY_CREDENTIAL_SCOPE,
   ANTIGRAVITY_FLOW_LABEL,
+  ANTIGRAVITY_OAUTH_CLIENT_ID_REF,
+  ANTIGRAVITY_OAUTH_CLIENT_SECRET_REF,
   ANTIGRAVITY_PROVIDER_ID,
 }
-export type { AntigravityTokenData }
+export type { AntigravityOAuthClient, AntigravityTokenData }
 export { AntigravityAdapter } from './adapter.ts'
 export type { AntigravityGrant, AntigravityGrantResolver } from './adapter.ts'
 export { ANTIGRAVITY_STATIC_CATALOG, antigravityModelName } from './catalog.ts'
 export type { AntigravityCatalogEntry } from './catalog.ts'
+
+/** The two credential refs jointly configuring the Google OAuth client used by every route. */
+export interface AntigravityOAuthClientRefs {
+  readonly clientIdRef: CredentialRef
+  readonly clientSecretRef: CredentialRef
+}
+
+/** The refs {@link FiAntigravityConfig}'s schema defaults to, used by every standalone caller below. */
+const DEFAULT_OAUTH_CLIENT_REFS: AntigravityOAuthClientRefs = {
+  clientIdRef: credentialRef(ANTIGRAVITY_OAUTH_CLIENT_ID_REF),
+  clientSecretRef: credentialRef(ANTIGRAVITY_OAUTH_CLIENT_SECRET_REF),
+}
+
+/**
+ * Resolve one credential reference through the credentials seam, or the
+ * launch environment when no credentials service is mounted — the same
+ * fallback `llm-pi-ai` and `fi-web-search-preferences` use.
+ * @param ctx - context supplying the optional credentials service and the launch environment.
+ * @param ref - the reference to resolve.
+ * @returns the non-empty value, or `undefined` while unconfigured.
+ */
+async function resolveOAuthClientValue(ctx: Context, ref: CredentialRef): Promise<string | undefined> {
+  const credentials = ctx.get('credentials')
+  const value = credentials === undefined
+    ? launchEnvironmentOf(ctx).get(ref)?.value
+    : (await credentials.resolve(ref))?.value
+  return value !== undefined && value.length > 0 ? value : undefined
+}
+
+/**
+ * Resolve the Google OAuth client id and secret used for every Antigravity
+ * sign-in and token refresh. Both values are mandatory: a Google installed-app
+ * OAuth client authenticates the whole account, so a missing half must fail
+ * loud rather than default to a guessed or absent secret.
+ * @param ctx - context supplying the optional credentials service and the launch environment.
+ * @param refs - the two refs to resolve, from {@link FiAntigravityConfig} or {@link DEFAULT_OAUTH_CLIENT_REFS}.
+ * @returns the resolved client id and secret.
+ * @throws when either ref resolves to nothing, naming both refs and every place they can be set.
+ */
+export async function resolveAntigravityOAuthClient(
+  ctx: Context,
+  refs: AntigravityOAuthClientRefs = DEFAULT_OAUTH_CLIENT_REFS,
+): Promise<AntigravityOAuthClient> {
+  const [clientId, clientSecret] = await Promise.all([
+    resolveOAuthClientValue(ctx, refs.clientIdRef),
+    resolveOAuthClientValue(ctx, refs.clientSecretRef),
+  ])
+  const missing = [
+    clientId === undefined ? refs.clientIdRef : undefined,
+    clientSecret === undefined ? refs.clientSecretRef : undefined,
+  ].filter((ref): ref is CredentialRef => ref !== undefined)
+  if (missing.length > 0) {
+    throw new Error(
+      `Antigravity sign-in and token refresh need ${missing.join(' and ')} to authenticate the Google OAuth `
+      + `client; set ${missing.length > 1 ? 'them' : 'it'} as an environment variable, in a .env file in the `
+      + 'fi home directory or your launch directory, or as a stored credential (the web Models page writes it).',
+    )
+  }
+  return { clientId: clientId as string, clientSecret: clientSecret as string }
+}
 
 /**
  * Register the Antigravity sign-in flow on the authorization seam.
@@ -74,16 +139,23 @@ export type { AntigravityCatalogEntry } from './catalog.ts'
  * credential store under `fi-antigravity/antigravity`.
  *
  * @param ctx - the plugin context carrying `ctx.authorization` and `ctx.credentials`.
+ * @param refs - reads the OAuth client refs to resolve for one attempt, fresh on every call so a live
+ *   {@link FiAntigravityConfig} edit reaches the next sign-in without a restart; defaults to
+ *   {@link ANTIGRAVITY_OAUTH_CLIENT_ID_REF} and {@link ANTIGRAVITY_OAUTH_CLIENT_SECRET_REF}.
  */
-export function registerAntigravityFlow(ctx: Context): void {
+export function registerAntigravityFlow(
+  ctx: Context,
+  refs: () => AntigravityOAuthClientRefs = () => DEFAULT_OAUTH_CLIENT_REFS,
+): void {
   ctx.authorization.registerFlow({
     key: credentialKey(ANTIGRAVITY_CREDENTIAL_SCOPE, ANTIGRAVITY_CREDENTIAL_ID),
     label: ANTIGRAVITY_FLOW_LABEL,
     methods: [{ id: 'oauth', label: 'Sign in with Antigravity' }],
     async run(session) {
+      const client = await resolveAntigravityOAuthClient(ctx, refs())
       const pkce = generateAntigravityPKCE()
       const state = randomUUID()
-      const authUrl = generateAntigravityAuthURL(state, pkce)
+      const authUrl = generateAntigravityAuthURL(state, pkce, client)
 
       session.notify({
         message: 'Open this page to sign in with your Google account.',
@@ -101,7 +173,7 @@ export function registerAntigravityFlow(ctx: Context): void {
         throw new Error('OAuth state mismatch — possible CSRF attack')
       }
 
-      const token = await exchangeAntigravityCode(result.code, result.state, state, pkce, session.signal)
+      const token = await exchangeAntigravityCode(result.code, result.state, state, pkce, client, session.signal)
 
       await ctx.credentials.modifyRecord(
         credentialKey(ANTIGRAVITY_CREDENTIAL_SCOPE, ANTIGRAVITY_CREDENTIAL_ID),
@@ -138,6 +210,10 @@ interface FiAntigravityProfile {
 export interface FiAntigravityConfig {
   /** Antigravity routes keyed by route id; each route serves through the signed-in Google grant. */
   providers: Volatile<Record<string, FiAntigravityProfile>>
+  /** Credential reference resolved per sign-in/refresh for the Google OAuth client id. */
+  oauthClientIdRef: Volatile<string>
+  /** Credential reference resolved per sign-in/refresh for the Google OAuth client secret. */
+  oauthClientSecretRef: Volatile<string>
 }
 
 const Profile = z.object({
@@ -145,6 +221,8 @@ const Profile = z.object({
 })
 const Config = z.object({
   providers: z.dict(Profile).default({}).volatile(),
+  oauthClientIdRef: z.string().role('credential-ref').default(ANTIGRAVITY_OAUTH_CLIENT_ID_REF).volatile(),
+  oauthClientSecretRef: z.string().role('credential-ref').default(ANTIGRAVITY_OAUTH_CLIENT_SECRET_REF).volatile(),
 }) as unknown as z<FiAntigravityConfig>
 
 /** The grant payload as the sign-in flow commits it. */
@@ -196,11 +274,16 @@ const REFRESH_MARGIN_MS = 120_000
  * payload's email/account/project ride through untouched.
  * @param ctx - context carrying the canonical credential store.
  * @param signal - optional cancellation for an in-flight token refresh.
+ * @param refs - the OAuth client refs to resolve before a refresh; defaults to
+ *   {@link ANTIGRAVITY_OAUTH_CLIENT_ID_REF} and {@link ANTIGRAVITY_OAUTH_CLIENT_SECRET_REF} — every caller
+ *   outside `FiAntigravityService` (image generation, subscription search) reuses the same stored grant
+ *   through these defaults, so a deployment that renames either ref must keep the default names resolvable too.
  * @returns the current usable grant, or `undefined` when Antigravity is signed out.
  */
 export async function resolveAntigravityGrant(
   ctx: Context,
   signal?: AbortSignal,
+  refs: AntigravityOAuthClientRefs = DEFAULT_OAUTH_CLIENT_REFS,
 ): Promise<AntigravityGrant | undefined> {
   const key = credentialKey(ANTIGRAVITY_CREDENTIAL_SCOPE, ANTIGRAVITY_CREDENTIAL_ID)
   let record = await ctx.credentials.readRecord(key)
@@ -208,6 +291,7 @@ export async function resolveAntigravityGrant(
   if (payload === undefined) return undefined
   if (payload.expires !== undefined && payload.expires - Date.now() < REFRESH_MARGIN_MS
     && payload.refresh !== undefined) {
+    const client = await resolveAntigravityOAuthClient(ctx, refs)
     record = await ctx.credentials.modifyRecord(key, async (current) => {
       const currentPayload = grantPayload(current)
       const rawPayload = rawGrantPayload(current)
@@ -215,7 +299,7 @@ export async function resolveAntigravityGrant(
       if (currentPayload === undefined || rawPayload === undefined || currentPayload.refresh === undefined) return current
       if (currentPayload.expires !== undefined
         && currentPayload.expires - Date.now() >= REFRESH_MARGIN_MS) return current
-      const token = await refreshAntigravityTokens(currentPayload.refresh, signal)
+      const token = await refreshAntigravityTokens(currentPayload.refresh, client, signal)
       return {
         kind: 'grant',
         payload: {
@@ -248,13 +332,19 @@ export class FiAntigravityService extends Service {
 
   constructor(ctx: Context, config: FiAntigravityConfig) {
     super(ctx, 'fi-antigravity')
-    registerAntigravityFlow(this.ctx)
+    // Read fresh on every call: a live edit to either ref (both `.volatile()`)
+    // reaches the next sign-in attempt or token refresh without a restart.
+    const oauthClientRefs = (): AntigravityOAuthClientRefs => ({
+      clientIdRef: credentialRef(config.oauthClientIdRef.get()),
+      clientSecretRef: credentialRef(config.oauthClientSecretRef.get()),
+    })
+    registerAntigravityFlow(this.ctx, oauthClientRefs)
     // The Models page renders this section through the provider directory, not an automatic form.
     this.ctx.inject(['settings'], (child) => { child.effect(() => child.settings.configure({ auto: false }, this.ctx.fiber)) })
     const settingsNs = this.ctx.fiber.entry?.options.id ?? ANTIGRAVITY_CREDENTIAL_SCOPE
 
     const adapter = new AntigravityAdapter(
-      signal => resolveAntigravityGrant(this.ctx, signal),
+      signal => resolveAntigravityGrant(this.ctx, signal, oauthClientRefs()),
       () => this.ctx.get('attachments'),
     )
     let registration: AdapterRegistrationHandle | undefined

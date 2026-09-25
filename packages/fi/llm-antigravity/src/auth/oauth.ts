@@ -5,8 +5,6 @@ import { createServer } from 'node:http'
 import { URL } from 'node:url'
 import {
   ANTIGRAVITY_API_BASE_URL,
-  ANTIGRAVITY_OAUTH_CLIENT_ID,
-  ANTIGRAVITY_OAUTH_CLIENT_SECRET,
   ANTIGRAVITY_OAUTH_SCOPES,
   ANTIGRAVITY_PROJECT_DISCOVERY_URL,
   ANTIGRAVITY_REDIRECT_URI,
@@ -57,10 +55,15 @@ interface GoogleTokenResponse {
   id_token?: string
 }
 
-interface OAuthConfig {
+/**
+ * The Google OAuth client authenticating every Antigravity sign-in and
+ * refresh, resolved per operation through the credentials seam (see
+ * `resolveAntigravityOAuthClient` in `../index.ts`) rather than shipped as a
+ * repository literal.
+ */
+export interface AntigravityOAuthClient {
   readonly clientId: string
-  readonly clientSecret?: string
-  readonly redirectUri: string
+  readonly clientSecret: string
 }
 
 function base64url(bytes: Uint8Array): string {
@@ -77,12 +80,9 @@ export function generateAntigravityPKCE(): PKCECodes {
   return { codeVerifier, codeChallenge }
 }
 
-function getOAuthConfig(): OAuthConfig {
-  return {
-    clientId: process.env.ANTIGRAVITY_OAUTH_CLIENT_ID || ANTIGRAVITY_OAUTH_CLIENT_ID,
-    clientSecret: process.env.ANTIGRAVITY_OAUTH_CLIENT_SECRET || ANTIGRAVITY_OAUTH_CLIENT_SECRET,
-    redirectUri: process.env.ANTIGRAVITY_OAUTH_REDIRECT_URI || ANTIGRAVITY_REDIRECT_URI,
-  }
+/** The loopback redirect URI; overridable for local development, never a secret. */
+function redirectUri(): string {
+  return process.env.ANTIGRAVITY_OAUTH_REDIRECT_URI || ANTIGRAVITY_REDIRECT_URI
 }
 
 function expiresAt(expiresIn: number | undefined): string {
@@ -182,7 +182,7 @@ export async function discoverAntigravityProject(
  * @returns loopback port and callback path.
  */
 export function getAntigravityOAuthCallback(): { callbackPort: number; callbackPath: string } {
-  const redirect = new URL(process.env.ANTIGRAVITY_OAUTH_REDIRECT_URI || ANTIGRAVITY_REDIRECT_URI)
+  const redirect = new URL(redirectUri())
   const callbackPort = Number(redirect.port || (redirect.protocol === 'https:' ? 443 : 80))
   return { callbackPort, callbackPath: redirect.pathname || '/callback' }
 }
@@ -255,13 +255,13 @@ export function waitForAntigravityCallback(
  * Build Google's OAuth authorization URL for one state and PKCE pair.
  * @param state - unguessable state checked when the callback returns.
  * @param pkce - verifier challenge pair for this authorization attempt.
+ * @param client - the resolved Google OAuth client for this attempt.
  * @returns the browser authorization URL.
  */
-export function generateAntigravityAuthURL(state: string, pkce: PKCECodes): string {
-  const config = getOAuthConfig()
+export function generateAntigravityAuthURL(state: string, pkce: PKCECodes, client: AntigravityOAuthClient): string {
   const params = new URLSearchParams({
-    client_id: config.clientId,
-    redirect_uri: config.redirectUri,
+    client_id: client.clientId,
+    redirect_uri: redirectUri(),
     response_type: 'code',
     scope: ANTIGRAVITY_OAUTH_SCOPES.join(' '),
     access_type: 'offline',
@@ -279,6 +279,7 @@ export function generateAntigravityAuthURL(state: string, pkce: PKCECodes): stri
  * @param returnedState - state returned with the callback.
  * @param expectedState - state generated before browser authorization.
  * @param pkce - verifier challenge pair used for authorization.
+ * @param client - the resolved Google OAuth client for this attempt.
  * @param signal - optional cancellation for exchange and discovery calls.
  * @returns the complete Antigravity OAuth grant.
  */
@@ -287,18 +288,18 @@ export async function exchangeAntigravityCode(
   returnedState: string,
   expectedState: string,
   pkce: PKCECodes,
+  client: AntigravityOAuthClient,
   signal?: AbortSignal | null,
 ): Promise<AntigravityTokenData> {
   if (returnedState !== expectedState) throw new Error('OAuth state mismatch — possible CSRF attack')
-  const config = getOAuthConfig()
   const params = new URLSearchParams({
-    client_id: config.clientId,
-    redirect_uri: config.redirectUri,
+    client_id: client.clientId,
+    client_secret: client.clientSecret,
+    redirect_uri: redirectUri(),
     grant_type: 'authorization_code',
     code,
     code_verifier: pkce.codeVerifier,
   })
-  if (config.clientSecret) params.set('client_secret', config.clientSecret)
 
   const token = await tokenRequest(params, signal)
   if (!token.access_token || !token.refresh_token) {
@@ -325,20 +326,21 @@ export async function exchangeAntigravityCode(
 /**
  * Refresh an Antigravity access token while retaining its refresh token.
  * @param refreshToken - durable refresh token from the stored grant.
+ * @param client - the resolved Google OAuth client for this refresh.
  * @param signal - optional cancellation for the refresh request.
  * @returns the rotated access-token data.
  */
 export async function refreshAntigravityTokens(
   refreshToken: string,
+  client: AntigravityOAuthClient,
   signal?: AbortSignal | null,
 ): Promise<AntigravityTokenData> {
-  const config = getOAuthConfig()
   const params = new URLSearchParams({
-    client_id: config.clientId,
+    client_id: client.clientId,
+    client_secret: client.clientSecret,
     grant_type: 'refresh_token',
     refresh_token: refreshToken,
   })
-  if (config.clientSecret) params.set('client_secret', config.clientSecret)
   const token = await tokenRequest(params, signal)
   if (!token.access_token) throw new Error('Google refresh response omitted access_token')
   return {

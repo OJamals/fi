@@ -13,15 +13,21 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import AuthorizationService from '@deepseek-ai/dsh-authorization'
 import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
-import { credentialKey } from '@deepseek-ai/dsh-credentials'
+import { credentialKey, credentialRef } from '@deepseek-ai/dsh-credentials'
 import LlmRuntime, { fileHandleText } from '@deepseek-ai/dsh-llm'
 
 import FiAntigravityService, {
   ANTIGRAVITY_CREDENTIAL_KEY,
+  ANTIGRAVITY_OAUTH_CLIENT_ID_REF,
+  ANTIGRAVITY_OAUTH_CLIENT_SECRET_REF,
   resolveAntigravityGrant,
 } from '../src/index.ts'
 import { ANTIGRAVITY_STATIC_CATALOG } from '../src/catalog.ts'
 import { liveConfig } from '../../../settings/settings/tests/live-config.ts'
+
+/** Fake OAuth client the tests below inject through the credentials store, never real values. */
+const FAKE_OAUTH_CLIENT_ID = 'test-client-id.apps.example'
+const FAKE_OAUTH_CLIENT_SECRET = 'test-client-secret'
 
 const dirs: string[] = []
 
@@ -34,6 +40,8 @@ const dirs: string[] = []
 async function harness(services?: {
   readonly attachments?: { fileHostPath(ref: unknown): string | undefined }
   readonly fs?: { processPathFromHostPath(path: string): string | undefined }
+  /** Skip seeding the fake OAuth client credentials, to exercise the missing-credential failure itself. */
+  readonly withoutOAuthClient?: boolean
 }): Promise<{ ctx: Context; live: Awaited<ReturnType<typeof liveConfig>> }> {
   const dir = await mkdtemp(join(tmpdir(), 'fi-agy-plugin-'))
   dirs.push(dir)
@@ -41,6 +49,13 @@ async function harness(services?: {
   if (services?.attachments !== undefined) ctx.provide('attachments', services.attachments as never)
   if (services?.fs !== undefined) ctx.provide('fs', services.fs as never)
   await ctx.plugin(LocalCredentialProvider, { path: join(dir, '.credentials.yaml'), watch: false })
+  if (services?.withoutOAuthClient !== true) {
+    // Every other test resolves the Google OAuth client through the
+    // credentials service, exactly as production does, so a refresh under
+    // test never depends on an ambient environment variable.
+    await ctx.credentials.set(credentialRef(ANTIGRAVITY_OAUTH_CLIENT_ID_REF), FAKE_OAUTH_CLIENT_ID)
+    await ctx.credentials.set(credentialRef(ANTIGRAVITY_OAUTH_CLIENT_SECRET_REF), FAKE_OAUTH_CLIENT_SECRET)
+  }
   await ctx.plugin(LlmRuntime)
   await ctx.plugin(AuthorizationService)
   const live = await liveConfig(ctx, FiAntigravityService, {}, 'fi-antigravity')
@@ -255,6 +270,21 @@ describe('FiAntigravityService', () => {
     expect(error.message).not.toContain(secret)
     expect(fetchSpy.mock.calls.every(([, init]) => init?.redirect === 'error')).toBe(true)
     expect(cancelled).toHaveBeenCalledOnce()
+  })
+
+  it('fails loud, naming both OAuth client refs, before ever reaching Google', async () => {
+    const { ctx } = await harness({ withoutOAuthClient: true })
+    const key = credentialKey('fi-antigravity', 'antigravity')
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve({
+      kind: 'grant',
+      payload: { access: 'expired-access', refresh: 'refresh-1', expires: Date.now() + 1_000, projectId: 'project-1' },
+    }))
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+    await expect(resolveAntigravityGrant(ctx)).rejects.toThrow(
+      new RegExp(`${ANTIGRAVITY_OAUTH_CLIENT_ID_REF}.*${ANTIGRAVITY_OAUTH_CLIENT_SECRET_REF}`),
+    )
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 
   it('keeps durable files on the harness-wide deterministic text projection', async () => {

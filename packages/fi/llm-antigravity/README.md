@@ -33,11 +33,16 @@ Antigravity OAuth adapter and Cloud Code transport for fi. Registers the Antigra
 - Mounts an `LlmAdapter` serving those routes through the Cloud Code transport (`streamGenerateContent` with the Antigravity envelope); its model-catalog provider name is the lowercase route id `antigravity`
 - Declares the directory entry the Models page's add-provider catalog reads, and answers model discovery for its namespace (live projected catalog when a grant reaches it, static fallback otherwise)
 - Rotates near-expiry access tokens through the credentials seam's serialized `modifyRecord`, so concurrent calls never lose a refresh
+- Resolves the Google OAuth client id and secret through the credentials seam per sign-in and refresh, never as a repository literal; sign-in and refresh fail loud, naming both refs, when neither is configured
 
 <a id="how-it-works"></a>
 ## How it works
 
-The OAuth flow uses the Antigravity desktop app's public client id, a loopback redirect on `127.0.0.1:54545`, and five scopes including `cloud-platform` and `cclog`. After exchange it discovers the `cloudaicompanionProject` via `loadCodeAssist`, which becomes the billing project every inference request names.
+The OAuth flow authenticates with a Google installed-app OAuth client, a loopback redirect on `127.0.0.1:54545`, and five scopes including `cloud-platform` and `cclog`. After exchange it discovers the `cloudaicompanionProject` via `loadCodeAssist`, which becomes the billing project every inference request names.
+
+### OAuth client configuration
+
+The client id and secret are never shipped in this repository: GitHub secret scanning flags a Google installed-app client id and secret pair identically to a leaked credential, and the deployment running this adapter owns which Google OAuth client authenticates it. `resolveAntigravityOAuthClient(ctx, refs?)` resolves both through `ctx.credentials.resolve(ref)` when the credentials seam is mounted, or the launch environment otherwise — the same fallback `llm-pi-ai` and `fi-web-search-preferences` use. The refs default to `ANTIGRAVITY_OAUTH_CLIENT_ID` and `ANTIGRAVITY_OAUTH_CLIENT_SECRET`; `FiAntigravityConfig`'s `oauthClientIdRef`/`oauthClientSecretRef` fields (both `Volatile<string>`) let a deployment resolve different ref names live, without a restart. Set the two values as environment variables, in a `.env` file (the fi home directory or the launch directory), or as stored credentials (the web Models page writes them) before signing in. Missing either fails the sign-in attempt and any token refresh loud, naming both refs and every place they can be set; `listModels` and the static catalog keep working signed out regardless.
 
 The transport reads its capture-pinned endpoint, CLI fingerprint version, client, build, and authentication method from `@fi/provider-compat`. It adds the runtime OS and architecture to that fingerprint, wraps Gemini `contents`/`generationConfig` in the Cloud Code envelope (`{project, model, request, userAgent: "antigravity", requestId, requestType: "agent"}`), and POSTs to `v1internal:streamGenerateContent?alt=sse`.
 

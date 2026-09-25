@@ -33,11 +33,16 @@ Antigravity OAuth 适配器与 Cloud Code 传输，为 fi 提供 Antigravity 登
 - 挂载一个 `LlmAdapter`，通过 Cloud Code 传输（带有 Antigravity envelope 的 `streamGenerateContent`）为这些路由提供服务；模型目录中的提供方名称为小写路由 id `antigravity`
 - 声明模型页面"添加提供方"目录所读取的目录项，并为其命名空间应答模型发现（授权可达实时目录时使用实时投影目录，否则回退到静态目录）
 - 通过凭据接缝的串行化 `modifyRecord` 轮换临近过期的访问令牌，并发调用不会丢失刷新
+- 每次登录与刷新都通过凭据接缝解析 Google OAuth 客户端 id 与密钥，绝不作为仓库字面量；两者均未配置时，登录与刷新会显式失败并指出这两个引用名
 
 <a id="how-it-works"></a>
 ## 工作原理
 
-OAuth 流程使用 Antigravity 桌面应用的公共客户端 id，回环重定向到 `127.0.0.1:54545`，以及五个 scope（含 `cloud-platform` 与 `cclog`）。交换后通过 `loadCodeAssist` 发现 `cloudaicompanionProject`，它成为每个推理请求所命名的计费项目。
+OAuth 流程使用一个 Google 已安装应用 OAuth 客户端、回环重定向到 `127.0.0.1:54545`，以及五个 scope（含 `cloud-platform` 与 `cclog`）。交换后通过 `loadCodeAssist` 发现 `cloudaicompanionProject`，它成为每个推理请求所命名的计费项目。
+
+### OAuth 客户端配置
+
+客户端 id 与密钥从不随本仓库分发：GitHub 密钥扫描会把 Google 已安装应用的客户端 id 与密钥对等同于已泄露的凭据来标记，且运行该适配器的部署方拥有决定使用哪个 Google OAuth 客户端进行认证的权限。`resolveAntigravityOAuthClient(ctx, refs?)` 在凭据接缝已挂载时通过 `ctx.credentials.resolve(ref)` 解析两者，否则回退到启动环境——这与 `llm-pi-ai` 与 `fi-web-search-preferences` 使用的回退方式相同。这两个引用默认为 `ANTIGRAVITY_OAUTH_CLIENT_ID` 与 `ANTIGRAVITY_OAUTH_CLIENT_SECRET`；`FiAntigravityConfig` 的 `oauthClientIdRef`/`oauthClientSecretRef` 字段（均为 `Volatile<string>`）允许部署方在不重启的情况下实时改用其他引用名。登录前请将这两个值设置为环境变量、写入 `.env` 文件（fi home 目录或启动目录），或作为已存储的凭据（网页版模型页面会写入它们）。两者缺失任意一个都会使登录尝试与任何令牌刷新显式失败，并指出这两个引用名及每个可设置的位置；`listModels` 与静态目录在未登录时仍照常工作。
 
 传输从 `@fi/provider-compat` 读取固定于捕获结果的端点、CLI 指纹版本、客户端、构建号与认证方式，在该指纹中加入运行时操作系统和架构，再将 Gemini `contents`/`generationConfig` 包装进 Cloud Code envelope（`{project, model, request, userAgent: "antigravity", requestId, requestType: "agent"}`），并 POST 到 `v1internal:streamGenerateContent?alt=sse`。
 

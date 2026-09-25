@@ -49,9 +49,15 @@ export const ANTIGRAVITY_OAUTH_SCOPES = [
   'https://www.googleapis.com/auth/experimentsandconfigs',
 ] as const
 
-/** Public installed-application client id shipped by Antigravity CLI. */
-export const ANTIGRAVITY_OAUTH_CLIENT_ID =
-  'REDACTED-ANTIGRAVITY-OAUTH-CLIENT-ID'
+/**
+ * Default credential reference resolved for the Google OAuth client id.
+ * Antigravity CLI's installed-app client id and secret are runtime inputs,
+ * not repository constants — GitHub secret scanning flags the literal id and
+ * secret pair identically to a leaked credential, and the deployment
+ * operating this adapter owns which Google OAuth client authenticates it.
+ * See {@link resolveAntigravityOAuthClient} for how these refs resolve.
+ */
+export const ANTIGRAVITY_OAUTH_CLIENT_ID_REF = 'ANTIGRAVITY_OAUTH_CLIENT_ID'
 
-/** Installed-application client secret shipped by Antigravity CLI. */
-export const ANTIGRAVITY_OAUTH_CLIENT_SECRET = 'REDACTED-ANTIGRAVITY-OAUTH-CLIENT-SECRET'
+/** Default credential reference resolved for the Google OAuth client secret. */
+export const ANTIGRAVITY_OAUTH_CLIENT_SECRET_REF = 'ANTIGRAVITY_OAUTH_CLIENT_SECRET'

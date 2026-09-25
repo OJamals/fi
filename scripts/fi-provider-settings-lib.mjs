@@ -34,6 +34,32 @@ function assertNoCredentialFields(value, location = 'provider settings') {
 }
 
 /**
+ * Project out `antigravityCli.oauth.clientId`. Every other captured provider
+ * (`claudeCode`, `codexCli`) also carries an `oauth.clientId`, and those stay:
+ * they are opaque application ids in formats GitHub secret scanning does not
+ * flag. Antigravity CLI's Google installed-app client id matches the
+ * `\d+-[a-z0-9]+\.apps\.googleusercontent\.com` shape secret scanning treats
+ * as credential material, and `@fi/llm-antigravity` resolves its own copy
+ * through the credentials seam at runtime (see its README), so this snapshot
+ * never needs to carry it. A future auth2api release that stops emitting the
+ * field leaves this call a no-op.
+ * @param {Record<string, unknown>} settings - parsed provider settings.
+ * @returns {Record<string, unknown>} the same settings, with that one field absent.
+ */
+function withoutAntigravityOAuthClientId(settings) {
+  const antigravityCli = settings.antigravityCli
+  if (antigravityCli === null || typeof antigravityCli !== 'object' || Array.isArray(antigravityCli)) {
+    return settings
+  }
+  const oauth = /** @type {Record<string, unknown>} */ (antigravityCli).oauth
+  if (oauth === null || typeof oauth !== 'object' || Array.isArray(oauth) || !('clientId' in oauth)) {
+    return settings
+  }
+  const { clientId: _clientId, ...restOauth } = /** @type {Record<string, unknown>} */ (oauth)
+  return { ...settings, antigravityCli: { ...antigravityCli, oauth: restOauth } }
+}
+
+/**
  * Validate a canonical provider-settings value before FI persists it.
  * @param {unknown} value - parsed JSON value.
  * @returns {Record<string, unknown>} validated complete metadata.
@@ -42,7 +68,7 @@ export function validateProviderSettings(value) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error('provider settings must be a JSON object')
   }
-  const settings = /** @type {Record<string, unknown>} */ (value)
+  const settings = withoutAntigravityOAuthClientId(/** @type {Record<string, unknown>} */ (value))
   for (const provider of REQUIRED_PROVIDERS) {
     const record = settings[provider]
     if (record === null || typeof record !== 'object' || Array.isArray(record)) {
