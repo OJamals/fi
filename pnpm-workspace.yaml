@@ -18,6 +18,11 @@ overrides:
   'extract-zip>yauzl': '3.4.0'
   '@deepseek-ai/cosmokit': 'link:vendor/cosmokit'
   '@deepseek-ai/schemastery': 'link:vendor/schemastery'
+  # Force all transitive instances off older, advisory-affected lockfile resolutions.
+  dompurify: 3.4.13
+  browserslist: 4.28.7
+  # VitePress 1.6.4 declares Vite 5; the website is verified against this narrow Vite 6 override.
+  'vitepress@1.6.4>vite': 6.4.3
 
 peerDependencyRules:
   allowedVersions:

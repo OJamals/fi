@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-09-25-security-patched-doc-toolchain.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-09-25-security-patched-doc-toolchain.md
+/agent-note-security-patched-documentation-toolchain:
+  en: edbbd1099e936871
+  zh: 45633d60db4e1848
+/agent-note-security-patched-documentation-toolchain/problem:
+  en: c968e706f0e927d2
+  zh: 372befb4048fda5d
+/agent-note-security-patched-documentation-toolchain/decision:
+  en: 43e609b930ba0e29
+  zh: 04aad390d0e8b45b
+/agent-note-security-patched-documentation-toolchain/alternatives-considered:
+  en: fc9f815b6a14dd8b
+  zh: f0bd62ad8a27d2cf
+/agent-note-security-patched-documentation-toolchain/consequences:
+  en: ac891337bda65f2b
+  zh: aaf3926a14bcc8ef
