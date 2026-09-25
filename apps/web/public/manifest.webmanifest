@@ -1,13 +1,12 @@
 {
-  "id": "/",
   "name": "fi",
   "short_name": "fi",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "fullscreen",
   "icons": [
     {
-      "src": "/fi-logo.png",
+      "src": "fi-logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"

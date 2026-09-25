@@ -6,7 +6,7 @@ import {
   FI_PREFERRED_SEARCH_PROVIDER_ID,
   PreferredSearchProvider,
   resolveSelectedProvider,
-  type Config,
+  type PreferredSearchSettings,
 } from '../src/index.ts'
 
 function result(content: string): WebSearchResult {
@@ -331,7 +331,7 @@ describe('preferred search provider', () => {
   })
 
   it('snapshots preference once per call and keeps the upstream provider id', async () => {
-    let config = { provider: 'exa' } as Config
+    let config: PreferredSearchSettings = { provider: 'exa' }
     let release!: () => void
     const held = new Promise<void>((resolve) => { release = resolve })
     const exa = provider('exa', vi.fn(async () => {
@@ -339,7 +339,7 @@ describe('preferred search provider', () => {
       return result('exa')
     }))
     const perplexity = provider('perplexity', vi.fn(async () => result('perplexity')))
-    const resolveProvider = vi.fn(async (snapshot: Config) => snapshot.provider === 'exa' ? exa : perplexity)
+    const resolveProvider = vi.fn(async (snapshot: PreferredSearchSettings) => snapshot.provider === 'exa' ? exa : perplexity)
     const preferred = new PreferredSearchProvider({
       resolveConfig: () => config,
       resolveProvider,

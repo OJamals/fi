@@ -36,14 +36,11 @@ const DeepSeekConfig = Schema.object({
   })),
 })
 
-type AttentionSnapshot = Parameters<Parameters<ModelSetupDialogProps['useSessionPendingInteraction']>[0]>[0]
-const noAttention: AttentionSnapshot = new Map()
-const useSessionPendingInteraction: ModelSetupDialogProps['useSessionPendingInteraction'] = selector => selector(noAttention)
-
 function deepSeekNamespace(apiKeyEnv: string | null): SettingsNamespaceView {
   const value = apiKeyEnv === null ? {} : { apiKeyEnv }
   return {
     ns: 'llm-deepseek',
+    autoGenerate: true,
     schema: JSON.parse(JSON.stringify(DeepSeekConfig.toJSON())) as JsonValue,
     value,
     base: value,
@@ -111,10 +108,12 @@ function harness(options: {
   const unusedHook = (() => { throw new Error('unused standard hook') }) as never
   const props: ModelSetupDialogProps = {
     stepId: 'model-setup',
+    automatic: true,
     complete,
     openSection,
     useSessions: unusedHook,
-    useSessionPendingInteraction,
+    useSessionStatus: unusedHook,
+    useSessionRetainInfo: unusedHook,
     usePanelInfo, useResource,
     useWorkspaces: unusedHook,
     controller,
@@ -145,6 +144,14 @@ describe('ModelSetupDialog', () => {
     expect(screen.getByRole('button', { name: en.onboardingLater })).toBeTruthy()
     // The step routes to settings; it never collects a credential itself.
     expect(screen.queryByLabelText(en.keyInput)).toBeNull()
+  })
+
+  it('stays out of the way and completes immediately when a native shell owns onboarding', async () => {
+    const h = harness()
+    render(<ModelSetupDialog {...h.props} automatic={false} />)
+    await waitFor(() => { expect(h.complete).toHaveBeenCalledOnce() })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.getElementById('root')?.inert).not.toBe(true)
   })
 
   it('cannot be dismissed implicitly and restores the previous inert state', async () => {

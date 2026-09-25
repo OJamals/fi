@@ -13,7 +13,7 @@ const PROVIDER_SETTINGS: DeepReadonly<typeof PROVIDER_SETTINGS_JSON> = PROVIDER_
 /** Canonical metadata record names shared with auth2api. */
 export type ProviderSettingsId = keyof typeof PROVIDER_SETTINGS
 
-/** Complete generated provider metadata, including release provenance. */
+/** Complete generated provider metadata, including recorded release evidence. */
 export type ProviderSettings = typeof PROVIDER_SETTINGS
 
 /** One canonical provider metadata record. */
@@ -26,7 +26,7 @@ export type ProviderSettingsRecord<T extends ProviderSettingsId> = ProviderSetti
  * Release versions and capture-gated fingerprint versions remain separate;
  * consumers must not treat a release bump as evidence of a runtime capture.
  * @param provider - canonical auth2api provider-settings key.
- * @returns the generated provider metadata and its provenance.
+ * @returns the generated provider metadata and its recorded release evidence.
  */
 export function providerSettingsFor<T extends ProviderSettingsId>(provider: T): ProviderSettingsRecord<T> {
   return structuredClone(PROVIDER_SETTINGS[provider])

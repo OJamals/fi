@@ -1,8 +1,10 @@
 import { createHash } from 'node:crypto'
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
+import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { load } from 'js-yaml'
 import { createDesktopUploadPlan } from '../scripts/desktop-upload-plan.ts'
 import { desktopUpdateMetadataFilename } from '../scripts/desktop-auto-update-environment.mjs'
 import type { DesktopPackageTargetName } from '../scripts/package-target.ts'
@@ -10,6 +12,12 @@ import type { DesktopPackageTargetName } from '../scripts/package-target.ts'
 const temporaryDirectories: string[] = []
 const TEST_ORIGIN = 'https://desktop-updates.example.com'
 const TEST_BUCKET = 'test-download-bucket'
+const RELEASE_ID = '0123456789abcdef0123456789abcdef'
+const require = createRequire(import.meta.url)
+const { createBlockmap } = require('app-builder-lib/out/targets/differentialUpdateInfoBuilder.js') as {
+  createBlockmap: (file: string, target: object, packager: { info: { emitArtifactBuildCompleted(event: object): Promise<void> } },
+    safeArtifactName: string) => Promise<{ size: number; sha512: string }>
+}
 
 interface Fixture {
   readonly repositoryRoot: string
@@ -46,7 +54,7 @@ async function fixture(
     target,
     version,
     environment,
-    publicUrl: environment === 'test' ? `${origin}/_/harness/desktop/stable/${target}/` : origin,
+    publicUrl: environment === 'test' ? `${origin}/dsh-desk/${RELEASE_ID}/feeds/${target}/` : origin,
   })}\n`)
 
   if (os === 'mac') {
@@ -56,19 +64,22 @@ async function fixture(
     await writeFile(join(artifactsRoot, `${base}.dmg`), 'notarized DMG fixture')
     await writeFile(join(artifactsRoot, desktopUpdateMetadataFilename(version, 'darwin')), `${JSON.stringify({
       version,
+      path: `${base}.zip`,
       files: [{ url: `${base}.zip`, size: Buffer.byteLength(zip), sha512: digest(zip) }],
     })}\n`)
   }
   else {
     const executable = 'signed NSIS executable fixture'
     await writeFile(join(artifactsRoot, `${base}.exe`), executable)
+    const info = await createBlockmap(join(artifactsRoot, `${base}.exe`), {},
+      { info: { emitArtifactBuildCompleted: async () => {} } }, `${base}.exe`)
+    expect(Object.hasOwn(info, 'blockMapSize')).toBe(false)
     await writeFile(join(artifactsRoot, desktopUpdateMetadataFilename(version, 'win32')), `${JSON.stringify({
       version,
+      path: `${base}.exe`,
       files: [{
         url: `${base}.exe`,
-        size: Buffer.byteLength(executable),
-        sha512: digest(executable),
-        blockMapSize: 128,
+        ...info,
       }],
     })}\n`)
   }
@@ -80,6 +91,7 @@ async function fixture(
       ? {
         DSH_DESKTOP_AUTO_UPDATE_ENV: 'test',
         DOWNLOAD_TEST_ORIGIN: TEST_ORIGIN,
+        DOWNLOAD_TEST_RELEASE_ID: RELEASE_ID,
         DOWNLOAD_TEST_COS_BUCKET: TEST_BUCKET,
       }
       : {
@@ -102,19 +114,47 @@ describe('desktop upload plan', () => {
     expect(plan).toMatchObject({
       environment: 'test',
       version: '1.2.3',
-      publicUrl: 'https://desktop-updates.example.com/_/harness/desktop/stable/mac-arm64/',
+      publicUrl: `https://desktop-updates.example.com/dsh-desk/${RELEASE_ID}/feeds/mac-arm64/`,
       bucket: TEST_BUCKET,
     })
     expect(plan.artifacts.map(artifact => artifact.filename)).toEqual([
       'fi-1.2.3-mac-arm64.dmg',
       'fi-1.2.3-mac-arm64.zip',
       'fi-1.2.3-mac-arm64.zip.blockmap',
+      'nightly-mac.yml',
       'latest-mac.yml',
     ])
     expect(plan.artifacts.at(-1)).toMatchObject({
       channelMetadata: true,
-      cacheControl: 'no-cache',
     })
+  })
+
+  it.each(['mac-arm64', 'mac-x64', 'win-x64'] as const)('publishes every %s object and YAML reference inside the test release directory', async (target) => {
+    const paths = await fixture(target)
+    const plan = await createDesktopUploadPlan(target, paths)
+    const prefix = `dsh-desk/${RELEASE_ID}`
+    const payload = plan.artifacts.find(artifact => artifact.filename.endsWith(target === 'win-x64' ? '.exe' : '.zip'))!
+    for (const artifact of plan.artifacts) {
+      expect(artifact.key).toBe(`${prefix}/${artifact.channelMetadata ? 'feeds' : 'bin'}/${target}/${artifact.filename}`)
+      if (artifact.channelMetadata) {
+        expect(load(artifact.contents!)).toMatchObject({
+          path: `${TEST_ORIGIN}/${payload.key}`,
+          files: [{ url: `${TEST_ORIGIN}/${payload.key}` }],
+        })
+      }
+    }
+    await expect(JSON.stringify(plan.artifacts.map(({ key, contents }) => ({ key, contents })), null, 2) + '\n')
+      .toMatchFileSnapshot(`./expected/test-release-upload-${target}.json`)
+  })
+
+  it('rejects a changed or missing release ID before uploading a completed package', async () => {
+    const paths = await fixture('mac-arm64')
+    await expect(createDesktopUploadPlan('mac-arm64', {
+      ...paths, environment: { ...paths.environment, DOWNLOAD_TEST_RELEASE_ID: 'a'.repeat(32) },
+    })).rejects.toThrow(/completion record/u)
+    await expect(createDesktopUploadPlan('mac-arm64', {
+      ...paths, environment: { ...paths.environment, DOWNLOAD_TEST_RELEASE_ID: undefined },
+    })).rejects.toThrow(/DOWNLOAD_TEST_RELEASE_ID/u)
   })
 
   it('uploads the prerelease channel metadata emitted by electron-builder', async () => {
@@ -124,7 +164,7 @@ describe('desktop upload plan', () => {
       'fi-1.2.3-alpha.4-mac-arm64.dmg',
       'fi-1.2.3-alpha.4-mac-arm64.zip',
       'fi-1.2.3-alpha.4-mac-arm64.zip.blockmap',
-      'alpha-mac.yml',
+      'nightly-mac.yml',
     ])
   })
 
@@ -133,18 +173,12 @@ describe('desktop upload plan', () => {
     await expect(createDesktopUploadPlan('win-x64', paths)).rejects.toThrow(/GitHub Releases/u)
   })
 
-  it('rejects Windows metadata without an embedded blockmap size', async () => {
+  it.each(['missing', 'empty'])('rejects a %s Windows blockmap before publishing its feed', async (condition) => {
     const paths = await fixture('win-x64')
-    const executable = 'signed NSIS executable fixture'
-    await writeFile(join(paths.artifactsRoot, 'latest.yml'), `${JSON.stringify({
-      version: '1.2.3',
-      files: [{
-        url: 'fi-1.2.3-win-x64.exe',
-        size: Buffer.byteLength(executable),
-        sha512: digest(executable),
-      }],
-    })}\n`)
-    await expect(createDesktopUploadPlan('win-x64', paths)).rejects.toThrow(/blockMapSize/u)
+    const path = join(paths.artifactsRoot, 'fi-1.2.3-win-x64.exe.blockmap')
+    if (condition === 'missing') await rm(path)
+    else await writeFile(path, '')
+    await expect(createDesktopUploadPlan('win-x64', paths)).rejects.toThrow(/missing or empty artifact.*\.exe\.blockmap/u)
   })
 
   it('rejects a completed build from another dsh version or deployment', async () => {
@@ -159,6 +193,7 @@ describe('desktop upload plan', () => {
       environment: {
         DSH_DESKTOP_AUTO_UPDATE_ENV: 'test',
         DOWNLOAD_TEST_ORIGIN: TEST_ORIGIN,
+        DOWNLOAD_TEST_RELEASE_ID: RELEASE_ID,
         DOWNLOAD_TEST_COS_BUCKET: TEST_BUCKET,
       },
     })).rejects.toThrow(/completion record.*test/u)
@@ -166,7 +201,7 @@ describe('desktop upload plan', () => {
 
   it('rejects stale architecture metadata and modified updater bytes', async () => {
     const paths = await fixture('mac-arm64')
-    const metadataPath = join(paths.artifactsRoot, 'latest-mac.yml')
+    const metadataPath = join(paths.artifactsRoot, 'nightly-mac.yml')
     const zipPath = join(paths.artifactsRoot, 'fi-1.2.3-mac-arm64.zip')
     await writeFile(zipPath, 'modified')
     await expect(createDesktopUploadPlan('mac-arm64', paths)).rejects.toThrow(/size.*metadata/u)

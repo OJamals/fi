@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-10-model-universal-onboarding.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-10-model-universal-onboarding.md
-2026-09-10-model-universal-onboarding.md: 3ee6130f99aa84fec0768104c3b1c1dde87f5be5
-2026-09-10-model-universal-onboarding.zh.md: 3a62c40b0ac50dab99735ef8a4d2e8903e24436c
+/agent-note-model-universal-first-run-setup:
+  en: e793b4f91b868a1a
+  zh: 9584f42fecd595d4
+/agent-note-model-universal-first-run-setup/problem:
+  en: 822d08612e209a77
+  zh: bbc19a48ad9b92e1
+/agent-note-model-universal-first-run-setup/decision:
+  en: 468a314556ae4176
+  zh: 59c35726c58e7a71
+/agent-note-model-universal-first-run-setup/alternatives-considered:
+  en: 15f85ffbad03e09d
+  zh: 22d354149618cb45
+/agent-note-model-universal-first-run-setup/consequences:
+  en: 823c776acd118af6
+  zh: 54c1d2545d3ec2b7

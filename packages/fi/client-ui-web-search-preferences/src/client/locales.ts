@@ -4,8 +4,6 @@
 export const en = {
   title: 'Preferred web search',
   description: 'Choose the engine used by the next web search.',
-  expand: 'Expand',
-  collapse: 'Collapse',
   provider: 'Search engine',
   deepseek: 'DeepSeek official',
   exa: 'Exa',
@@ -31,7 +29,6 @@ export const en = {
   subscriptionHint: 'Sign in from Models first. Choosing this engine never starts OAuth or changes the chat model.',
   readOnly: 'Settings are read-only in this connection.',
   unavailable: 'Preferred-search settings are unavailable.',
-  unsaved: 'Unsaved',
   discard: 'Discard',
   save: 'Save',
   saving: 'Saving…',
@@ -45,8 +42,6 @@ export type PreferredSearchLocaleKey = keyof typeof en
 export const zh: Record<PreferredSearchLocaleKey, string> = {
   title: '首选网页搜索',
   description: '选择下一次网页搜索使用的引擎。',
-  expand: '展开',
-  collapse: '收起',
   provider: '搜索引擎',
   deepseek: 'DeepSeek 官方搜索',
   exa: 'Exa',
@@ -72,7 +67,6 @@ export const zh: Record<PreferredSearchLocaleKey, string> = {
   subscriptionHint: '请先在“模型”中登录。选择此引擎不会启动 OAuth，也不会更改聊天模型。',
   readOnly: '此连接中的设置为只读。',
   unavailable: '首选搜索设置不可用。',
-  unsaved: '未保存',
   discard: '放弃',
   save: '保存',
   saving: '正在保存…',

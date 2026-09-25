@@ -23,11 +23,13 @@
 
 import {
   contentHasImage,
+  IMAGE_OFFLOAD_REQUIRED_CODE,
   LlmAdapter,
   LlmError,
   offloadedImageText,
-  offloadRequestImagesWithPolicy,
+  projectOffloadedImages,
   requestImageHandleText,
+  requiredImageOffload,
 } from '@deepseek-ai/dsh-llm'
 import type {
   ContentBlock,
@@ -36,8 +38,8 @@ import type {
   LlmModelInfo,
   LlmProviderInfo,
   LlmResolvedModelInfo,
-  Message,
   ReplayEnvelope,
+  RequestMessage,
   StreamChunk,
   ToolCallId,
 } from '@deepseek-ai/dsh-llm'
@@ -50,6 +52,7 @@ import type {
   RequestImageAttachment,
   SaveImageAttachment,
 } from '@deepseek-ai/dsh-attachment'
+import { requestImageDimensions } from '@deepseek-ai/dsh-attachment'
 import { ANTIGRAVITY_STATIC_CATALOG, antigravityModelName } from './catalog.ts'
 import {
   callAntigravityChat,
@@ -107,24 +110,22 @@ function resultText(blocks: readonly ContentBlock[]): string {
   return blocks.map((block) => {
     if (block.type === 'text') return block.text
     if (block.type === 'image') return ''
-    if (block.type === 'tool-result') return resultText(block.content)
     return unsupported(`Antigravity cannot represent ${block.type} inside a tool result`)
   }).join('\n')
 }
 
 function collectImageRefs(blocks: readonly ContentBlock[], refs: Map<AttachmentId, ImageAttachmentRef>): void {
   for (const block of blocks) {
-    if (block.type === 'image') refs.set(block.attachment.attachmentId, block.attachment)
-    else if (block.type === 'tool-result') collectImageRefs(block.content, refs)
+    if (block.type === 'image' && block.offloaded !== true) refs.set(block.attachment.attachmentId, block.attachment)
   }
 }
 
 async function prepareImages(
-  messages: readonly Message[],
+  messages: readonly RequestMessage[],
   attachments: AttachmentStore,
   signal?: AbortSignal,
 ): Promise<{
-  messages: readonly Message[]
+  messages: readonly RequestMessage[]
   images: ReadonlyMap<AttachmentId, RequestImageAttachment>
   originals: ReadonlyMap<AttachmentId, { data: Uint8Array; mediaType: ImageMediaType }>
 }> {
@@ -132,26 +133,29 @@ async function prepareImages(
     maxPixels: attachments.imageLimits.maxImagePixels,
     maxBytes: attachments.imageLimits.maxImageBytes,
   }
-  const projected = offloadRequestImagesWithPolicy(messages, {
-    representation: 'base64',
-    maxBytes: MAX_REQUEST_IMAGE_BYTES,
-    byteQuantum: 1,
-    byteLength: ref => Math.ceil(Math.min(ref.bytes, policy.maxBytes) / 3) * 4,
-    placeholder: ref => offloadedImageText(ref),
-  })
   const refs = new Map<AttachmentId, ImageAttachmentRef>()
-  for (const message of projected) collectImageRefs(message.content, refs)
+  for (const message of messages) collectImageRefs(message.content, refs)
   const pairs = await Promise.all([...refs.values()].map(async ref => (
-    [ref.attachmentId, await attachments.readImageRequest(ref, policy, signal)] as const
+    [ref.attachmentId, await attachments.readImageRequest(
+      ref,
+      { ...requestImageDimensions(ref.width, ref.height, policy.maxPixels), maxBytes: policy.maxBytes },
+      signal,
+    )] as const
   )))
   const images = new Map<AttachmentId, RequestImageAttachment>(pairs)
-  const exact = offloadRequestImagesWithPolicy(projected, {
-    representation: 'base64',
-    maxBytes: MAX_REQUEST_IMAGE_BYTES,
-    byteQuantum: 1,
-    byteLength: ref => Math.ceil((images.get(ref.attachmentId) as RequestImageAttachment).bytes / 3) * 4,
-    placeholder: ref => offloadedImageText(ref),
-  })
+  const offloadImages = requiredImageOffload(
+    messages,
+    { representation: 'base64', maxBytes: MAX_REQUEST_IMAGE_BYTES },
+    block => (images.get(block.attachment.attachmentId) as RequestImageAttachment).bytes,
+  )
+  if (offloadImages > 0) {
+    throw new LlmError(
+      `Antigravity request images exceed the ${MAX_REQUEST_IMAGE_BYTES}-byte base64 bound; ${offloadImages} more oldest occurrence(s) must be offloaded.`,
+      IMAGE_OFFLOAD_REQUIRED_CODE,
+      { offloadImages },
+    )
+  }
+  const exact = projectOffloadedImages(messages, ref => offloadedImageText(ref))
   const originalRefs = new Map<AttachmentId, {
     attachment: FileAttachmentRef
     mediaType: ImageMediaType
@@ -193,12 +197,11 @@ async function prepareImages(
 /**
  * Project one fi message to OpenAI-wire message(s). Reasoning blocks are
  * dropped from history — they are the model's own scratch, and the upstream
- * replays thought state through signatures, not text. A user message may
- * carry tool results, which become their own `tool` messages ahead of any
- * remaining user text.
+ * replays thought state through signatures, not text. A tool-role message
+ * becomes an OpenAI `tool` message; its images follow as a user message.
  */
 function projectMessage(
-  message: Message,
+  message: RequestMessage,
   images: ReadonlyMap<AttachmentId, RequestImageAttachment>,
   originals: ReadonlyMap<AttachmentId, { data: Uint8Array; mediaType: ImageMediaType }>,
 ): OpenAIMessage[] {
@@ -206,6 +209,7 @@ function projectMessage(
     const text = resultText(message.content)
     return [{ role: 'system', content: text }]
   }
+  if (message.role === 'developer') unsupported('Antigravity cannot represent developer messages')
   if (message.role === 'assistant') {
     const replay = antigravityReplay(message)
     if (replay?.nativeParts !== undefined) {
@@ -262,34 +266,27 @@ function projectMessage(
       ...(toolCalls.length > 0 ? { tool_calls: toolCalls } : {}),
     }]
   }
-  const results = message.content.flatMap((block): OpenAIMessage[] => {
-    if (block.type !== 'tool-result') return []
+  if (message.role === 'tool') {
+    // Images in a tool result follow as a user message because the OpenAI tool role carries text only.
     const imageContent: Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> = []
-    const appendImages = (blocks: readonly ContentBlock[]): void => {
-      for (const nested of blocks) {
-        if (nested.type === 'image') {
-          const image = images.get(nested.attachment.attachmentId)
-          if (image === undefined) unsupported('Antigravity image projection is missing a resolved attachment')
-          imageContent.push({ type: 'text', text: requestImageHandleText(nested.attachment, image) })
-          imageContent.push({
-            type: 'image_url',
-            image_url: { url: `data:${image.mediaType};base64,${Buffer.from(image.data).toString('base64')}` },
-          })
-        } else if (nested.type === 'tool-result') {
-          appendImages(nested.content)
-        }
-      }
+    for (const nested of message.content) {
+      if (nested.type !== 'image') continue
+      const image = images.get(nested.attachment.attachmentId)
+      if (image === undefined) unsupported('Antigravity image projection is missing a resolved attachment')
+      imageContent.push({ type: 'text', text: requestImageHandleText(nested.attachment, image) })
+      imageContent.push({
+        type: 'image_url',
+        image_url: { url: `data:${image.mediaType};base64,${Buffer.from(image.data).toString('base64')}` },
+      })
     }
-    appendImages(block.content)
     return [{
       role: 'tool',
-      tool_call_id: block.toolCallId,
-      content: resultText(block.content),
+      tool_call_id: message.toolCallId,
+      content: resultText(message.content),
     }, ...imageContent.length > 0 ? [{ role: 'user' as const, content: imageContent }] : []]
-  })
-  const regular = message.content.filter(block => block.type !== 'tool-result')
+  }
   const content: Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> = []
-  for (const block of regular) {
+  for (const block of message.content) {
     if (block.type === 'text') {
       if (block.text.length > 0) content.push({ type: 'text', text: block.text })
       continue
@@ -306,10 +303,7 @@ function projectMessage(
     }
     unsupported(`Antigravity cannot represent ${block.type} in user history`)
   }
-  return [
-    ...results,
-    ...(content.length > 0 ? [{ role: 'user' as const, content }] : []),
-  ]
+  return content.length > 0 ? [{ role: 'user', content }] : []
 }
 
 /**

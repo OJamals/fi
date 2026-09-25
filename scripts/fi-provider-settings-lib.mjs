@@ -69,9 +69,9 @@ function sha256(contents) {
 /**
  * Bind the generated snapshot to the exact canonical inputs that produced it.
  * @param {{ sourceSettings: string, updaterSource: string, snapshot: string }} inputs - exact file bytes.
- * @returns {string} stable provenance manifest JSON.
+ * @returns {string} stable hash manifest JSON.
  */
-export function providerSettingsProvenance({ sourceSettings, updaterSource, snapshot }) {
+export function providerSettingsHashManifest({ sourceSettings, updaterSource, snapshot }) {
   return `${JSON.stringify({
     schemaVersion: 1,
     sourceSettingsSha256: sha256(sourceSettings),
@@ -109,12 +109,12 @@ export async function writeAtomically(outputPath, contents) {
 
 /**
  * Compare or persist one generated provider-settings snapshot.
- * @param {{ outputPath: string, provenancePath?: string, sourceSettings?: string, updaterSource?: string, settings: unknown, checkOnly?: boolean }} options - sync inputs.
- * @returns {Promise<{ changed: boolean, serialized: string, provenanceChanged: boolean }>}
+ * @param {{ outputPath: string, hashManifestPath?: string, sourceSettings?: string, updaterSource?: string, settings: unknown, checkOnly?: boolean }} options - sync inputs.
+ * @returns {Promise<{ changed: boolean, serialized: string, hashManifestChanged: boolean }>}
  */
 export async function syncProviderSettings({
   outputPath,
-  provenancePath,
+  hashManifestPath,
   sourceSettings,
   updaterSource,
   settings,
@@ -126,24 +126,24 @@ export async function syncProviderSettings({
     throw error
   })
   const snapshotChanged = current !== serialized
-  let provenance
-  let provenanceChanged = false
-  if (provenancePath !== undefined) {
+  let hashManifest
+  let hashManifestChanged = false
+  if (hashManifestPath !== undefined) {
     if (sourceSettings === undefined || updaterSource === undefined) {
-      throw new Error('provenance requires exact source settings and updater bytes')
+      throw new Error('hash manifest requires exact source settings and updater bytes')
     }
-    provenance = providerSettingsProvenance({ sourceSettings, updaterSource, snapshot: serialized })
-    const currentProvenance = await fs.readFile(provenancePath, 'utf8').catch(error => {
+    hashManifest = providerSettingsHashManifest({ sourceSettings, updaterSource, snapshot: serialized })
+    const currentHashManifest = await fs.readFile(hashManifestPath, 'utf8').catch(error => {
       if (error?.code === 'ENOENT') return undefined
       throw error
     })
-    provenanceChanged = currentProvenance !== provenance
+    hashManifestChanged = currentHashManifest !== hashManifest
   }
   if (!checkOnly) {
     if (snapshotChanged) await writeAtomically(outputPath, serialized)
-    if (provenanceChanged && provenancePath !== undefined && provenance !== undefined) {
-      await writeAtomically(provenancePath, provenance)
+    if (hashManifestChanged && hashManifestPath !== undefined && hashManifest !== undefined) {
+      await writeAtomically(hashManifestPath, hashManifest)
     }
   }
-  return { changed: snapshotChanged || provenanceChanged, serialized, provenanceChanged }
+  return { changed: snapshotChanged || hashManifestChanged, serialized, hashManifestChanged }
 }

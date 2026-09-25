@@ -67,7 +67,7 @@ node scripts/fi-provider-settings-update.mjs --check
 
 受维护的 `ws` connector 使用 pi-ai 现有的 HTTP/HTTPS/ALL_PROXY 与 NO_PROXY 解析，包括提供方环境覆盖，并使用受维护的 HTTPS 代理 agent。它禁用重定向与压缩，执行配置的消息大小限制，并保留 SDK 连接超时和请求取消。插件 dispose（资源释放）只清理其 connector 的缓存与回退记录，终止待连接和已打开的 socket，并等待关闭。已发送的 HTTP 请求仍由调用者的请求 signal 管理。
 
-[固定补丁来源](pi-ai-patch.provenance.json) 记录 npm 版本、完整性值、原始 dist 文件哈希、补丁哈希与移除条件。补丁不向 pi-ai 添加 Node 导入，并保持未提供 factory 时的构造路径不变。生成的元数据与 vendored updater 仍是 auth2api 的字节稳定投影；发布更新绝不意味着新的指纹捕获。
+[固定补丁记录](pi-ai-patch.pin.json) 记录 npm 版本、完整性值、原始 dist 文件哈希、补丁哈希与移除条件。补丁不向 pi-ai 添加 Node 导入，并保持未提供 factory 时的构造路径不变。生成的元数据与 vendored updater 仍是 auth2api 的字节稳定投影；发布更新绝不意味着新的指纹捕获。
 
 </details>
 
@@ -79,7 +79,7 @@ node scripts/fi-provider-settings-update.mjs --check
 - [`@deepseek-ai/dsh-llm-pi-ai`](../../llm/llm-pi-ai/README.zh.md) —— 模型目录、认证和流式传输的所有者。
 - [`@fi/llm-antigravity`](../llm-antigravity/README.zh.md) —— Antigravity 的原生适配器和 OAuth 流程。
 - [提供方设置快照](src/provider-settings.json) —— 生成的元数据和发布来源。
-- [Updater 来源](../../../scripts/vendor/auth2api/provenance.json) —— 精确的 auth2api 来源与 vendored 字节哈希。
+- [Updater 来源记录](../../../scripts/vendor/auth2api/origin.json) —— 精确的 auth2api 来源与 vendored 字节哈希。
 - [官方 Codex WebSocket 协议常量](https://github.com/openai/codex/blob/main/codex-rs/core/src/client.rs) —— 规范记录中 WebSocket beta 的第一手来源。
 
 -----

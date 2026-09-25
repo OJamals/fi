@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { stubSettingsScope } from '@deepseek-ai/dsh-client-test-runtime'
+import { stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
 import {
   PreferredSearchCardController,
   type PreferredSearchSettings,
@@ -13,11 +13,15 @@ function deferred<T>() {
 }
 
 describe('PreferredSearchCardController', () => {
-  it('shadows the upstream card without colliding at the same keyed-slot priority', () => {
-    const host = stubSettingsScope<PreferredSearchSettings>()
+  it('registers a distinct Plugins-page entry while the Host serves its namespace', () => {
+    const host = stubConfigForm<PreferredSearchSettings>()
     const register = vi.fn(() => vi.fn())
     const ctx = {
-      settingsScope: { bind: () => host.scope },
+      locale: { register: vi.fn(() => vi.fn()), bind: vi.fn(() => vi.fn()) },
+      configForms: {
+        get: vi.fn(() => host.scope),
+        whileServed: vi.fn((namespaces: string[], onServed: (served: Set<string>) => () => void) => onServed(new Set(namespaces))),
+      },
       remote: {
         $on: vi.fn(() => vi.fn()),
         credentials: {
@@ -26,7 +30,6 @@ describe('PreferredSearchCardController', () => {
           unset: vi.fn(),
         },
       },
-      locale: { register: vi.fn(() => vi.fn()) },
       effect: vi.fn((mount: () => unknown) => mount()),
       slots: {
         inject: vi.fn((_name: string, mount: () => unknown) => mount()),
@@ -36,10 +39,15 @@ describe('PreferredSearchCardController', () => {
 
     apply(ctx as never)
 
+    expect(ctx.configForms.get).toHaveBeenCalledWith('fi-web-search-preferences')
+    expect(ctx.configForms.whileServed).toHaveBeenCalledWith(
+      ['fi-web-search-preferences'],
+      expect.any(Function),
+    )
     expect(register).toHaveBeenCalledWith(expect.objectContaining({
-      name: 'settings.plugin.item',
-      key: 'web-search-deepseek',
-      priority: -1,
+      name: 'plugins.item',
+      id: 'fi-web-search-preferences',
+      order: 50,
     }), expect.anything())
     expect(ctx.effect).toHaveBeenCalledWith(
       expect.any(Function),
@@ -48,7 +56,7 @@ describe('PreferredSearchCardController', () => {
   })
 
   it('keeps a provider draft when the Host does not accept the settings mutation', async () => {
-    const host = stubSettingsScope<PreferredSearchSettings>()
+    const host = stubConfigForm<PreferredSearchSettings>()
     const describe = vi.fn(async (refs: string[]) => ({
       ok: true as const,
       value: Object.fromEntries(refs.map(ref => [ref, { configured: true, writable: true }])),
@@ -84,7 +92,7 @@ describe('PreferredSearchCardController', () => {
   })
 
   it('addresses the selected provider custom credential reference', async () => {
-    const host = stubSettingsScope<PreferredSearchSettings>()
+    const host = stubConfigForm<PreferredSearchSettings>()
     const describe = vi.fn(async (refs: string[]) => ({
       ok: true as const,
       value: Object.fromEntries(refs.map(ref => [ref, { configured: false, writable: true }])),
@@ -120,7 +128,7 @@ describe('PreferredSearchCardController', () => {
   })
 
   it('writes a credential when the settings document is read-only', async () => {
-    const host = stubSettingsScope<PreferredSearchSettings>()
+    const host = stubConfigForm<PreferredSearchSettings>()
     host.publish({
       status: 'ready',
       writable: false,
@@ -156,7 +164,7 @@ describe('PreferredSearchCardController', () => {
   })
 
   it('drops a stale credential response after provider selection changes', async () => {
-    const host = stubSettingsScope<PreferredSearchSettings>()
+    const host = stubConfigForm<PreferredSearchSettings>()
     const exa = deferred<{ ok: true; value: Record<string, { configured: boolean; writable: boolean }> }>()
     const describe = vi.fn((refs: string[]) => refs[0] === 'EXA_API_KEY'
       ? exa.promise
@@ -182,7 +190,7 @@ describe('PreferredSearchCardController', () => {
   })
 
   it('drops an older response for the same credential reference', async () => {
-    const host = stubSettingsScope<PreferredSearchSettings>()
+    const host = stubConfigForm<PreferredSearchSettings>()
     host.publish({ status: 'ready', writable: true, value: { provider: 'exa' }, base: {}, user: {} })
     const older = deferred<{ ok: true; value: Record<string, { configured: boolean; writable: boolean }> }>()
     const newer = deferred<{ ok: true; value: Record<string, { configured: boolean; writable: boolean }> }>()
@@ -211,7 +219,7 @@ describe('PreferredSearchCardController', () => {
     ['a failure response', async () => ({ ok: false as const, error: new Error('describe failed') })],
     ['a rejected request', async () => { throw new Error('transport failed') }],
   ])('settles %s so the user can replace the credential', async (_name, describeCredential) => {
-    const host = stubSettingsScope<PreferredSearchSettings>()
+    const host = stubConfigForm<PreferredSearchSettings>()
     host.publish({ status: 'ready', writable: true, value: { provider: 'exa' }, base: {}, user: {} })
     const controller = new PreferredSearchCardController(host.scope, {
       remote: {
@@ -239,7 +247,7 @@ describe('PreferredSearchCardController', () => {
   })
 
   it('stops settings subscriptions and pending reads on disposal', async () => {
-    const host = stubSettingsScope<PreferredSearchSettings>()
+    const host = stubConfigForm<PreferredSearchSettings>()
     host.publish({ status: 'ready', writable: true, value: { provider: 'exa' }, base: {}, user: {} })
     const pending = deferred<{ ok: true; value: Record<string, { configured: boolean; writable: boolean }> }>()
     const describe = vi.fn(() => pending.promise)

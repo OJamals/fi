@@ -1,6 +1,46 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/fi/web-search-preferences/README.md
-README.md: 3244a46a7caf1c04c36cec549f895acc0ea0a4ed
-README.zh.md: 8a0e69d1d85be7d19e00024bb0cf8addc1a55f76
+/:
+  en: a2623d5ac0eda3a5
+  zh: 2d043bd4cdda3a11
+/fi-web-search-preferences:
+  en: e2ea6bdb97492c84
+  zh: ad36322ee4cc16d4
+/fi-web-search-preferences/summary:
+  en: dbacb6c321f74156
+  zh: 72de07fa7b0ccd90
+/fi-web-search-preferences/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/fi-web-search-preferences/use-this-package:
+  en: ef89fc1753394771
+  zh: 21e0d68345ce0f20
+/fi-web-search-preferences/understand-the-implementation:
+  en: b74d76179edec7fb
+  zh: 44db933fbfa8f5ff
+/fi-web-search-preferences/further-exploration:
+  en: f4398494b9b6a4d4
+  zh: a8644826d51be93d
+/fi-web-search-preferences/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/fi-web-search-preferences/model-experience/preferred-search-routing:
+  en: c2388ff68a0ae250
+  zh: b346dcb24bbd426d
+/fi-web-search-preferences/model-experience/preferred-search-routing/what-the-model-sees:
+  en: 7d96110b7311a23f
+  zh: 6f9a9871c890dc60
+/fi-web-search-preferences/model-experience/preferred-search-routing/token-effect:
+  en: 51a6dafbd30ede6b
+  zh: 2c3375350f720ea0
+/fi-web-search-preferences/model-experience/preferred-search-routing/kv-cache-effect:
+  en: 44f5c1b953359f77
+  zh: 5720e9aafcf5e0c5
+/fi-web-search-preferences/known-limitations-and-deferred-work:
+  en: 4a408ec6d22ec969
+  zh: 97221d4ecc8ac9ad
+/fi-web-search-preferences/known-limitations-and-deferred-work/dev-note:
+  en: 0a1253c6f7b5e8b9
+  zh: 9f56528562c7c914

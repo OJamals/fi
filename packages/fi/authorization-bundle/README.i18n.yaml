@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/fi/authorization-bundle/README.md
-README.md: a802eb9763f816c7261ef45c8b16e7b4ecb887c6
-README.zh.md: aeba546ed99d40cbc4d78bd25310f8725989dc1b
+/:
+  en: e500e0d358acf6ae
+  zh: 051b9874c7c2aa5d
+/fi-authorization-bundle:
+  en: 782fab1f76c43ea3
+  zh: c412e4c1d0221ddf
+/fi-authorization-bundle/summary:
+  en: e454eb1a1dfb32bb
+  zh: 0416a3f5f25f4a6e
+/fi-authorization-bundle/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/fi-authorization-bundle/use-this-package:
+  en: bbff250eba0f1b89
+  zh: 0a618f05cc88ee2b
+/fi-authorization-bundle/use-this-package/install-into-a-profile:
+  en: ef8594d57c87fb40
+  zh: 6e5598eed7e2f085
+/fi-authorization-bundle/use-this-package/what-you-get:
+  en: b9a509af9492aaad
+  zh: 180fbfc7662324c6
+/fi-authorization-bundle/understand-the-implementation:
+  en: 3c23e5f4c5396aab
+  zh: f2b8c68eda712bdf
+/fi-authorization-bundle/further-exploration:
+  en: e9034e1925e7adaf
+  zh: 439ed7f0517bab64
+/fi-authorization-bundle/model-experience:
+  en: b0cb7d82b8617eae
+  zh: 3977e60ec4faf5f0
+/fi-authorization-bundle/model-experience/kv-cache-effect:
+  en: 99a4a0a52709bc1b
+  zh: e216671fa26c117f
+/fi-authorization-bundle/known-limitations-and-deferred-work:
+  en: 5b3c70da23bba8b5
+  zh: a8bf09b0e1728788
+/fi-authorization-bundle/known-limitations-and-deferred-work/dev-note:
+  en: 52f891afc5318ec3
+  zh: 7c38084cbfd32d07

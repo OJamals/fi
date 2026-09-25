@@ -10,9 +10,9 @@ import { serializeProviderSettings, syncProviderSettings } from './fi-provider-s
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const defaultOutput = path.join(root, 'packages/fi/provider-compat/src/provider-settings.json')
-const defaultProvenance = path.join(root, 'packages/fi/provider-compat/src/provider-settings.provenance.json')
+const defaultHashManifest = path.join(root, 'packages/fi/provider-compat/src/provider-settings.hash-manifest.json')
 const defaultUpdater = path.join(root, 'scripts/vendor/auth2api/update-provider-settings.mjs')
-const defaultUpdaterProvenance = path.join(root, 'scripts/vendor/auth2api/provenance.json')
+const defaultUpdaterOrigin = path.join(root, 'scripts/vendor/auth2api/origin.json')
 
 function option(name) {
   const index = process.argv.indexOf(name)
@@ -20,23 +20,23 @@ function option(name) {
 }
 
 const updaterPath = option('--updater') ?? defaultUpdater
-const updaterProvenancePath = option('--updater-provenance') ?? defaultUpdaterProvenance
+const updaterOriginPath = option('--updater-origin') ?? defaultUpdaterOrigin
 const settingsPath = option('--settings') ?? defaultOutput
 const outputPath = path.resolve(option('--output') ?? defaultOutput)
-const provenancePath = path.resolve(
-  option('--provenance')
+const hashManifestPath = path.resolve(
+  option('--hash-manifest')
     ?? (option('--output') === undefined
-      ? defaultProvenance
-      : `${outputPath.replace(/\.json$/, '')}.provenance.json`),
+      ? defaultHashManifest
+      : `${outputPath.replace(/\.json$/, '')}.hash-manifest.json`),
 )
 const updaterUrl = pathToFileURL(path.resolve(updaterPath)).href
 const updaterSource = await fs.readFile(path.resolve(updaterPath), 'utf8')
-const updaterProvenance = JSON.parse(await fs.readFile(path.resolve(updaterProvenancePath), 'utf8'))
+const updaterOrigin = JSON.parse(await fs.readFile(path.resolve(updaterOriginPath), 'utf8'))
 const updaterSha256 = createHash('sha256').update(updaterSource).digest('hex')
-if (updaterProvenance?.schemaVersion !== 1
-  || updaterProvenance.sourceUpdaterSha256 !== updaterSha256
-  || updaterProvenance.vendoredUpdaterSha256 !== updaterSha256) {
-  throw new Error('provider updater bytes do not match their provenance manifest')
+if (updaterOrigin?.schemaVersion !== 1
+  || updaterOrigin.sourceUpdaterSha256 !== updaterSha256
+  || updaterOrigin.vendoredUpdaterSha256 !== updaterSha256) {
+  throw new Error('provider updater bytes do not match their origin record')
 }
 const updater = await import(updaterUrl)
 if (typeof updater.updateProviderSettings !== 'function') {
@@ -51,7 +51,7 @@ try {
   })
   const sync = await syncProviderSettings({
     outputPath,
-    provenancePath,
+    hashManifestPath,
     sourceSettings: serializeProviderSettings(result.settings),
     updaterSource,
     settings: result.settings,

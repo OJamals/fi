@@ -38,6 +38,9 @@
     },
     {
       "path": "../provider-compat"
+    },
+    {
+      "path": "../../../vendor/loader"
     }
   ]
 }

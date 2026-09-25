@@ -15,57 +15,41 @@ import AuthorizationService from '@deepseek-ai/dsh-authorization'
 import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import LlmRuntime, { fileHandleText } from '@deepseek-ai/dsh-llm'
-import { SettingsProvider } from '@deepseek-ai/dsh-settings'
-import type { SettingsNamespace } from '@deepseek-ai/dsh-settings'
 
 import FiAntigravityService, {
   ANTIGRAVITY_CREDENTIAL_KEY,
   resolveAntigravityGrant,
 } from '../src/index.ts'
 import { ANTIGRAVITY_STATIC_CATALOG } from '../src/catalog.ts'
+import { liveConfig } from '../../../settings/settings/tests/live-config.ts'
 
 const dirs: string[] = []
 
-/** In-memory settings provider: the smallest real SettingsProvider subclass. */
-class MemorySettings extends SettingsProvider {
-  doc: Record<string, unknown> = {}
-
-  get writable(): boolean {
-    return true
-  }
-
-  protected load(): Promise<Record<string, unknown>> {
-    return Promise.resolve(structuredClone(this.doc))
-  }
-
-  protected persist(ns: SettingsNamespace, section: Record<string, unknown>): Promise<void> {
-    this.doc[ns] = structuredClone(section)
-    return Promise.resolve()
-  }
-}
-
-/** A context with the record store, settings, the llm runtime, and the plugin. */
+/**
+ * A context with the record store, the llm runtime, and the plugin mounted
+ * as a real Loader entry named `fi-antigravity` — the id a real profile
+ * gives it — so its Config's volatile `providers` dict can be edited live
+ * the same way `ctx.settings.mutate` would, without booting a full profile.
+ */
 async function harness(services?: {
   readonly attachments?: { fileHostPath(ref: unknown): string | undefined }
   readonly fs?: { processPathFromHostPath(path: string): string | undefined }
-}): Promise<Context> {
+}): Promise<{ ctx: Context; live: Awaited<ReturnType<typeof liveConfig>> }> {
   const dir = await mkdtemp(join(tmpdir(), 'fi-agy-plugin-'))
   dirs.push(dir)
   const ctx = new Context()
   if (services?.attachments !== undefined) ctx.provide('attachments', services.attachments as never)
   if (services?.fs !== undefined) ctx.provide('fs', services.fs as never)
   await ctx.plugin(LocalCredentialProvider, { path: join(dir, '.credentials.yaml'), watch: false })
-  await ctx.plugin(MemorySettings)
   await ctx.plugin(LlmRuntime)
   await ctx.plugin(AuthorizationService)
-  await ctx.plugin(FiAntigravityService)
-  return ctx
+  const live = await liveConfig(ctx, FiAntigravityService, {}, 'fi-antigravity')
+  return { ctx, live }
 }
 
 /** The resolved providers dict of the fi-antigravity namespace. */
-function routes(ctx: Context): Record<string, unknown> {
-  const view = ctx.settings.describe().find(candidate => candidate.ns === 'fi-antigravity')
-  return (view?.value as { providers?: Record<string, unknown> } | undefined)?.providers ?? {}
+function routes(live: Awaited<ReturnType<typeof liveConfig>>): Record<string, unknown> {
+  return (live.fiber.config as { providers: { get(): Record<string, unknown> } }).providers.get()
 }
 
 /** Parse the JSON body one scripted fetch call received. */
@@ -91,7 +75,7 @@ afterEach(async () => {
 
 describe('FiAntigravityService', () => {
   it('registers the sign-in flow on the authorization seam', async () => {
-    const ctx = await harness()
+    const { ctx } = await harness()
     const entries = ctx.authorization.list()
     const entry = entries.find(candidate => candidate.key === ANTIGRAVITY_CREDENTIAL_KEY)
     expect(entry?.label).toBe('Antigravity')
@@ -99,7 +83,7 @@ describe('FiAntigravityService', () => {
   })
 
   it('declares the Antigravity directory entry the Models page reads', async () => {
-    const ctx = await harness()
+    const { ctx } = await harness()
     const entry = ctx.llm.listConfigurableProviders().find(candidate => candidate.provider === 'antigravity')
     expect(entry).toMatchObject({
       displayName: 'Antigravity',
@@ -109,33 +93,27 @@ describe('FiAntigravityService', () => {
   })
 
   it('is dormant on a bare mount and takes routes live from the section', async () => {
-    const ctx = await harness()
+    const { ctx, live } = await harness()
     expect(ctx.llm.listProviders().map(provider => provider.id)).not.toContain('antigravity')
 
-    await ctx.settings.mutate('fi-antigravity' as never, [
-      { op: 'set', path: ['providers', 'antigravity'], value: {} },
-    ] as never)
-    expect(routes(ctx)).toEqual({ antigravity: {} })
+    await live.update({ providers: { antigravity: {} } })
+    expect(routes(live)).toEqual({ antigravity: {} })
     expect(ctx.llm.listProviders().map(provider => provider.id)).toContain('antigravity')
 
-    await ctx.settings.mutate('fi-antigravity' as never, [
-      { op: 'unset', path: ['providers', 'antigravity'] },
-    ] as never)
+    await live.replace({ providers: {} })
     expect(ctx.llm.listProviders().map(provider => provider.id)).not.toContain('antigravity')
   })
 
   it('answers discovery for its namespace from the static catalog when signed out', async () => {
-    const ctx = await harness()
+    const { ctx } = await harness()
     const models = await ctx.llm.discoverModels('fi-antigravity', { provider: 'antigravity' })
     expect(models.length).toBe(ANTIGRAVITY_STATIC_CATALOG.length)
     expect(models.map(model => model.id)).toContain('antigravity-claude-sonnet-4-6')
   })
 
   it('serves a signed-out request as an honest error finish, not a throw', async () => {
-    const ctx = await harness()
-    await ctx.settings.mutate('fi-antigravity' as never, [
-      { op: 'set', path: ['providers', 'antigravity'], value: {} },
-    ] as never)
+    const { ctx, live } = await harness()
+    await live.update({ providers: { antigravity: {} } })
     const chunks = []
     for await (const chunk of ctx.llm.stream({
       provider: 'antigravity',
@@ -153,7 +131,7 @@ describe('FiAntigravityService', () => {
     // projectId}` — no `type: 'oauth'`, no `antigravityProjectId`. The
     // narrowing must accept it: the record key is already scoped to this
     // plugin's flow, so structure (an access token) is the whole check.
-    const ctx = await harness()
+    const { ctx } = await harness()
     await ctx.credentials.modifyRecord(
       credentialKey('fi-antigravity', 'antigravity'),
       () => Promise.resolve({
@@ -171,7 +149,7 @@ describe('FiAntigravityService', () => {
   })
 
   it('exports the same serialized refreshing grant resolver used by the adapter', async () => {
-    const ctx = await harness()
+    const { ctx } = await harness()
     const key = credentialKey('fi-antigravity', 'antigravity')
     await ctx.credentials.modifyRecord(key, () => Promise.resolve({
       kind: 'grant',
@@ -207,7 +185,7 @@ describe('FiAntigravityService', () => {
   })
 
   it('rejects OAuth redirects and redacts a failed refresh response body', async () => {
-    const ctx = await harness()
+    const { ctx } = await harness()
     const key = credentialKey('fi-antigravity', 'antigravity')
     await ctx.credentials.modifyRecord(key, () => Promise.resolve({
       kind: 'grant',
@@ -237,13 +215,11 @@ describe('FiAntigravityService', () => {
   })
 
   it('keeps durable files on the harness-wide deterministic text projection', async () => {
-    const ctx = await harness({
+    const { ctx, live } = await harness({
       attachments: { fileHostPath: () => '/host/notes.pdf' },
       fs: { processPathFromHostPath: () => '/sandbox/read-only/notes.pdf' },
     })
-    await ctx.settings.mutate('fi-antigravity' as never, [
-      { op: 'set', path: ['providers', 'antigravity'], value: {} },
-    ] as never)
+    await live.update({ providers: { antigravity: {} } })
     await ctx.credentials.modifyRecord(
       credentialKey('fi-antigravity', 'antigravity'),
       () => Promise.resolve({
@@ -278,7 +254,7 @@ describe('FiAntigravityService', () => {
   })
 
   it('a stored grant backs the route the sign-in flow commits to', async () => {
-    const ctx = await harness()
+    const { ctx } = await harness()
     await ctx.credentials.modifyRecord(
       credentialKey('fi-antigravity', 'antigravity'),
       () => Promise.resolve({

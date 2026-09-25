@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/fi/provider-compat/README.md
-README.md: c72dc421d0a407bbd0beb07a87a43fa8b317de8a
-README.zh.md: fa5967c87bc39670526557eb23fcb8282dbb1765
+/:
+  en: e247fb159b87c2b9
+  zh: 2946e844a72deb4a
+/fi-provider-compat:
+  en: a7f7abf7cdf23164
+  zh: c3a936ac6a1256c8
+/fi-provider-compat/summary:
+  en: b00529e080f0a5d0
+  zh: 1f6ffd3d256f2e3b
+/fi-provider-compat/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/fi-provider-compat/use-this-package:
+  en: 0c748d9a1d413e90
+  zh: 860166ae0664dab6
+/fi-provider-compat/use-this-package/synchronize-an-existing-canonical-snapshot:
+  en: f7d812dc49511e39
+  zh: 009f1e44e57430d9
+/fi-provider-compat/use-this-package/check-or-apply-public-release-updates:
+  en: 608fcda6c0f0239b
+  zh: c99031d18ae6fccd
+/fi-provider-compat/understand-the-implementation:
+  en: 228829b6f7fdffc5
+  zh: 2294244389798f79
+/fi-provider-compat/further-exploration:
+  en: f94744115dce029f
+  zh: 2050e6535221fd2d
+/fi-provider-compat/model-experience:
+  en: 3a16609c5afaf6a4
+  zh: 81d90ca982642a4f
+/fi-provider-compat/model-experience/kv-cache-effect:
+  en: 686bd6b5595706fa
+  zh: 4ddf3419d9da7ca5
+/fi-provider-compat/known-limitations-and-deferred-work:
+  en: 3eed1e0d4e22904a
+  zh: de85c2e0e91da422
+/fi-provider-compat/known-limitations-and-deferred-work/dev-note:
+  en: c9be2316dd9885c6
+  zh: 3769162796122d24

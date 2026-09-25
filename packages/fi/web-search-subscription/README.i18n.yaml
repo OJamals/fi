@@ -1,6 +1,46 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/fi/web-search-subscription/README.md
-README.md: 9e7c4d1b13aecb4b7d808330ec7844de3ed3a679
-README.zh.md: 48bde1f6798a9fdf0dd026f7608bc4d015d02faf
+/:
+  en: 93712d5dcff9136c
+  zh: 1950eb5badaa3801
+/fi-web-search-subscription:
+  en: 38472192d1cc3f75
+  zh: ecbc76e8de345e4b
+/fi-web-search-subscription/summary:
+  en: bbcda2cb2b102ed9
+  zh: b23187641fe983a8
+/fi-web-search-subscription/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/fi-web-search-subscription/use-this-package:
+  en: eb68eb9a810a20c0
+  zh: 49d8642d161d7493
+/fi-web-search-subscription/use-this-package/when-to-choose-it:
+  en: 59cf65d0e4ec2c3b
+  zh: 2eb15d357981649f
+/fi-web-search-subscription/use-this-package/minimal-configuration:
+  en: efae89654f5858cf
+  zh: 3f9bd58c07fc1172
+/fi-web-search-subscription/use-this-package/results-and-failures:
+  en: cc5270a5800e28ca
+  zh: 7d698ad4abc335d3
+/fi-web-search-subscription/understand-the-implementation:
+  en: 339823a273cc375e
+  zh: 3358a0a2c6bfd443
+/fi-web-search-subscription/further-exploration:
+  en: 35f4c9b517ee9066
+  zh: 87b442c833e1a126
+/fi-web-search-subscription/model-experience:
+  en: d711977ba93a0d78
+  zh: 89389c9da03b2e92
+/fi-web-search-subscription/model-experience/kv-cache-effect:
+  en: b5324279e3b64ed9
+  zh: 86c71a6c9975d4a2
+/fi-web-search-subscription/known-limitations-and-deferred-work:
+  en: 2e947566aa4c06fc
+  zh: 5f10b552b4faec58
+/fi-web-search-subscription/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 8ec3e73528ddb1a6

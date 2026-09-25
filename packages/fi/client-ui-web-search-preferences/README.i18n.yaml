@@ -1,6 +1,46 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/fi/client-ui-web-search-preferences/README.md
-README.md: c249f5949fcdaece52525e6b5bd34f3914c1519f
-README.zh.md: 366ba7e31d249b603a1820e4264305ec6bac2357
+/:
+  en: 50f10af30d85e831
+  zh: b63869c987322d1e
+/fi-client-ui-web-search-preferences:
+  en: 4da4d24c0f72e61a
+  zh: e50f7391dd7ddb14
+/fi-client-ui-web-search-preferences/summary:
+  en: bf188a15c90d5dcc
+  zh: 68ef4cd2b9b9afe9
+/fi-client-ui-web-search-preferences/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/fi-client-ui-web-search-preferences/use-this-package:
+  en: 2fc33d9e63102706
+  zh: f0bc947ad119168e
+/fi-client-ui-web-search-preferences/understand-the-implementation:
+  en: 86706b1907b0b2b5
+  zh: e7899324b9ea1103
+/fi-client-ui-web-search-preferences/further-exploration:
+  en: eee70202ef15215d
+  zh: 85d396792e92b1ca
+/fi-client-ui-web-search-preferences/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/fi-client-ui-web-search-preferences/model-experience/preferred-search-settings-card:
+  en: a0fdd3b4d1b2ce35
+  zh: af353a12ab4f020e
+/fi-client-ui-web-search-preferences/model-experience/preferred-search-settings-card/what-the-model-sees:
+  en: 97f0b0530f323ea6
+  zh: 71bda1c6f74b4a61
+/fi-client-ui-web-search-preferences/model-experience/preferred-search-settings-card/token-effect:
+  en: af1e24ab3bbe221a
+  zh: b75901e150406fba
+/fi-client-ui-web-search-preferences/model-experience/preferred-search-settings-card/kv-cache-effect:
+  en: 3e2ed3450ac3bab6
+  zh: 5b79b7a012d4dbfb
+/fi-client-ui-web-search-preferences/known-limitations-and-deferred-work:
+  en: c182477c3901ff92
+  zh: 782b02a14728804c
+/fi-client-ui-web-search-preferences/known-limitations-and-deferred-work/dev-note:
+  en: 0a1253c6f7b5e8b9
+  zh: 9f56528562c7c914

@@ -20,12 +20,14 @@
 import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 
 import { Context, Service } from '@deepseek-ai/cordis'
+import type { Volatile } from '@deepseek-ai/cordis'
 // Type-only: pulls the seams' Context merges into this program
 // (ctx.authorization, ctx.credentials, ctx.llm, ctx.settings).
 import type {} from '@deepseek-ai/dsh-authorization'
 import type {} from '@deepseek-ai/dsh-attachment'
 import type {} from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-settings'
+import type {} from '@deepseek-ai/cordis-plugin-loader'
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRecord } from '@deepseek-ai/dsh-credentials'
 import type { AdapterRegistrationHandle } from '@deepseek-ai/dsh-llm'
@@ -128,19 +130,21 @@ export function registerAntigravityFlow(ctx: Context): void {
  * page's editor shows nothing to mistype.
  */
 interface FiAntigravityProfile {
+  /** Name the Models page shows for this route. */
   displayName?: string
 }
 
-/** The section shape: profiles keyed by route id. */
-interface FiAntigravityConfig {
-  providers: Record<string, FiAntigravityProfile>
+/** The plugin Config: profiles keyed by route id, edited live through the profile-backed settings form. */
+export interface FiAntigravityConfig {
+  /** Antigravity routes keyed by route id; each route serves through the signed-in Google grant. */
+  providers: Volatile<Record<string, FiAntigravityProfile>>
 }
 
 const Profile = z.object({
   displayName: z.string(),
 })
 const Config = z.object({
-  providers: z.dict(Profile),
+  providers: z.dict(Profile).default({}).volatile(),
 }) as unknown as z<FiAntigravityConfig>
 
 /** The grant payload as the sign-in flow commits it. */
@@ -239,45 +243,46 @@ export async function resolveAntigravityGrant(
  * pi-ai plugin's posture.
  */
 export class FiAntigravityService extends Service {
-  static inject = ['authorization', 'credentials', 'llm', 'settings']
+  static inject = ['authorization', 'credentials', 'llm']
+  static Config = Config
 
-  constructor(ctx: Context) {
+  constructor(ctx: Context, config: FiAntigravityConfig) {
     super(ctx, 'fi-antigravity')
     registerAntigravityFlow(this.ctx)
+    // The Models page renders this section through the provider directory, not an automatic form.
+    this.ctx.inject(['settings'], (child) => { child.effect(() => child.settings.configure({ auto: false }, this.ctx.fiber)) })
+    const settingsNs = this.ctx.fiber.entry?.options.id ?? ANTIGRAVITY_CREDENTIAL_SCOPE
 
     const adapter = new AntigravityAdapter(
       signal => resolveAntigravityGrant(this.ctx, signal),
       () => this.ctx.get('attachments'),
     )
-    let source: () => FiAntigravityConfig = () => ({ providers: {} })
     let registration: AdapterRegistrationHandle | undefined
     const sync = (): void => {
-      const routes = Object.keys(source().providers)
+      const routes = Object.keys(config.providers.get())
       if (registration === undefined) {
-        // Dormant bare mount: nothing registers until a section supplies a
-        // profile, and an emptied section drops every route.
+        // Dormant bare mount: nothing registers until the Config declares a
+        // profile, and an emptied Config drops every route.
         if (routes.length === 0) return
         registration = this.ctx.llm.registerAdapter(routes, adapter)
       } else {
         registration.replace(routes)
       }
     }
-    this.ctx.settings.installSection(this.ctx, ANTIGRAVITY_CREDENTIAL_SCOPE, Config, { providers: {} }, {
-      setSource: (current) => { source = current },
-      onChange: sync,
-    })
+    sync()
+    this.ctx.on('loader/volatile-update', () => { sync() })
     // The Models page's add-provider catalog draws from these entries, so
     // Antigravity appears there before any route exists — the same way the
     // pi-ai plugin surfaces its whole installed catalog.
     this.ctx.llm.registerConfigurableProviders([{
       provider: ANTIGRAVITY_PROVIDER_ID,
       displayName: ANTIGRAVITY_FLOW_LABEL,
-      settingsNs: ANTIGRAVITY_CREDENTIAL_SCOPE,
+      settingsNs,
       settingsPath: ['providers', ANTIGRAVITY_PROVIDER_ID],
     }])
     // Discovery serves the adopt flow's model enumeration: the live
     // projected catalog when a grant is stored, the static list otherwise.
-    this.ctx.llm.registerModelDiscovery(ANTIGRAVITY_CREDENTIAL_SCOPE, async (request) => {
+    this.ctx.llm.registerModelDiscovery(settingsNs, async (request) => {
       const models = await adapter.listModels(request.provider ?? ANTIGRAVITY_PROVIDER_ID)
       return models.map(model => ({ id: model.id, name: model.name }))
     })

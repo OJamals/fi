@@ -33,9 +33,9 @@ jobs:
           commit-message: 'chore(fi): update provider settings metadata'
           title: 'chore(fi): update provider settings metadata'
           body: |
-            Automated public release metadata refresh through FI's provenance-pinned auth2api updater.
+            Automated public release metadata refresh through FI's hash-pinned auth2api updater.
 
             Capture-gated runtime fingerprints are not advanced from release metadata. Review any stale fingerprint diagnostic separately before merging.
           add-paths: |
             packages/fi/provider-compat/src/provider-settings.json
-            packages/fi/provider-compat/src/provider-settings.provenance.json
+            packages/fi/provider-compat/src/provider-settings.hash-manifest.json

@@ -41,6 +41,10 @@ fi is based on [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harnes
 
 See [development](docs/development.md), [architecture](docs/architecture.md), and [contributing](CONTRIBUTING.md) docs.
 
+`pnpm run dev:web` builds, serves, and rebuilds client bundles on source edits in one terminal, and `make help` lists the matching Make targets for Web and Desktop; the guide's application commands section owns the full table.
+
+For agents, follow [AGENTS.md](AGENTS.md).
+
 ## License
 
 [MIT](LICENSE). Third-party licenses: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

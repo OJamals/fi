@@ -117,30 +117,18 @@ describe('native-harness file-input projection', () => {
         { type: 'text', text: handle },
         { type: 'image', attachment: image },
       ])
-      expect(request?.messages[1]?.content).toEqual([{
-        type: 'tool-result',
-        toolCallId: callId,
-        isError: false,
-        content: [
-          { type: 'text', text: 'Tool returned both attachments.' },
-          { type: 'text', text: handle },
-          { type: 'image', attachment: image },
-        ],
-      }])
+      expect(request?.messages[1]).toMatchObject({ role: 'tool', toolCallId: callId, isError: false })
+      expect(request?.messages[1]?.content).toEqual([
+        { type: 'text', text: 'Tool returned both attachments.' },
+        { type: 'text', text: handle },
+        { type: 'image', attachment: image },
+      ])
 
       expect(history[0]?.content[1]).toEqual({ type: 'file', attachment: file })
-      expect(history[1]?.content[0]).toEqual({
-        type: 'tool-result',
-        toolCallId: callId,
-        isError: false,
-        content: [
-          { type: 'text', text: 'Tool returned both attachments.' },
-          { type: 'file', attachment: file },
-          { type: 'image', attachment: image },
-        ],
-      })
+      expect(history[1]).toMatchObject({ role: 'tool', toolCallId: callId, isError: false })
+      expect(history[1]?.content[1]).toEqual({ type: 'file', attachment: file })
       expect(Object.isFrozen(history[0]?.content)).toBe(true)
-      expect(Object.isFrozen(history[1]?.content[0])).toBe(true)
+      expect(Object.isFrozen(history[1]?.content)).toBe(true)
     })
   })
 

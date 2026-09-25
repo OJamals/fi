@@ -1,6 +1,70 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write apps/desktop/README.md
-README.md: 9d16ed50e84fea2e2e66a5d0b0c1c7f00b98c4ea
-README.zh.md: cf8ab49f3d0f5e1e9a2d33c140ae4d1bfe8a06a3
+/fi-desktop:
+  en: aff2694bdcc321dd
+  zh: 6b7b72a9b113b364
+/fi-desktop/closing-the-window-and-quitting:
+  en: 34f3ec8d9a0e3c4f
+  zh: cc4ab7bf3bce9942
+/fi-desktop/key-technical-decisions:
+  en: 069fdfd72d2ea26a
+  zh: 76ae549d43c99bb4
+/fi-desktop/key-technical-decisions/bundled-workspace-dependencies:
+  en: 4089c53d73490437
+  zh: af5f22f1e9edf6bf
+/fi-desktop/installation-ownership:
+  en: 794016082d3688d5
+  zh: e3c588b21c6ac27e
+/fi-desktop/installation-ownership/runtime-and-plugin-activation:
+  en: e472dec22d8409ec
+  zh: adf0c59e720a6254
+/fi-desktop/develop:
+  en: 0f6fee0051b86577
+  zh: f66b89f2235343f8
+/fi-desktop/develop/startup-onboarding:
+  en: 5e2d62207a603d81
+  zh: 5fb863d4906f4a67
+/fi-desktop/develop/welcome-window-appearance:
+  en: 7220801ccc3b2e6b
+  zh: 042dc97976aef979
+/fi-desktop/package:
+  en: 4cd8a8da6977928d
+  zh: 9f624855a2edac37
+/fi-desktop/package/release-versions:
+  en: 64fc091b99f1efb9
+  zh: 18d42a393343fb56
+/fi-desktop/package/runtime-file-selection:
+  en: 3dcb032b94319061
+  zh: 555cd07f0184016a
+/fi-desktop/package/publish-updates:
+  en: 6e8a4922bb9eda69
+  zh: db9e182bfef6e008
+/fi-desktop/package/upload-updates:
+  en: 5032c5059f160c9b
+  zh: 999f503e6f382030
+/fi-desktop/package/unsigned-windows-test-installer:
+  en: 4bdba9dd5f28f885
+  zh: 90284fa42af76a5f
+/fi-desktop/package/windows-installer-interface:
+  en: f176a8b1c7de3064
+  zh: 6ea2dbe6bb808c34
+/fi-desktop/package/windows-ev-signing:
+  en: b4d5baebf7af9602
+  zh: ed654159e2019aa6
+/fi-desktop/updates:
+  en: d5cbb13018d64ff2
+  zh: 8a37a7a08498c21d
+/fi-desktop/updates/mandatory-update-policy:
+  en: 2f789a4949fafb12
+  zh: d8b28c01cfee11b7
+/fi-desktop/updates/local-updater-qualification:
+  en: bc50fd8a4d96c227
+  zh: fb0a6ce80c31cda6
+/fi-desktop/low-level-development-overrides:
+  en: 0b225f914142ef0b
+  zh: 9ffd07768d37824e
+/fi-desktop/known-limitations:
+  en: 9d212f31539742dd
+  zh: 3f3bdf57bdc837ab

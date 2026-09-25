@@ -1,7 +1,7 @@
 /** Durable Antigravity thought-signature replay metadata. */
 
 import { LlmError } from '@deepseek-ai/dsh-llm'
-import type { Message, ReplayEnvelope } from '@deepseek-ai/dsh-llm'
+import type { Message, ReplayEnvelope, RequestMessage } from '@deepseek-ai/dsh-llm'
 import type { FileAttachmentRef, ImageMediaType } from '@deepseek-ai/dsh-attachment'
 
 /** One replay entry aligned with one durable assistant content block. */
@@ -266,7 +266,7 @@ function validateNativeParts(message: Message, value: unknown): readonly Antigra
  * @param message - historical assistant message being projected.
  * @returns aligned Antigravity entries, or `undefined` for provider-neutral history.
  */
-export function antigravityReplay(message: Message): AntigravityReplayData | undefined {
+export function antigravityReplay(message: RequestMessage): AntigravityReplayData | undefined {
   if (message.role !== 'assistant' || message.source.kind !== 'model' || message.source.replayState === undefined) {
     return undefined
   }

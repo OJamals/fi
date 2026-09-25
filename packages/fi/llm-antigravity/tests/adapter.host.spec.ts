@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { BlockAssembler } from '@deepseek-ai/dsh-llm'
+import { BlockAssembler, createToolResultMessage } from '@deepseek-ai/dsh-llm'
 import type { GenerateOptions, Message, StreamChunk } from '@deepseek-ai/dsh-llm'
 import LocalAttachmentStore from '@deepseek-ai/dsh-attachment-local'
 import { ImageVariantId } from '@deepseek-ai/dsh-attachment'
@@ -566,12 +566,11 @@ describe('stream', () => {
       content: assembler.blocks(),
       source: { kind: 'model', provider: 'antigravity', model: 'claude-sonnet-4-6', replayState },
     }
-    const result: Message = {
-      id: 'result-1' as never,
-      role: 'user',
-      content: [{ type: 'tool-result', toolCallId: 'c1' as never, content: [{ type: 'text', text: '12:00' }] }],
-      source: { kind: 'tool', callId: 'c1' as never },
-    }
+    const result = createToolResultMessage({
+      callId: 'c1' as never,
+      content: [{ type: 'text', text: '12:00' }],
+      isError: false,
+    })
     await collect(adapter.stream(request({ messages: [assistant, result] })))
     const [, secondInit] = fetchSpy.mock.calls[1] as unknown as [string, RequestInit]
     const envelope = jsonBody(secondInit) as {
@@ -638,7 +637,7 @@ describe('stream', () => {
     })))
     expect(readImageRequest).toHaveBeenCalledWith(
       imageRef,
-      { maxPixels: 4096 * 4096, maxBytes: 2 * 1024 * 1024 },
+      { width: 1, height: 1, maxBytes: 2 * 1024 * 1024 },
       undefined,
     )
     const [, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit]
@@ -717,16 +716,11 @@ describe('stream', () => {
       content: [{ type: 'tool-call', id: 'c1' as never, name: 'inspect', arguments: '{}' }],
       source: { kind: 'model', provider: 'antigravity', model: 'claude-sonnet-4-6' },
     }
-    const result: Message = {
-      id: 'result-image' as never,
-      role: 'user',
-      content: [{
-        type: 'tool-result',
-        toolCallId: 'c1' as never,
-        content: [{ type: 'text', text: 'captured' }, { type: 'image', attachment: imageRef }],
-      }],
-      source: { kind: 'tool', callId: 'c1' as never },
-    }
+    const result = createToolResultMessage({
+      callId: 'c1' as never,
+      content: [{ type: 'text', text: 'captured' }, { type: 'image', attachment: imageRef }],
+      isError: false,
+    })
     await collect(adapter.stream(request({ messages: [assistant, result] })))
     const [, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit]
     const envelope = jsonBody(init) as {

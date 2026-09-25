@@ -8,7 +8,7 @@ export function validateProviderSettings(value: unknown): ProviderSettings
 export function serializeProviderSettings(value: unknown): string
 
 /** Build a hash manifest for the canonical inputs and generated snapshot. */
-export function providerSettingsProvenance(inputs: {
+export function providerSettingsHashManifest(inputs: {
   sourceSettings: string
   updaterSource: string
   snapshot: string
@@ -20,9 +20,9 @@ export function writeAtomically(outputPath: string, contents: string): Promise<v
 /** Compare or persist one generated provider-settings snapshot. */
 export function syncProviderSettings(options: {
   outputPath: string
-  provenancePath?: string
+  hashManifestPath?: string
   sourceSettings?: string
   updaterSource?: string
   settings: unknown
   checkOnly?: boolean
-}): Promise<{ changed: boolean; serialized: string; provenanceChanged: boolean }>
+}): Promise<{ changed: boolean; serialized: string; hashManifestChanged: boolean }>

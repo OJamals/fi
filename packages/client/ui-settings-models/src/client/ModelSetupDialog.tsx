@@ -20,6 +20,8 @@ import css from './ModelSetupDialog.module.css'
 
 /** Registration-side dependencies of {@link ModelSetupDialog}. */
 export interface ModelSetupDialogInjected {
+  /** Whether first-run setup should show automatically; false leaves it to a native shell's own onboarding. */
+  automatic: boolean
   hooks: {
     /** Shared Models-page join state, bound by the slot renderer. */
     models: SnapshotStore<ModelsSettingsState>
@@ -41,23 +43,24 @@ export type ModelSetupDialogProps =
  * @returns the onboarding modal or null when onboarding needs no intervention.
  */
 export function ModelSetupDialog(props: ModelSetupDialogProps): ReactNode {
-  const { complete, openSection, controller, useModels, t } = props
+  const { complete, openSection, controller, useModels, t, automatic } = props
   const state = useModels(snapshot => snapshot)
   const readiness = onboardingReadiness(state)
 
   useEffect(() => {
-    if (state.status === 'idle') void controller.load()
-  }, [controller, state.status])
+    if (automatic && state.status === 'idle') void controller.load()
+  }, [automatic, controller, state.status])
 
   useEffect(() => {
     if (
-      readiness.kind === 'no-providers'
+      !automatic
+      || readiness.kind === 'no-providers'
       || readiness.kind === 'provider-ready'
       || readiness.kind === 'unavailable'
     ) complete()
-  }, [complete, readiness.kind])
+  }, [automatic, complete, readiness.kind])
 
-  if (readiness.kind !== 'model-unconfigured') return null
+  if (!automatic || readiness.kind !== 'model-unconfigured') return null
 
   const chooseModel = (): void => {
     complete()

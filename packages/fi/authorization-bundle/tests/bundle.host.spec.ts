@@ -39,7 +39,7 @@ describe('the bundle layer', () => {
           { id: 'fi-authorization', name: '@deepseek-ai/dsh-authorization' },
           { id: 'fi-authorization-controller', name: '@fi/api-authorization-controller' },
           { id: 'fi-ui-model-signin', name: '@fi/client-ui-model-signin' },
-          { id: 'fi-llm-antigravity', name: '@fi/llm-antigravity' },
+          { id: 'fi-antigravity', name: '@fi/llm-antigravity' },
           { id: 'fi-provider-compat', name: '@fi/provider-compat' },
           { id: 'fi-web-search-preferences', name: '@fi/web-search-preferences' },
           {

@@ -1,6 +1,25 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-11-subscription-oauth-sign-in.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-11-subscription-oauth-sign-in.md
-2026-09-11-subscription-oauth-sign-in.md: 57440ad851c9eeddae174579b4848944a2d5b054
-2026-09-11-subscription-oauth-sign-in.zh.md: f9515ffb4c1ae3594fadec80776c1e91c7f19337
+/agent-note-subscription-oauth-sign-in-in-models-settings:
+  en: 7d76d77e9b27e835
+  zh: cf4df20844cc9d5a
+/agent-note-subscription-oauth-sign-in-in-models-settings/problem:
+  en: faf92e316f7d4740
+  zh: bb7693726768ecba
+/agent-note-subscription-oauth-sign-in-in-models-settings/decision:
+  en: aeda935df6bfa535
+  zh: dc62e23b836e0576
+/agent-note-subscription-oauth-sign-in-in-models-settings/consequences:
+  en: 0f284d0548f4012a
+  zh: da0e67b8bb2fff37
+/agent-note-subscription-oauth-sign-in-in-models-settings/composition-and-lifecycle:
+  en: bc3e87495aba73e6
+  zh: eae808bfa244f31b
+/agent-note-subscription-oauth-sign-in-in-models-settings/alternatives-considered:
+  en: f489f05b13e1a256
+  zh: 19ba1b2032bc9cf7
+/agent-note-subscription-oauth-sign-in-in-models-settings/required-verification:
+  en: 0957ff45dacd046c
+  zh: 540270be28e762b1

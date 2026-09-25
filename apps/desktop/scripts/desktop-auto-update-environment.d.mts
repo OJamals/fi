@@ -20,6 +20,7 @@ export interface DesktopTestAutoUpdateConfig {
   readonly origin: string
   readonly publicUrl: string
   readonly keyPrefix: string
+  readonly binaryKeyPrefix: string
   readonly publish: { readonly provider: 'generic', readonly url: string }
 }
 
@@ -73,10 +74,12 @@ export function resolveDesktopAutoUpdateTarget(
 export function desktopBuildRecordFilename(target: DesktopAutoUpdateTarget): string
 
 /**
- * Return the electron-builder channel metadata filename for an application version.
+ * Return the electron-builder Nightly metadata filename for an application version.
+ * The test deployment publishes one rolling Nightly channel; the version is validated
+ * but does not select a different channel name.
  * @param version - Desktop semantic version.
  * @param platform - Target platform.
- * @returns Channel metadata filename emitted for the target.
+ * @returns Nightly metadata filename emitted for the target.
  */
 export function desktopUpdateMetadataFilename(
   version: string,
@@ -84,12 +87,12 @@ export function desktopUpdateMetadataFilename(
 ): string
 
 /**
- * Resolve the public updater URL for one release target.
+ * Resolve the public updater URL and object prefixes for one release target.
  * @param env - Packaging or upload environment.
  * @param platform - Target Node.js platform.
  * @param arch - Target Node.js architecture.
  * @returns Resolved updater configuration.
- * @throws When the test deployment lacks a valid HTTPS origin.
+ * @throws When the test deployment lacks a valid HTTPS origin or a 32-character lowercase hexadecimal release ID.
  */
 export function resolveDesktopAutoUpdateConfig(
   env: NodeJS.ProcessEnv,
@@ -103,7 +106,7 @@ export function resolveDesktopAutoUpdateConfig(
  * @param platform - Target Node.js platform.
  * @param arch - Target Node.js architecture.
  * @returns Resolved upload configuration.
- * @throws When production is selected or the test deployment lacks a required origin or bucket.
+ * @throws When production is selected, or the test deployment lacks a required origin, release ID, or bucket.
  */
 export function resolveDesktopUploadConfig(
   env: NodeJS.ProcessEnv,

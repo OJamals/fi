@@ -45,15 +45,54 @@ function mount(overrides: Partial<PreferredSearchCardState> = {}) {
   }
   const props = {
     ...actions,
+    view: 'page',
     t,
     usePreferredSearchCard: bindSnapshotSelector(store),
   } as unknown as PreferredSearchCardProps
   render(<PreferredSearchCard {...props} />)
-  fireEvent.click(screen.getByRole('button', { name: `${en.expand}: ${en.title}` }))
   return actions
 }
 
 describe('preferred-search settings card', () => {
+  it('renders its one-liner alone in the summary view', () => {
+    const store = createSnapshotStore<PreferredSearchCardState>({
+      available: true,
+      writable: true,
+      dirty: false,
+      settingsDirty: false,
+      invalid: false,
+      saving: false,
+      failed: false,
+      provider: 'deepseek-official',
+      subscriptionProvider: 'codex',
+      subscriptionModel: '',
+      apiKey: '',
+      credentialRef: 'DEEPSEEK_API_KEY',
+      apiKeyConfigured: false,
+      apiKeyWritable: true,
+      apiKeyChecking: false,
+    })
+    const actions = {
+      editProvider: vi.fn(),
+      editSubscriptionProvider: vi.fn(),
+      editSubscriptionModel: vi.fn(),
+      editApiKey: vi.fn(),
+      save: vi.fn(),
+      discard: vi.fn(),
+      removeKey: vi.fn(),
+    }
+    const props = {
+      ...actions,
+      view: 'summary',
+      t,
+      usePreferredSearchCard: bindSnapshotSelector(store),
+    } as unknown as PreferredSearchCardProps
+    render(<PreferredSearchCard {...props} />)
+
+    expect(document.body.textContent).toBe(en.description)
+    expect(screen.queryByLabelText(en.apiKey)).toBeNull()
+  })
+
   it('offers every supported direct and subscription provider', () => {
     const actions = mount()
     const select = screen.getByRole('combobox', { name: en.provider })

@@ -1,13 +1,15 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context, Service } from '@deepseek-ai/cordis'
+import { boot, initProfile, readProfilePatches, type ProfileContext } from '@deepseek-ai/dsh-app-boot'
 import AuthorizationService from '@deepseek-ai/dsh-authorization'
 import type { AuthorizationSession } from '@deepseek-ai/dsh-authorization'
+import ConfigEditor from '@deepseek-ai/dsh-config-editor'
 import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
-import { SettingsProvider, type SettingsNamespace } from '@deepseek-ai/dsh-settings'
+import Settings from '@deepseek-ai/dsh-settings'
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import z from '@deepseek-ai/schemastery'
 
@@ -15,34 +17,14 @@ import { FiAuthorizationController } from '../src/index.ts'
 import type { AuthorizationFrameView } from '../src/types.ts'
 
 const KEY = 'llm-pi-ai/anthropic'
-const dirs: string[] = []
+const homes: string[] = []
 const contexts: Context[] = []
 
-/** In-memory settings provider: the smallest real SettingsProvider subclass. */
-class MemorySettings extends SettingsProvider {
-  doc: Record<string, unknown> = {}
+/** The pi-ai route schema, reduced to what the route write must validate: a live-editable providers dict. */
+const RouteSchema = z.object({ providers: z.dict(z.object({ displayName: z.string().role('option') })).default({}).volatile() })
 
-  constructor(ctx: Context, options?: { doc?: Record<string, unknown> }) {
-    super(ctx)
-    if (options?.doc !== undefined) this.doc = structuredClone(options.doc)
-  }
-
-  get writable(): boolean {
-    return true
-  }
-
-  protected load(): Promise<Record<string, unknown>> {
-    return Promise.resolve(structuredClone(this.doc))
-  }
-
-  protected persist(ns: SettingsNamespace, section: Record<string, unknown>): Promise<void> {
-    this.doc[ns] = structuredClone(section)
-    return Promise.resolve()
-  }
-}
-
-/** The pi-ai route schema, reduced to what the route write must validate. */
-const RouteSchema = z.object({ providers: z.dict(z.object({ displayName: z.string().role('option') })).default({}) })
+/** Stub route plugin: carries only the Config schema `ctx.settings` reads and edits, under a profile-owned entry id. */
+const RoutePlugin = { Config: RouteSchema, apply: () => {} }
 
 /**
  * The minimal LlmService surface the controller's adopt reads: catalog
@@ -51,8 +33,6 @@ const RouteSchema = z.object({ providers: z.dict(z.object({ displayName: z.strin
  * adopt tests exercise the wire shape without pulling the whole LLM graph.
  */
 class MemoryLlm extends Service {
-  static inject = ['settings']
-
   constructor(ctx: Context) {
     super(ctx, 'llm')
   }
@@ -70,23 +50,56 @@ class MemoryLlm extends Service {
   }
 }
 
-/** A context with the record store, the seam, this controller, and (optionally) a settings provider. */
+/**
+ * A profile-backed context with the record store, the seam, this controller,
+ * and (optionally) settings routes for the `llm-pi-ai` and `fi-antigravity`
+ * namespaces. `ctx.settings` now projects real profile-entry Config schemas
+ * through `@deepseek-ai/dsh-config-editor`, so exercising it needs a real
+ * booted profile rather than a hand-rolled settings provider.
+ */
 async function harness(options?: { settings?: boolean; llm?: boolean; doc?: Record<string, unknown> }): Promise<Context> {
-  const dir = await mkdtemp(join(tmpdir(), 'fi-auth-ctl-'))
-  dirs.push(dir)
-  const ctx = new Context()
-  contexts.push(ctx)
-  await ctx.plugin(LocalCredentialProvider, { path: join(dir, '.credentials.yaml'), watch: false })
+  const home = realpathSync(mkdtempSync(join(tmpdir(), 'fi-auth-ctl-')))
+  homes.push(home)
+  const dir = join(home, 'profiles', 'test')
+  const bundle = join(dir, 'node_modules', 'test-bundle')
+  initProfile(dir, ['test-bundle'])
+  mkdirSync(bundle, { recursive: true })
+  writeFileSync(join(home, 'package.json'), '{"name":"test-installation"}\n')
+  writeFileSync(join(bundle, 'package.json'), JSON.stringify({ name: 'test-bundle', version: '1.0.0', dsh: { bundle: { patch: 'cordis.patch.yml' } } }))
+  const entries: object[] = [
+    { id: 'credentials', name: 'cordis:credentials', config: { path: join(home, '.credentials.yaml'), watch: false } },
+    { id: 'authorization', name: 'cordis:authorization' },
+  ]
   if (options?.settings === true) {
-    await ctx.plugin(MemorySettings, { doc: options.doc ?? {} })
-    ctx.settings.register('llm-pi-ai', RouteSchema)
-    ctx.settings.register('fi-antigravity', RouteSchema)
+    entries.push(
+      { id: 'config-editor', name: 'cordis:editor' },
+      { id: 'settings', name: 'cordis:settings' },
+      { id: 'llm-pi-ai', name: 'cordis:route', config: options.doc?.['llm-pi-ai'] ?? {} },
+      { id: 'fi-antigravity', name: 'cordis:route', config: options.doc?.['fi-antigravity'] ?? {} },
+    )
   }
-  if (options?.llm === true) {
-    await ctx.plugin(MemoryLlm)
+  if (options?.llm === true) entries.push({ id: 'llm', name: 'cordis:llm' })
+  entries.push({ id: 'controller', name: 'cordis:controller' })
+  writeFileSync(join(bundle, 'cordis.patch.yml'), JSON.stringify([{ insert: entries }]))
+  writeFileSync(join(dir, 'cordis.yml'), '[]\n')
+  const profile: ProfileContext = {
+    name: 'test', startedBundles: ['test-bundle'], dir, patchPath: join(dir, 'cordis.patch.yml'),
+    installAnchor: join(home, 'package.json'), cwd: home, home, overlays: [], telemetryDisabledEnv: undefined,
   }
-  await ctx.plugin(AuthorizationService)
-  ctx.plugin(FiAuthorizationController)
+  const ctx = await boot('test', join(dir, 'cordis.yml'), readProfilePatches('test', profile), (ctx) => {
+    ctx.provide('profileContext', profile)
+    ctx.provide('appReady', { onReady: (listener: () => void) => { listener(); return () => {} } })
+    Object.assign(ctx.loader.builtins, {
+      editor: ConfigEditor,
+      settings: Settings,
+      route: RoutePlugin,
+      credentials: LocalCredentialProvider,
+      authorization: AuthorizationService,
+      llm: MemoryLlm,
+      controller: FiAuthorizationController,
+    })
+  })
+  contexts.push(ctx)
   return ctx
 }
 
@@ -128,7 +141,7 @@ async function drain(stream: AsyncIterable<AuthorizationFrameView>): Promise<Aut
 afterEach(async () => {
   vi.restoreAllMocks()
   for (const ctx of contexts.splice(0)) await ctx.fiber.dispose()
-  for (const dir of dirs.splice(0)) await rm(dir, { recursive: true, force: true })
+  for (const home of homes.splice(0)) rmSync(home, { recursive: true, force: true })
 })
 
 describe('list', () => {

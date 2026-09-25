@@ -1,3 +1,0 @@
-name: PTC mode
-description: Full coding agent without the workflow tool; other tools are exposed through the PTC mode SDK so the model can combine multi-step operations in one TypeScript program.
-order: 2

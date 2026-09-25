@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-14-claude-code-per-turn-effort-beta.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-14-claude-code-per-turn-effort-beta.md
-2026-09-14-claude-code-per-turn-effort-beta.md: c4aaf1e859c3c55405d83ab6baebd47f8c1cd102
-2026-09-14-claude-code-per-turn-effort-beta.zh.md: 260c7e5c0684902a5afc51636656a804613ef0fd
+/agent-note-claude-code-per-turn-effort-beta:
+  en: f54564334caed1bf
+  zh: 12cd7621cf51ba35
+/agent-note-claude-code-per-turn-effort-beta/problem:
+  en: 80a1bfac0615bbf4
+  zh: ad7b75f1ee75d35c
+/agent-note-claude-code-per-turn-effort-beta/decision:
+  en: f23072cc6010c8d4
+  zh: 03316717c95a61d5
+/agent-note-claude-code-per-turn-effort-beta/alternatives-considered:
+  en: 8e35b302d6308a14
+  zh: c02e86c9f2c4c3ca
+/agent-note-claude-code-per-turn-effort-beta/consequences:
+  en: 236f61a26e63ff19
+  zh: 44959434f91bb0e8

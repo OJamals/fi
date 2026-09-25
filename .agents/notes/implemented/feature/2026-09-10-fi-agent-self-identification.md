@@ -14,7 +14,7 @@ The fixed identity opener now reads `You are an AI agent powered by fi.` The sec
 
 ## Alternatives considered
 
-**Naming the implementation in the opener (`... powered by fi, built on DeepSeek Harness`).** The opener is identity prose the model echoes when asked what it is; provenance belongs to licensing and documentation, which already carry it.
+**Naming the implementation in the opener (`... powered by fi, built on DeepSeek Harness`).** The opener is identity prose the model echoes when asked what it is; implementation attribution belongs to licensing and documentation, which already carry it.
 
 **Dropping the section entirely.** The section anchors the prompt's opening voice for every deployment that does not override it; removing it changes every default session for no gain.
 

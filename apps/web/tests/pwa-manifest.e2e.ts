@@ -12,15 +12,17 @@ it('ships install metadata with the built web application', async () => {
   expect(index).toContain('href="./fi-logo-dark-background.png" media="(prefers-color-scheme: dark)"')
 
   const manifest: unknown = JSON.parse(await readFile(join(DIST_ROOT, 'manifest.webmanifest'), 'utf8'))
+  // No `id`: a browser resolves an explicit `id` against the start URL's origin,
+  // so only an absent `id`, which defaults to the resolved `start_url`, gives
+  // each mount its own identity. `public-mount.e2e.ts` reads the resolved form.
   expect(manifest).toEqual({
-    id: '/',
     name: 'fi',
     short_name: 'fi',
-    start_url: '/',
-    scope: '/',
+    start_url: './',
+    scope: './',
     display: 'fullscreen',
     icons: [{
-      src: '/fi-logo.png',
+      src: 'fi-logo.png',
       sizes: '512x512',
       type: 'image/png',
       purpose: 'any',

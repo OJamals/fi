@@ -1,155 +1,40 @@
-import { writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { dump } from 'js-yaml'
-import {
-  DESKTOP_APP_ID,
-  resolveMacOSNotarizationEnvironment,
-  resolveMacOSSigningEnvironment,
-} from './scripts/desktop-release-environment.mjs'
-import { notarizeMacOSDiskImageArtifact } from './scripts/notarize-macos-disk-images.mjs'
-import { verifyMacOSSignatureAfterSign } from './scripts/verify-macos-signature.mjs'
-import {
-  createWindowsTokenSigner,
-  installWindowsNsisBootstrapSigner,
-} from './scripts/windows-sign.mjs'
-import {
-  desktopUpdateChannel,
-  resolveDesktopAutoUpdateConfig,
-} from './scripts/desktop-auto-update-environment.mjs'
-import { desktopTargetBuildPaths, resolveDesktopBuildTarget } from './scripts/desktop-build-paths.mjs'
+import { desktopUpdateChannel, resolveDesktopAutoUpdateConfig } from './scripts/desktop-auto-update-environment.mjs'
+import { createElectronBuilderConfig as createSharedElectronBuilderConfig } from './scripts/electron-builder-config.mjs'
 import desktopPackage from './package.json' with { type: 'json' }
 
 /**
- * Create electron-builder configuration from one release environment.
+ * Create electron-builder configuration for an ordinary release of the fi Desktop application.
+ * Delegates target resolution, signing, runtime verification, and packaging structure to the shared
+ * factory, then applies the fi product identity and, for production, the GitHub Releases channel.
  * @param {NodeJS.ProcessEnv} env - Packaging environment.
  * @param {NodeJS.Platform} hostPlatform - Build-host platform used when no explicit target is present.
  * @param {string} hostArch - Build-host architecture used when no explicit target is present.
- * @param {string} version - Desktop version used to select the GitHub update channel.
+ * @param {string | undefined} preparedRuntime - Prepared runtime directory replacing the default build path.
+ * @param {string | undefined} preparedRuntimeVersion - Version the prepared runtime declares.
  * @returns {object} electron-builder configuration.
  */
 export function createElectronBuilderConfig(
   env = process.env,
   hostPlatform = process.platform,
   hostArch = process.arch,
-  version = desktopPackage.version,
+  preparedRuntime = undefined,
+  preparedRuntimeVersion = undefined,
 ) {
-  const targetPlatform = env.DSH_DESKTOP_TARGET_PLATFORM
-  const resolvedPlatform = targetPlatform ?? hostPlatform
+  const base = createSharedElectronBuilderConfig(env, hostPlatform, hostArch, preparedRuntime, preparedRuntimeVersion)
+  const resolvedPlatform = env.DSH_DESKTOP_TARGET_PLATFORM ?? hostPlatform
   const resolvedArch = env.DSH_DESKTOP_TARGET_ARCH ?? hostArch
-  if (env.DSH_DESKTOP_UNSIGNED !== undefined && !['0', '1'].includes(env.DSH_DESKTOP_UNSIGNED)) {
-    throw new Error('desktop package: DSH_DESKTOP_UNSIGNED must be 0 or 1')
-  }
-  const unsigned = env.DSH_DESKTOP_UNSIGNED === '1'
-  if (unsigned && resolvedPlatform !== 'win32') throw new Error('desktop package: unsigned builds require Windows')
-  const packagesMacOS = targetPlatform === 'darwin' || (targetPlatform === undefined && hostPlatform === 'darwin')
-  const packagesWindows = targetPlatform === 'win32'
-  const macOSSigning = packagesMacOS ? resolveMacOSSigningEnvironment(env) : undefined
-  if (packagesMacOS) resolveMacOSNotarizationEnvironment(env)
-  const windowsSigner = packagesWindows && !unsigned
-    ? createWindowsTokenSigner({
-        certificateFile: env.DSH_DESKTOP_WINDOWS_CER_FILE,
-        signTool: env.DSH_DESKTOP_WINDOWS_SIGNTOOL,
-        tokenPin: env.DSH_DESKTOP_WINDOWS_TOKEN_PIN,
-        keyContainer: env.DSH_DESKTOP_WINDOWS_KEY_CONTAINER,
-      })
-    : undefined
-  if (windowsSigner !== undefined) {
-    installWindowsNsisBootstrapSigner({ sign: windowsSigner })
-  }
-  const update = unsigned ? undefined : resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
-  const publish = update === undefined ? undefined : {
-    ...update.publish,
-    ...(update.publish.provider === 'github' ? { channel: desktopUpdateChannel(version) } : {}),
-  }
-  const buildPaths = desktopTargetBuildPaths(resolveDesktopBuildTarget(env, hostPlatform, hostArch))
+  const update = env.DSH_DESKTOP_UNSIGNED === '1' ? undefined : resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
+  const version = preparedRuntimeVersion ?? base.extraMetadata.version ?? desktopPackage.version
   return {
-    appId: DESKTOP_APP_ID,
+    ...base,
     productName: 'fi',
     executableName: 'fi',
-    extraMetadata: { name: 'fi' },
-    artifactName: 'fi-${version}-${os}-${arch}.${ext}',
-    directories: {
-      output: unsigned ? join(buildPaths.root, 'unsigned-artifacts') : buildPaths.artifacts,
-      buildResources: fileURLToPath(new URL('./build', import.meta.url)),
-    },
-    icon: fileURLToPath(new URL('./build/icon.png', import.meta.url)),
-    asar: true,
-    files: [
-      'lib/*.js',
-      'lib/*.cjs',
-      'renderer/**/*',
-      'package.json',
-    ],
-    extraResources: [
-      { from: buildPaths.runtime, to: 'runtime' },
-      { from: buildPaths.dsh, to: 'dsh' },
-      // electron-builder excludes a source directory's root node_modules.
-      { from: join(buildPaths.dsh, 'node_modules'), to: 'dsh/node_modules' },
-    ],
-    mac: {
-      category: 'public.app-category.developer-tools',
-      identity: macOSSigning?.signingIdentity,
-      forceCodeSigning: true,
-      hardenedRuntime: true,
-      // Native runtime files are pre-signed; PAK resources are sealed by their enclosing bundle.
-      signIgnore: ['/Contents/Resources/dsh(?:/|$)', '\\.pak$'],
-      notarize: true,
-      target: ['dmg', 'zip'],
-    },
-    dmg: {
-      sign: true,
-      writeUpdateInfo: false,
-    },
-    afterPack: async context => {
-      const resources = context.packager.getResourcesDir(context.appOutDir)
-      if (publish !== undefined) {
-        const detectedChannel = context.packager.appInfo.channel
-        const appUpdate = {
-          ...publish,
-          ...(publish.channel === undefined && detectedChannel !== null ? { channel: detectedChannel } : {}),
-          updaterCacheDirName: context.packager.appInfo.updaterCacheDirName,
-        }
-        await writeFile(join(resources, 'app-update.yml'), dump(appUpdate, { noRefs: true }))
-      }
-      const { verifyDesktopRuntime } = await import('./lib/types/runtime-tree.js')
-      await verifyDesktopRuntime(join(resources, 'dsh'),
-        context.packager.appInfo.version, { platform: resolvedPlatform, arch: resolvedArch })
-    },
-    afterSign: async context => {
-      if (context.electronPlatformName !== 'darwin') return
-      const { verifyDesktopRuntime } = await import('./lib/types/runtime-tree.js')
-      await verifyDesktopRuntime(join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`, 'Contents', 'Resources', 'dsh'),
-        context.packager.appInfo.version, { platform: 'darwin', arch: resolvedArch })
-      verifyMacOSSignatureAfterSign(context, macOSSigning ?? resolveMacOSSigningEnvironment(env))
-    },
-    artifactBuildCompleted: artifact => {
-      if (!artifact.file.endsWith('.dmg')) return
-      return notarizeMacOSDiskImageArtifact(
-        artifact,
-        env,
-        macOSSigning ?? resolveMacOSSigningEnvironment(env),
-      )
-    },
-    win: {
-      forceCodeSigning: !unsigned,
-      signtoolOptions: {
-        sign: windowsSigner,
-        signingHashAlgorithms: ['sha256'],
-      },
-      target: ['nsis'],
-    },
-    linux: {
-      category: 'Development',
-      target: ['AppImage'],
-    },
-    nsis: {
-      include: fileURLToPath(new URL('./scripts/installer.nsh', import.meta.url)),
-      oneClick: false,
-      allowToChangeInstallationDirectory: true,
-      differentialPackage: true,
-    },
-    publish: publish === undefined ? null : [publish],
+    protocols: base.protocols.map(protocol => ({ ...protocol, name: 'fi' })),
+    extraMetadata: { ...base.extraMetadata, name: 'fi' },
+    artifactName: base.artifactName.replace(/^deepseek-harness-/, 'fi-'),
+    ...update?.publish?.provider === 'github'
+      ? { publish: [{ ...update.publish, channel: desktopUpdateChannel(version) }] }
+      : {},
   }
 }
 

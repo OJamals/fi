@@ -48,7 +48,7 @@ import {
   PreferredSearchProvider,
   type ResolvedSearchProvider,
 } from './provider.ts'
-import { Config as ConfigSchema, type Config } from './types.ts'
+import { snapshotConfig, type Config, type PreferredSearchSettings } from './types.ts'
 
 export {
   FI_PREFERRED_SEARCH_PROVIDER_ID,
@@ -59,7 +59,7 @@ export type {
   ResolvedSearchProvider,
 } from './provider.ts'
 export { Config } from './types.ts'
-export type { PreferredSearchProviderId } from './types.ts'
+export type { PreferredSearchProviderId, PreferredSearchSettings } from './types.ts'
 export {
   BRAVE_DEFAULT_BASE_URL,
   createFiDirectSearchProvider,
@@ -76,8 +76,8 @@ export type {
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'fi-web-search-preferences'
 
-/** Upstream DeepSeek namespace extended in place so FI activation and removal preserve settings. */
-export const WEB_SEARCH_PREFERENCES_SETTINGS_NAMESPACE = 'web-search-deepseek'
+/** Default profile entry id, which is also this plugin's settings namespace. */
+export const WEB_SEARCH_PREFERENCES_SETTINGS_NAMESPACE = 'fi-web-search-preferences'
 
 /** Required registry service; settings and credentials remain optional seams. */
 export const inject = ['web']
@@ -122,7 +122,7 @@ async function resolveCredential(ctx: Context, refName: string, signal: AbortSig
  */
 export async function resolveSelectedProvider(
   ctx: Context,
-  config: Config,
+  config: PreferredSearchSettings,
   signal: AbortSignal,
 ): Promise<ResolvedSearchProvider> {
   switch (config.provider) {
@@ -246,26 +246,15 @@ function assertNever(value: never): never {
 }
 
 /**
- * Register one stable router and install its live settings section when available.
+ * Register one stable router whose settings are this plugin's volatile Config.
  * @param ctx - Cordis context supplying the web registry and optional settings service.
- * @param config - composition-layer preferred-search settings.
+ * @param config - live preferred-search Config, edited through the profile-backed settings form.
  */
 export function apply(ctx: Context, config: Config): void {
-  let current: () => Config = () => config
-  ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.installSection(
-      ctx,
-      WEB_SEARCH_PREFERENCES_SETTINGS_NAMESPACE,
-      ConfigSchema,
-      config,
-      {
-        setSource: (source) => { current = source },
-        onChange: () => {},
-      },
-    )
-  })
+  // The preferred-search card renders this entry's form; the automatic page would duplicate it.
+  ctx.inject(['settings'], (child) => { child.effect(() => child.settings.configure({ auto: false }, ctx.fiber)) })
   const preferred = new PreferredSearchProvider({
-    resolveConfig: () => current(),
+    resolveConfig: () => snapshotConfig(config),
     resolveProvider: (snapshot, signal) => resolveSelectedProvider(ctx, snapshot, signal),
   })
   ctx.web.registerSearchProvider(preferred)

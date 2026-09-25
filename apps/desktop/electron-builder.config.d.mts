@@ -1,18 +1,46 @@
+import type { AfterPackContext, BeforePackContext } from 'app-builder-lib'
+import type { DesktopPolicyEnvironment } from './scripts/desktop-policy-environment.d.mts'
+
 /** Electron-builder fields asserted by the Desktop release tests. */
 export interface DesktopElectronBuilderConfig {
   readonly appId: string
-  readonly extraMetadata: {
-    readonly name: 'fi'
-  }
+  readonly artifactName: string
+  readonly protocols: readonly [{ readonly name: 'fi'; readonly schemes: readonly ['dsh'] }]
   readonly directories: {
     readonly output: string
   }
+  readonly files: readonly [
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    { readonly from: string, readonly to: 'dsh', readonly filter: readonly ['**/*'] },
+    { readonly from: string, readonly to: 'dsh/node_modules', readonly filter: readonly ['**/*'] },
+  ]
+  readonly extraMetadata: {
+    readonly name: 'fi'
+    readonly dshDesktopAppId: string
+    readonly dshMandatoryUpdatePolicy: DesktopPolicyEnvironment
+    readonly version?: string
+    readonly dshBuildCommit?: string
+    readonly dshBuildDirty?: boolean
+  }
+  readonly asarUnpack: readonly string[]
   readonly extraResources: readonly [
     { readonly from: string, readonly to: 'runtime' },
-    { readonly from: string, readonly to: 'dsh' },
-    { readonly from: string, readonly to: 'dsh/node_modules' },
+    { readonly from: string, readonly to: 'icon.png' },
+    ...{ readonly from: string, readonly to: 'tray.ico' }[],
   ]
   readonly mac: {
+    readonly extendInfo: {
+      readonly CFBundleLocalizations: readonly string[]
+      readonly NSMicrophoneUsageDescription: string
+    }
     readonly identity: string | undefined
     readonly forceCodeSigning: boolean
     readonly notarize: boolean
@@ -22,23 +50,29 @@ export interface DesktopElectronBuilderConfig {
     readonly sign: boolean
     readonly writeUpdateInfo: boolean
   }
+  readonly win: {
+    readonly forceCodeSigning: boolean
+    readonly signtoolOptions: {
+      readonly publisherName: string | undefined
+      readonly sign: ((configuration: { path: string, hash: string, isNest: boolean }) => Promise<void>) | undefined
+      readonly signingHashAlgorithms: readonly string[]
+    }
+  }
   readonly nsis: {
     readonly include: string
+    readonly oneClick: false
+    readonly perMachine: false
+    readonly allowElevation: false
+    readonly allowToChangeInstallationDirectory: false
+    readonly installerLanguages: readonly ['en_US', 'zh_CN']
   }
+  readonly beforeBuild: () => Promise<boolean>
+  readonly beforePack: (context: BeforePackContext) => Promise<void>
+  readonly afterPack: (context: AfterPackContext) => Promise<void>
+  readonly afterSign: (context: AfterPackContext) => Promise<void>
   readonly artifactBuildCompleted: (artifact: { readonly file: string }) => Promise<void> | undefined
-  readonly afterPack: (context: {
-    readonly appOutDir: string
-    readonly packager: {
-      readonly appInfo: {
-        readonly channel: string | null
-        readonly updaterCacheDirName: string
-        readonly version: string
-      }
-      getResourcesDir(appOutDir: string): string
-    }
-  }) => Promise<void>
   readonly publish: readonly [
-    | { readonly provider: 'generic', readonly url: string }
+    | { readonly provider: 'generic', readonly url: string, readonly channel: 'nightly' }
     | { readonly provider: 'github', readonly owner: 'OJamals', readonly repo: 'fi', readonly channel: string },
   ] | null
 }
@@ -48,14 +82,16 @@ export interface DesktopElectronBuilderConfig {
  * @param env - Packaging environment.
  * @param hostPlatform - Build-host platform used when no explicit target is present.
  * @param hostArch - Build-host architecture used when no explicit target is present.
- * @param version - Desktop version used to select the GitHub update channel.
+ * @param preparedRuntime - Prepared runtime directory replacing the default build path.
+ * @param preparedRuntimeVersion - Version the prepared runtime declares.
  * @returns electron-builder configuration.
  */
 export function createElectronBuilderConfig(
   env?: NodeJS.ProcessEnv,
   hostPlatform?: NodeJS.Platform,
   hostArch?: string,
-  version?: string,
+  preparedRuntime?: string,
+  preparedRuntimeVersion?: string,
 ): DesktopElectronBuilderConfig
 
 declare const electronBuilderConfig: DesktopElectronBuilderConfig

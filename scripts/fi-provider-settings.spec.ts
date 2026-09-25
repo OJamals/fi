@@ -32,7 +32,7 @@ function runUpdate(args: string[]) {
   return spawnSync(process.execPath, [updateScript, ...args], { encoding: 'utf8' })
 }
 
-function updaterProvenance(source: string): string {
+function updaterOrigin(source: string): string {
   const sha256 = createHash('sha256').update(source).digest('hex')
   return `${JSON.stringify({
     schemaVersion: 1,
@@ -104,49 +104,49 @@ describe('FI provider-settings synchronization', () => {
     temporaryDirectories.push(directory)
     const sourcePath = path.join(directory, 'source.json')
     const updaterPath = path.join(directory, 'updater.mjs')
-    const updaterProvenancePath = path.join(directory, 'updater-provenance.json')
+    const updaterOriginPath = path.join(directory, 'updater-origin.json')
     const outputPath = path.join(directory, 'output.json')
-    const provenancePath = path.join(directory, 'provenance.json')
+    const hashManifestPath = path.join(directory, 'hash-manifest.json')
     const source = `${JSON.stringify(completeSettings(), null, 2)}\n`
     await fs.writeFile(sourcePath, source)
     const updaterSource = await writeFakeUpdater(updaterPath)
-    await fs.writeFile(updaterProvenancePath, updaterProvenance(updaterSource))
+    await fs.writeFile(updaterOriginPath, updaterOrigin(updaterSource))
 
     const result = runUpdate([
       '--updater', updaterPath,
-      '--updater-provenance', updaterProvenancePath,
+      '--updater-origin', updaterOriginPath,
       '--settings', sourcePath,
       '--output', outputPath,
-      '--provenance', provenancePath,
+      '--hash-manifest', hashManifestPath,
     ])
 
     expect(result.status).toBe(0)
     expect(await fs.readFile(sourcePath, 'utf8')).toBe(source)
     const output: unknown = JSON.parse(await fs.readFile(outputPath, 'utf8'))
     expect(Reflect.get(output as object, 'grokCode')).toEqual(expect.objectContaining({ version: '1.0.1' }))
-    expect(JSON.parse(await fs.readFile(provenancePath, 'utf8'))).toMatchObject({ schemaVersion: 1 })
+    expect(JSON.parse(await fs.readFile(hashManifestPath, 'utf8'))).toMatchObject({ schemaVersion: 1 })
 
     const stable = runUpdate([
       '--updater', updaterPath,
-      '--updater-provenance', updaterProvenancePath,
+      '--updater-origin', updaterOriginPath,
       '--settings', outputPath,
       '--output', outputPath,
-      '--provenance', provenancePath,
+      '--hash-manifest', hashManifestPath,
       '--check',
     ])
     expect(stable.status).toBe(0)
 
-    await fs.writeFile(provenancePath, '{}\n')
+    await fs.writeFile(hashManifestPath, '{}\n')
     const check = runUpdate([
       '--updater', updaterPath,
-      '--updater-provenance', updaterProvenancePath,
+      '--updater-origin', updaterOriginPath,
       '--settings', outputPath,
       '--output', outputPath,
-      '--provenance', provenancePath,
+      '--hash-manifest', hashManifestPath,
       '--check',
     ])
     expect(check.status).toBe(1)
-    expect(await fs.readFile(provenancePath, 'utf8')).toBe('{}\n')
+    expect(await fs.readFile(hashManifestPath, 'utf8')).toBe('{}\n')
   })
 
   it('rejects credential material returned by the canonical update path', async () => {
@@ -154,18 +154,18 @@ describe('FI provider-settings synchronization', () => {
     temporaryDirectories.push(directory)
     const sourcePath = path.join(directory, 'source.json')
     const updaterPath = path.join(directory, 'updater.mjs')
-    const updaterProvenancePath = path.join(directory, 'updater-provenance.json')
+    const updaterOriginPath = path.join(directory, 'updater-origin.json')
     const outputPath = path.join(directory, 'output.json')
     await fs.writeFile(sourcePath, JSON.stringify(completeSettings()))
     const updaterSource = await writeFakeUpdater(updaterPath, true)
-    await fs.writeFile(updaterProvenancePath, updaterProvenance(updaterSource))
+    await fs.writeFile(updaterOriginPath, updaterOrigin(updaterSource))
 
     const result = runUpdate([
       '--updater', updaterPath,
-      '--updater-provenance', updaterProvenancePath,
+      '--updater-origin', updaterOriginPath,
       '--settings', sourcePath,
       '--output', outputPath,
-      '--provenance', path.join(directory, 'provenance.json'),
+      '--hash-manifest', path.join(directory, 'hash-manifest.json'),
     ])
 
     expect(result.status).not.toBe(0)
@@ -178,16 +178,16 @@ describe('FI provider-settings synchronization', () => {
     temporaryDirectories.push(directory)
     const sourcePath = path.join(directory, 'source.json')
     const updaterPath = path.join(directory, 'updater.mjs')
-    const provenancePath = path.join(directory, 'updater-provenance.json')
+    const originPath = path.join(directory, 'updater-origin.json')
     const markerPath = path.join(directory, 'executed')
     await fs.writeFile(sourcePath, JSON.stringify(completeSettings()))
     const updaterSource = await writeFakeUpdater(updaterPath)
-    await fs.writeFile(provenancePath, updaterProvenance(updaterSource))
+    await fs.writeFile(originPath, updaterOrigin(updaterSource))
     await fs.appendFile(updaterPath, `\nawait import('node:fs/promises').then(fs => fs.writeFile(${JSON.stringify(markerPath)}, 'yes'))\n`)
 
     const result = runUpdate([
       '--updater', updaterPath,
-      '--updater-provenance', provenancePath,
+      '--updater-origin', originPath,
       '--settings', sourcePath,
       '--output', path.join(directory, 'output.json'),
     ])

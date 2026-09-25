@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-10-fi-agent-self-identification.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-10-fi-agent-self-identification.md
-2026-09-10-fi-agent-self-identification.md: 25a43a4c33e14c14f9fd4b01ba3b39a3461fe0bc
-2026-09-10-fi-agent-self-identification.zh.md: f51c086874b843471bf05420b022406a1f43796a
+/agent-note-fi-agent-self-identification:
+  en: 6190755effeb86ce
+  zh: fd6e6109fb2a8b68
+/agent-note-fi-agent-self-identification/problem:
+  en: 29e5776dcbfd07b2
+  zh: cd76750d3388b82a
+/agent-note-fi-agent-self-identification/decision:
+  en: 0e9f73dd8ef60876
+  zh: e52d3ca261777b98
+/agent-note-fi-agent-self-identification/alternatives-considered:
+  en: a600abdbf71e070a
+  zh: 86a0c676c34c9326
+/agent-note-fi-agent-self-identification/consequences:
+  en: 08daa7648acf4ad4
+  zh: 4367808b4168cea6

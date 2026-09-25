@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-11-subscription-media-output.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-11-subscription-media-output.md
-2026-09-11-subscription-media-output.md: 788cde0d23bd553aa868c0e875ed038271a1dab5
-2026-09-11-subscription-media-output.zh.md: 888028509c967ea5d5c404ca88ee632b4f55b054
+/agent-note-subscription-media-uses-durable-harness-attachments:
+  en: a3fa80e2223b3092
+  zh: 2ee90651c177eb75
+/agent-note-subscription-media-uses-durable-harness-attachments/problem:
+  en: 0acf7db8725ce257
+  zh: c65358e84521555f
+/agent-note-subscription-media-uses-durable-harness-attachments/decision:
+  en: 1528bd90ab1388f7
+  zh: bee3c4d99f663094
+/agent-note-subscription-media-uses-durable-harness-attachments/alternatives-considered:
+  en: c4270094146c4512
+  zh: 2b7f2e6ee9739d0f
+/agent-note-subscription-media-uses-durable-harness-attachments/consequences:
+  en: d310d466e47a3840
+  zh: 6f346a7bafd1c8a6
+/agent-note-subscription-media-uses-durable-harness-attachments/verification:
+  en: 391048eeaed66d4f
+  zh: c94f279d3feaf181

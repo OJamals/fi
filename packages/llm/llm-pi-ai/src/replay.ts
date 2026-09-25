@@ -9,7 +9,7 @@
  */
 
 import { LlmError } from '@deepseek-ai/dsh-llm'
-import type { ContentBlock, ImageAttachmentAccess, ImageAttachmentAccessResolver, Message, ModelMessageSource, ReplayEnvelope } from '@deepseek-ai/dsh-llm'
+import type { AssistantMessage as HarnessAssistantMessage, ImageAttachmentAccess, ImageAttachmentAccessResolver, ModelMessageSource, ReplayEnvelope } from '@deepseek-ai/dsh-llm'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type { Api, AssistantMessage, Usage as PiUsage } from '@earendil-works/pi-ai'
 
@@ -84,21 +84,6 @@ export function assistantImageHistoryText(ref: ImageAttachmentRef, access?: Imag
     : ` Read-only normalized copy: ${JSON.stringify(access.readonlyPath)}.`
   return `[Image ${identity}; ${metadata}.`
     + ` No image pixels were sent for this historical assistant output.${normalized}]`
-}
-
-/** Append fallbacks for image occurrences that a non-native assistant block nests. */
-function appendNestedAssistantImageFallbacks(
-  blocks: readonly ContentBlock[],
-  content: AssistantMessage['content'],
-  resolveImageAccess?: ImageAttachmentAccessResolver,
-): void {
-  for (const block of blocks) {
-    if (block.type === 'image') {
-      content.push({ type: 'text', text: assistantImageHistoryText(block.attachment, resolveImageAccess?.(block.attachment)) })
-    } else if (block.type === 'tool-result') {
-      appendNestedAssistantImageFallbacks(block.content, content, resolveImageAccess)
-    }
-  }
 }
 
 /**
@@ -186,8 +171,8 @@ function readReplayState(value: unknown): PiAiReplayState {
 }
 
 /** Convert provider-neutral blocks without trusting them as same-model replay. */
-function foreignAssistant(message: Message, resolveImageAccess?: ImageAttachmentAccessResolver): AssistantMessage {
-  const source = message.source.kind === 'model' ? message.source : undefined
+function foreignAssistant(message: HarnessAssistantMessage, resolveImageAccess?: ImageAttachmentAccessResolver): AssistantMessage {
+  const source = message.source
   const content: AssistantMessage['content'] = []
   for (const block of message.content) {
     switch (block.type) {
@@ -203,9 +188,6 @@ function foreignAssistant(message: Message, resolveImageAccess?: ImageAttachment
         type: 'text',
         text: assistantImageHistoryText(block.attachment, resolveImageAccess?.(block.attachment)),
       }); break
-      case 'tool-result':
-        appendNestedAssistantImageFallbacks(block.content, content, resolveImageAccess)
-        break
       default:
         // plugin-added block types are not representable in pi-ai.
         break
@@ -217,8 +199,8 @@ function foreignAssistant(message: Message, resolveImageAccess?: ImageAttachment
     // Deliberately never equals a catalog API: absent replay state is foreign
     // even if source names the same provider/model as this request.
     api: 'dsh-foreign',
-    provider: source?.provider ?? 'dsh-foreign',
-    model: source?.model ?? 'dsh-foreign',
+    provider: source.provider,
+    model: source.model,
     usage: emptyPiUsage(),
     stopReason: content.some(piece => piece.type === 'toolCall') ? 'toolUse' : 'stop',
     timestamp: 0,
@@ -227,7 +209,7 @@ function foreignAssistant(message: Message, resolveImageAccess?: ImageAttachment
 
 /** Recombine durable Harness content with validated pi-ai replay metadata. */
 function replayedAssistant(
-  message: Message,
+  message: HarnessAssistantMessage,
   source: ModelMessageSource,
   rawState: unknown,
   resolveImageAccess?: ImageAttachmentAccessResolver,
@@ -293,19 +275,19 @@ function replayedAssistant(
  * another adapter's kind, another version, a malformed value, or metadata that
  * no longer matches the content — therefore degrades the one message to
  * provider-neutral history instead of failing the request.
- * @param message - assistant content with required source and optional adapter-owned replay metadata.
+ * @param message - model-produced assistant content with provider, model, and optional adapter-owned replay metadata.
  * @param onDegrade - called with the diagnostic reason when an unusable replay
  *   state falls back to provider-neutral conversion.
  * @param resolveImageAccess - resolves an assistant image's current read-only normalized copy.
  * @returns a native pi-ai assistant message reconstructed from durable content.
  */
 export function toPiAssistant(
-  message: Message,
+  message: HarnessAssistantMessage,
   onDegrade?: (reason: string) => void,
   resolveImageAccess?: ImageAttachmentAccessResolver,
 ): AssistantMessage {
   const source = message.source
-  if (source.kind !== 'model' || source.replayState === undefined) return foreignAssistant(message, resolveImageAccess)
+  if (source.replayState === undefined) return foreignAssistant(message, resolveImageAccess)
   try {
     return replayedAssistant(message, source, source.replayState, resolveImageAccess)
   } catch (error: unknown) {

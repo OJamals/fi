@@ -12,13 +12,14 @@
 // still leave the media type and dimensions visible.
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { useDisclosure } from '@deepseek-ai/dsh-client-ui-chat/src/client/chat/use-disclosure.ts'
 import { cleanup, fireEvent, render } from '@testing-library/react'
 import { Context } from '@deepseek-ai/cordis'
 import { AttachmentId, type ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import { bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
-import type { RunningToolCall, ToolResultNode } from '@deepseek-ai/dsh-client-ui-chat/client'
+import type { RunningToolCall, StartedToolCall, ToolResultNode } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { MessageImageLoader } from '@deepseek-ai/dsh-client-ui-conversation/client'
@@ -56,8 +57,8 @@ const withImage = (attachment: unknown) => [
   { type: 'image', attachment },
 ]
 
-const running = (over?: Partial<RunningToolCall>): RunningToolCall => ({
-  callId: 'c1', name: 'read_image', argsRaw: ARGS,
+const running = (over?: Partial<StartedToolCall>): StartedToolCall => ({
+  phase: 'start' as const, callId: 'c1', name: 'read_image', argsRaw: ARGS,
   turn: 1, step: 1, time: 1_000, subCalls: [], ...over,
 })
 
@@ -311,9 +312,9 @@ describe('GenericToolCard image results', () => {
   ))
 
   const genericProps = (block: ToolResultNode | RunningToolCall): GenericToolCardProps => ({
-    callId: 'c1', toolName: 'image_gen', block, openFile: vi.fn(), loadImage,
+    callId: 'c1', toolName: 'image_gen', ...('kind' in block ? { phase: 'result' as const, block } : { phase: block.phase, block }), openFile: vi.fn(), loadImage, useDisclosure,
     renderImages, t,
-  })
+  }) as GenericToolCardProps
 
   it('shows a successful unregistered image result immediately through the authorized gallery renderer', () => {
     renderImages.mockClear()
@@ -396,15 +397,15 @@ describe('ReadImageRow keyed toolview', () => {
     byId: { [SID]: { id: SID, displayTitle: 'r', running: false, blank: false, updatedAt: 0, cwd: '/w/app' } },
     current: SID,
     phase: 'ready',
-    subagentsByParent: {}, jobsBySession: {},
+    projectionsBySession: {}, jobsBySession: {},
     currentAddress: undefined,
   } as unknown as SessionListState)
 
   const rowProps = (
-    block: RunningToolCall | ToolResultNode,
+    block: StartedToolCall | ToolResultNode,
     renderImages?: ToolCallOwnerProps['renderImages'],
   ): Parameters<typeof ReadImageRow>[0] => ({
-    callId: 'c1', toolName: 'read_image', block, openFile: vi.fn(), renderImages, loadImage,
+    useDisclosure, callId: 'c1', toolName: 'read_image', block, openFile: vi.fn(), renderImages, loadImage,
     sessionId: SID, useSessions: bindSnapshotSelector(list()),
     t,
   } as unknown as Parameters<typeof ReadImageRow>[0])

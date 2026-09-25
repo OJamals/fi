@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/fi/client-ui-model-signin/README.md
-README.md: 4c30659e0b241bd73dadaf085ffd106b2add4b34
-README.zh.md: fa20418bf1c7e43170b22c05273a181d24f4d9b2
+/:
+  en: 398b2246afdade4c
+  zh: 84d2f2d024585ccb
+/fi-client-ui-model-signin:
+  en: 7cc2aee883e0cbd8
+  zh: 8231ac4260163868
+/fi-client-ui-model-signin/summary:
+  en: ae713dc13a0eea1c
+  zh: db73ac2537fc50b2
+/fi-client-ui-model-signin/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/fi-client-ui-model-signin/use-this-package:
+  en: 270055346177ee94
+  zh: 85661ba77b980f1a
+/fi-client-ui-model-signin/use-this-package/what-the-user-sees:
+  en: 55fe4c179fc3d719
+  zh: 3ee1b8840018231a
+/fi-client-ui-model-signin/use-this-package/offering-another-provider:
+  en: 4ae53813662bc623
+  zh: 073fcadf7294383d
+/fi-client-ui-model-signin/understand-the-implementation:
+  en: d01249dde85b3122
+  zh: bcdc1f095ef8aa22
+/fi-client-ui-model-signin/further-exploration:
+  en: 81014246b6c5ef05
+  zh: ad4cd1b44e8cc944
+/fi-client-ui-model-signin/model-experience:
+  en: 3120df665299c634
+  zh: a4b62975491ac323
+/fi-client-ui-model-signin/model-experience/kv-cache-effect:
+  en: ca75c51c89c2c9b0
+  zh: 9042d8d6f6bee7aa
+/fi-client-ui-model-signin/known-limitations-and-deferred-work:
+  en: 20cd91486692d1f9
+  zh: 1d0cf18fce8fb785
+/fi-client-ui-model-signin/known-limitations-and-deferred-work/dev-note:
+  en: 669b96c5e5e8a3d5
+  zh: 2f6ed9079be7a235

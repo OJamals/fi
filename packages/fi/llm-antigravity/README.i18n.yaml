@@ -1,6 +1,55 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/fi/llm-antigravity/README.md
-README.md: e0672d44cc15b14b17c2e00333453ad7e6e45ff4
-README.zh.md: 7f431011611d3faac14c5aa12c8d0c5edc0363da
+/:
+  en: 3d3308759ed78439
+  zh: 3bb2f38cfd77d338
+/fi-llm-antigravity:
+  en: 61c440c1fe40db27
+  zh: 944f72a1054475be
+/fi-llm-antigravity/table-of-contents:
+  en: d09eaf87be6a74cc
+  zh: 62205e8c611bee33
+/fi-llm-antigravity/summary:
+  en: f27a29e011792bef
+  zh: 334755cdf640f557
+/fi-llm-antigravity/what-it-does:
+  en: d002d5aaac5c757b
+  zh: b918f29d1c3a473d
+/fi-llm-antigravity/how-it-works:
+  en: 2c966a0136886d08
+  zh: 7bfba7ec4d49771c
+/fi-llm-antigravity/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/fi-llm-antigravity/model-experience/provider-request-through-the-cloud-code-transport:
+  en: 5db9302c2fe6667e
+  zh: 92428525ef74c507
+/fi-llm-antigravity/model-experience/provider-request-through-the-cloud-code-transport/what-the-model-sees:
+  en: 87850f7978a1dac9
+  zh: a975cdc4a67368c3
+/fi-llm-antigravity/model-experience/provider-request-through-the-cloud-code-transport/token-effect:
+  en: 2c079eea7e7325eb
+  zh: 4b6f1ad4710a5e63
+/fi-llm-antigravity/model-experience/provider-request-through-the-cloud-code-transport/kv-cache-effect:
+  en: 0e4f134196dcbe73
+  zh: 7ab9038e8b4ba991
+/fi-llm-antigravity/model-experience/provider-response:
+  en: 802d7ff60a1d03ff
+  zh: c41c56e28f3e8680
+/fi-llm-antigravity/model-experience/provider-response/what-the-model-sees:
+  en: 04225345f862a745
+  zh: d7223f5239efc0e3
+/fi-llm-antigravity/model-experience/provider-response/token-effect:
+  en: c62891304e385363
+  zh: 80236b388834451f
+/fi-llm-antigravity/model-experience/provider-response/kv-cache-effect:
+  en: 152ded00949eba70
+  zh: 0e083917136d633d
+/fi-llm-antigravity/known-limitations-and-deferred-work:
+  en: 3cfc0232e14344c9
+  zh: bc070787676a67d1
+/fi-llm-antigravity/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 6acef3b2d1929a55

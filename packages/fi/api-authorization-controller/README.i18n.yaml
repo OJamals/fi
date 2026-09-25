@@ -1,6 +1,55 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/fi/api-authorization-controller/README.md
-README.md: 0f3e83b7c654ae11cbf5654f2d1a34147b040060
-README.zh.md: d405134d4260195175debb44ee32a18804461081
+/:
+  en: 9176126c72552ea9
+  zh: bbf06c4b1fc4dd6f
+/fi-api-authorization-controller:
+  en: 345926d6f66fe783
+  zh: 46faa50f8049ee70
+/fi-api-authorization-controller/summary:
+  en: 3398922be1ce8448
+  zh: 4c18cbee3f9fb70e
+/fi-api-authorization-controller/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/fi-api-authorization-controller/use-this-package:
+  en: d397ec74c4d26699
+  zh: 4994fd189879acf3
+/fi-api-authorization-controller/use-this-package/list-what-can-be-signed-into:
+  en: c4f24a73469c3cc6
+  zh: 04640356e9e41933
+/fi-api-authorization-controller/use-this-package/run-one-attempt:
+  en: 8272ed7b7a37b6e1
+  zh: 981997bfb7fffeb0
+/fi-api-authorization-controller/use-this-package/answer-decline-and-cancel:
+  en: 024e3d13e0a1829e
+  zh: 5f40afcb6ae544b5
+/fi-api-authorization-controller/use-this-package/the-route-a-sign-in-leaves-behind:
+  en: de2bb0a23cee1c58
+  zh: 4e6ece811e845c75
+/fi-api-authorization-controller/use-this-package/remove-the-sign-in-reset:
+  en: 322f167107426d8b
+  zh: 18af45a36daec869
+/fi-api-authorization-controller/use-this-package/adopt-route-after-sign-in:
+  en: eafc1f774d60d3c7
+  zh: e4e53d4af6e0298d
+/fi-api-authorization-controller/understand-the-implementation:
+  en: 4e0e73ed57266c7a
+  zh: 047c3f4ac741ce51
+/fi-api-authorization-controller/further-exploration:
+  en: 1dd4dc8d57b8fa4e
+  zh: 754ae8b3dd77397a
+/fi-api-authorization-controller/model-experience:
+  en: e977fe40cf52ff01
+  zh: 3649f8cbd0bdafe8
+/fi-api-authorization-controller/model-experience/kv-cache-effect:
+  en: ca75c51c89c2c9b0
+  zh: 9042d8d6f6bee7aa
+/fi-api-authorization-controller/known-limitations-and-deferred-work:
+  en: 708ca1358145f0c2
+  zh: 4a72ef84d11ca817
+/fi-api-authorization-controller/known-limitations-and-deferred-work/dev-note:
+  en: 7996ead0199d0ae0
+  zh: 22e2d85cb7290524

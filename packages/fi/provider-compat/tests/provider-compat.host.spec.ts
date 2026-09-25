@@ -31,7 +31,7 @@ function urlOf(input: RequestInfo | URL): string {
 }
 
 describe('provider compatibility metadata', () => {
-  it('retains all four canonical records, OAuth scopes, provenance, and capture separation', () => {
+  it('retains all four canonical records, OAuth scopes, release evidence, and capture separation', () => {
     const settings = allProviderSettings()
 
     expect(Object.keys(settings)).toEqual(['grokCode', 'antigravityCli', 'claudeCode', 'codexCli'])

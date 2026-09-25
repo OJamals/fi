@@ -1,6 +1,52 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/fi/tool-image-generation/README.md
-README.md: 34c6f53f69111047d9bb6287150c4fb19a973123
-README.zh.md: 219ec050589f1a71f7cc8e494b31190769decbf6
+/:
+  en: d5b4e004e91f3a05
+  zh: 8837f144b7f1737b
+/fi-tool-image-generation:
+  en: 40e69ebc11a1fa3d
+  zh: c5a8dde793040e6a
+/fi-tool-image-generation/summary:
+  en: 21a2d0aa1535bb26
+  zh: f64e74e6847da63a
+/fi-tool-image-generation/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/fi-tool-image-generation/use-this-package:
+  en: 7170badc8688137d
+  zh: 5fae7286c1ecb123
+/fi-tool-image-generation/use-this-package/when-to-choose-it:
+  en: 363954833ce3c0c2
+  zh: 36e8469385ccf031
+/fi-tool-image-generation/use-this-package/minimal-configuration:
+  en: eefc13559c447941
+  zh: fd44c1a7b99e3a47
+/fi-tool-image-generation/understand-the-implementation:
+  en: 1fc2fe817050b200
+  zh: 770d17fb3e5ac4c8
+/fi-tool-image-generation/further-exploration:
+  en: 57da0381742b6257
+  zh: 9f023774294377fc
+/fi-tool-image-generation/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/fi-tool-image-generation/model-experience/image-generation-tool:
+  en: 2ebdce50de18a50d
+  zh: 0c20792ec4e767c7
+/fi-tool-image-generation/model-experience/image-generation-tool/what-the-model-sees:
+  en: 7993eadcdb8ab5ab
+  zh: 5155241a3cc29faa
+/fi-tool-image-generation/model-experience/image-generation-tool/token-effect:
+  en: 7864eb60cb7045e6
+  zh: 459dbefe0fb3c76a
+/fi-tool-image-generation/model-experience/image-generation-tool/kv-cache-effect:
+  en: a7e23438b9e4ed82
+  zh: d4be231583b57a70
+/fi-tool-image-generation/known-limitations-and-deferred-work:
+  en: c588f1f8bc194f4d
+  zh: 7c8b4ae9938f5328
+/fi-tool-image-generation/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 8ec3e73528ddb1a6

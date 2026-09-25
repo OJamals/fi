@@ -25,19 +25,19 @@
   },
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-llm-pi-ai": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:~",
+    "@deepseek-ai/dsh-llm-pi-ai": "workspace:*"
   },
   "dependencies": {
     "@earendil-works/pi-ai": "0.85.1",
     "https-proxy-agent": "^7.0.6",
-    "@deepseek-ai/schemastery": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:~",
     "ws": "^8.21.0"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-llm-pi-ai": "workspace:^",
-    "@types/node": "^22.20.2",
+    "@deepseek-ai/cordis": "workspace:~",
+    "@deepseek-ai/dsh-llm-pi-ai": "workspace:*",
+    "@types/node": "^22.20.0",
     "@types/ws": "^8.18.1"
   }
 }

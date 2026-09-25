@@ -2,7 +2,7 @@
 
 import { WebError } from '@deepseek-ai/dsh-web'
 import type { WebSearchProvider, WebSearchRequest, WebSearchResult } from '@deepseek-ai/dsh-web'
-import type { Config } from './types.ts'
+import type { PreferredSearchSettings } from './types.ts'
 
 /** Provider id selected once by FI composition. */
 export const FI_PREFERRED_SEARCH_PROVIDER_ID = 'fi-preferred-search'
@@ -16,9 +16,9 @@ export interface ResolvedSearchProvider extends WebSearchProvider {
 /** Dependencies kept explicit so routing semantics can be tested without network I/O. */
 export interface PreferredSearchProviderOptions {
   /** Read the settings section authoritative for the next operation. */
-  readonly resolveConfig: () => Config
+  readonly resolveConfig: () => PreferredSearchSettings
   /** Resolve the selected unchanged provider from one frozen settings snapshot. */
-  readonly resolveProvider: (config: Config, signal: AbortSignal) => Promise<ResolvedSearchProvider>
+  readonly resolveProvider: (config: PreferredSearchSettings, signal: AbortSignal) => Promise<ResolvedSearchProvider>
 }
 
 /** One stable registry entry whose delegate is selected per search operation. */

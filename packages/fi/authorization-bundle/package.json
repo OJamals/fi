@@ -27,7 +27,7 @@
     }
   },
   "dependencies": {
-    "@deepseek-ai/dsh-authorization": "workspace:^",
+    "@deepseek-ai/dsh-authorization": "workspace:*",
     "@fi/api-authorization-controller": "workspace:^",
     "@fi/client-ui-model-signin": "workspace:^",
     "@fi/client-ui-web-search-preferences": "workspace:^",
@@ -37,13 +37,13 @@
     "@fi/tool-image-generation": "workspace:^"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:~"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-authorization": "workspace:^",
-    "@deepseek-ai/dsh-app-boot": "workspace:^",
-    "@deepseek-ai/dsh-credentials-local": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:~",
+    "@deepseek-ai/dsh-authorization": "workspace:*",
+    "@deepseek-ai/dsh-app-boot": "workspace:*",
+    "@deepseek-ai/dsh-credentials-local": "workspace:*",
     "yaml": "^2.6.1"
   }
 }

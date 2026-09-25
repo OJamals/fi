@@ -1,6 +1,61 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for agent-presets.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/agent-presets.md
-agent-presets.md: fd569c88e4ac7533fe395d34c447bbfced0805b5
-agent-presets.zh.md: 5eeaa9c08cdc5771274f4590898bc8b448573750
+/agent-presets-guide:
+  en: 61db829aed45ebba
+  zh: 727376e3d808b6e2
+/agent-presets-guide/preset-types:
+  en: d4827058940a1a1a
+  zh: 604def82ab317e69
+/agent-presets-guide/preset-structure:
+  en: 6ca26321d60420c6
+  zh: 81a5d9bbf03bb69b
+/agent-presets-guide/composition-rules:
+  en: e4e346007b5cd327
+  zh: 216b11377cdf9ce4
+/agent-presets-guide/composition-rules/host-vs-preset-plane:
+  en: a86f911d96d0df3b
+  zh: 3f406289575bb9f6
+/agent-presets-guide/composition-rules/isolate-realms:
+  en: 02d91c1b3973f6fd
+  zh: 389436be9b86edcb
+/agent-presets-guide/composition-rules/row-categories:
+  en: 2b832815d5875594
+  zh: 09e7e6d86ec0d4c3
+/agent-presets-guide/creating-a-custom-preset:
+  en: d9bbf40e61dcff3d
+  zh: f3efc1cdd75dace6
+/agent-presets-guide/tool-organization:
+  en: 9a60643367a41795
+  zh: 8ee905ea85638505
+/agent-presets-guide/tool-organization/shell-tools:
+  en: 3652da7be095711d
+  zh: baf77c07acc68b66
+/agent-presets-guide/tool-organization/filesystem-tools:
+  en: 5889259c023b97b6
+  zh: 48cc144c8539b689
+/agent-presets-guide/tool-organization/subagent-tools:
+  en: 755ead43ddd82143
+  zh: e62f6a2b403dae31
+/agent-presets-guide/tool-organization/workflow-tools:
+  en: b64ed5d3cf003b18
+  zh: 715941d06d71a71d
+/agent-presets-guide/configuration-options:
+  en: 57d292b766061d61
+  zh: de8fd6b21d515204
+/agent-presets-guide/configuration-options/persona:
+  en: d6738a5407265633
+  zh: d6738a5407265633
+/agent-presets-guide/configuration-options/web-tools:
+  en: e91dc17e137f6f86
+  zh: 1bf899f369ec67c1
+/agent-presets-guide/debugging:
+  en: 86e11d697998ab93
+  zh: 1c6efcf885789bbd
+/agent-presets-guide/debugging/mount-validation:
+  en: 2a560ee2e2ada05e
+  zh: a04bdcc63fa575a9
+/agent-presets-guide/debugging/inspect-providers:
+  en: 9ed18344dce1f8a9
+  zh: 2eef88139a2ff11f

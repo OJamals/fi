@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-12-compact-model-discovery.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-12-compact-model-discovery.md
-2026-09-12-compact-model-discovery.md: b9ff61e40827c532d3da4cb9d814e6e579ea252f
-2026-09-12-compact-model-discovery.zh.md: 5d4ab8584c881b57738804cc717632a7ba359343
+/agent-note-compact-model-discovery:
+  en: 58f1d30546722d72
+  zh: 3235b0506469c6dc
+/agent-note-compact-model-discovery/problem:
+  en: 15e6e583e90882dd
+  zh: 73d48abd258b6264
+/agent-note-compact-model-discovery/decision:
+  en: 73bb4958c4ba0b77
+  zh: 7cc69db75a6d2933
+/agent-note-compact-model-discovery/alternatives-considered:
+  en: 8d936f0aefe66786
+  zh: b346a5902bc3f2f2
+/agent-note-compact-model-discovery/consequences:
+  en: ce1d45e4ea72ef28
+  zh: 9675d8f471108d55

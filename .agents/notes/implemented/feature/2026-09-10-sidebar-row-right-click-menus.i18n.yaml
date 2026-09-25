@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-10-sidebar-row-right-click-menus.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-10-sidebar-row-right-click-menus.md
-2026-09-10-sidebar-row-right-click-menus.md: 331e0cea6ec5413941d26c69e096fbb628b528eb
-2026-09-10-sidebar-row-right-click-menus.zh.md: c027a01e6e83f359189e3e33c5d93e6a260fe421
+/agent-note-sidebar-row-right-click-menus:
+  en: 8e89117053b11a52
+  zh: ed27eeb201644e3e
+/agent-note-sidebar-row-right-click-menus/problem:
+  en: 927357e536feae87
+  zh: 2ec6e4779dae3fd4
+/agent-note-sidebar-row-right-click-menus/decision:
+  en: b30f135df1a5b3af
+  zh: 8e46be69a6a7b746
+/agent-note-sidebar-row-right-click-menus/alternatives-considered:
+  en: 65a512f8c68495c4
+  zh: 3f0ce94374c057cf
+/agent-note-sidebar-row-right-click-menus/consequences:
+  en: 9078cd80a1136b26
+  zh: 8ac7f461deca2978

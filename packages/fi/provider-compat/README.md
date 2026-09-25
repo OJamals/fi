@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@fi/provider-compat` keeps FI's four provider metadata records, captured wire fingerprints, OAuth settings, and release provenance synchronized with auth2api. It applies Codex, Claude Code, and Grok CLI request headers only after pi-ai resolves a stored subscription OAuth grant. Explicit profile keys and ordinary stored or ambient API keys remain on their normal endpoints. Grok subscription inference uses the CLI Responses endpoint; unrelated requests pass through unchanged.
+`@fi/provider-compat` keeps FI's four provider metadata records, captured wire fingerprints, OAuth settings, and release evidence synchronized with auth2api. It applies Codex, Claude Code, and Grok CLI request headers only after pi-ai resolves a stored subscription OAuth grant. Explicit profile keys and ordinary stored or ambient API keys remain on their normal endpoints. Grok subscription inference uses the CLI Responses endpoint; unrelated requests pass through unchanged.
 
 ## Table of Contents
 
@@ -51,7 +51,7 @@ The update command imports auth2api's updater module instead of copying its rele
 node scripts/fi-provider-settings-update.mjs --check
 ```
 
-Remove `--check` to atomically update FI's snapshot with the provenance-pinned vendored updater. The daily [FI provider settings workflow](../../../.github/workflows/fi-provider-settings-update.yml) opens or updates a review when public metadata changes. A newer public release does not advance `fingerprintCapturedVersion`; a fresh redacted capture remains a separate review action.
+Remove `--check` to atomically update FI's snapshot with the hash-pinned vendored updater. The daily [FI provider settings workflow](../../../.github/workflows/fi-provider-settings-update.yml) opens or updates a review when public metadata changes. A newer public release does not advance `fingerprintCapturedVersion`; a fresh redacted capture remains a separate review action.
 
 -----
 
@@ -67,7 +67,7 @@ Each plugin instance owns a stable connector. The patched pi-ai cache partitions
 
 The maintained `ws` connector uses pi-ai's existing HTTP/HTTPS/ALL_PROXY and NO_PROXY resolution, including provider environment overrides, and a maintained HTTPS proxy agent. It disables redirects and compression, enforces the configured message bound, and preserves SDK connect timeout and request cancellation. Plugin disposal retires only its connector's cache and fallback entries, terminates pending and open sockets, and awaits closure. Already dispatched HTTP requests remain owned by their caller's request signal.
 
-The [pinned patch provenance](pi-ai-patch.provenance.json) records the npm version, integrity, pristine dist-file hashes, patch hash, and retirement condition. The patch adds no Node imports to pi-ai and leaves its factory-absent constructor path unchanged. The generated metadata and vendored updater remain byte-stable auth2api projections; release updates never imply a new fingerprint capture.
+The [pinned patch record](pi-ai-patch.pin.json) records the npm version, integrity, pristine dist-file hashes, patch hash, and retirement condition. The patch adds no Node imports to pi-ai and leaves its factory-absent constructor path unchanged. The generated metadata and vendored updater remain byte-stable auth2api projections; release updates never imply a new fingerprint capture.
 
 </details>
 
@@ -78,8 +78,8 @@ The [pinned patch provenance](pi-ai-patch.provenance.json) records the npm versi
 
 - [`@deepseek-ai/dsh-llm-pi-ai`](../../llm/llm-pi-ai/README.md) — model catalog, authentication, and streaming ownership.
 - [`@fi/llm-antigravity`](../llm-antigravity/README.md) — Antigravity's native adapter and OAuth flow.
-- [Provider settings snapshot](src/provider-settings.json) — generated metadata and release provenance.
-- [Updater provenance](../../../scripts/vendor/auth2api/provenance.json) — exact auth2api source and vendored-byte hashes.
+- [Provider settings snapshot](src/provider-settings.json) — generated metadata and release evidence.
+- [Updater origin record](../../../scripts/vendor/auth2api/origin.json) — exact auth2api source and vendored-byte hashes.
 - [Official Codex WebSocket protocol constant](https://github.com/openai/codex/blob/main/codex-rs/core/src/client.rs) — primary source for the canonically recorded WebSocket beta.
 
 -----
@@ -99,7 +99,7 @@ None, as request content and model parameters are unchanged.
 
 - WebSocket compatibility requires the pinned pi-ai patch and the server-side `ws` connector. No latency or throughput improvement is guaranteed; performance depends on the network and provider.
 - pi-ai does not expose its built-in OAuth scopes through a public runtime API, so automatic scope-drift diagnostics cover canonical metadata but cannot compare private SDK constants.
-- Release automation updates public release fields and provenance. Capture-gated runtime headers remain at their recorded version until a separate fingerprint capture is reviewed and recorded canonically.
+- Release automation updates public release fields and release evidence. Capture-gated runtime headers remain at their recorded version until a separate fingerprint capture is reviewed and recorded canonically.
 
 <a id="dev-note"></a>
 ### Dev Note

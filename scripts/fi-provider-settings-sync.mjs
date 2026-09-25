@@ -11,9 +11,9 @@ import { syncProviderSettings, writeAtomically } from './fi-provider-settings-li
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const defaultOutput = path.join(root, 'packages/fi/provider-compat/src/provider-settings.json')
-const defaultProvenance = path.join(root, 'packages/fi/provider-compat/src/provider-settings.provenance.json')
+const defaultHashManifest = path.join(root, 'packages/fi/provider-compat/src/provider-settings.hash-manifest.json')
 const defaultVendoredUpdater = path.join(root, 'scripts/vendor/auth2api/update-provider-settings.mjs')
-const defaultVendorProvenance = path.join(root, 'scripts/vendor/auth2api/provenance.json')
+const defaultVendorOrigin = path.join(root, 'scripts/vendor/auth2api/origin.json')
 const execFile = promisify(execFileCallback)
 
 function option(name) {
@@ -56,8 +56,8 @@ if (settingsPath === undefined) throw new Error('--settings must name the canoni
 if (updaterPath === undefined) throw new Error('--updater must name auth2api tools/update-provider-settings.mjs')
 const outputOption = option('--output')
 const outputPath = path.resolve(outputOption ?? defaultOutput)
-const provenancePath = path.resolve(option('--provenance')
-  ?? (outputOption === undefined ? defaultProvenance : `${outputPath.replace(/\.json$/, '')}.provenance.json`))
+const hashManifestPath = path.resolve(option('--hash-manifest')
+  ?? (outputOption === undefined ? defaultHashManifest : `${outputPath.replace(/\.json$/, '')}.hash-manifest.json`))
 const sourceSettings = await fs.readFile(path.resolve(settingsPath), 'utf8')
 const updaterSource = await fs.readFile(path.resolve(updaterPath), 'utf8')
 const settings = JSON.parse(sourceSettings)
@@ -75,13 +75,13 @@ const vendoredUpdaterPath = path.resolve(option('--vendor-output')
   ?? (outputOption === undefined
     ? defaultVendoredUpdater
     : path.join(path.dirname(outputPath), 'vendor/auth2api/update-provider-settings.mjs')))
-const vendorProvenancePath = path.resolve(option('--vendor-provenance')
+const vendorOriginPath = path.resolve(option('--vendor-origin')
   ?? (outputOption === undefined
-    ? defaultVendorProvenance
-    : path.join(path.dirname(outputPath), 'vendor/auth2api/provenance.json')))
+    ? defaultVendorOrigin
+    : path.join(path.dirname(outputPath), 'vendor/auth2api/origin.json')))
 if (!checkOnly) await fs.mkdir(path.dirname(vendoredUpdaterPath), { recursive: true })
 const vendoredChanged = await compareOrWrite(vendoredUpdaterPath, updaterSource, checkOnly)
-const vendorProvenance = `${JSON.stringify({
+const vendorOrigin = `${JSON.stringify({
   schemaVersion: 1,
   sourceRepository: repositoryUrl,
   sourceCommit,
@@ -92,16 +92,16 @@ const vendorProvenance = `${JSON.stringify({
   sourceSettingsSha256: sha256(sourceSettings),
   vendoredUpdaterSha256: sha256(updaterSource),
 }, null, 2)}\n`
-const vendorProvenanceChanged = await compareOrWrite(vendorProvenancePath, vendorProvenance, checkOnly)
+const vendorOriginChanged = await compareOrWrite(vendorOriginPath, vendorOrigin, checkOnly)
 const result = await syncProviderSettings({
   outputPath,
-  provenancePath,
+  hashManifestPath,
   sourceSettings,
   updaterSource,
   settings,
   checkOnly,
 })
-const changed = result.changed || vendoredChanged || vendorProvenanceChanged
+const changed = result.changed || vendoredChanged || vendorOriginChanged
 if (changed) {
   console.error(`FI provider metadata ${checkOnly ? 'is stale' : 'updated'}: ${outputPath}`)
   if (checkOnly) process.exitCode = 1

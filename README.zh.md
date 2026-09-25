@@ -41,6 +41,10 @@ fi 基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)，
 
 参见[开发](docs/development.zh.md)、[架构](docs/architecture.zh.md)与[贡献](CONTRIBUTING.zh.md)文档。
 
+`pnpm run dev:web` 会在一个终端里完成构建、启动，并在源码修改时重建 client bundle；`make help` 列出 Web 与 Desktop 对应的 Make target。完整表格见开发指南的「应用命令」一节。
+
+面向 agent：请遵循 [AGENTS.md](AGENTS.md)。
+
 ## 许可证
 
 [MIT](LICENSE)。第三方许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

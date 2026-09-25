@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-11-creator-preset-metadata-english.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-11-creator-preset-metadata-english.md
-2026-09-11-creator-preset-metadata-english.md: 72cb2f7ebfa82b563d2b0e44e5831b2bd067bda5
-2026-09-11-creator-preset-metadata-english.zh.md: a22aa0765db78aa5ed5e76f1a57997f23e680ade
+/agent-note-creator-preset-metadata-stays-english:
+  en: 1a715bce5781638a
+  zh: ac5414296aa669a8
+/agent-note-creator-preset-metadata-stays-english/problem:
+  en: fda0ca4f4004c68c
+  zh: 70c4840438befc68
+/agent-note-creator-preset-metadata-stays-english/decision:
+  en: 1fe3e8a1c0730dc6
+  zh: 2b78f708246c07a9
+/agent-note-creator-preset-metadata-stays-english/alternatives-considered:
+  en: 60a2234832eeb24a
+  zh: 5670195f94732e35
+/agent-note-creator-preset-metadata-stays-english/consequences:
+  en: 75f85a45e8449c26
+  zh: befa8712e6bb9018

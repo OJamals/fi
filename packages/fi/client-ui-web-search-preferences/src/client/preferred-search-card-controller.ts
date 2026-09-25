@@ -3,7 +3,7 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { ConfigForm } from '@deepseek-ai/dsh-client-ui-settings/client'
 
 type CredentialSetting =
   | 'apiKeyEnv'
@@ -129,11 +129,11 @@ export class PreferredSearchCardController {
   private disposed = false
 
   /**
-   * @param scope - bound `web-search-deepseek` settings scope.
+   * @param scope - the bound `fi-web-search-preferences` settings form.
    * @param ctx - client context supplying credential RPC.
    */
   constructor(
-    private readonly scope: SettingsScope<PreferredSearchSettings>,
+    private readonly scope: ConfigForm<PreferredSearchSettings>,
     private readonly ctx: ClientContext,
   ) {
     this.store = createSnapshotStore(this.projection())

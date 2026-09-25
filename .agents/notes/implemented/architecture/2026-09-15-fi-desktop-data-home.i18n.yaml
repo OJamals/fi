@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-15-fi-desktop-data-home.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-15-fi-desktop-data-home.md
-2026-09-15-fi-desktop-data-home.md: eb3b447d773504d1a0a9db7efe205ef312805075
-2026-09-15-fi-desktop-data-home.zh.md: 0f8d0df4b7c1337f3824d06fc65628f78cfd1103
+/agent-note-give-fi-desktop-its-own-harness-home:
+  en: 1787b9766dfcec14
+  zh: 4323f671d0dc39dd
+/agent-note-give-fi-desktop-its-own-harness-home/problem:
+  en: a84e5ec3b04eb937
+  zh: 7dc334cf20c057c3
+/agent-note-give-fi-desktop-its-own-harness-home/decision:
+  en: 99ec086e0008e3c1
+  zh: d2a1a9f67d32883b
+/agent-note-give-fi-desktop-its-own-harness-home/alternatives-considered:
+  en: 1fd3b0cb01d7e5ce
+  zh: 8f456d39653f93f7
+/agent-note-give-fi-desktop-its-own-harness-home/consequences:
+  en: a6b4eef9b150961f
+  zh: c380c95a06a0f982

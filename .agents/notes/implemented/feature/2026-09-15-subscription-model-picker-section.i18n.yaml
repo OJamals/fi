@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-15-subscription-model-picker-section.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-15-subscription-model-picker-section.md
-2026-09-15-subscription-model-picker-section.md: 16fc1bb9ed9cf129576f90a61c790e3a4a2eecb2
-2026-09-15-subscription-model-picker-section.zh.md: f6cd0797841c72caa9dc98ff5abe36580664612e
+/agent-note-subscription-providers-in-the-composer-model-picker:
+  en: ed0cf26b1ce5f491
+  zh: a13c9351e05a1708
+/agent-note-subscription-providers-in-the-composer-model-picker/problem:
+  en: 8c6447427e791951
+  zh: baf1020791740b37
+/agent-note-subscription-providers-in-the-composer-model-picker/decision:
+  en: fc215a70b4767184
+  zh: c05a0c6ee86b8611
+/agent-note-subscription-providers-in-the-composer-model-picker/alternatives-considered:
+  en: 7c8e75ca79b6cf39
+  zh: a0c1bd1d1a984399
+/agent-note-subscription-providers-in-the-composer-model-picker/consequences:
+  en: 2fcd9c41dfaa25fe
+  zh: 9e3b1bd83bdaa913

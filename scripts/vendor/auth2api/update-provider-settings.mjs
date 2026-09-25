@@ -279,7 +279,7 @@ async function readBoundedResponse(response, maxBytes, label) {
   return Buffer.concat(chunks, size);
 }
 
-function parseArtifactProvenance(provider, assets) {
+function parseReleaseArtifacts(provider, assets) {
   if (!Array.isArray(assets) || assets.length === 0) {
     throw new Error(`${provider} returned invalid release metadata`);
   }
@@ -383,7 +383,7 @@ function parseReleaseMetadata(provider, responseFormat, rawText) {
           : null,
       draft: metadata.draft,
       prerelease: metadata.prerelease,
-      artifacts: parseArtifactProvenance(provider, metadata.assets),
+      artifacts: parseReleaseArtifacts(provider, metadata.assets),
     };
   }
 
@@ -892,7 +892,7 @@ export async function updateProviderSettings({
         versionField,
         risk: field.risk,
         decision: field.decision,
-        provenance: {
+        origin: {
           sourceUrl: candidate.sourceUrl,
           retrievedAt: candidate.retrievedAt,
           sha256: candidate.sha256,
