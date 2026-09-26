@@ -110,7 +110,7 @@
   "claudeCode": {
     "version": "2.1.269",
     "entrypoint": "sdk-cli",
-    "latestReleaseVersion": "2.1.282",
+    "latestReleaseVersion": "2.1.283",
     "fingerprintCapturedVersion": "2.1.269",
     "fingerprintEvidence": {
       "version": "2.1.269",
@@ -197,14 +197,14 @@
       "token-counting-2024-11-01"
     ],
     "releaseEvidence": {
-      "version": "2.1.282",
+      "version": "2.1.283",
       "sourceUrl": "https://registry.npmjs.org/@anthropic-ai/claude-code/latest",
-      "retrievedAt": "2026-09-25T11:14:37.076Z",
-      "responseSha256": "88b0a581db5436c3e55adccefe47d16254c3bd44f803181ca73e2c75f01d145f"
+      "retrievedAt": "2026-09-26T08:31:44.945Z",
+      "responseSha256": "84bc070801168977824682b44ed2b231b826f16d89fa21e8df897a38e0f4367b"
     }
   },
   "codexCli": {
-    "version": "0.157.0",
+    "version": "0.157.1",
     "releaseUrl": "https://registry.npmjs.org/@openai/codex/latest",
     "baseUrl": "https://chatgpt.com/backend-api",
     "responsesPath": "/codex/responses",
@@ -226,10 +226,10 @@
       ]
     },
     "releaseEvidence": {
-      "version": "0.157.0",
+      "version": "0.157.1",
       "sourceUrl": "https://registry.npmjs.org/@openai/codex/latest",
-      "retrievedAt": "2026-09-25T11:14:37.076Z",
-      "responseSha256": "dcb1c21a3ba9e3c47aab96f7b3e1c95ef99fe9389fe69d039f5fd2be434a7959"
+      "retrievedAt": "2026-09-26T08:31:44.945Z",
+      "responseSha256": "db9f04d1f283e746d80224700bb8034fbb25f899d23d8ebca557099e2892d875"
     }
   }
 }
