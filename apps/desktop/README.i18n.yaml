@@ -3,26 +3,35 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write apps/desktop/README.md
 /fi-desktop:
-  en: 17192b0e79f6c0df
-  zh: 5e5f147d322a61cf
+  en: 611f67e25aa33496
+  zh: 5ed20556db1838cd
+/fi-desktop/terminal-command:
+  en: bef92953c237363f
+  zh: d21d6effd21b8c00
 /fi-desktop/closing-the-window-and-quitting:
-  en: e2027b51054779c3
-  zh: 84731738eabef455
+  en: 1b6c6f683a2f3c5b
+  zh: 593565b0fbc22de0
 /fi-desktop/key-technical-decisions:
   en: b13240940dd63af6
   zh: 0249f6cd227d07fe
 /fi-desktop/key-technical-decisions/bundled-workspace-dependencies:
-  en: 9ac3f10746da4ede
-  zh: 0f889c350e6483b1
+  en: c3d8cf9d9b9a38e2
+  zh: 06cee20cd84b42e8
+/fi-desktop/bundled-command-runtime:
+  en: 3a22e7d2f608311d
+  zh: 7b6a110739fb467e
 /fi-desktop/installation-ownership:
-  en: 794016082d3688d5
-  zh: e3c588b21c6ac27e
+  en: 777b323f673aa553
+  zh: ebf7d2ad9d845f62
 /fi-desktop/installation-ownership/runtime-and-plugin-activation:
   en: e472dec22d8409ec
   zh: adf0c59e720a6254
+/fi-desktop/installation-ownership/host-environment:
+  en: 84a9cc7ca9455aa8
+  zh: 4091b8aa8231b74a
 /fi-desktop/develop:
-  en: 0f6fee0051b86577
-  zh: f66b89f2235343f8
+  en: 32a880b7c7185dee
+  zh: b5dc4175691f5426
 /fi-desktop/develop/startup-onboarding:
   en: 2b65815d3734a392
   zh: 63c5e6d23d3259b1
@@ -39,8 +48,8 @@
   en: 6e8a4922bb9eda69
   zh: db9e182bfef6e008
 /fi-desktop/package/upload-updates:
-  en: 5032c5059f160c9b
-  zh: 999f503e6f382030
+  en: 47edea187cdc5296
+  zh: 24c59c754728cdce
 /fi-desktop/package/unsigned-windows-test-installer:
   en: 4bdba9dd5f28f885
   zh: 90284fa42af76a5f

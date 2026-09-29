@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-problems",
   "description": "Revisioned Workspace diagnostics registry (ctx.problems) for the DeepSeek Harness — bounded producers atomically replace one complete source contribution, and consumers inspect or subscribe to detached, deterministically ordered snapshots",
-  "version": "0.1.0-preview.4",
+  "version": "0.2.0-rc.2",
   "publishConfig": {
     "access": "public"
   },

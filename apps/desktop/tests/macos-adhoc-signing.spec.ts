@@ -1,6 +1,7 @@
 /** Verify local unsigned-mode macOS ad-hoc signing without invoking Apple tools. */
 
 import { EventEmitter } from 'node:events'
+import { PassThrough } from 'node:stream'
 import { spawn, spawnSync } from 'node:child_process'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -17,9 +18,7 @@ vi.mock('node:child_process', async importOriginal => ({
 
 /** A fake child process that closes with `code` on the next microtask, exposing empty stdio streams. */
 function fakeStream(): NodeJS.ReadableStream {
-  const stream = new EventEmitter() as unknown as NodeJS.ReadableStream
-  Object.assign(stream, { setEncoding: () => stream })
-  return stream
+  return new PassThrough()
 }
 
 function fakeChild(code: number): ReturnType<typeof spawn> {

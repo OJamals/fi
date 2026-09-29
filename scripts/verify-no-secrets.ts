@@ -259,7 +259,7 @@ function report(violations: readonly SecretViolation[], label: string): number {
   return 1
 }
 
-async function main(argv: readonly string[]): Promise<number> {
+function main(argv: readonly string[]): number {
   const mode = argv[0]
   if (mode === '--staged') {
     return report(findDiffViolations(stagedDiffText(root)), '--staged')
@@ -305,5 +305,5 @@ async function main(argv: readonly string[]): Promise<number> {
 const invokedPath = process.argv[1]
 const isMain = invokedPath !== undefined && import.meta.url === pathToFileURL(resolve(invokedPath)).href
 if (isMain) {
-  process.exitCode = await main(process.argv.slice(2))
+  process.exitCode = main(process.argv.slice(2))
 }

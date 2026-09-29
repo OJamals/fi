@@ -778,6 +778,30 @@ describe('ModelSelect provider disclosure and search', () => {
     expect(openRouter.isConnected).toBe(false)
   })
 
+  it('ranks fuzzy model-name matches while retaining routable identity matches', () => {
+    const directory = createSnapshotStore<ModelDirectoryState>(state({
+      groups: [{
+        id: 'provider',
+        name: 'Provider',
+        models: [
+          { id: 'gemini-flash', name: 'Gemini Flash' },
+          { id: 'anthropic/claude-sonnet', name: 'Claude Sonnet' },
+        ],
+      }],
+      current: { provider: 'provider', model: 'gemini-flash' },
+    }))
+    render(<ModelSelect locked={false} available directory={directory} load={vi.fn()} select={vi.fn()} t={t} />)
+    fireEvent.click(screen.getByRole('button', { name: /选择模型/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /模型/ }))
+    const search = screen.getByRole('searchbox', { name: '搜索模型' })
+
+    fireEvent.change(search, { target: { value: 'GMFL' } })
+    expect(screen.getAllByRole('menuitemradio').map(item => item.textContent)).toEqual(['Gemini Flash'])
+
+    fireEvent.change(search, { target: { value: ' ANTHROPIC / CLAUDE ' } })
+    expect(screen.getAllByRole('menuitemradio').map(item => item.textContent)).toEqual(['Claude Sonnet'])
+  })
+
   it('updates active search results from the live directory and selects duplicate ids with their provider', async () => {
     const { directory, select, trigger } = renderDirectory({ groups: groups.slice(0, 1) })
     const search = screen.getByRole('searchbox', { name: '搜索模型' })

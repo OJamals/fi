@@ -1,16 +1,17 @@
 /**
  * Models settings and product-onboarding plugin, browser half. It registers
- * the Models page plus the ordered internal-testing notice and the
+ * the Models page plus the ordered preview notice and the
  * model-universal setup step, whose UI shares this package's modal wrapper.
  * The setup step shows itself automatically whenever the page-bootstrap
  * `credentialOnboarding` option (the Host half's `apply`) is not overridden
  * false — including inside fi's Desktop shell (`dshDesktop`), which owns no
  * DeepSeek-account or DeepSeek-API-key first-run experience of its own and
- * relies on this step for model-universal setup. The internal-testing notice
+ * relies on this step for model-universal setup. The preview notice
  * stays Web-only (`!('dshDesktop' in globalThis)`), an unrelated choice. The
  * Host settings and credential contracts stay behind their existing wire
  * APIs. Export discipline: packages/client/AGENTS.md.
  */
+import type {} from '@deepseek-ai/dsh-client-product-analytics/client'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the shell's SlotMap merge (the 'settings.section' entry).
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'

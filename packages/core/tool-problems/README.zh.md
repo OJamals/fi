@@ -25,6 +25,8 @@ kind: "package-reference"
 
 在具备 `fs`、`problems`、`systemPrompt` 和 `tools` 的完整 agent preset 中挂载本包。`maxProblems` 默认为 100，`maxResultChars` 默认为 16,000 个 Unicode 码点。缺少 Session Workspace 会使调用失败；工具参数永不接受路径作用域。
 
+不发布运行时不变量配套入口，因为每次调用只读取一个 `ctx.problems` 快照并渲染调用本地结果；没有独立演进的观察可供比较。
+
 <a id="model-experience"></a>
 ## 模型体验
 

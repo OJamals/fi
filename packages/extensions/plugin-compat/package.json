@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-plugin-compat",
   "description": "Scoped Claude and Codex plugin compatibility registry and agent composition",
-  "version": "0.1.0-preview.4",
+  "version": "0.2.0-rc.2",
   "publishConfig": { "access": "public" },
   "repository": { "type": "git", "url": "git+https://github.com/OJamals/fi.git", "directory": "packages/extensions/plugin-compat" },
   "type": "module",

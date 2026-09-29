@@ -17,7 +17,15 @@ const ACCOUNT = {
 /** Parse the JSON body one scripted fetch call received. */
 function jsonBody(init: RequestInit): unknown {
   if (typeof init.body !== 'string') throw new Error('expected a JSON string request body')
-  return JSON.parse(init.body) as unknown
+  return JSON.parse(init.body)
+}
+
+function fetchRequestAt(calls: readonly Parameters<typeof globalThis.fetch>[], index: number): RequestInit {
+  const call = calls[index]
+  if (call === undefined) throw new Error(`expected fetch call ${index}`)
+  const init = call[1]
+  if (init === undefined) throw new Error(`fetch call ${index} has no request options`)
+  return init
 }
 
 function upstreamSse(payloads: readonly unknown[], terminateFinalFrame = true): Response {
@@ -66,7 +74,7 @@ afterEach(() => vi.unstubAllGlobals())
 
 describe('callAntigravityGeminiNative', () => {
   it('collects nonstream search and retains native grounding metadata', async () => {
-    const fetchSpy = vi.fn(async () => upstreamSse([{
+    const fetchSpy = vi.fn<typeof globalThis.fetch>(async () => upstreamSse([{
       response: {
         candidates: [{
           index: 0,
@@ -100,7 +108,7 @@ describe('callAntigravityGeminiNative', () => {
         },
       }],
     })
-    const [, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit]
+    const init = fetchRequestAt(fetchSpy.mock.calls, 0)
     expect(init.redirect).toBe('error')
     const envelope = jsonBody(init) as {
       project: string
@@ -126,7 +134,7 @@ describe('callAntigravityGeminiNative', () => {
   })
 
   it('normalizes native aliases and rejects ambiguous or invalid media before fetch', async () => {
-    const fetchSpy = vi.fn()
+    const fetchSpy = vi.fn<typeof globalThis.fetch>()
     vi.stubGlobal('fetch', fetchSpy)
     const ambiguous = await callAntigravityGeminiNative({
       action: 'generateContent',
@@ -149,7 +157,7 @@ describe('callAntigravityGeminiNative', () => {
   })
 
   it('preserves native file handles and image-generation settings in the Cloud Code request', async () => {
-    const fetchSpy = vi.fn(async () => upstreamSse([{
+    const fetchSpy = vi.fn<typeof globalThis.fetch>(async () => upstreamSse([{
       response: { candidates: [{ content: { parts: [{ text: 'ok' }] }, finishReason: 'STOP' }] },
     }]))
     vi.stubGlobal('fetch', fetchSpy)
@@ -168,7 +176,7 @@ describe('callAntigravityGeminiNative', () => {
         }],
       },
     })
-    const [, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit]
+    const init = fetchRequestAt(fetchSpy.mock.calls, 0)
     const envelope = jsonBody(init) as {
       request: {
         generationConfig: Record<string, unknown>
@@ -185,7 +193,7 @@ describe('callAntigravityGeminiNative', () => {
   })
 
   it('refuses a native request that exceeds its configured Cloud Code envelope bound', async () => {
-    const fetchSpy = vi.fn()
+    const fetchSpy = vi.fn<typeof globalThis.fetch>()
     vi.stubGlobal('fetch', fetchSpy)
     const response = await callAntigravityGeminiNative({
       action: 'generateContent',
@@ -297,7 +305,7 @@ describe('callAntigravityGeminiNative', () => {
       }),
       { status },
     )
-    const fetchSpy = vi.fn()
+    const fetchSpy = vi.fn<typeof globalThis.fetch>()
       .mockResolvedValueOnce(rejectedResponse(401, nativeCancelled))
       .mockResolvedValueOnce(upstreamSse([{ error: { code: 503, message: secret } }]))
       .mockResolvedValueOnce(rejectedResponse(429, chatCancelled))
@@ -418,7 +426,7 @@ describe('callAntigravityGeminiNative', () => {
 
 describe('Antigravity image calls', () => {
   it('projects image generation through the native Gemini collector', async () => {
-    const fetchSpy = vi.fn(async () => upstreamSse([{
+    const fetchSpy = vi.fn<typeof globalThis.fetch>(async () => upstreamSse([{
       response: {
         candidates: [{
           content: {
@@ -444,7 +452,7 @@ describe('Antigravity image calls', () => {
     await expect(response.json()).resolves.toMatchObject({
       data: [{ b64_json: 'aW1hZ2U=', revised_prompt: 'Draw a test' }],
     })
-    const [, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit]
+    const init = fetchRequestAt(fetchSpy.mock.calls, 0)
     const envelope = jsonBody(init) as {
       model: string
       request: {
@@ -465,7 +473,7 @@ describe('Antigravity image calls', () => {
   })
 
   it('projects image edits without a second Gemini response parser', async () => {
-    const fetchSpy = vi.fn(async () => upstreamSse([{
+    const fetchSpy = vi.fn<typeof globalThis.fetch>(async () => upstreamSse([{
       response: {
         candidates: [{
           content: { parts: [{ inlineData: { mimeType: 'image/webp', data: 'ZWRpdA==' } }] },
@@ -486,7 +494,7 @@ describe('Antigravity image calls', () => {
       },
     })
     expect(response.status).toBe(200)
-    const [, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit]
+    const init = fetchRequestAt(fetchSpy.mock.calls, 0)
     const envelope = jsonBody(init) as {
       request: { contents: Array<{ parts: unknown[] }> }
     }
@@ -498,7 +506,7 @@ describe('Antigravity image calls', () => {
   })
 
   it('rejects opaque image ids before the native transport fetch', async () => {
-    const fetchSpy = vi.fn()
+    const fetchSpy = vi.fn<typeof globalThis.fetch>()
     vi.stubGlobal('fetch', fetchSpy)
     const response = await callAntigravityImageEdits({
       account: ACCOUNT,

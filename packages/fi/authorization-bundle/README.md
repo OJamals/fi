@@ -50,7 +50,9 @@ The add command reconciles the profile and activates the layer; it resolves the 
 
 ### What you get
 
-The layer mounts authorization, its Remote controller, the Models subscription footer, the native Antigravity adapter, provider HTTP compatibility, and FI preferred web search. The footer supports Claude, Codex, Grok, and Antigravity; successful sign-in adopts the model route, while an existing grant can retry setup without another login. Provider compatibility supplies captured request headers and the Grok subscription endpoint without changing ordinary API-key requests. The Preferred web search card selects DeepSeek, Exa, Perplexity, Parallel, Tavily, Serper, Brave Search, or subscription-native search and stores direct-provider keys through Credentials.
+FI uses provider-neutral onboarding and disables the DeepSeek-account UI, account model route, and account-dependent product analytics. DeepSeek remains available through an API key.
+
+The base mounts authorization; this layer mounts its Remote controller, the Models subscription footer, the native Antigravity adapter, provider HTTP compatibility, and FI preferred web search. The footer supports Claude, Codex, Grok, and Antigravity; successful sign-in adopts the model route, while an existing grant can retry setup without another login. Provider compatibility supplies captured request headers and the Grok subscription endpoint without changing ordinary API-key requests. The Preferred web search card selects DeepSeek, Exa, Perplexity, Parallel, Tavily, Serper, Brave Search, or subscription-native search and stores direct-provider keys through Credentials.
 
 The composer Model pane places the four subscription routes under a labeled Subscriptions section below regular providers. Antigravity's catalog provider name is `antigravity`, matching the lowercase route labels; provider and model ids do not change.
 
@@ -69,7 +71,7 @@ The patch document is `cordis.patch.yml`: an `insert` block adds FI-prefixed row
 <a id="further-exploration"></a>
 ## Further Exploration
 
-- [`@deepseek-ai/dsh-authorization`](../../credentials/authorization/README.md) — the seam this layer mounts.
+- [`@deepseek-ai/dsh-authorization`](../../credentials/authorization/README.md) — the base-mounted seam this layer uses.
 - [`@fi/api-authorization-controller`](../api-authorization-controller/README.md) — the Remote namespace that drives the seam from a browser.
 - [`@fi/client-ui-model-signin`](../client-ui-model-signin/README.md) — the Models-page subscription sign-in section this layer ships.
 - [`@fi/llm-antigravity`](../llm-antigravity/README.md) — the Antigravity OAuth adapter and transport this layer ships.

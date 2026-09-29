@@ -7,9 +7,11 @@ kind: "package-reference"
 
 English | [中文](README.zh.md)
 
+Desktop product events use the optional [product analytics service](../product-analytics/README.md); ordinary Web interactions are excluded.
+
 ## Summary
 
-`dsh-client-ui-settings-models` is the Models settings page of the dsh web client: users configure API keys (stored write-only under the profile's credential reference), edit each provider's model list, and hand-declare custom pi-ai routes, showing one editor card at a time. The page joins the provider directory, the settings document, and the credential descriptions into one snapshot, so a row's state stays consistent across all three. It walks first-run users through two ordered dialogs — a versioned internal-testing notice and a model-universal setup step that routes a provider-less user to this page instead of collecting any one vendor's credential.
+`dsh-client-ui-settings-models` is the Models settings page of the dsh web client: users configure API keys (stored write-only under the profile's credential reference), edit each provider's model list, and hand-declare custom pi-ai routes, showing one editor card at a time. The page joins the provider directory, the settings document, and the credential descriptions into one shared snapshot, so a row's state stays consistent across all three. It walks first-run users through two ordered dialogs — a versioned preview notice and a model-universal setup step that routes a provider-less user to this page instead of collecting any one vendor's credential.
 
 ## Table of Contents
 
@@ -33,7 +35,7 @@ Open the Models page from the Settings navigation to see configured API-key prov
 
 A provider with a stored catalog error remains visible with its diagnostic and edit/delete actions. Add actions are offered only for registered settings namespaces, so an unavailable namespace cannot leave a button that opens no editor. A rejected save leaves the editor open and displays the Host diagnostic.
 
-Host configuration `credentialOnboarding` defaults to `true`. The Electron preload marker (`dshDesktop`) suppresses the automatic setup step and the Web welcome notice; Models settings and explicit provider editing remain available. The [account plugin](../ui-settings-account/README.md#desktop-onboarding) owns the Desktop introduction. Other native shells can disable only the automatic setup step with `credentialOnboarding: false`. Host publishes this public boolean through `webserver/index-inject`, and Client validates it before registering dialogs. It is page initialization data, not a durable completion marker.
+Host configuration `credentialOnboarding` defaults to `true`. The model-universal setup step runs in every client that leaves it enabled, including Electron (`dshDesktop`); the preview notice is Web-only. FI's authorization bundle disables the account UI and DeepSeek account routes, so FI Desktop uses model setup rather than the account introduction and can configure any provider. Other native shells can disable the automatic setup step with `credentialOnboarding: false`. Host publishes this public boolean through `webserver/index-inject`, and Client validates it before registering dialogs. It is page initialization data, not a durable completion marker.
 
 ### API keys
 
@@ -83,7 +85,7 @@ Each settings write carries the card's current `revision`, so a concurrent write
 
 ### Onboarding coordinator
 
-The notice step owns its exact copy in `src/client/locales.ts` and its acknowledgement version in `src/onboarding-copy.ts`; on loopback it compares and writes `ui-settings-general.welcomeNoticeVersion` through the shared configuration form, and only an explicit Continue records the current version. A non-loopback browser cannot use that Host-only namespace, so acknowledgement is process-local and the notice returns after reload. The setup step is model-universal: no provider is presumed, and a user with no usable provider is routed to the Models page, where every provider — shipped or user-added — is configured. The step writes no credential and changes no settings of its own.
+The notice step owns its exact copy in `src/client/locales.ts` and its acknowledgement version in `src/onboarding-copy.ts`; on loopback it compares and writes `ui-settings-general.welcomeNoticeVersion` through the shared configuration form, and only an explicit Continue records the current version. Users who acknowledged an earlier version see the current notice again. A non-loopback browser cannot use that Host-only namespace, so acknowledgement is process-local and the notice returns after reload. The setup step is model-universal: no provider is presumed, and a user with no usable provider is routed to the Models page, where every provider — shipped or user-added — is configured. The step writes no credential and changes no settings of its own.
 
 </details>
 

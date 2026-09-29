@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 /** The shared attempt conversation view, over a scripted controller. */
+import { Context } from '@deepseek-ai/cordis'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, describe, it, vi } from 'vitest'
 
 import { AttemptView } from '../src/client/SignInCard.tsx'
 import type { SignInCardInjected } from '../src/client/SignInCard.tsx'
-import type { SignInAttempt, SignInStore } from '../src/client/store.ts'
+import { SignInStore, type SignInAttempt } from '../src/client/store.ts'
 import { en } from '../src/client/locales.ts'
 
 afterEach(cleanup)
@@ -21,7 +22,7 @@ const KEY = 'llm-pi-ai/anthropic'
 /** Render the conversation of one attempt against a recording controller. */
 function mount(attempt: SignInAttempt): { controller: { answer: ReturnType<typeof vi.fn>; dismiss: ReturnType<typeof vi.fn> } } {
   const controller = { answer: vi.fn(), dismiss: vi.fn() }
-  render(<AttemptView attempt={attempt} controller={controller as unknown as SignInStore} t={t} />)
+  render(<AttemptView attempt={attempt} controller={Object.assign(new SignInStore(new Context()), controller)} t={t} />)
   return { controller }
 }
 

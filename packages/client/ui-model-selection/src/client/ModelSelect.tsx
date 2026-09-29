@@ -22,7 +22,7 @@
  * mark. Providers listed in `subscriptionProviders` render in a separate
  * trailing section of the model pane instead of alongside the regular groups.
  */
-import { MenuSurface } from '@deepseek-ai/dsh-client-ui-primitives'
+import { MenuSurface, observeStickyMenuGroups } from '@deepseek-ai/dsh-client-ui-primitives'
 import {
   useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore,
   type CSSProperties, type KeyboardEvent, type FocusEvent,
@@ -32,11 +32,12 @@ import clsx from 'clsx'
 import type { ModelReasoningEffort, ModelSelection } from '@deepseek-ai/dsh-api-remotes/client'
 import {
   IconCheckOutlineRegular, IconChevronDownOutlineRegular, IconChevronRightOutlineRegular,
-  IconDataOutlineRegular, IconWarningOutlineRegular, StateDot, Toast,
+  IconDataOutlineRegular, IconWarningOutlineRegular, rankByName, StateDot, Toast,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ModelSelectInjected } from './slots.ts'
 import css from './ModelSelect.module.css'
+import { orderModelProviders } from './provider-order.ts'
 
 /** Which pane the dropdown shows: the two-row root or one drilled-in list. */
 type Pane = 'root' | 'model' | 'effort'
@@ -92,6 +93,7 @@ export function ModelSelect(
   const [pane, setPane] = useState<Pane>('root')
   const [modelQuery, setModelQuery] = useState('')
   const [expandedProviders, setExpandedProviders] = useState<ReadonlySet<string>>(new Set())
+  const [selectionFocus, setSelectionFocus] = useState(false)
   // The in-menu error strip serves catalog loads (its Retry re-runs the
   // load); a rejected SELECTION announces through the transient toast
   // instead, so the strip renders only while the latest failure-capable
@@ -101,16 +103,15 @@ export function ModelSelect(
   const toastSeq = useRef(0)
   const rootRef = useRef<HTMLDivElement | null>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const searchRef = useRef<HTMLInputElement | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
+  const groupsRef = useRef<HTMLDivElement | null>(null)
   const modelRootRowRef = useRef<HTMLButtonElement | null>(null)
   const effortRootRowRef = useRef<HTMLButtonElement | null>(null)
-  const searchRef = useRef<HTMLInputElement | null>(null)
   const [menuPos, setMenuPos] = useState<CSSProperties | null>(null)
   const id = useId()
 
-  const groups = useMemo(() => state.groups.toSorted((left, right) =>
-    (left.id === 'deepseek-account' ? 0 : left.id === 'deepseek-official' ? 1 : 2)
-      - (right.id === 'deepseek-account' ? 0 : right.id === 'deepseek-official' ? 1 : 2)), [state.groups])
+  const groups = useMemo(() => orderModelProviders(state.groups), [state.groups])
   const choices = useMemo(() => groups.flatMap(group =>
     group.models.map(model => ({
       group,
@@ -155,10 +156,15 @@ export function ModelSelect(
     return groups.flatMap((group) => {
       const providerMatches = [group.name, group.id]
         .some(value => normalizeSearch(value).includes(normalizedModelQuery))
+      // Provider ids are routable identities (for example, `anthropic/claude`),
+      // so retain FI's normalized exact matching alongside upstream's fuzzy
+      // display-name discovery. Exact identity hits stay ahead of fuzzy ones.
+      const exactModels = group.models.filter(model => [model.name, model.id]
+        .some(value => normalizeSearch(value).includes(normalizedModelQuery)))
+      const rankedModels = rankByName(group.models, modelQuery.trim())
       const models = providerMatches
         ? group.models
-        : group.models.filter(model => [model.name, model.id]
-          .some(value => normalizeSearch(value).includes(normalizedModelQuery)))
+        : [...exactModels, ...rankedModels.filter(model => !exactModels.includes(model))]
       return models.length === 0 ? [] : [{ group, models }]
     })
   }, [groups, normalizedModelQuery, searching])
@@ -183,6 +189,12 @@ export function ModelSelect(
     document.addEventListener('mousedown', closeOutside)
     return () => { document.removeEventListener('mousedown', closeOutside) }
   }, [open])
+
+  useEffect(() => {
+    const viewport = groupsRef.current
+    if (viewport === null) return
+    return observeStickyMenuGroups(viewport)
+  }, [available, expandedProviders, open, pane, visibleGroups])
 
   // A pane switch unmounts the row that had focus, which drops focus onto the
   // page body — outside the card's subtree, where its key handling no longer
@@ -248,6 +260,7 @@ export function ModelSelect(
   if (!available) return null
 
   const show = (): void => {
+    setSelectionFocus(false)
     triggerRef.current?.focus()
     setModelQuery('')
     // With no current selection there is nothing to search past: every
@@ -265,6 +278,11 @@ export function ModelSelect(
     setPane('root')
     paneFocus.current = null
     if (restoreFocus) queueMicrotask(() => { triggerRef.current?.focus() })
+  }
+
+  const closeAfterSelection = (): void => {
+    setSelectionFocus(true)
+    close(true)
   }
 
   const drill = (next: Exclude<Pane, 'root'>): void => {
@@ -366,7 +384,7 @@ export function ModelSelect(
   const settleSelection = (result: Awaited<ReturnType<ModelSelectInjected['select']>>): void => {
     if (result === undefined) return
     if (result.ok) {
-      if (rootRef.current !== null) close(true)
+      if (rootRef.current !== null) closeAfterSelection()
       return
     }
     const { error } = result
@@ -382,13 +400,14 @@ export function ModelSelect(
   const submit = (selection: ModelSelection): void => {
     lastActionRef.current = 'select'
     // Disabled option rows cannot retain focus while a selection is pending.
+    setSelectionFocus(true)
     triggerRef.current?.focus()
     void select(selection).then(settleSelection)
   }
 
   const choose = (selection: ModelSelection): void => {
     if (state.current?.provider === selection.provider && state.current.model === selection.model) {
-      close(true)
+      closeAfterSelection()
       return
     }
     submit(selection)
@@ -397,7 +416,7 @@ export function ModelSelect(
   const chooseEffort = (effort: string | undefined): void => {
     if (state.current === null) return
     if (effectiveEffort === effort) {
-      close(true)
+      closeAfterSelection()
       return
     }
     const selection: ModelSelection = {
@@ -421,19 +440,20 @@ export function ModelSelect(
       : effortLabel === undefined
         ? t('trigger.aria', { model: modelLabel })
         : t('trigger.ariaEffort', { model: modelLabel, effort: effortLabel })
-
   const renderGroup = ({ group, models }: typeof visibleGroups[number], groupIndex: number) => {
     const headingId = `${id}-provider-${String(groupIndex)}`
     const modelsId = `${headingId}-models`
     const expanded = searching || expandedProviders.has(group.id)
     const groupLabel = group.id === 'deepseek-account' ? t('provider.account') : group.name
     return (
-      <section role="group" aria-labelledby={headingId} className={css.group} key={group.id}>
+      <section role="group" aria-labelledby={headingId} data-menu-group="" className={css.group} key={group.id}>
+        <span aria-hidden="true" data-menu-group-start="" className={css.groupStart} />
         <button
           id={headingId}
           type="button"
           role="menuitem"
           data-model-menu-nav="true"
+          data-menu-group-heading=""
           className={css.groupTitle}
           aria-expanded={expanded}
           aria-controls={expanded ? modelsId : undefined}
@@ -503,6 +523,8 @@ export function ModelSelect(
         aria-controls={open ? `${id}-menu` : undefined}
         title={triggerLabel}
         aria-busy={busy}
+        data-selection-focus={selectionFocus ? '' : undefined}
+        onBlur={() => { setSelectionFocus(false) }}
         disabled={locked}
         onClick={() => {
           if (open) {
@@ -597,6 +619,7 @@ export function ModelSelect(
                 </div>
               ))}
               <div
+                ref={groupsRef}
                 className={clsx(css.groups, 'scrollable')}
                 role="menu"
                 aria-label={t('menu.model')}

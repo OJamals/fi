@@ -89,7 +89,7 @@ describe('preferred-search live settings', () => {
       maxTokens: 321,
       maxUses: 2,
     })
-    const fetch = vi.fn(async () => json({
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => json({
       content: [{
         type: 'web_search_tool_result',
         content: [{ type: 'web_search_result', url: 'https://source.test', title: 'Source' }],
@@ -100,9 +100,9 @@ describe('preferred-search live settings', () => {
     await ctx.web.search({ query: 'legacy settings' })
 
     expect(preferredPlugin.WEB_SEARCH_PREFERENCES_SETTINGS_NAMESPACE).toBe('fi-web-search-preferences')
-    const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
-    expect(url).toBe('https://legacy.test/anthropic/v1/messages')
-    expect((init.headers as Record<string, string>)['x-api-key']).toBe('legacy-secret')
+    const request = new Request(...fetch.mock.calls[0]!)
+    expect(request.url).toBe('https://legacy.test/anthropic/v1/messages')
+    expect(request.headers.get('x-api-key')).toBe('legacy-secret')
     expect(JSON.stringify(ctx.settings.describe({ redactSecrets: true }))).not.toContain('legacy-secret')
   })
 
@@ -114,7 +114,7 @@ describe('preferred-search live settings', () => {
     })
     await ctx.credentials.set(credentialRef('EXA_API_KEY'), 'exa-secret')
     await ctx.credentials.set(credentialRef('PERPLEXITY_API_KEY'), 'pplx-secret')
-    const fetch = vi.fn(async (input: RequestInfo | URL) => requestUrl(input).includes('exa.test')
+    const fetch = vi.fn<typeof globalThis.fetch>(async input => requestUrl(input).includes('exa.test')
       ? json({ results: [{ url: 'https://source.test/exa', highlights: ['exa'] }] })
       : json({
         choices: [{ message: { content: 'perplexity' } }],
@@ -137,13 +137,12 @@ describe('preferred-search live settings', () => {
       sources: [{ url: 'https://source.test/perplexity' }],
     })
 
-    const calls = fetch.mock.calls as unknown as [RequestInfo | URL, RequestInit][]
-    expect(calls.map(([input]) => requestUrl(input))).toEqual([
+    expect(fetch.mock.calls.map(([input]) => requestUrl(input))).toEqual([
       'https://exa.test/search',
       'https://perplexity.test/chat/completions',
     ])
-    expect((calls[0]![1].headers as Record<string, string>).authorization).toBe('Bearer exa-secret')
-    expect((calls[1]![1].headers as Record<string, string>).authorization).toBe('Bearer pplx-secret')
+    expect(new Request(...fetch.mock.calls[0]!).headers.get('authorization')).toBe('Bearer exa-secret')
+    expect(new Request(...fetch.mock.calls[1]!).headers.get('authorization')).toBe('Bearer pplx-secret')
     expect(JSON.stringify(ctx.settings.describe({ redactSecrets: true }))).not.toContain('exa-secret')
     expect(JSON.stringify(ctx.settings.describe({ redactSecrets: true }))).not.toContain('pplx-secret')
   })

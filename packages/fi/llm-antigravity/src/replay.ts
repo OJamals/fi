@@ -267,7 +267,7 @@ function validateNativeParts(message: Message, value: unknown): readonly Antigra
  * @returns aligned Antigravity entries, or `undefined` for provider-neutral history.
  */
 export function antigravityReplay(message: RequestMessage): AntigravityReplayData | undefined {
-  if (message.role !== 'assistant' || message.source.kind !== 'model' || message.source.replayState === undefined) {
+  if (message.role !== 'assistant' || message.source.replayState === undefined) {
     return undefined
   }
   const raw = message.source.replayState
@@ -281,10 +281,10 @@ export function antigravityReplay(message: RequestMessage): AntigravityReplayDat
   if (response.provider !== message.source.provider) return invalidReplay('provider does not match assistant source')
   if (response.model !== message.source.model) return invalidReplay('model does not match assistant source')
   if (!Array.isArray(envelope.blocks)) return invalidReplay('blocks must be an array')
-  const blocks = envelope.blocks as unknown[]
+  const blocks = envelope.blocks
   if (blocks.length !== message.content.length) return invalidReplay('block count does not match assistant content')
   const replayBlocks = message.content.map((content, index): AntigravityReplayBlock => {
-    const rawBlock = blocks[index]
+    const rawBlock: unknown = blocks[index]
     if (typeof rawBlock !== 'object' || rawBlock === null || Array.isArray(rawBlock)) {
       return invalidReplay(`block ${index} must be an object`)
     }

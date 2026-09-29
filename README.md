@@ -8,7 +8,7 @@ Brand assets include the [default fi logo](apps/desktop/build/fi-logo-source.png
 
 fi is a prerelease coding agent application for macOS and Windows. It combines a native desktop shell with a plugin-based agent runtime.
 
-Current release: `fi Preview 04` (package version `0.1.0-preview.4`)
+Source package version: `0.2.0-rc.2`. Desktop releases are published separately.
 
 The first public release provides a signed and notarized macOS build for Apple silicon.
 

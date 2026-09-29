@@ -27,9 +27,7 @@ afterEach(() => { vi.unstubAllGlobals() })
  * stays mounted.
  */
 interface LiveModelsSession {
-  request(
-    request: PiAiLiveModelsContext & { provider: 'anthropic' | 'openai-codex' | 'xai' },
-  ): Promise<readonly { id: string; name?: string }[]>
+  request(request: PiAiLiveModelsContext): Promise<readonly { id: string; name?: string }[]>
   dispose(): Promise<void>
 }
 
@@ -49,7 +47,7 @@ function mountLiveModels(config: Config = {}): LiveModelsSession {
  * Claude Code, Codex, or Grok CLI carries, never a real production token.
  */
 async function liveModelRequest(
-  request: PiAiLiveModelsContext & { provider: 'anthropic' | 'openai-codex' | 'xai' },
+  request: PiAiLiveModelsContext,
   config: Config = {},
 ): Promise<readonly { id: string; name?: string }[]> {
   const session = mountLiveModels(config)
@@ -537,7 +535,7 @@ describe('live subscription model discovery', () => {
     const requests = stubFetch([() => new Response('unexpected', { status: 500 })])
 
     const passthrough = await mountLiveModels().request(
-      { provider: 'deepseek' as unknown as 'anthropic', apiKey: 'irrelevant' },
+      { provider: 'deepseek', apiKey: 'irrelevant' },
     )
 
     expect(passthrough).toEqual([])

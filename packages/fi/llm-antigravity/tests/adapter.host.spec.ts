@@ -55,7 +55,15 @@ function request(overrides?: Partial<GenerateOptions>): GenerateOptions {
 /** Parse the JSON body one scripted fetch call received. */
 function jsonBody(init: RequestInit): unknown {
   if (typeof init.body !== 'string') throw new Error('expected a JSON string request body')
-  return JSON.parse(init.body) as unknown
+  return JSON.parse(init.body)
+}
+
+function fetchRequestAt(calls: readonly Parameters<typeof globalThis.fetch>[], index: number): RequestInit {
+  const call = calls[index]
+  if (call === undefined) throw new Error(`expected fetch call ${index}`)
+  const init = call[1]
+  if (init === undefined) throw new Error(`fetch call ${index} has no request options`)
+  return init
 }
 
 /** A 200 Response whose body is the given SSE data payloads. */
@@ -102,7 +110,7 @@ async function collect(stream: AsyncGenerator<StreamChunk>): Promise<StreamChunk
 
 /** Read one package-owned deterministic model-output golden. */
 function golden(name: string): unknown {
-  return JSON.parse(readFileSync(new URL(`./fixtures/${name}.expected.json`, import.meta.url), 'utf8')) as unknown
+  return JSON.parse(readFileSync(new URL(`./fixtures/${name}.expected.json`, import.meta.url), 'utf8'))
 }
 
 afterEach(() => {
@@ -175,7 +183,7 @@ describe('listModels', () => {
 
 describe('stream', () => {
   it('finishes with no-grant when signed out, without touching the network', async () => {
-    const fetchSpy = vi.fn()
+    const fetchSpy = vi.fn<typeof globalThis.fetch>()
     vi.stubGlobal('fetch', fetchSpy)
     const adapter = new AntigravityAdapter(grants(undefined))
     const chunks = await collect(adapter.stream(request()))
@@ -223,7 +231,7 @@ describe('stream', () => {
   })
 
   it('replays signed and unsigned text and reasoning as their exact native parts', async () => {
-    const fetchSpy = vi.fn()
+    const fetchSpy = vi.fn<typeof globalThis.fetch>()
       .mockResolvedValueOnce(sseResponse([
         JSON.stringify({
           response: {
@@ -271,7 +279,7 @@ describe('stream', () => {
       source: { kind: 'model', provider: 'antigravity', model: 'claude-sonnet-4-6', replayState },
     }
     await collect(adapter.stream(request({ messages: [assistant, userMessage('continue')] })))
-    const [, secondInit] = fetchSpy.mock.calls[1] as unknown as [string, RequestInit]
+    const secondInit = fetchRequestAt(fetchSpy.mock.calls, 1)
     const envelope = jsonBody(secondInit) as {
       request: { contents: { role: string; parts: Record<string, unknown>[] }[] }
     }
@@ -290,7 +298,7 @@ describe('stream', () => {
     const dshHome = await mkdtemp(join(tmpdir(), 'fi-agy-output-image-'))
     try {
       const attachments = new LocalAttachmentStore(new Context(), { dshHome })
-      const fetchSpy = vi.fn()
+      const fetchSpy = vi.fn<typeof globalThis.fetch>()
         .mockResolvedValueOnce(sseResponse([JSON.stringify({
           response: {
             candidates: [{
@@ -362,7 +370,7 @@ describe('stream', () => {
         model: 'gemini-3.1-pro-high',
         messages: [assistant, userMessage('continue')],
       })))
-      const [, secondInit] = fetchSpy.mock.calls[1] as unknown as [string, RequestInit]
+      const secondInit = fetchRequestAt(fetchSpy.mock.calls, 1)
       const envelope = jsonBody(secondInit) as {
         model: string
         request: { contents: Array<{ role: string; parts: Record<string, unknown>[] }> }
@@ -538,7 +546,7 @@ describe('stream', () => {
   })
 
   it('persists and replays a function-call thought signature on the next request', async () => {
-    const fetchSpy = vi.fn()
+    const fetchSpy = vi.fn<typeof globalThis.fetch>()
       .mockResolvedValueOnce(sseResponse([JSON.stringify({
         response: {
           candidates: [{
@@ -572,7 +580,7 @@ describe('stream', () => {
       isError: false,
     })
     await collect(adapter.stream(request({ messages: [assistant, result] })))
-    const [, secondInit] = fetchSpy.mock.calls[1] as unknown as [string, RequestInit]
+    const secondInit = fetchRequestAt(fetchSpy.mock.calls, 1)
     const envelope = jsonBody(secondInit) as {
       request: { contents: { role: string; parts: { thoughtSignature?: string }[] }[] }
     }
@@ -624,7 +632,7 @@ describe('stream', () => {
       space: 'srgb',
       hasAlpha: false,
     })
-    const fetchSpy = vi.fn(async () => sseResponse([geminiText('seen', 'STOP')]))
+    const fetchSpy = vi.fn<typeof globalThis.fetch>(async () => sseResponse([geminiText('seen', 'STOP')]))
     vi.stubGlobal('fetch', fetchSpy)
     const adapter = new AntigravityAdapter(grants(GRANT), () => attachments)
     await collect(adapter.stream(request({
@@ -640,7 +648,7 @@ describe('stream', () => {
       { width: 1, height: 1, maxBytes: 2 * 1024 * 1024 },
       undefined,
     )
-    const [, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit]
+    const init = fetchRequestAt(fetchSpy.mock.calls, 0)
     const envelope = jsonBody(init) as {
       request: { contents: { parts: Array<{ inlineData?: { mimeType: string; data: string } }> }[] }
     }
@@ -658,7 +666,7 @@ describe('stream', () => {
         'base64',
       ))
       const imageRef = await attachments.saveImage({ data, mediaType: 'image/png', name: 'pixel.png' })
-      const fetchSpy = vi.fn(async () => sseResponse([geminiText('seen', 'STOP')]))
+      const fetchSpy = vi.fn<typeof globalThis.fetch>(async () => sseResponse([geminiText('seen', 'STOP')]))
       vi.stubGlobal('fetch', fetchSpy)
       const adapter = new AntigravityAdapter(grants(GRANT), () => attachments)
       const chunks = await collect(adapter.stream(request({
@@ -670,7 +678,7 @@ describe('stream', () => {
         }],
       })))
       expect(chunks.at(-1)).toMatchObject({ type: 'finish', reason: { kind: 'stop' } })
-      const [, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit]
+      const init = fetchRequestAt(fetchSpy.mock.calls, 0)
       const envelope = jsonBody(init) as {
         request: { contents: { parts: Array<{ inlineData?: { mimeType: string; data: string } }> }[] }
       }
@@ -707,7 +715,7 @@ describe('stream', () => {
       space: 'srgb',
       hasAlpha: false,
     })
-    const fetchSpy = vi.fn(async () => sseResponse([geminiText('seen', 'STOP')]))
+    const fetchSpy = vi.fn<typeof globalThis.fetch>(async () => sseResponse([geminiText('seen', 'STOP')]))
     vi.stubGlobal('fetch', fetchSpy)
     const adapter = new AntigravityAdapter(grants(GRANT), () => attachments)
     const assistant: Message = {
@@ -722,7 +730,7 @@ describe('stream', () => {
       isError: false,
     })
     await collect(adapter.stream(request({ messages: [assistant, result] })))
-    const [, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit]
+    const init = fetchRequestAt(fetchSpy.mock.calls, 0)
     const envelope = jsonBody(init) as {
       request: { contents: Array<{ parts: Array<{ functionResponse?: unknown; inlineData?: unknown }> }> }
     }
@@ -759,11 +767,11 @@ describe('stream', () => {
   })
 
   it('sends the Antigravity envelope and CLI identity upstream', async () => {
-    const fetchSpy = vi.fn(async (_url: string | URL | Request, _init?: RequestInit) => sseResponse([geminiText('ok', 'STOP')]))
+    const fetchSpy = vi.fn<typeof globalThis.fetch>(async () => sseResponse([geminiText('ok', 'STOP')]))
     vi.stubGlobal('fetch', fetchSpy)
     const adapter = new AntigravityAdapter(grants(GRANT))
     await collect(adapter.stream(request({ system: 'Be brief.' })))
-    const [, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit]
+    const init = fetchRequestAt(fetchSpy.mock.calls, 0)
     const headers = new Headers(init.headers)
     expect(headers.get('user-agent')).toContain('antigravity')
     expect(headers.get('authorization')).toBe('Bearer ya29.test')
@@ -780,7 +788,7 @@ describe('stream', () => {
   })
 
   it('sends standard system and tool context with image-model response modalities', async () => {
-    const fetchSpy = vi.fn(async () => sseResponse([geminiText('ok', 'STOP')]))
+    const fetchSpy = vi.fn<typeof globalThis.fetch>(async () => sseResponse([geminiText('ok', 'STOP')]))
     vi.stubGlobal('fetch', fetchSpy)
     const adapter = new AntigravityAdapter(grants(GRANT))
     await collect(adapter.stream(request({
@@ -788,7 +796,7 @@ describe('stream', () => {
       system: 'Use the available tools when needed.',
       tools: [{ name: 'read_file', description: 'Read one file', parameters: { type: 'object', properties: {} } }],
     })))
-    const [, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit]
+    const init = fetchRequestAt(fetchSpy.mock.calls, 0)
     const envelope = jsonBody(init) as {
       request: {
         generationConfig: { responseModalities?: string[] }

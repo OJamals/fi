@@ -106,8 +106,8 @@ function mount(
 describe('WelcomeNotice', () => {
   it('uses the exact owner copy in both GUI locales', () => {
     expect(WELCOME_NOTICE_COPY.en).toEqual({
-      title: 'Internal Testing Notice',
-      body: "fi 0.1 remains in testing for developers. Many areas need further improvement, and we welcome feedback from the developer community. fi's core plugins and foundational APIs will continue to evolve rapidly over the coming months.\n\nWe look forward to exploring the limits of intelligence with developers around the world, building on open-source, open, reusable, and composable infrastructure. We welcome developers everywhere to join the DSH plugin ecosystem.",
+      title: 'Preview Notice',
+      body: 'fi 0.2 is still in preview. We welcome feedback from users and developers as its product features and plugin APIs continue to evolve.\n\nWe look forward to exploring the limits of intelligence together on open, reusable, and composable infrastructure. Use fi to bring ideas to life and help grow its plugin ecosystem.',
       continueLabel: 'Continue',
     })
     expect(en.welcomeBody).toBe(WELCOME_NOTICE_COPY.en.body)
@@ -132,8 +132,8 @@ describe('WelcomeNotice', () => {
     expect(screen.getByRole('dialog')).toBeTruthy()
   })
 
-  it('completes only after the acknowledgement write commits', async () => {
-    const h = mount()
+  it('requires a fresh acknowledgement after the 0.1 notice', async () => {
+    const h = mount('2026-08-13.1')
     await screen.findByRole('dialog')
     fireEvent.click(screen.getByRole('button', { name: WELCOME_NOTICE_COPY.zh.continueLabel }))
     await act(async () => { await Promise.resolve() })

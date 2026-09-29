@@ -3,8 +3,8 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write README.md
 /fi:
-  en: 3245263b2ed6653d
-  zh: c4cd06eab910f083
+  en: 8d974930ac740f2f
+  zh: 6b45a9ec8a55f184
 /fi/run-from-source:
   en: 33e061ccb6875c23
   zh: e8cbf5ba8edb781c

@@ -1,7 +1,7 @@
 /** The footer surface's store behavior over a scripted `remote.authorization`. */
 
 import { describe, expect, it, vi } from 'vitest'
-import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
 import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import type { AuthorizationAdoptEntry, AuthorizationEntryView, AuthorizationFrameView } from '@fi/api-authorization-controller/types'
@@ -37,22 +37,24 @@ function scriptedCtx(script: Script) {
   }
   const remote = {
     authorization: {
-      list: vi.fn(async () => { calls.push('list'); return { ok: true as const, value: script.list } }),
+      list: vi.fn(async (): Promise<RemoteResult<AuthorizationEntryView[]>> => { calls.push('list'); return { ok: true as const, value: script.list } }),
       listAdoptable: vi.fn(async () => { calls.push('listAdoptable'); return { ok: true as const, value: script.adoptEntries } }),
-      begin: vi.fn(() => { calls.push('begin'); return stream() }),
-      adopt: vi.fn(async (key: string) => {
+      begin: vi.fn<(_request: { key: string }, _signal: AbortSignal) => AsyncIterable<AuthorizationFrameView>>(() => { calls.push('begin'); return stream() }),
+      adopt: vi.fn(async (key: string): Promise<RemoteResult<Script['adoptResult']>> => {
         calls.push(`adopt:${key}`)
         if (script.adoptError !== undefined) {
-          return { ok: false as const, error: { code: 'authorization/adopt-blocked', message: script.adoptError } }
+          return { ok: false as const, error: new RemoteError('authorization/adopt-blocked', script.adoptError, { key }) }
         }
         return { ok: true as const, value: script.adoptResult }
       }),
       cancel: vi.fn(async (): Promise<RemoteResult<void>> => { calls.push('cancel'); return { ok: true, value: undefined } }),
-      answer: vi.fn(async () => { calls.push('answer'); return { ok: true as const, value: undefined } }),
-      revoke: vi.fn(async () => { calls.push('revoke'); return { ok: true as const, value: undefined } }),
+      answer: vi.fn(async (): Promise<RemoteResult<void>> => { calls.push('answer'); return { ok: true as const, value: undefined } }),
+      revoke: vi.fn(async (): Promise<RemoteResult<void>> => { calls.push('revoke'); return { ok: true as const, value: undefined } }),
     },
   }
-  return { ctx: { remote } as unknown as ClientContext, calls, remote }
+  const ctx = new ClientContext()
+  ctx.provide('remote', remote)
+  return { ctx, calls, remote }
 }
 
 describe('footer store', () => {
@@ -136,16 +138,16 @@ describe('footer store', () => {
   })
 
   it('remove reloads the rows even when the revoke itself rejects', async () => {
-    const { ctx, calls } = scriptedCtx({
+    const { ctx, calls, remote } = scriptedCtx({
       list: [{ key: KEY, label: 'Anthropic', methods: [{ id: 'oauth', label: 'Anthropic' }], stored: false, inFlight: false }],
       adoptEntries: [{ key: KEY, label: 'Anthropic', routeId: 'anthropic' }],
       frames: [],
       adoptResult: { route: 'created', models: [] },
     })
-    ;(ctx.remote as unknown as { authorization: { revoke: unknown } }).authorization.revoke = async () => {
+    remote.authorization.revoke.mockImplementation(async () => {
       calls.push('revoke')
       throw new Error('authorization/in-flight')
-    }
+    })
     const store = new SignInStore(ctx)
     await store.remove(KEY).catch(() => undefined)
 
@@ -177,7 +179,7 @@ describe('footer store', () => {
     // another whose adopt fails — the first provider's model list must not
     // stay on screen reading as the second provider's outcome.
     const XAI = 'llm-pi-ai/xai'
-    const { ctx } = scriptedCtx({
+    const { ctx, remote } = scriptedCtx({
       list: [
         { key: KEY, label: 'Anthropic', methods: [{ id: 'oauth', label: 'Anthropic' }], stored: false, inFlight: false },
         { key: XAI, label: 'xAI', methods: [{ id: 'oauth', label: 'xAI' }], stored: false, inFlight: false },
@@ -196,10 +198,10 @@ describe('footer store', () => {
     // The second provider's adopt refuses (its route namespace cannot serve
     // it): the banner from the first provider clears at attempt start and
     // the failure lands as the section's error, with nothing stale left.
-    ;(ctx.remote as unknown as { authorization: { adopt: unknown } }).authorization.adopt = async () => ({
+    remote.authorization.adopt.mockImplementation(async () => ({
       ok: false as const,
-      error: { code: 'authorization/adopt-blocked', message: 'the settings route could not be written' },
-    })
+      error: new RemoteError('authorization/adopt-blocked', 'the settings route could not be written', { key: XAI }),
+    }))
     await store.signInAndAdopt(XAI)
 
     const state = store.store.getSnapshot()
@@ -209,13 +211,13 @@ describe('footer store', () => {
   })
 
   it('restores a prompt and exposes a refused answer so the user can retry', async () => {
-    const { ctx } = scriptedCtx({
+    const { ctx, remote } = scriptedCtx({
       list: [], adoptEntries: [], frames: [], adoptResult: { route: 'created', models: [] },
     })
-    ;(ctx.remote as unknown as { authorization: { answer: unknown } }).authorization.answer = async () => ({
+    remote.authorization.answer.mockImplementation(async () => ({
       ok: false as const,
-      error: { code: 'authorization/no-prompt', message: 'the code expired' },
-    })
+      error: new RemoteError('authorization/no-prompt', 'the code expired', { key: KEY, id: 4 }),
+    }))
     const store = new SignInStore(ctx)
     store.store.set({
       status: 'ready', rows: [], adoptEntries: [], adopted: null, error: null,
@@ -232,13 +234,13 @@ describe('footer store', () => {
   })
 
   it('marks an initial list refusal as failed so the footer can offer retry', async () => {
-    const { ctx } = scriptedCtx({
+    const { ctx, remote } = scriptedCtx({
       list: [], adoptEntries: [], frames: [], adoptResult: { route: 'created', models: [] },
     })
-    ;(ctx.remote as unknown as { authorization: { list: unknown } }).authorization.list = async () => ({
+    remote.authorization.list.mockImplementation(async () => ({
       ok: false as const,
-      error: { code: 'authorization/unavailable', message: 'connection reset' },
-    })
+      error: new RemoteError('gateway/internal', 'connection reset', {}),
+    }))
     const store = new SignInStore(ctx)
 
     await store.load()
@@ -248,13 +250,13 @@ describe('footer store', () => {
   })
 
   it('exposes a refused cancellation without dismissing the active attempt', async () => {
-    const { ctx } = scriptedCtx({
+    const { ctx, remote } = scriptedCtx({
       list: [], adoptEntries: [], frames: [], adoptResult: { route: 'created', models: [] },
     })
-    ;(ctx.remote as unknown as { authorization: { cancel: unknown } }).authorization.cancel = async () => ({
+    remote.authorization.cancel.mockImplementation(async () => ({
       ok: false as const,
-      error: { code: 'authorization/cancel-refused', message: 'the provider cannot stop yet' },
-    })
+      error: new RemoteError('gateway/internal', 'the provider cannot stop yet', {}),
+    }))
     const store = new SignInStore(ctx)
     store.store.set({
       status: 'ready', rows: [], adoptEntries: [], adopted: null, error: null,
@@ -271,15 +273,15 @@ describe('footer store', () => {
   })
 
   it('keeps a refused revoke diagnostic after refreshing the rows', async () => {
-    const { ctx } = scriptedCtx({
+    const { ctx, remote } = scriptedCtx({
       list: [{ key: KEY, label: 'Anthropic', methods: [{ id: 'oauth', label: 'Anthropic' }], stored: true, inFlight: false }],
       adoptEntries: [{ key: KEY, label: 'Anthropic', routeId: 'anthropic' }],
       frames: [], adoptResult: { route: 'created', models: [] },
     })
-    ;(ctx.remote as unknown as { authorization: { revoke: unknown } }).authorization.revoke = async () => ({
+    remote.authorization.revoke.mockImplementation(async () => ({
       ok: false as const,
-      error: { code: 'authorization/revoke-refused', message: 'the provider is still busy' },
-    })
+      error: new RemoteError('gateway/internal', 'the provider is still busy', {}),
+    }))
     const store = new SignInStore(ctx)
 
     await store.remove(KEY)
@@ -309,7 +311,7 @@ describe('footer store', () => {
   it('does not publish an adoption after its settled attempt was dismissed', async () => {
     const adopted = deferred<{ route: 'created'; models: string[] }>()
     const adoptionStarted = deferred<undefined>()
-    const { ctx } = scriptedCtx({
+    const { ctx, remote } = scriptedCtx({
       list: [
         { key: KEY, label: 'Anthropic', methods: [{ id: 'oauth', label: 'Anthropic' }], stored: true, inFlight: false },
         { key: XAI, label: 'xAI', methods: [{ id: 'oauth', label: 'xAI' }], stored: false, inFlight: false },
@@ -320,7 +322,7 @@ describe('footer store', () => {
       ],
       frames: [], adoptResult: { route: 'created', models: [] },
     })
-    ;(ctx.remote as unknown as { authorization: { begin: unknown; adopt: unknown } }).authorization.begin = (
+    remote.authorization.begin.mockImplementation((
       request: { key: string }, signal: AbortSignal,
     ): AsyncIterable<AuthorizationFrameView> => ({
       async *[Symbol.asyncIterator](): AsyncGenerator<AuthorizationFrameView> {
@@ -330,11 +332,11 @@ describe('footer store', () => {
         }
         await new Promise<void>((resolve) => { signal.addEventListener('abort', () => { resolve() }, { once: true }) })
       },
-    })
-    ;(ctx.remote as unknown as { authorization: { adopt: unknown } }).authorization.adopt = async () => {
+    }))
+    remote.authorization.adopt.mockImplementation(async () => {
       adoptionStarted.resolve(undefined)
       return { ok: true as const, value: await adopted.promise }
-    }
+    })
     const store = new SignInStore(ctx)
 
     const first = store.signInAndAdopt(KEY)

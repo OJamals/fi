@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { AuthResult } from '@earendil-works/pi-ai'
+import type { AuthResult, FetchFunction } from '@earendil-works/pi-ai'
 import {
   SubscriptionSearchProvider,
   type SubscriptionSearchProviderOptions,
@@ -117,7 +117,7 @@ describe('subscription native request contracts', () => {
     ['codex', 'https://chatgpt.com/backend-api/codex/responses', 'web_search'],
     ['grok', 'https://cli-chat-proxy.grok.com/v1/responses', 'web_search'],
   ] as const)('sends %s to its captured Responses endpoint', async (providerId, endpoint, toolType) => {
-    const fetch = vi.fn(async () => new Response(responsesSse(), {
+    const fetch = vi.fn<FetchFunction>(async () => new Response(responsesSse(), {
       headers: { 'content-type': 'text/event-stream' },
     }))
     const provider = new SubscriptionSearchProvider(options(providerId, { fetch }))
@@ -128,13 +128,12 @@ describe('subscription native request contracts', () => {
       truncated: false,
     })
 
-    const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
-    expect(url).toBe(endpoint)
-    expect(init.redirect).toBe('error')
-    expect(init.signal).toBeInstanceOf(AbortSignal)
-    const body = JSON.parse(init.body as string) as Record<string, unknown>
+    const request = new Request(...fetch.mock.calls[0]!)
+    expect(request.url).toBe(endpoint)
+    expect(request.redirect).toBe('error')
+    expect(request.signal).toBeInstanceOf(AbortSignal)
     if (providerId === 'codex') {
-      expect(body).toEqual({
+      await expect(request.json()).resolves.toEqual({
         model: 'codex-model',
         instructions: '',
         input: [{ role: 'user', content: [{ type: 'input_text', text: 'weather' }] }],
@@ -143,7 +142,7 @@ describe('subscription native request contracts', () => {
         store: false,
       })
     } else {
-      expect(body).toEqual({
+      await expect(request.json()).resolves.toEqual({
         model: 'grok-model',
         input: [{ role: 'user', content: 'weather' }],
         tools: [{ type: toolType }],
@@ -155,7 +154,7 @@ describe('subscription native request contracts', () => {
   })
 
   it('sends Claude native web_search with the configured use bound and preserves only cited URLs', async () => {
-    const fetch = vi.fn(async () => Response.json(claudeResponse()))
+    const fetch = vi.fn<FetchFunction>(async () => Response.json(claudeResponse()))
     const provider = new SubscriptionSearchProvider(options('claude', { fetch, maxUses: 1 }))
 
     await expect(provider.search({ query: 'weather' })).resolves.toMatchObject({
@@ -167,11 +166,10 @@ describe('subscription native request contracts', () => {
       }],
     })
 
-    const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
-    expect(url).toBe('https://api.anthropic.com/v1/messages?beta=true')
-    expect(init.redirect).toBe('error')
-    const body = JSON.parse(init.body as string) as Record<string, unknown>
-    expect(body).toMatchObject({
+    const request = new Request(...fetch.mock.calls[0]!)
+    expect(request.url).toBe('https://api.anthropic.com/v1/messages?beta=true')
+    expect(request.redirect).toBe('error')
+    await expect(request.json()).resolves.toMatchObject({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 256,
       messages: [{ role: 'user', content: 'weather' }],
@@ -229,7 +227,7 @@ describe('subscription native request contracts', () => {
     const resolveOAuth = vi.fn()
       .mockResolvedValueOnce({ auth: { apiKey: first }, source: 'OAuth' })
       .mockResolvedValueOnce({ auth: { apiKey: second }, source: 'OAuth' })
-    const fetch = vi.fn(async () => new Response(responsesSse(), {
+    const fetch = vi.fn<FetchFunction>(async () => new Response(responsesSse(), {
       headers: { 'content-type': 'text/event-stream' },
     }))
     const provider = new SubscriptionSearchProvider(options('codex', { resolveOAuth, fetch }))
@@ -237,9 +235,9 @@ describe('subscription native request contracts', () => {
     await provider.search({ query: 'weather' })
 
     expect(resolveOAuth).toHaveBeenCalledTimes(1)
-    const headers = new Headers((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].headers)
-    expect(headers.get('chatgpt-account-id')).toBe('account-fixture')
-    expect(headers.get('authorization')).toBe(`Bearer ${first}`)
+    const request = new Request(...fetch.mock.calls[0]!)
+    expect(request.headers.get('chatgpt-account-id')).toBe('account-fixture')
+    expect(request.headers.get('authorization')).toBe(`Bearer ${first}`)
   })
 
   it('honors request.maxResults and marks direct provider truncation', async () => {

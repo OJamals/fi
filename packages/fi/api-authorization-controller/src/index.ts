@@ -108,11 +108,12 @@ function brandKey(wire: string): CredentialKey {
   if (match === null) {
     throw new RemoteError('gateway/bad-request', `"${wire}" is not a credential key`, {})
   }
-  const [, scope, id] = match as unknown as [string, string, string]
+  const scope = match[1]
+  const id = match[2]
   /* v8 ignore next 3 -- the pattern above already is the segment grammar, so
      this cannot fail; it is here because `credentialKey` is the only authority
      on that grammar and a divergence should refuse rather than brand badly. */
-  if (!isCredentialKeySegment(scope) || !isCredentialKeySegment(id)) {
+  if (scope === undefined || id === undefined || !isCredentialKeySegment(scope) || !isCredentialKeySegment(id)) {
     throw new RemoteError('gateway/bad-request', `"${wire}" is not a credential key`, {})
   }
   return credentialKey(scope, id)

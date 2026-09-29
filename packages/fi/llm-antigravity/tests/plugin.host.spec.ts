@@ -74,7 +74,7 @@ function routes(live: Awaited<ReturnType<typeof liveConfig>>): Record<string, un
 /** Parse the JSON body one scripted fetch call received. */
 function jsonBody(init: RequestInit): unknown {
   if (typeof init.body !== 'string') throw new Error('expected a JSON string request body')
-  return JSON.parse(init.body) as unknown
+  return JSON.parse(init.body)
 }
 
 /** One complete upstream Gemini SSE response. */

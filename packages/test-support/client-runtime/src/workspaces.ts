@@ -218,8 +218,13 @@ export class TestWorkspaces implements IWorkspaces {
     const stub = this.stubs.get('createIsolated')
     if (stub !== undefined) return await (stub(workspaceId) as Promise<WorkspaceView>)
     return {
-      workspaceId: `${workspaceId}-worktree` as WorkspaceId, title: 'worktree', path: `/${workspaceId}-worktree`, sessionIds: [],
-    } as unknown as WorkspaceView
+      workspaceId: `${workspaceId}-worktree` as WorkspaceId,
+      title: 'worktree',
+      path: `/${workspaceId}-worktree`,
+      sessionIds: [],
+      createdAt: '2020-01-01T00:00:00.000Z',
+      updatedAt: '2020-01-01T00:00:00.000Z',
+    }
   }
 
   /**

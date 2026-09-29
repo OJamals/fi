@@ -77,7 +77,7 @@ function isManagedWorktree(value: unknown): value is ManagedWorktree {
     && typeof record.source === 'string' && record.source !== ''
     && typeof record.path === 'string' && record.path !== ''
     && typeof record.branch === 'string' && record.branch !== ''
-    && typeof record.base === 'string' && /^[a-f0-9]{40,64}$/.test(record.base as string)
+    && typeof record.base === 'string' && /^[a-f0-9]{40,64}$/.test(record.base)
     && (record.state === 'creating' || record.state === 'ready' || record.state === 'removed')
 }
 

@@ -322,7 +322,7 @@ export async function callNativeImage(
   throwIfAborted(signal)
   let value: unknown
   try {
-    value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(body)) as unknown
+    value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(body))
   } catch (error) {
     if (signal.aborted) throw signal.reason
     throw new ImageGenerationError('image provider returned invalid JSON', 'IMAGE_INVALID_RESPONSE', undefined, { cause: error })

@@ -38,6 +38,8 @@ No producer is mounted by default. This package ships as an available capability
 
 The process-local service keeps one source map per canonical Workspace with accepted visible state. Replacement validates and copies the entire contribution into a local candidate, compares normalized visible content, commits once, then notifies isolated listeners. Ordering is severity, path, start position, source, code, then message.
 
+No runtime invariant companion is published because producer replacements and their snapshot are the registry's sole authoritative state; a companion could only repeat the same snapshot construction.
+
 <a id="further-exploration"></a>
 ## Further Exploration
 

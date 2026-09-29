@@ -314,13 +314,13 @@ describe('web-search-perplexity plugin registration', () => {
   })
 
   it('threads maxTokens and searchRecency config into the request', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse({ choices: [{ message: { content: 'a' } }], citations: [] }))
+    const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => jsonResponse({ choices: [{ message: { content: 'a' } }], citations: [] }))
     vi.stubGlobal('fetch', fetchMock)
     const ctx = new Context()
     await ctx.plugin(WebRuntime, { searchProvider: PERPLEXITY_PROVIDER_ID })
     const fiber = await ctx.plugin(perplexityPlugin, { apiKey: 'pplx-key', maxTokens: 256, searchRecency: 'month' })
     await ctx.web.search({ query: 'q' })
-    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    const [, init] = fetchMock.mock.calls[0]!
     expect(JSON.parse(init.body as string)).toMatchObject({ max_tokens: 256, search_recency_filter: 'month' })
     await fiber.dispose()
   })
@@ -329,13 +329,13 @@ describe('web-search-perplexity plugin registration', () => {
     const prev = process.env.PERPLEXITY_API_KEY
     process.env.PERPLEXITY_API_KEY = 'env-key'
     try {
-      const fetchMock = vi.fn(async () => jsonResponse({ choices: [{ message: { content: 'a' } }], citations: [] }))
+      const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => jsonResponse({ choices: [{ message: { content: 'a' } }], citations: [] }))
       vi.stubGlobal('fetch', fetchMock)
       const ctx = new Context()
       await ctx.plugin(WebRuntime, { searchProvider: PERPLEXITY_PROVIDER_ID })
       const fiber = await ctx.plugin(perplexityPlugin, {})
       await ctx.web.search({ query: 'q' })
-      const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+      const [url, init] = fetchMock.mock.calls[0]!
       expect(url).toBe('https://api.perplexity.ai/chat/completions')
       expect(JSON.parse(init.body as string)).toMatchObject({ model: 'sonar' })
       await fiber.dispose()
@@ -370,7 +370,7 @@ describe('web-search-perplexity plugin registration', () => {
     const previous = process.env.PERPLEXITY_API_KEY
     delete process.env.PERPLEXITY_API_KEY
     const dir = await mkdtemp(join(tmpdir(), 'dsh-web-search-credentials-'))
-    const fetchMock = vi.fn(async () => jsonResponse({ choices: [{ message: { content: 'a' } }], citations: [] }))
+    const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => jsonResponse({ choices: [{ message: { content: 'a' } }], citations: [] }))
     vi.stubGlobal('fetch', fetchMock)
     const ctx = new Context()
     try {
@@ -387,7 +387,7 @@ describe('web-search-perplexity plugin registration', () => {
       await ctx.credentials.set(ref, 'rotated-key')
       await ctx.web.search({ query: 'rotated' })
 
-      const headers = (fetchMock.mock.calls as unknown as [string, RequestInit][])
+      const headers = fetchMock.mock.calls
         .map(([, init]) => init.headers as Record<string, string>)
       expect(headers.map(value => value['authorization'])).toEqual(['Bearer stored-key', 'Bearer rotated-key'])
     } finally {

@@ -25,6 +25,8 @@ English | [中文](README.zh.md)
 
 Mount it inside a full agent preset with `fs`, `problems`, `systemPrompt`, and `tools`. `maxProblems` defaults to 100 and `maxResultChars` to 16,000 Unicode code points. Missing Session Workspace fails the call; path scope is never accepted from tool arguments.
 
+No runtime invariant companion is published because each invocation reads one `ctx.problems` snapshot and renders a call-local result; no independent observation evolves alongside it.
+
 <a id="model-experience"></a>
 ## Model Experience
 

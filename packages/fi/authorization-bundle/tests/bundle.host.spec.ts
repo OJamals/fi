@@ -24,7 +24,7 @@ function own(name: string): string {
 }
 
 describe('the bundle layer', () => {
-  it('mounts the seam, its Remote owner, and the browser cards', () => {
+  it('mounts the Remote owner and browser cards beside the base-owned authorization seam', () => {
     expect(parse(own('cordis.patch.yml'))).toEqual([
       {
         id: 'web',
@@ -38,6 +38,7 @@ describe('the bundle layer', () => {
       { id: 'account-controller', disabled: true },
       { id: 'deepseek-account', disabled: true },
       { id: 'llm-deepseek-account', disabled: true },
+      { id: 'product-analytics', disabled: true },
       {
         insert: [
           { id: 'fi-authorization-controller', name: '@fi/api-authorization-controller' },
@@ -91,6 +92,16 @@ describe('the bundle layer', () => {
     ) as PatchLayer
     const layer = parse(own('cordis.patch.yml')) as PatchLayer
     const effective = composeEntries([base, webApp, layer])
+
+    expect(effective.filter(entry => entry.name === '@deepseek-ai/dsh-authorization'))
+      .toEqual([{ id: 'authorization', name: '@deepseek-ai/dsh-authorization' }])
+    const browserOverlay = parse(
+      readFileSync(new URL('../../../../apps/web/tests/model-picker-organization.overlay.yml', import.meta.url), 'utf8'),
+      { logLevel: 'silent' },
+    ) as PatchLayer
+    expect(composeEntries([base, webApp, layer, browserOverlay])
+      .filter(entry => entry.name === '@deepseek-ai/dsh-authorization'))
+      .toEqual([{ id: 'authorization', name: '@deepseek-ai/dsh-authorization' }])
 
     expect(effective.find(entry => entry.id === 'web')?.config).toEqual({
       searchProvider: 'fi-preferred-search',

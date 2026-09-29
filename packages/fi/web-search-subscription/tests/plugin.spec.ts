@@ -163,10 +163,10 @@ describe('subscription search plugin composition', () => {
       name: 'web_search',
       arguments: { queries: ['weather'] },
     })
-    const expected = JSON.parse(await readFile(
+    const expected: unknown = JSON.parse(await readFile(
       new URL('./expected/native-search.json', import.meta.url),
       'utf8',
-    )) as unknown
+    ))
 
     expect(output.isError).toBe(false)
     if (output.isError) throw new Error('web_search unexpectedly failed')

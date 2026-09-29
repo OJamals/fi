@@ -237,7 +237,7 @@ export interface Config {
  * member has no fixed object path, which schemastery's volatile-schema
  * validator rejects outright.
  */
-export const Config = z.object({ ...DeepSeekConfigSchema.dict, ...PreferredConfig.dict }) as unknown as z<Config>
+export const Config = z.object({ ...DeepSeekConfigSchema.dict, ...PreferredConfig.dict }) as z<Config>
 
 /**
  * Read every volatile field once for one operation.
@@ -245,10 +245,44 @@ export const Config = z.object({ ...DeepSeekConfigSchema.dict, ...PreferredConfi
  * @returns a plain snapshot that omits unset fields.
  */
 export function snapshotConfig(config: Config): PreferredSearchSettings {
-  const snapshot: Record<string, unknown> = {}
-  for (const [key, field] of Object.entries(config) as [string, Volatile<unknown>][]) {
-    const value = field.get()
+  const snapshot: PreferredSearchSettings = { provider: config.provider.get() }
+  const set = <K extends Exclude<keyof PreferredSearchSettings, 'provider'>>(
+    key: K,
+    value: PreferredSearchSettings[K] | undefined,
+  ): void => {
     if (value !== undefined) snapshot[key] = value
   }
-  return snapshot as unknown as PreferredSearchSettings
+  set('apiKey', config.apiKey.get())
+  set('apiKeyEnv', config.apiKeyEnv.get())
+  set('baseURL', config.baseURL.get())
+  set('model', config.model.get())
+  set('apiVersion', config.apiVersion.get())
+  set('maxTokens', config.maxTokens.get())
+  set('maxUses', config.maxUses.get())
+  set('exaApiKeyEnv', config.exaApiKeyEnv.get())
+  set('exaBaseURL', config.exaBaseURL.get())
+  set('exaSearchType', config.exaSearchType.get())
+  set('exaNumResults', config.exaNumResults.get())
+  set('exaHighlightsPerResult', config.exaHighlightsPerResult.get())
+  set('perplexityApiKeyEnv', config.perplexityApiKeyEnv.get())
+  set('perplexityBaseURL', config.perplexityBaseURL.get())
+  set('perplexityModel', config.perplexityModel.get())
+  set('perplexityMaxTokens', config.perplexityMaxTokens.get())
+  set('perplexitySearchRecency', config.perplexitySearchRecency.get())
+  set('parallelApiKeyEnv', config.parallelApiKeyEnv.get())
+  set('parallelBaseURL', config.parallelBaseURL.get())
+  set('parallelMode', config.parallelMode.get())
+  set('tavilyApiKeyEnv', config.tavilyApiKeyEnv.get())
+  set('tavilyBaseURL', config.tavilyBaseURL.get())
+  set('serperApiKeyEnv', config.serperApiKeyEnv.get())
+  set('serperBaseURL', config.serperBaseURL.get())
+  set('braveApiKeyEnv', config.braveApiKeyEnv.get())
+  set('braveBaseURL', config.braveBaseURL.get())
+  set('subscriptionProvider', config.subscriptionProvider.get())
+  set('subscriptionModel', config.subscriptionModel.get())
+  set('subscriptionTimeoutMs', config.subscriptionTimeoutMs.get())
+  set('subscriptionMaxResponseBytes', config.subscriptionMaxResponseBytes.get())
+  set('subscriptionMaxUses', config.subscriptionMaxUses.get())
+  set('subscriptionMaxOutputTokens', config.subscriptionMaxOutputTokens.get())
+  return snapshot
 }

@@ -49,6 +49,12 @@ describe('desktop macOS release signature', () => {
     expect(config.protocols).toEqual([{ name: 'fi', schemes: ['dsh'] }])
     expect(portablePath(config.directories.output)).toContain('/.desktop-build/targets/mac-arm64/artifacts')
     expect(config.mac.extendInfo.NSMicrophoneUsageDescription).toContain('microphone')
+    expect(config.mac.entitlementsInherit).toBe(config.mac.entitlements)
+    const entitlements = readFileSync(config.mac.entitlements, 'utf8')
+    for (const key of ['com.apple.security.cs.allow-jit', 'com.apple.security.cs.allow-unsigned-executable-memory',
+      'com.apple.security.cs.disable-library-validation', 'com.apple.security.device.audio-input']) {
+      expect(entitlements).toContain(`<key>${key}</key>\n    <true/>`)
+    }
     expect(config.extraResources).toHaveLength(2)
     expect(config.extraResources[0]?.to).toBe('runtime')
     expect(portablePath(config.extraResources[0]?.from ?? '')).toContain('/.desktop-build/targets/mac-arm64/runtime')
@@ -127,14 +133,20 @@ describe('desktop macOS release signature', () => {
         DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN: 'https://policy-prod.example.com',
         DSH_DESKTOP_AUTO_UPDATE_ENV: 'production',
       }, 'darwin', 'arm64', join(resources, 'dsh'), version)
+      const publish = config.publish
+      if (publish === null) throw new Error('desktop release must configure an update publisher')
       await config.afterPack({
+        outDir: root,
         appOutDir: root,
-        packager: {
+        electronPlatformName: 'darwin',
+        arch: 0,
+        targets: [],
+        packager: Object.assign({} as Parameters<typeof config.afterPack>[0]['packager'], {
           appInfo: { updaterCacheDirName: 'fi-updater' },
-          config: { publish: config.publish },
+          config: { publish: [...publish] },
           getResourcesDir: () => resources,
-        },
-      } as unknown as Parameters<typeof config.afterPack>[0])
+        }),
+      })
       expect(load(readFileSync(join(resources, 'app-update.yml'), 'utf8'))).toEqual({
         provider: 'github',
         owner: 'OJamals',

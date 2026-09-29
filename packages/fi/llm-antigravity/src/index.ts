@@ -316,7 +316,7 @@ const Config = z.object({
     .default(DEFAULT_ANTIGRAVITY_DISCOVERY_OPTIONS.maxFileBytes).volatile(),
   oauthClientDiscoveryNegativeCacheMs: z.number().step(1).min(0)
     .default(DEFAULT_ANTIGRAVITY_DISCOVERY_OPTIONS.negativeCacheMs).volatile(),
-}) as unknown as z<FiAntigravityConfig>
+}) as z<FiAntigravityConfig>
 
 /** The grant payload as the sign-in flow commits it. */
 interface StoredGrantPayload {

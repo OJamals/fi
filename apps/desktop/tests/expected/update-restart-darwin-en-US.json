@@ -1,6 +1,6 @@
 {
-  "message": "fi v0.1.99 downloaded",
-  "detail": "The update package has downloaded. Select “Install and Restart” to restart the app and begin installation.",
+  "message": "fi v0.1.7-alpha.2 downloaded",
+  "detail": "Select “Install and Restart” to close fi during the update. It will reopen automatically when installation is complete.",
   "buttons": [
     "Install and Restart"
   ]

@@ -113,7 +113,7 @@ function requestUrl(input: RequestInfo | URL): string {
 
 function requestJson(init: RequestInit | undefined): unknown {
   if (typeof init?.body !== 'string') throw new Error('expected request JSON string')
-  return JSON.parse(init.body) as unknown
+  return JSON.parse(init.body)
 }
 
 function firstResultText(result: { content: readonly unknown[] }): string {
@@ -165,7 +165,7 @@ describe('image generation tool composition', () => {
       name: 'image_gen',
       arguments: { prompt: 'draw a red pixel' },
     })
-    const expected = JSON.parse(await readFile(new URL('./expected/image-result.json', import.meta.url), 'utf8')) as unknown
+    const expected: unknown = JSON.parse(await readFile(new URL('./expected/image-result.json', import.meta.url), 'utf8'))
 
     expect(result.isError).toBe(false)
     if (result.isError) throw new Error('image_gen unexpectedly failed')

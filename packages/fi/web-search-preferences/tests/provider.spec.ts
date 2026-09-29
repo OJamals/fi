@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { Context } from '@deepseek-ai/cordis'
+import { Context } from '@deepseek-ai/cordis'
 import type { WebSearchProvider, WebSearchResult } from '@deepseek-ai/dsh-web'
 import {
   createFiDirectSearchProvider,
@@ -21,17 +21,22 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+/** Build the actual service registry used by provider resolution. */
+function testContext(services: Record<string, object>): Context {
+  const ctx = new Context()
+  for (const [name, service] of Object.entries(services)) ctx.provide(name, service)
+  return ctx
+}
+
 describe('preferred search provider', () => {
   function credentialContext(ref: string, value: string): Context {
-    return {
-      get: (service: string) => service === 'credentials'
-        ? { resolve: vi.fn(async (candidate: string) => candidate === ref ? { value } : undefined) }
-        : undefined,
-    } as unknown as Context
+    return testContext({
+      credentials: { resolve: vi.fn(async (candidate: string) => candidate === ref ? { value } : undefined) },
+    })
   }
 
   it('maps Parallel Search API results through the provider-neutral web seam', async () => {
-    const fetch = vi.fn(async () => Response.json({
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => Response.json({
       search_id: 'search-1',
       session_id: 'session-1',
       results: [{
@@ -57,18 +62,17 @@ describe('preferred search provider', () => {
       }],
       truncated: false,
     })
-    const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
-    const headers = init.headers as Record<string, string>
-    expect(url).toBe('https://parallel.test/v1/search')
-    expect(headers['x-api-key']).toBe('parallel-secret')
-    expect(JSON.parse(init.body as string)).toEqual({
+    const request = new Request(...fetch.mock.calls[0]!)
+    expect(request.url).toBe('https://parallel.test/v1/search')
+    expect(request.headers.get('x-api-key')).toBe('parallel-secret')
+    expect(await request.json()).toEqual({
       objective: 'current facts',
       search_queries: ['current facts'],
     })
   })
 
   it('maps Tavily Search API results and forwards the per-request result limit', async () => {
-    const fetch = vi.fn(async () => Response.json({
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => Response.json({
       results: [{
         url: 'https://source.test/tavily',
         title: 'Tavily source',
@@ -86,15 +90,14 @@ describe('preferred search provider', () => {
     await expect(selected.search({ query: 'current facts', maxResults: 4 })).resolves.toMatchObject({
       sources: [{ url: 'https://source.test/tavily', snippet: 'Tavily excerpt' }],
     })
-    const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
-    const headers = init.headers as Record<string, string>
-    expect(url).toBe('https://tavily.test/search')
-    expect(headers.authorization).toBe('Bearer tavily-secret')
-    expect(JSON.parse(init.body as string)).toEqual({ query: 'current facts', max_results: 4 })
+    const request = new Request(...fetch.mock.calls[0]!)
+    expect(request.url).toBe('https://tavily.test/search')
+    expect(request.headers.get('authorization')).toBe('Bearer tavily-secret')
+    expect(await request.json()).toEqual({ query: 'current facts', max_results: 4 })
   })
 
   it('maps Serper organic results and sends its configured key header', async () => {
-    const fetch = vi.fn(async () => Response.json({
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => Response.json({
       organic: [{
         link: 'https://source.test/serper',
         title: 'Serper source',
@@ -112,15 +115,14 @@ describe('preferred search provider', () => {
     await expect(selected.search({ query: 'current facts', maxResults: 5 })).resolves.toMatchObject({
       sources: [{ url: 'https://source.test/serper', snippet: 'Serper excerpt' }],
     })
-    const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
-    const headers = init.headers as Record<string, string>
-    expect(url).toBe('https://serper.test/search')
-    expect(headers['x-api-key']).toBe('serper-secret')
-    expect(JSON.parse(init.body as string)).toEqual({ q: 'current facts', num: 5 })
+    const request = new Request(...fetch.mock.calls[0]!)
+    expect(request.url).toBe('https://serper.test/search')
+    expect(request.headers.get('x-api-key')).toBe('serper-secret')
+    expect(await request.json()).toEqual({ q: 'current facts', num: 5 })
   })
 
   it('maps Brave web results and sends its subscription token without redirects', async () => {
-    const fetch = vi.fn(async () => Response.json({
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => Response.json({
       web: { results: [{
         url: 'https://source.test/brave',
         title: 'Brave source',
@@ -138,26 +140,20 @@ describe('preferred search provider', () => {
     await expect(selected.search({ query: 'current facts', maxResults: 6 })).resolves.toMatchObject({
       sources: [{ url: 'https://source.test/brave', snippet: 'Brave excerpt' }],
     })
-    const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
-    const headers = init.headers as Record<string, string>
-    expect(url).toBe('https://brave.test/res/v1/web/search?q=current+facts&count=6')
-    expect(headers['x-subscription-token']).toBe('brave-secret')
-    expect(init.redirect).toBe('error')
+    const request = new Request(...fetch.mock.calls[0]!)
+    expect(request.url).toBe('https://brave.test/res/v1/web/search?q=current+facts&count=6')
+    expect(request.headers.get('x-subscription-token')).toBe('brave-secret')
+    expect(request.redirect).toBe('error')
   })
 
   it('keeps DeepSeek request logging before dispatch while delegating to its provider', async () => {
     const append = vi.fn()
     const credentials = { resolve: vi.fn(async () => ({ value: 'ds-key' })) }
-    const ctx = {
-      get: (service: string) => {
-        if (service === 'credentials') return credentials
-        if (service === 'agents') return {
-          currentInitiator: () => ({ session: { append } }),
-        }
-        return undefined
-      },
-    } as unknown as Context
-    const fetch = vi.fn(async () => Response.json({
+    const ctx = testContext({
+      credentials,
+      agents: { currentInitiator: () => ({ session: { append } }) },
+    })
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => Response.json({
       content: [
         { type: 'text', text: 'found' },
         {
@@ -189,14 +185,11 @@ describe('preferred search provider', () => {
   it('preserves upstream DeepSeek field names and literal-key precedence', async () => {
     const resolve = vi.fn(async () => { throw new Error('credential lookup must not run') })
     const append = vi.fn()
-    const ctx = {
-      get: (service: string) => {
-        if (service === 'credentials') return { resolve }
-        if (service === 'agents') return { currentInitiator: () => ({ session: { append } }) }
-        return undefined
-      },
-    } as unknown as Context
-    const fetch = vi.fn(async () => Response.json({
+    const ctx = testContext({
+      credentials: { resolve },
+      agents: { currentInitiator: () => ({ session: { append } }) },
+    })
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => Response.json({
       content: [{
         type: 'web_search_tool_result',
         content: [{ type: 'web_search_result', url: 'https://source.test', title: 'Source' }],
@@ -217,12 +210,11 @@ describe('preferred search provider', () => {
     await selected.search({ query: 'legacy settings' })
 
     expect(resolve).not.toHaveBeenCalled()
-    const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
-    const headers = init.headers as Record<string, string>
-    expect(url).toBe('https://legacy.test/anthropic/v1/messages')
-    expect(headers['x-api-key']).toBe('legacy-literal')
-    expect(headers['anthropic-version']).toBe('legacy-version')
-    expect(JSON.parse(init.body as string)).toMatchObject({ model: 'legacy-model', max_tokens: 321 })
+    const request = new Request(...fetch.mock.calls[0]!)
+    expect(request.url).toBe('https://legacy.test/anthropic/v1/messages')
+    expect(request.headers.get('x-api-key')).toBe('legacy-literal')
+    expect(request.headers.get('anthropic-version')).toBe('legacy-version')
+    expect(await request.json()).toMatchObject({ model: 'legacy-model', max_tokens: 321 })
     expect(JSON.stringify(append.mock.calls)).not.toContain('legacy-literal')
   })
 
@@ -285,9 +277,7 @@ describe('preferred search provider', () => {
     const resolve = vi.fn(async () => ({ value: 'secret' }))
     const fetch = vi.fn()
     vi.stubGlobal('fetch', fetch)
-    const ctx = {
-      get: (service: string) => service === 'credentials' ? { resolve } : undefined,
-    } as unknown as Context
+    const ctx = testContext({ credentials: { resolve } })
 
     await expect(resolveSelectedProvider(
       ctx,

@@ -751,6 +751,40 @@ roots(): Agent[]
 
 Source: [`packages/core/agent/src/index.ts`](../../packages/core/agent/src/index.ts)
 
+<a id="ctxproblems--problems"></a>
+
+### `ctx.problems` — `Problems`
+
+Concrete process-local Problems provider and registry.
+
+```ts cordis-catalog
+/**
+ * Atomically replace one producer's complete contribution.
+ * @param workspaceRoot - canonical Workspace path owned by the caller.
+ * @param source - producer namespace to replace.
+ * @param inputs - complete new contribution; empty clears the source.
+ * @returns detached complete snapshot after replacement.
+ */
+replace(workspaceRoot: string, source: ProblemSourceId, inputs: readonly ProblemInput[]): ProblemSnapshot
+
+/**
+ * Inspect one Workspace without creating visible state.
+ * @param workspaceRoot - canonical Workspace path.
+ * @returns detached complete snapshot.
+ */
+inspect(workspaceRoot: string): ProblemSnapshot
+
+/**
+ * Observe complete replacement snapshots for one Workspace.
+ * @param workspaceRoot - canonical Workspace path.
+ * @param listener - effect-scoped contained listener.
+ * @returns disposer that immediately detaches the listener.
+ */
+subscribe(workspaceRoot: string, listener: ProblemListener): () => void
+```
+
+Source: [`packages/core/problems/src/index.ts`](../../packages/core/problems/src/index.ts)
+
 <a id="agent-events"></a>
 
 ### `agent/*` events

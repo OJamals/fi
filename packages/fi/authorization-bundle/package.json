@@ -1,7 +1,7 @@
 {
   "name": "@fi/authorization-bundle",
-  "description": "fi bundle layer mounting the authorization seam (ctx.authorization) over the base composition, so plugin-owned sign-in flows register",
-  "version": "0.1.0-preview.4",
+  "description": "fi provider, authorization UI, and tool integrations over the base composition",
+  "version": "0.2.0-rc.2",
   "private": true,
   "type": "module",
   "main": "lib/index.js",

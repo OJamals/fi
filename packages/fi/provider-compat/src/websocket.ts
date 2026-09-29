@@ -41,7 +41,7 @@ export function subscriptionWebSocketConnector(maxPayloadBytes: number): Subscri
     sockets.add(socket)
     socket.once('close', () => { sockets.delete(socket) })
     // ws and the browser event API overload the same methods consumed by pi-ai differently.
-    return socket as unknown as ReturnType<Connector>
+    return socket as ReturnType<Connector>
   }
   return Object.assign(connect, {
     async dispose() {

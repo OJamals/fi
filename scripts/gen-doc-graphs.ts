@@ -108,6 +108,21 @@ const GROUP_ORDER = [
 
 const SERVICE_ROLES: ServiceRole[] = [
   {
+    key: 'pluginCompat',
+    pkg: 'plugin-compat',
+    title: 'Local plugin import registry',
+    mode: 'core',
+    note: 'Scans local Claude Code and Codex plugins, persists explicit import consent, and mounts enabled contributions when an agent is created.',
+  },
+  {
+    key: 'problems',
+    pkg: 'problems',
+    title: 'Workspace diagnostics registry',
+    mode: 'core',
+    consumers: ['tool-problems'],
+    note: 'Accepts complete source contributions and publishes revisioned Workspace diagnostic snapshots; deployments supply diagnostic producers.',
+  },
+  {
     key: 'hmr',
     pkg: 'hmr',
     title: 'Serialized module and configuration reloads',
@@ -414,6 +429,21 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Flows are registered by the plugin that knows how to obtain one credential and keyed by the record they write; the seam owns the conversation and the one-attempt-per-key lifecycle, never the protocol.',
   },
   {
+    key: 'productAnalytics',
+    pkg: 'client-product-analytics',
+    title: 'Desktop interaction collection',
+    mode: 'service',
+    note: 'Accepts selected Desktop events, enriches available login identity, and observes live compaction under the live Host collection policy.',
+  },
+  {
+    key: 'otel',
+    pkg: 'otel',
+    title: 'Shared OTel reporting channels',
+    mode: 'service',
+    consumers: ['host-product-telemetry-otel', 'session-telemetry-otel'],
+    note: 'Product analytics and Session feedback adapters create independent reporting channels through one injected service.',
+  },
+  {
     key: 'productTelemetry',
     pkg: 'host-product-telemetry-otel',
     title: 'Product usage event sender',
@@ -568,7 +598,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     pkg: 'skill',
     title: 'Skill provider registry',
     mode: 'seam',
-    implementations: ['skill-badge', 'skill-filesystem', 'skill-office'],
+    implementations: ['sandbox-windows-acl', 'skill-badge', 'skill-filesystem', 'skill-office'],
     consumers: ['tool-skill'],
     note: 'Merges provider skill catalogs; tool-skill renders the session-prefix catalog and loads complete skill bodies.',
   },

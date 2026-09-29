@@ -55,9 +55,12 @@ function migrateProfileSettings(projectDir: string): void {
   }
 }
 
-interface DesktopProfileManifest {
-  readonly dsh: { readonly profile: { readonly bundles: readonly string[] } }
-  readonly [key: string]: unknown
+function record(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function stringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((entry: unknown) => typeof entry === 'string')
 }
 
 /**
@@ -70,15 +73,21 @@ interface DesktopProfileManifest {
 function upgradeProfileBundles(projectDir: string): boolean {
   const path = join(projectDir, 'package.json')
   if (!existsSync(path)) return false
-  const manifest = JSON.parse(readFileSync(path, 'utf8')) as DesktopProfileManifest
-  const bundles = manifest.dsh?.profile?.bundles
-  if (!Array.isArray(bundles) || DESKTOP_PROFILE_BUNDLES.every((bundle, index) => bundles[index] === bundle)) {
+  const manifest: unknown = JSON.parse(readFileSync(path, 'utf8'))
+  if (!record(manifest)) return false
+  const dsh = manifest.dsh
+  if (!record(dsh)) return false
+  const profile = dsh.profile
+  if (!record(profile)) return false
+  const bundles = profile.bundles
+  if (!stringArray(bundles) || DESKTOP_PROFILE_BUNDLES.every((bundle, index) => bundles[index] === bundle)) {
     return false
   }
-  const plugins = bundles.filter(bundle => !DESKTOP_PROFILE_BUNDLES.includes(bundle))
+  const builtInBundles = new Set<string>(DESKTOP_PROFILE_BUNDLES)
+  const plugins = bundles.filter(bundle => !builtInBundles.has(bundle))
   writeJson(path, {
     ...manifest,
-    dsh: { ...manifest.dsh, profile: { ...manifest.dsh.profile, bundles: [...DESKTOP_PROFILE_BUNDLES, ...plugins] } },
+    dsh: { ...dsh, profile: { ...profile, bundles: [...DESKTOP_PROFILE_BUNDLES, ...plugins] } },
   })
   return true
 }

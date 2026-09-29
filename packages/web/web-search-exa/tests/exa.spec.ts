@@ -333,13 +333,13 @@ describe('web-search-exa plugin registration', () => {
   })
 
   it('threads searchType, highlightsPerResult and numResults config into the request', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse({ results: [] }))
+    const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => jsonResponse({ results: [] }))
     vi.stubGlobal('fetch', fetchMock)
     const ctx = new Context()
     await ctx.plugin(WebRuntime, { searchProvider: EXA_PROVIDER_ID })
     const fiber = await ctx.plugin(exaPlugin, { apiKey: 'exa-key', searchType: 'keyword', highlightsPerResult: 2, numResults: 9 })
     await ctx.web.search({ query: 'q' })
-    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    const [, init] = fetchMock.mock.calls[0]!
     expect(JSON.parse(init.body as string)).toMatchObject({ type: 'keyword', contents: { highlights: { highlightsPerUrl: 2 } }, numResults: 9 })
     await fiber.dispose()
   })
@@ -348,13 +348,13 @@ describe('web-search-exa plugin registration', () => {
     const prev = process.env.EXA_API_KEY
     process.env.EXA_API_KEY = 'env-key'
     try {
-      const fetchMock = vi.fn(async () => jsonResponse({ results: [] }))
+      const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => jsonResponse({ results: [] }))
       vi.stubGlobal('fetch', fetchMock)
       const ctx = new Context()
       await ctx.plugin(WebRuntime, { searchProvider: EXA_PROVIDER_ID })
       const fiber = await ctx.plugin(exaPlugin, {})
       await ctx.web.search({ query: 'q' })
-      const [url] = fetchMock.mock.calls[0] as unknown as [string]
+      const [url] = fetchMock.mock.calls[0]!
       expect(url).toBe('https://api.exa.ai/search')
       await fiber.dispose()
     } finally {
@@ -388,7 +388,7 @@ describe('web-search-exa plugin registration', () => {
     const previous = process.env.EXA_API_KEY
     delete process.env.EXA_API_KEY
     const dir = await mkdtemp(join(tmpdir(), 'dsh-web-search-credentials-'))
-    const fetchMock = vi.fn(async () => jsonResponse({ results: [] }))
+    const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => jsonResponse({ results: [] }))
     vi.stubGlobal('fetch', fetchMock)
     const ctx = new Context()
     try {
@@ -405,7 +405,7 @@ describe('web-search-exa plugin registration', () => {
       await ctx.credentials.set(ref, 'rotated-key')
       await ctx.web.search({ query: 'rotated' })
 
-      const headers = (fetchMock.mock.calls as unknown as [string, RequestInit][])
+      const headers = fetchMock.mock.calls
         .map(([, init]) => init.headers as Record<string, string>)
       expect(headers.map(value => value['authorization'])).toEqual(['Bearer stored-key', 'Bearer rotated-key'])
     } finally {

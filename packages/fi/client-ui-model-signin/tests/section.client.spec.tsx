@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 /** The unified subscription section's component behavior over a scripted store. */
+import { Context } from '@deepseek-ai/cordis'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, describe, it, vi } from 'vitest'
 import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
@@ -7,7 +8,7 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 
 import { SignInFooter } from '../src/client/SignInFooter.tsx'
 import type { SignInFooterInjected } from '../src/client/SignInFooter.tsx'
-import { SUBSCRIPTION_PROVIDER_IDS, type SignInRow, type SignInState, type SignInStore } from '../src/client/store.ts'
+import { SUBSCRIPTION_PROVIDER_IDS, type SignInRow, type SignInState, SignInStore } from '../src/client/store.ts'
 import { en } from '../src/client/locales.ts'
 
 afterEach(cleanup)
@@ -59,7 +60,7 @@ function mount(state: Partial<SignInState>): { controller: SectionController; st
   }
   render(
     <SignInFooter
-      controller={controller as unknown as SignInStore}
+      controller={Object.assign(new SignInStore(new Context()), controller)}
       useSnapshot={bindSnapshotSelector(store)}
       t={t}
     />,

@@ -11,7 +11,7 @@
 import { LlmError } from '@deepseek-ai/dsh-llm'
 import type { AssistantMessage as HarnessAssistantMessage, ImageAttachmentAccess, ImageAttachmentAccessResolver, ModelMessageSource, ReplayEnvelope } from '@deepseek-ai/dsh-llm'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
-import type { Api, AssistantMessage, JsonObject, Usage as PiUsage } from '@earendil-works/pi-ai'
+import type { Api, AssistantMessage, ToolCall, Usage as PiUsage } from '@earendil-works/pi-ai'
 
 /** Per-block half of the pi-ai replay envelope, one entry per content block. */
 export type PiAiReplayBlock =
@@ -27,7 +27,7 @@ export interface PiAiReplayResponse {
   provider: string
   /** Requested model identity, matching the durable assistant source. */
   model: string
-  /** Provider-reported model; only Anthropic replays it as the native model (reported in `message.model`, not `message.responseModel`). */
+  /** Provider-reported model; replay retains the requested model for signature matching. */
   responseModel?: string
   responseId?: string
   /** Provider-native effort for historical replay; absence is preserved. */
@@ -42,12 +42,11 @@ interface PiAiReplayState {
 }
 
 /** Parse tool-call argument JSON; tolerate model malformations with {}. */
-function parseArguments(raw: string): JsonObject {
+function parseArguments(raw: string): ToolCall['arguments'] {
   try {
     const parsed: unknown = JSON.parse(raw)
     if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
-      // JSON.parse yields only JSON values, so a non-array object is a JsonObject.
-      return parsed as JsonObject
+      return parsed as ToolCall['arguments']
     }
   } catch {
     // fall through
@@ -97,15 +96,13 @@ export function assistantImageHistoryText(ref: ImageAttachmentRef, access?: Imag
  * @returns the versioned lossless-JSON replay projection.
  */
 export function toPiReplayState(message: AssistantMessage, requestedModel = message.model): ReplayEnvelope {
-  const responseModel = message.api === 'anthropic-messages' && message.model !== requestedModel
-    ? message.model : message.responseModel
   const response: PiAiReplayResponse = {
     kind: 'pi-ai',
     version: 2,
     api: message.api,
     provider: message.provider,
     model: requestedModel,
-    ...responseModel === undefined ? {} : { responseModel },
+    ...message.responseModel === undefined ? {} : { responseModel: message.responseModel },
     ...message.responseId === undefined ? {} : { responseId: message.responseId },
     ...message.providerThinkingLevel === undefined ? {} : { providerThinkingLevel: message.providerThinkingLevel },
     stopReason: message.stopReason,
@@ -256,9 +253,7 @@ function replayedAssistant(
     content,
     api: state.response.api,
     provider: state.response.provider,
-    // Anthropic reports aliases and fallbacks as model, unlike Completions' informational responseModel.
-    model: state.response.api === 'anthropic-messages'
-      ? state.response.responseModel ?? state.response.model : state.response.model,
+    model: state.response.model,
     ...state.response.responseModel === undefined ? {} : { responseModel: state.response.responseModel },
     ...state.response.responseId === undefined ? {} : { responseId: state.response.responseId },
     ...state.response.providerThinkingLevel === undefined ? {} : { providerThinkingLevel: state.response.providerThinkingLevel },

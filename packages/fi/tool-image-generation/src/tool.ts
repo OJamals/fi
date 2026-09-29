@@ -2,7 +2,7 @@
 
 import { basename } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
-import type { ImageAttachmentRef, ImageMediaType } from '@deepseek-ai/dsh-attachment'
+import { AttachmentId, type ImageAttachmentRef, type ImageMediaType } from '@deepseek-ai/dsh-attachment'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
@@ -82,7 +82,7 @@ function outputImage(ref: ImageAttachmentRef): SerializedImageRef {
 }
 
 function imageRef(value: SerializedImageRef): ImageAttachmentRef {
-  return value as unknown as ImageAttachmentRef
+  return { ...value, attachmentId: AttachmentId(value.attachmentId) }
 }
 
 function operationSignal(

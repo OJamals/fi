@@ -48,7 +48,7 @@ function mount(overrides: Partial<PreferredSearchCardState> = {}) {
     view: 'page',
     t,
     usePreferredSearchCard: bindSnapshotSelector(store),
-  } as unknown as PreferredSearchCardProps
+  } as PreferredSearchCardProps
   render(<PreferredSearchCard {...props} />)
   return actions
 }
@@ -86,7 +86,7 @@ describe('preferred-search settings card', () => {
       view: 'summary',
       t,
       usePreferredSearchCard: bindSnapshotSelector(store),
-    } as unknown as PreferredSearchCardProps
+    } as PreferredSearchCardProps
     render(<PreferredSearchCard {...props} />)
 
     expect(document.body.textContent).toBe(en.description)

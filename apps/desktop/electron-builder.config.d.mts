@@ -41,6 +41,8 @@ export interface DesktopElectronBuilderConfig {
       readonly CFBundleLocalizations: readonly string[]
       readonly NSMicrophoneUsageDescription: string
     }
+    readonly entitlements: string
+    readonly entitlementsInherit: string
     readonly identity: string | undefined
     readonly forceCodeSigning: boolean
     readonly notarize: boolean

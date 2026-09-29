@@ -19,6 +19,13 @@ import {
 } from './scaffold.ts'
 import { openSettings, ZH_BROWSER_LOCALE, connectFreshWorkspaceZh, saveFailureShot } from './support.ts'
 
+declare global {
+  interface Window {
+    /** Test-private takeover observations collected across page reloads. */
+    __takeoverSightings?: string[]
+  }
+}
+
 const SNAPSHOT_DIR = fileURLToPath(new URL('./expected/onboarding-model-setup', import.meta.url))
 const WELCOME_EXPECTED = join(SNAPSHOT_DIR, 'welcome.expected.md')
 const MISSING_EXPECTED = join(SNAPSHOT_DIR, 'missing.expected.md')
@@ -162,10 +169,10 @@ describe.skipIf(MODE === 'record')('web e2e: first-run model-universal setup', (
     // takeover, and only this test reads __takeoverSightings.
     await page.addInitScript(() => {
       const sightings: string[] = []
-      ;(window as unknown as { __takeoverSightings: string[] }).__takeoverSightings = sightings
+      window.__takeoverSightings = sightings
       setInterval(() => {
         if (document.querySelector(
-          '[role="dialog"][aria-label="内测声明"], '
+          '[role="dialog"][aria-label="预览版说明"], '
           + '[role="dialog"][aria-label="选择一个模型开始使用"]',
         ) !== null) {
           sightings.push('chrome')
@@ -196,7 +203,7 @@ describe.skipIf(MODE === 'record')('web e2e: first-run model-universal setup', (
     await page.unroute('**/api/settings/describe')
     acknowledgeReloadConnectionLoss(tripwire, warningsBefore)
     expect(await page.evaluate(() =>
-      (window as unknown as { __takeoverSightings: string[] }).__takeoverSightings)).toEqual([])
+      window.__takeoverSightings ?? [])).toEqual([])
     expect(await page.getByRole('dialog', { name: WELCOME_NOTICE_COPY.zh.title }).count()).toBe(0)
     expect(await page.getByRole('dialog', { name: '选择一个模型开始使用' }).count()).toBe(0)
     expect(tripwire.pageErrors).toEqual([])

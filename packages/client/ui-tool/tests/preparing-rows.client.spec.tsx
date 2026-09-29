@@ -18,17 +18,30 @@ import { AskQuestionRow } from '../src/client/tool/toolviews/ask-question-row.ts
 import { BashRow } from '../src/client/tool/toolviews/bash-sample.tsx'
 import { parsedToolCall } from '../src/client/tool/models/raw-tool-call.ts'
 import { toolRowModel } from '../src/client/tool/models/tool-call-model.ts'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 
 afterEach(cleanup)
 
-type Props = Parameters<typeof TodoRow>[0] & Parameters<typeof ReadImageRow>[0]
+type Props = Parameters<typeof TodoRow>[0] & Parameters<typeof ReadImageRow>[0] & Parameters<typeof AskQuestionRow>[0]
+
+const SESSION = 's-tool-preparing' as SessionId
+const unused = (): never => { throw new Error('This preparation row does not read session UI state') }
 
 function preparation(name: string): Props {
   return {
     phase: 'preparing', callId: 'call', toolName: name,
     block: { phase: 'preparing', callId: 'call', name, turn: 1, step: 1, time: 1, subCalls: [] },
-    t: makeTranslate(en, common), useDisclosure, useToolCallArgumentsPartial: vi.fn(() => ''), openFile: vi.fn(), renderImages: vi.fn(() => null),
-    useTodoHistory: vi.fn(), useSession: vi.fn(() => false),
+    t: makeTranslate(en, common), useDisclosure, useToolCallArgumentsPartial: vi.fn(() => ''), openFile: vi.fn(), loadImage: vi.fn(), renderImages: vi.fn(() => null),
+    useTodoHistory: vi.fn(), useSession: vi.fn(() => false), sessionId: SESSION,
+    useConversation: unused, useInput: unused,
+    inputActions: {
+      captureInsertion: unused, insertText: unused, setDraft: unused,
+      addAttachments: unused, removeAttachment: unused, pruneAttachments: unused, submit: unused,
+    },
+    useChat: unused, useTrajectory: unused, usePanelInfo: unused,
+    useSessions: unused, useSessionStatus: unused, useSessionRetainInfo: unused,
+    useResource: unused, useWorkspaces: unused, renderSlot: vi.fn(() => null),
+    useProjection: vi.fn(() => undefined), revealPanel: vi.fn(() => false), reviewPanel: vi.fn(() => false),
   } as Props
 }
 

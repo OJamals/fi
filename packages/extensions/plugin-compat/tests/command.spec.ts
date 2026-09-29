@@ -38,6 +38,11 @@ async function run(ctx: Context, agent: Agent, line: string): Promise<CommandRes
   return execution.result
 }
 
+function expectResult(result: CommandResult, kind: 'success' | 'error', text: string): void {
+  expect(result.kind).toBe(kind)
+  expect(result).toHaveProperty('text', expect.stringContaining(text))
+}
+
 async function fixturePlugin(name: string): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), 'dsh-plugin-compat-command-'))
   roots.push(root)
@@ -54,7 +59,7 @@ describe('plugin-compat command surface', () => {
     roots.push(home)
     const { ctx, agent } = await harness(home)
     const result = await run(ctx, agent, '/plugin-list')
-    expect(result).toMatchObject({ kind: 'success', text: expect.stringContaining('No imported Claude or Codex plugins') })
+    expectResult(result, 'success', 'No imported Claude or Codex plugins')
   })
 
   it('rejects /plugin-import with no path as a usage error', async () => {
@@ -62,7 +67,7 @@ describe('plugin-compat command surface', () => {
     roots.push(home)
     const { ctx, agent } = await harness(home)
     const result = await run(ctx, agent, '/plugin-import   ')
-    expect(result).toMatchObject({ kind: 'error', text: expect.stringContaining('Usage: /plugin-import') })
+    expectResult(result, 'error', 'Usage: /plugin-import')
   })
 
   it('imports a plugin, lists it, and reports a scanner rejection as an error', async () => {
@@ -72,19 +77,16 @@ describe('plugin-compat command surface', () => {
     const plugin = await fixturePlugin('demo-plugin')
 
     const imported = await run(ctx, agent, `/plugin-import ${plugin}`)
-    expect(imported).toMatchObject({
-      kind: 'success',
-      text: expect.stringContaining('Imported "demo-plugin" (claude)'),
-    })
+    expectResult(imported, 'success', 'Imported "demo-plugin" (claude)')
     expect(imported.kind === 'success' ? imported.text : '').toContain('Run /plugin-list to review it')
 
     const listed = await run(ctx, agent, '/plugin-list')
-    expect(listed).toMatchObject({ kind: 'success', text: expect.stringContaining('demo-plugin') })
+    expectResult(listed, 'success', 'demo-plugin')
 
     const invalid = await mkdtemp(join(tmpdir(), 'dsh-plugin-compat-command-invalid-'))
     roots.push(invalid)
     const rejected = await run(ctx, agent, `/plugin-import ${invalid}`)
-    expect(rejected).toMatchObject({ kind: 'error', text: expect.stringContaining('invalid manifest') })
+    expectResult(rejected, 'error', 'invalid manifest')
   })
 
   it('rejects malformed /plugin-enable and /plugin-disable targets as usage errors', async () => {
@@ -92,8 +94,8 @@ describe('plugin-compat command surface', () => {
     roots.push(home)
     const { ctx, agent } = await harness(home)
 
-    await expect(run(ctx, agent, '/plugin-enable')).resolves.toMatchObject({ kind: 'error', text: expect.stringContaining('Usage: /plugin-enable') })
-    await expect(run(ctx, agent, '/plugin-disable one two three')).resolves.toMatchObject({ kind: 'error', text: expect.stringContaining('Usage: /plugin-disable') })
+    expectResult(await run(ctx, agent, '/plugin-enable'), 'error', 'Usage: /plugin-enable')
+    expectResult(await run(ctx, agent, '/plugin-disable one two three'), 'error', 'Usage: /plugin-disable')
     await expect(run(ctx, agent, '/plugin-enable plugin-id bogus:item')).resolves.toMatchObject({ kind: 'error' })
     await expect(run(ctx, agent, '/plugin-enable plugin-id skill:')).resolves.toMatchObject({ kind: 'error' })
   })
@@ -109,13 +111,13 @@ describe('plugin-compat command surface', () => {
     if (pluginId === undefined) throw new Error('fixture plugin id was not found in /plugin-list output')
 
     const disabledPlugin = await run(ctx, agent, `/plugin-disable ${pluginId}`)
-    expect(disabledPlugin).toMatchObject({ kind: 'success', text: expect.stringContaining(`Disabled ${pluginId}`) })
+    expectResult(disabledPlugin, 'success', `Disabled ${pluginId}`)
 
     const enabledItem = await run(ctx, agent, `/plugin-enable ${pluginId} skill:skill:one`)
-    expect(enabledItem).toMatchObject({ kind: 'success', text: expect.stringContaining('Enabled skill:skill:one') })
+    expectResult(enabledItem, 'success', 'Enabled skill:skill:one')
 
     const unknown = await run(ctx, agent, '/plugin-enable 00000000-0000-4000-8000-000000000000')
-    expect(unknown).toMatchObject({ kind: 'error', text: expect.stringContaining('unknown plugin') })
+    expectResult(unknown, 'error', 'unknown plugin')
   })
 
   it('removes an imported plugin and reports removal of an unknown id as an error', async () => {
@@ -129,17 +131,17 @@ describe('plugin-compat command surface', () => {
     if (pluginId === undefined) throw new Error('fixture plugin id was not found in /plugin-list output')
 
     const removed = await run(ctx, agent, `/plugin-remove ${pluginId}`)
-    expect(removed).toMatchObject({ kind: 'success', text: expect.stringContaining(`Removed plugin ${pluginId}`) })
-    await expect(run(ctx, agent, '/plugin-list')).resolves.toMatchObject({ kind: 'success', text: expect.stringContaining('No imported Claude or Codex plugins') })
+    expectResult(removed, 'success', `Removed plugin ${pluginId}`)
+    expectResult(await run(ctx, agent, '/plugin-list'), 'success', 'No imported Claude or Codex plugins')
 
-    await expect(run(ctx, agent, '/plugin-remove missing-removal')).resolves.toMatchObject({ kind: 'error', text: expect.stringContaining('inherited plugin') })
+    expectResult(await run(ctx, agent, '/plugin-remove missing-removal'), 'error', 'inherited plugin')
   })
 
   it('rejects an empty /plugin-remove target as a usage error', async () => {
     const home = await mkdtemp(join(tmpdir(), 'dsh-plugin-compat-command-home-'))
     roots.push(home)
     const { ctx, agent } = await harness(home)
-    await expect(run(ctx, agent, '/plugin-remove   ')).resolves.toMatchObject({ kind: 'error', text: expect.stringContaining('Usage: /plugin-remove') })
+    expectResult(await run(ctx, agent, '/plugin-remove   '), 'error', 'Usage: /plugin-remove')
   })
 
   it('retries a revision conflict from two concurrent enable commands and settles both', async () => {

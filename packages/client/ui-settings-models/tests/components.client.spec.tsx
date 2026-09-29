@@ -303,7 +303,7 @@ async function mountFace(
     operations: operationsWith(face),
     schema: settingsSchema,
     t,
-    renderSlot: renderedSlot as unknown as ModelsSectionProps['renderSlot'],
+    renderSlot: renderedSlot as ModelsSectionProps['renderSlot'],
   }
   const view = render(<ModelsSection {...injected} />)
   return { view, ctx, face, update, mutate, set, unset, controller, mirror, renderSlot: renderedSlot }

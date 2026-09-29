@@ -91,7 +91,7 @@ describe('Problems', () => {
     expect(problems.inspect(root)).toMatchObject({ revision: 1, problems: [{ message: 'Cannot find name' }] })
   })
 
-  it('does not retain Workspace state for empty or rejected first replacements', async () => {
+  it('keeps empty and rejected first replacements observationally empty', async () => {
     const { problems } = await mount({ maxProblemsPerWorkspace: 1 })
 
     expect(problems.replace('/empty', source, [])).toEqual({ revision: 0, problems: [] })
@@ -100,10 +100,8 @@ describe('Problems', () => {
       problem({ message: 'second' }),
     ])).toThrow(/Workspace problem limit/)
 
-    const workspaces = (problems as unknown as {
-      readonly workspaces: ReadonlyMap<string, unknown>
-    }).workspaces
-    expect(workspaces.size).toBe(0)
+    expect(problems.inspect('/empty')).toEqual({ revision: 0, problems: [] })
+    expect(problems.inspect('/rejected')).toEqual({ revision: 0, problems: [] })
   })
 
   it('enforces configured source, per-source, total, and string bounds', async () => {

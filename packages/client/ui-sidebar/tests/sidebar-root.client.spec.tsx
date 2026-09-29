@@ -58,14 +58,16 @@ function mountShell({ collapsed = false, width = 300, shortcuts = [] }: {
       startSession={startSession} toggleSidebar={toggleSidebar} t={t}
       renderSlot={((
         key: string,
-        owner: SidebarFooterActionOwnerProps | SidebarSectionOwnerProps | SidebarSettingsOwnerProps,
+        owner: SidebarFooterActionOwnerProps | SidebarSectionOwnerProps | SidebarSettingsOwnerProps | SidebarBrandMarkOwnerProps,
       ) => {
         if (key === 'sidebar.brand.mark') {
-          brandMarkOwner = owner as unknown as SidebarBrandMarkOwnerProps
+          if (!('size' in owner)) throw new Error('brand mark owner must supply its size')
+          brandMarkOwner = owner
           return brandMark
         }
         if (key === 'sidebar.brand.name') return brandName
         if (key === 'sidebar.toggle.badge') return null
+        if (!('wide' in owner)) throw new Error('sidebar section owner must supply its layout')
         if (key === 'sidebar.settings') {
           settingsOwner = owner
           return <div data-testid="settings-seat" data-wide={owner.wide} />

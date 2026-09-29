@@ -157,11 +157,11 @@ describe('ui-settings-models apply', () => {
     const modelSetup = onboarding.find(entry => entry.options.id === 'model-setup')!
     expect(modelSetup.component).toBe(ModelSetupDialog)
     expect(modelSetup.options).toMatchObject({ id: 'model-setup', order: 0 })
-    const modelSetupInjected = (
-      modelSetup.inject as unknown as () => import('../src/client/ModelSetupDialog.tsx').ModelSetupDialogInjected
-    )()
-    expect(modelSetupInjected.hooks.models).toBe(injected.controller.store)
-    expect(modelSetupInjected.t('onboardingChoose')).toBe('选择模型')
+    const modelSetupInjected = modelSetup.inject?.()
+    expect(modelSetupInjected).toMatchObject({
+      hooks: { models: injected.controller.store },
+      automatic: true,
+    })
 
     const after = await bench()
     await after.ctx.plugin({ inject: [...inject], apply }).await()

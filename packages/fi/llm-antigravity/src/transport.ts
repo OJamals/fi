@@ -308,7 +308,7 @@ async function* readSseEvents(
     const payload = dataLines.join('\n')
     let data: unknown = payload
     if (payload !== '[DONE]') {
-      try { data = JSON.parse(payload) as unknown } catch { data = null }
+      try { data = JSON.parse(payload) } catch { data = null }
     }
     const result = { event, data, payload }
     event = ''

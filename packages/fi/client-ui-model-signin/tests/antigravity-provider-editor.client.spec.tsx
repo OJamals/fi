@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 /** Native Antigravity setup editor behavior over the shared sign-in store. */
+import { Context } from '@deepseek-ai/cordis'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
@@ -7,7 +8,7 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 
 import { AntigravityProviderEditor } from '../src/client/AntigravityProviderEditor.tsx'
 import type { SignInFooterInjected } from '../src/client/SignInFooter.tsx'
-import type { SignInState, SignInStore } from '../src/client/store.ts'
+import { SignInStore, type SignInState } from '../src/client/store.ts'
 import { en } from '../src/client/locales.ts'
 
 afterEach(cleanup)
@@ -44,7 +45,7 @@ function mount(
   const onClose = vi.fn()
   const view = render(
     <AntigravityProviderEditor
-      controller={{ store, adopt } as unknown as SignInStore}
+      controller={Object.assign(new SignInStore(new Context()), { store, adopt })}
       useSnapshot={bindSnapshotSelector(store)}
       t={t}
       provider={{
@@ -61,7 +62,7 @@ function mount(
     onClose,
     view,
     props: {
-      controller: { store, adopt } as unknown as SignInStore,
+      controller: Object.assign(new SignInStore(new Context()), { store, adopt }),
       useSnapshot: bindSnapshotSelector(store),
       t,
       configured: false,

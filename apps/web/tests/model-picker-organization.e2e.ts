@@ -90,23 +90,23 @@ describe('web e2e: organized model picker and compact subscription control', () 
     scaffold = await launchWebScaffold({
       extraOverlayPath: OVERLAY,
       extraInstallAnchors: [AUTHORIZATION_BUNDLE],
+      profile: { packages: [], bundles: ['@fi/authorization-bundle'] },
     })
-    // Settings are scoped to scaffold.harnessHome and are the same production
+    // Settings are scoped to the scaffold profile and are the same production
     // catalog seam the Models page owns; no user configuration is touched.
     const providers = catalog()
     expect(Object.values(providers).flatMap(provider => provider.models)).toHaveLength(2_001)
     await scaffold.ctx.settings.update('llm-pi-ai', { providers })
     await scaffold.ctx.settings.update('fi-antigravity', { providers: { antigravity: {} } })
+    const profilePatch = () => readFile(scaffold.ctx.settings.documentPath, 'utf8')
     await vi.waitFor(async () => {
-      expect(await readFile(join(scaffold.harnessHome, 'settings.yaml'), 'utf8'))
-        .toMatch(/llm-pi-ai:\n\s+providers:\n\s+openrouter:/)
+      expect(await profilePatch()).toMatch(/id: llm-pi-ai[\s\S]*?providers:\n\s+openrouter:/)
     }, { timeout: 5_000 })
     await vi.waitFor(async () => {
-      expect(await readFile(join(scaffold.harnessHome, 'settings.yaml'), 'utf8')).toMatch(/\n\s+kilo:/)
+      expect(await profilePatch()).toMatch(/\n\s+kilo:/)
     }, { timeout: 5_000 })
     await vi.waitFor(async () => {
-      expect(await readFile(join(scaffold.harnessHome, 'settings.yaml'), 'utf8'))
-        .toMatch(/fi-antigravity:\n\s+providers:\n\s+antigravity:/)
+      expect(await profilePatch()).toMatch(/id: fi-antigravity[\s\S]*?providers:\n\s+antigravity:/)
     }, { timeout: 5_000 })
     selectionEvents = []
     stopEvents = scaffold.ctx.on('session/event', (session, event: SessionEvent) => {
@@ -258,9 +258,9 @@ describe('web e2e: organized model picker and compact subscription control', () 
       model: SHARED_MODEL,
     })
     await expect.poll(
-      async () => await readFile(join(scaffold.harnessHome, 'settings.yaml'), 'utf8'),
+      async () => await readFile(scaffold.ctx.settings.documentPath, 'utf8'),
       { timeout: 10_000 },
-    ).toMatch(/agent-default-model:[\s\S]*provider: kilo[\s\S]*model: shared-model/)
+    ).toMatch(/id: agent-default-model[\s\S]*provider: kilo[\s\S]*model: shared-model/)
     expect(await trigger.textContent()).toContain(SELECTED_LABEL)
     // Selecting a model changes only the canonical session route; it never
     // starts a subscription interaction or mutates its credential state.

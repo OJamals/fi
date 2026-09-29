@@ -1,7 +1,7 @@
 {
   "name": "@fi/client-ui-web-search-preferences",
   "description": "Browser settings card for FI preferred web-search routing and credentials",
-  "version": "0.1.0-preview.4",
+  "version": "0.2.0-rc.2",
   "private": true,
   "type": "module",
   "main": "lib/index.js",

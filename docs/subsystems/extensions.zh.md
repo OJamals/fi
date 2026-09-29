@@ -46,7 +46,8 @@ list(): CordisInspectProviderView[]
  * @param input - optional lossless JSON input.
  * @param agent - requesting Agent and scope.
  * @param signal - tool-call cancellation.
- * @returns provider JSON data.
+ * @returns provider JSON data; Client queries fail fast when Gateway has no live Client
+ * and retain only the first observed failure diagnostic for timeout reporting.
  */
 async query( platform: CordisInspectPlatform, providerId: string, methodName: string, input: JsonValue | undefined, agent: Agent, signal: AbortSignal, ): Promise<JsonValue>
 
@@ -55,7 +56,7 @@ async query( platform: CordisInspectPlatform, providerId: string, methodName: st
  * @param agent - Agent whose Session owns the query.
  * @param requestId - Pending Client query identity.
  * @param resolution - Client provider result or failure.
- * @returns whether this response settled the still-pending query.
+ * @returns acknowledgement with accepted true only for a success that settles the query; only the first failure diagnostic is retained.
  */
 resolveClientQuery( agent: Agent, requestId: CordisInspectRequestId, resolution: CordisInspectQueryResolution, ): CordisInspectResolveAck
 ```
@@ -168,11 +169,12 @@ async stop(agent: Agent, pluginId: CordisDynamicPluginId): Promise<DynamicCordis
 @Remote('syncInspectManifest') syncInspectManifest(providers: readonly CordisInspectProviderManifest[]): null
 
 /**
- * Claim one pending Client inspect query with its live result.
+ * Submit a Client inspect result or failure for a pending query.
  * @param agent - Session that owns the query.
  * @param requestId - exact pending query identity.
  * @param resolution - provider result or structured refusal.
- * @returns whether this answer won the query.
+ * @returns acknowledgement with accepted true only for a valid success that settles the query;
+ * pending-query failures return { accepted: false } and retain only the first diagnostic.
  */
 @Remote('resolveInspectQuery') resolveInspectQuery( agent: Agent, requestId: CordisInspectRequestId, resolution: CordisInspectQueryResolution, ): CordisInspectResolveAck
 
@@ -273,6 +275,66 @@ publish(topic: string, payload: InspectorJsonValue, monotonicMs?: number): void
 ```
 
 Source: [`packages/experimental/inspector/src/index.ts`](../../packages/experimental/inspector/src/index.ts)
+
+<a id="ctxplugincompat--plugincompatservice"></a>
+
+### `ctx.pluginCompat` — `PluginCompatService`
+
+Owns a versioned, Host-owned document; existing agents retain prior composition.
+
+```ts cordis-catalog
+/** Read the effective managed plugin snapshot for one scope.
+ * @param scope - global or workspace document plane.
+ * @param resolver - workspace identity resolver.
+ * @returns authoritative snapshot and revision.
+ */
+async list(scope: ManagedPluginScope, resolver: WorkspacePathResolver): Promise<ManagedPluginSnapshot>
+
+/** Resolve enabled records for a session cwd without reading repository configuration.
+ * @param cwd - session working directory, when available.
+ * @returns validated enabled plugin records for agent setup.
+ */
+async resolveForWorkspace(cwd: string | undefined): Promise<readonly ResolvedManagedPlugin[]>
+
+/** Import one existing local plugin root after a bounded compatibility scan.
+ * @param scope - global or workspace document plane.
+ * @param path - existing local plugin directory.
+ * @param revision - expected document revision.
+ * @param resolver - workspace identity resolver.
+ * @returns authoritative mutation snapshot.
+ */
+async importLocal( scope: ManagedPluginScope, path: string, revision: number, resolver: WorkspacePathResolver, ): Promise<ManagedPluginMutation>
+
+/** Remove a managed association and any references owned by its scope.
+ * @param scope - global or workspace document plane.
+ * @param id - opaque managed plugin id.
+ * @param revision - expected document revision.
+ * @param resolver - workspace identity resolver.
+ * @returns authoritative mutation snapshot.
+ */
+async remove( scope: ManagedPluginScope, id: ManagedPluginId, revision: number, resolver: WorkspacePathResolver, ): Promise<ManagedPluginMutation>
+
+/** Set or clear a plugin or component enablement selection.
+ * @param scope - global or workspace document plane.
+ * @param target - plugin or component selection target.
+ * @param enabled - selected state, or null to clear a workspace override.
+ * @param revision - expected document revision.
+ * @param resolver - workspace identity resolver.
+ * @returns authoritative mutation snapshot.
+ */
+async setEnabled( scope: ManagedPluginScope, target: ManagedPluginOverrideTarget, enabled: boolean | null, revision: number, resolver: WorkspacePathResolver, ): Promise<ManagedPluginMutation>
+
+/** Clear a workspace-local selection so it uses the imported baseline value.
+ * @param scope - workspace document plane.
+ * @param target - plugin or component selection target.
+ * @param revision - expected document revision.
+ * @param resolver - workspace identity resolver.
+ * @returns authoritative mutation snapshot.
+ */
+async resetOverride( scope: Extract<ManagedPluginScope, { kind: 'workspace' }>, target: ManagedPluginOverrideTarget, revision: number, resolver: WorkspacePathResolver, ): Promise<ManagedPluginMutation>
+```
+
+Source: [`packages/extensions/plugin-compat/src/index.ts`](../../packages/extensions/plugin-compat/src/index.ts)
 
 <a id="cordis-events"></a>
 

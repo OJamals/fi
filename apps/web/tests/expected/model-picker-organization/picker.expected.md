@@ -3,23 +3,13 @@
     - searchbox "Search models"
   - menu "Model":
     - group "DeepSeek":
-      - menuitem "DeepSeek":
-        - img
-        - text: DeepSeek
+      - menuitem "DeepSeek"
     - group "OpenRouter":
-      - menuitem "OpenRouter":
-        - img
-        - text: OpenRouter
+      - menuitem "OpenRouter"
     - group "Kilo":
-      - menuitem "Kilo":
-        - img
-        - text: Kilo
+      - menuitem "Kilo"
     - group "Subscriptions":
       - group "anthropic":
-        - menuitem "anthropic":
-          - img
-          - text: anthropic
+        - menuitem "anthropic"
       - group "antigravity":
-        - menuitem "antigravity":
-          - img
-          - text: antigravity
+        - menuitem "antigravity"

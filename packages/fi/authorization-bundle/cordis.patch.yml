@@ -29,6 +29,9 @@
 - id: llm-deepseek-account
   disabled: true
 
+- id: product-analytics
+  disabled: true
+
 - insert:
     - id: fi-authorization-controller
       name: '@fi/api-authorization-controller'

@@ -115,7 +115,7 @@ export const DISABLED_ANTIGRAVITY_DISCOVERY: AntigravityDiscoveryOptions = {
 
 /**
  * Minimal logger surface discovery needs. Deliberately narrower than the
- * full Cordis `Logger` so this module has no `cordis` or `ctx` dependency
+ * full Cordis `Logger` so this module has no `@deepseek-ai/cordis` or `ctx` dependency
  * and can be unit tested standalone; `ctx.logger` satisfies it structurally.
  */
 export interface AntigravityDiscoveryLogger {
