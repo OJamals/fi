@@ -42,6 +42,9 @@
     - id: fi-antigravity
       name: '@fi/llm-antigravity'
 
+    - id: fi-opencode
+      name: '@fi/llm-opencode'
+
     - id: fi-provider-compat
       name: '@fi/provider-compat'
 

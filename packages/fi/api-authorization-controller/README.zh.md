@@ -13,6 +13,8 @@ kind: "package-reference"
 
 ## 目录
 
+OpenCode Console 授权使用 `fi-opencode/opencode-console`；其原生适配器管理 `fi-opencode` 设置命名空间及已认证模型发现。登录成功或显式采用后会在该命名空间创建 `providers.opencode-console`。
+
 - [使用本包](#use-this-package)
 - [理解实现](#understand-the-implementation)
 - [进一步探索](#further-exploration)

@@ -2,7 +2,7 @@
  * Subscription sign-in plugin, browser half. It adds one OAuth sign-in
  * section to the Models page for the providers whose value is a subscription
  * the user already holds — Claude Pro/Max, ChatGPT Plus/Pro, SuperGrok/X
- * Premium, and Antigravity — and replaces the Antigravity route editor with
+ * Premium, Antigravity, and OpenCode Console — and replaces the Antigravity route editor with
  * its subscription-aware setup action.
  *
  * The subscription section remains the only sign-in surface. The native
@@ -132,6 +132,11 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
     ctx.slots.inject('settings.models.provider-editor', () => ctx.slots.register({
       name: 'settings.models.provider-editor',
       key: 'fi-antigravity',
+      inject: injected,
+    }, AntigravityProviderEditor))
+    ctx.slots.inject('settings.models.provider-editor', () => ctx.slots.register({
+      name: 'settings.models.provider-editor',
+      key: 'fi-opencode',
       inject: injected,
     }, AntigravityProviderEditor))
     ctx.slots.inject('settings.models.footer', () => ctx.slots.register({

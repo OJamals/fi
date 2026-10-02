@@ -1,0 +1,15 @@
+- id: llm-deepseek
+  disabled: true
+
+- id: plugin-package-inventory-deepseek
+  disabled: true
+
+- insert:
+    - id: opencode-console-fixture
+      name: './console-fixture.mjs'
+
+    - id: fi-opencode
+      name: '@fi/llm-opencode'
+      config:
+        providers:
+          opencode-console: {}

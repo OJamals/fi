@@ -98,6 +98,7 @@
     "tests/bonus-notice.e2e.ts",
     "tests/model-picker-organization.e2e.ts",
     "tests/onboarding-model-setup.e2e.ts",
+    "tests/opencode-subscription.e2e.ts",
     "tests/onboarding-usable-provider.e2e.ts",
     "tests/remote-welcome.e2e.ts",
     "tests/public-mount.e2e.ts",

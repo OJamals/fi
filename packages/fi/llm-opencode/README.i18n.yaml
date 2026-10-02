@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/fi/llm-opencode/README.md
+/:
+  en: 8ef0937d5b89e884
+  zh: 40e694ecda9f3a90
+/fi-llm-opencode:
+  en: 5f85adccf686aae5
+  zh: c43aaaaed45e1034
+/fi-llm-opencode/summary:
+  en: 4e6455690e9d6a43
+  zh: a9b73845206d5ca7
+/fi-llm-opencode/table-of-contents:
+  en: b7e2f55197654055
+  zh: b8b63c8c12c0995d
+/fi-llm-opencode/authorization-and-configuration:
+  en: 10bfde3093e28f17
+  zh: 170905ac6e0b38c0
+/fi-llm-opencode/protocol-sources:
+  en: fed7004351754a1f
+  zh: 2a46cec46152e887
+/fi-llm-opencode/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/fi-llm-opencode/model-experience/console-model-request-and-response:
+  en: 80554050e6f8755c
+  zh: 80554050e6f8755c
+/fi-llm-opencode/model-experience/console-model-request-and-response/what-the-model-sees:
+  en: 3e9e43e9dd27fdad
+  zh: c66d9002841c2972
+/fi-llm-opencode/model-experience/console-model-request-and-response/token-effect:
+  en: 95b25c3b9490920c
+  zh: a8d9e21611c3460f
+/fi-llm-opencode/model-experience/console-model-request-and-response/kv-cache-effect:
+  en: 02416b7d8c257a1b
+  zh: 5fde29599ba0099c
+/fi-llm-opencode/known-limitations-and-deferred-work:
+  en: 77b50142447ca9dd
+  zh: b4d22852e151761b
+/fi-llm-opencode/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 1499f90e25f08424

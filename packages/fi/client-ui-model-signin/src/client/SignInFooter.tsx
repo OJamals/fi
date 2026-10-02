@@ -1,7 +1,7 @@
 /**
  * The Models page's subscription sign-in section: one selector for providers
  * whose value is a subscription the user already holds — Claude Pro/Max,
- * ChatGPT Plus/Pro, SuperGrok/X Premium, and Antigravity. It shows the
+ * ChatGPT Plus/Pro, SuperGrok/X Premium, Antigravity, and OpenCode Console. It shows the
  * selected provider's grant state and starts sign-in, adoption, and removal.
  *
  * The rows come from the Host's `list` joined to the package's OFFERED

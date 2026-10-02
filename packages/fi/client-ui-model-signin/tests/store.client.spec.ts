@@ -18,6 +18,10 @@ function entry(overrides: Partial<AuthorizationEntryView> & { key: string }): Au
 const FRESH: SignInAttempt = { key: 'llm-pi-ai/anthropic', notice: null, prompt: null, settled: null }
 
 describe('selectOfferedRows', () => {
+  it('offers OpenCode Console from its native authorization scope', () => {
+    expect(selectOfferedRows([entry({ key: 'fi-opencode/opencode-console', label: 'OpenCode Console' })]))
+      .toEqual([expect.objectContaining({ provider: 'opencode-console', key: 'fi-opencode/opencode-console', label: 'OpenCode Console' })])
+  })
   it('keeps only the offered providers, in the offered order', () => {
     const rows = selectOfferedRows([
       entry({ key: 'llm-pi-ai/xai', label: 'xAI' }),

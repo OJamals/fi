@@ -1,0 +1,9 @@
+version: 1
+scenario: opencode-console-free-tier
+profile: headless
+composition: opencode-console
+recording: authored
+header:
+  class: opencode-console
+environment:
+  DSH_OPENCODE_FIXTURE_ERROR: FreeTierError

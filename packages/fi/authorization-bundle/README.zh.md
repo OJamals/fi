@@ -52,9 +52,9 @@ add 命令会对 profile 做协调并激活该层；它通过 profile 的包管�
 
 FI 使用不绑定提供方的引导流程，并禁用 DeepSeek 账户界面、账户模型路由以及依赖该账户的产品分析。DeepSeek 仍可通过 API key 使用。
 
-基础 bundle 挂载授权服务；该层挂载其 Remote 控制器、Models 订阅页脚、原生 Antigravity 适配器、提供方 HTTP 兼容处理和 FI 首选网页搜索。页脚支持 Claude、Codex、Grok 和 Antigravity；成功登录后采用模型路由，已有授权则可重试设置，无需再次登录。提供方兼容处理提供捕获派生的请求头及 Grok 订阅端点，不改变普通 API-key 请求。“首选网页搜索”卡片选择 DeepSeek、Exa、Perplexity、Parallel、Tavily、Serper、Brave Search 或订阅原生搜索，并通过凭据存储直接提供方密钥。
+基础 bundle 挂载授权服务；该层挂载其 Remote 控制器、Models 订阅页脚、原生 Antigravity 与 OpenCode Console 适配器、提供方 HTTP 兼容处理和 FI 首选网页搜索。页脚支持 Claude、Codex、Grok、Antigravity 和 OpenCode Console；成功登录后采用模型路由，已有授权则可重试设置，无需再次登录。提供方兼容处理提供捕获派生的请求头及 Grok 订阅端点，不改变普通 API-key 请求。“首选网页搜索”卡片选择 DeepSeek、Exa、Perplexity、Parallel、Tavily、Serper、Brave Search 或订阅原生搜索，并通过凭据存储直接提供方密钥。
 
-composer 的 Model 面板把四条订阅路由放在普通提供方下方、标为“订阅服务”的分区。Antigravity 的目录提供方名称是 `antigravity`，与小写路由标签一致；提供方和模型 id 不变。
+composer 的 Model 面板把订阅路由放在普通提供方下方、标为“订阅服务”的分区。Antigravity 的目录提供方名称是 `antigravity`，与小写路由标签一致；提供方和模型 id 不变。
 
 该层还配置一个 `image_gen` 工具，包含 Codex、Grok 和 Antigravity 目标。Codex 是显式默认值；工具调用可以选择另一个已配置的提供方，失败请求不会切换提供方。`cordis.patch.yml` 中的 `fi-image-generation` 行负责模型选择和默认提供方。[图片生成包](../tool-image-generation/README.zh.md)负责参考图片编辑、限制及结果行为。Claude 没有原生光栅图片生成目标，但可以通过此工具使用另一个已登录的提供方。
 

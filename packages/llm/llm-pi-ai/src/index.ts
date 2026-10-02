@@ -75,6 +75,9 @@ import type { StoredModelDiscoveryProfile } from './discovery.ts'
 import { registerPiAiFlows } from './login.ts'
 
 export { PiAiAdapter } from './adapter.ts'
+export { toPiContext } from './context.ts'
+export { toStreamChunks } from './stream.ts'
+export { createModels, createProvider } from './models.ts'
 export type {
   PiAiAdapterOptions,
   PiAiLiveModel,

@@ -1,0 +1,28 @@
+- id: llm-deepseek
+  disabled: true
+
+- id: plugin-package-inventory-deepseek
+  disabled: true
+
+- id: session-title-llm
+  disabled: true
+
+- id: sandbox
+  config:
+    runnerCommand:
+      - bash
+      - -c
+      - while [ "$1" != "--" ]; do shift; done; shift; exec "$@"
+      - passthrough-runner
+    runnerFailureSignatures:
+      - 'passthrough-runner: profile rejected'
+
+- insert:
+    - id: opencode-console-fixture
+      name: './console-fixture.mjs'
+
+    - id: fi-opencode
+      name: '@fi/llm-opencode'
+      config:
+        providers:
+          opencode-console: {}

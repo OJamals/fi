@@ -13,6 +13,8 @@ kind: "package-reference"
 
 ## 目录
 
+包根入口还为自行管理认证与动态目录的适配器导出 `toPiContext`、`toStreamChunks`、`createModels` 和 `createProvider`。这些辅助函数与通用适配器共享请求转换和持久化重放；消费方仍负责准备调用的一致性、图像准入、取消和超时。
+
 - [使用本包](#use-this-package)
 - [理解实现](#understand-the-implementation)
 - [进一步探索](#further-exploration)

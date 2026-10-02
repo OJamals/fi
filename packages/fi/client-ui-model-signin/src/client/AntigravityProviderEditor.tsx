@@ -1,4 +1,4 @@
-/** Native Models-page editor for the Antigravity subscription route. */
+/** Native Models-page editor for FI-owned subscription routes. */
 
 import { useEffect, useRef, type ReactNode } from 'react'
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -8,9 +8,6 @@ import type { ProviderEditorOwnerProps } from '@deepseek-ai/dsh-client-ui-settin
 import type { SignInFooterInjected } from './SignInFooter.tsx'
 import type { SignInStore } from './store.ts'
 import styles from './AntigravityProviderEditor.module.css'
-
-/** Credential record the Antigravity adapter family owns. */
-const ANTIGRAVITY_CREDENTIAL_KEY = 'fi-antigravity/antigravity'
 
 /** Dependencies injected into the native provider editor. */
 export interface AntigravityProviderEditorInjected {
@@ -44,7 +41,8 @@ function Bound({ controller, useSnapshot, t, provider, readOnly, onClose }: {
   onClose: (changed: boolean) => void
 }): ReactNode {
   const state = useSnapshot(snapshot => snapshot)
-  const row = state.rows.find(candidate => candidate.key === ANTIGRAVITY_CREDENTIAL_KEY)
+  const credentialKey = `${provider.settingsNs}/${provider.provider}`
+  const row = state.rows.find(candidate => candidate.key === credentialKey)
   const stored = row?.stored === true
   const busy = state.busy === true || row?.inFlight === true
   const mounted = useRef(true)
@@ -63,12 +61,12 @@ function Bound({ controller, useSnapshot, t, provider, readOnly, onClose }: {
 
   const setup = async (): Promise<void> => {
     const ownOperation = ++operation.current
-    await controller.adopt(ANTIGRAVITY_CREDENTIAL_KEY)
+    await controller.adopt(credentialKey)
     const adopted = controller.store.getSnapshot().adopted
     if (
       mounted.current
       && operation.current === ownOperation
-      && adopted?.key === ANTIGRAVITY_CREDENTIAL_KEY
+      && adopted?.key === credentialKey
       && adopted.route !== 'skipped'
     ) onClose(true)
   }
@@ -88,7 +86,7 @@ function Bound({ controller, useSnapshot, t, provider, readOnly, onClose }: {
         <Button
           variant="primary"
           disabled={readOnly || !stored || busy}
-          aria-label={t('setupActionFor', { provider: 'Antigravity' })}
+          aria-label={t('setupActionFor', { provider: row?.label ?? provider.displayName })}
           onClick={() => { void setup() }}
         >
           {t('setupAction')}

@@ -34,6 +34,7 @@ const FOUR_ROWS = [
   row({ key: 'llm-pi-ai/openai-codex', provider: 'openai-codex', label: 'OpenAI Codex' }),
   row({ key: 'llm-pi-ai/xai', provider: 'xai', label: 'xAI' }),
   row({ key: 'fi-antigravity/antigravity', provider: 'antigravity', label: 'Antigravity' }),
+  row({ key: 'fi-opencode/opencode-console', provider: 'opencode-console', label: 'OpenCode Console' }),
 ]
 
 const FOUR_ADOPTABLE = FOUR_ROWS.map(r => ({ key: r.key, label: r.label, routeId: r.provider }))
@@ -85,7 +86,7 @@ describe('the section as a whole', () => {
     expect((selector as HTMLSelectElement).value).toBe('llm-pi-ai/anthropic')
     expect(selector.hasAttribute('data-fi-subscription-provider-select')).toBe(true)
     expect(selector.getAttribute('name')).toBe('fi-subscription-provider')
-    expect(screen.getAllByRole('option')).toHaveLength(4)
+    expect(screen.getAllByRole('option')).toHaveLength(5)
     expect(screen.getByText(en.stateSignedOut)).toBeTruthy()
     expect(document.querySelectorAll('section').length).toBe(1)
   })

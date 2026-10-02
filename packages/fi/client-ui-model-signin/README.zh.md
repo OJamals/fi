@@ -1,5 +1,5 @@
 ---
-description: "模型页面的订阅登录区块，面向使用 Claude Pro/Max、ChatGPT Plus/Pro、SuperGrok/X Premium 与 Antigravity 推理的用户，以及扩展其提供方范围的维护者。"
+description: "模型页面的订阅登录区块，面向使用 Claude Pro/Max、ChatGPT Plus/Pro、SuperGrok/X Premium 、Antigravity 与 OpenCode Console 推理的用户，以及扩展其提供方范围的维护者。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`@fi/client-ui-model-signin` 为模型设置页面添加一个订阅登录区块，服务于那些价值在于用户已持有订阅的提供方——Claude Pro/Max、ChatGPT Plus/Pro、SuperGrok/X Premium 与 Antigravity。它通过模型区块的页脚扩展槽位渲染。紧凑选择器只列出 Host 已注册 OAuth 流程的提供方，因此缺少适配器的 composition 会直接省略该提供方。当提供方以密钥认证时，请使用 API 密钥字段。
+`@fi/client-ui-model-signin` 为模型设置页面添加一个订阅登录区块，服务于那些价值在于用户已持有订阅的提供方——Claude Pro/Max、ChatGPT Plus/Pro、SuperGrok/X Premium 、Antigravity 与 OpenCode Console。它通过模型区块的页脚扩展槽位渲染。紧凑选择器只列出 Host 已注册 OAuth 流程的提供方，因此缺少适配器的 composition 会直接省略该提供方。当提供方以密钥认证时，请使用 API 密钥字段。
 
 ## 目录
 
@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 用户看到什么
 
-模型页面 API 密钥提供方列表下方有一个“使用您的订阅登录”区块，为 Anthropic (Claude Pro/Max)、OpenAI Codex (ChatGPT Plus/Pro)、xAI (SuperGrok/X Premium) 与 Antigravity 提供紧凑且可访问的提供方选择器。已配置且未带密钥的可用 OAuth 路由显示在登录控件下方，保留编辑与删除操作；带 `apiKeyEnv` 的 profile 留在 Models 主列表。选择器宽度受限，与未登录提供方的状态和操作并列；已登录提供方的管理操作占据下方整行。窄屏时控件上下排列，不产生水平滚动。选中的提供方显示其状态点、无障碍状态标签和仅属于它的可用操作。未登录的提供方提供“添加提供方”；单击即运行实时登录对话，再调用 Host 的 `adopt(key)`，以 upsert 该提供方的 settings 条目并回读其模型。已存储授权提供“设置提供方”，因此提供方可完成或重试设置而无需再次进行 OAuth。采用结果报告条目结果，并将模型列表放在折叠控件后面。
+模型页面 API 密钥提供方列表下方有一个“使用您的订阅登录”区块，为 Anthropic (Claude Pro/Max)、OpenAI Codex (ChatGPT Plus/Pro)、xAI (SuperGrok/X Premium) 、Antigravity 与 OpenCode Console 提供紧凑且可访问的提供方选择器。已配置且未带密钥的可用 OAuth 路由显示在登录控件下方，保留编辑与删除操作；带 `apiKeyEnv` 的 profile 留在 Models 主列表。选择器宽度受限，与未登录提供方的状态和操作并列；已登录提供方的管理操作占据下方整行。窄屏时控件上下排列，不产生水平滚动。选中的提供方显示其状态点、无障碍状态标签和仅属于它的可用操作。未登录的提供方提供“添加提供方”；单击即运行实时登录对话，再调用 Host 的 `adopt(key)`，以 upsert 该提供方的 settings 条目并回读其模型。已存储授权提供“设置提供方”，因此提供方可完成或重试设置而无需再次进行 OAuth。采用结果报告条目结果，并将模型列表放在折叠控件后面。
 
 已登录的提供方显示“重新登录”，以替换过期 refresh token，并显示“移除登录”，以撤销已存储的授权而不触碰其 settings 条目。选择器只改变可见提供方；它不会启动认证或改变推理选择。未完成的本地认证或采用会禁用选择器。实时登录对话会显示其提供方名称，而完成的采用会选中其提供方并显示该结果。区块监听 `credentials/record-updated` 与 `credentials/reference-updated`，因此任何地方删除授权都会重新提供登录。它为列表显示加载和失败状态以及重试，检查每个一元 Remote 回复，并保留被拒操作的诊断。开始操作会清除先前的采用横幅，而操作标识会阻止已关闭或被替代的登录发布迟到的采用结果。
 

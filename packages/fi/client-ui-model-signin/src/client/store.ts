@@ -31,7 +31,7 @@ const PI_AI_SCOPE = 'llm-pi-ai'
  * behind a wall of rows the Models page already handles as API-key fields.
  * These are the ones whose value is a subscription the user already pays
  * for and cannot otherwise reach: an OAuth grant, not a key they could type.
- * The fourth entry is the Antigravity adapter family's own scope; one
+ * Antigravity and OpenCode use their adapter families' own scopes; one
  * section renders every subscription sign-in, so no provider gets a second
  * section of its own.
  *
@@ -40,12 +40,11 @@ const PI_AI_SCOPE = 'llm-pi-ai'
  * appear — the join below keeps this list advisory, never authoritative.
  */
 export const SUBSCRIPTION_PROVIDER_IDS = [
-  'anthropic', 'openai-codex', 'xai', 'antigravity',
+  'anthropic', 'openai-codex', 'xai', 'antigravity', 'opencode-console',
 ] as const
 
-const OFFERED = SUBSCRIPTION_PROVIDER_IDS.map(provider => provider === 'antigravity'
-  ? 'fi-antigravity/antigravity'
-  : `${PI_AI_SCOPE}/${provider}`)
+const OFFERED = SUBSCRIPTION_PROVIDER_IDS.map(provider =>
+  `${provider === 'opencode-console' ? 'fi-opencode' : provider === 'antigravity' ? 'fi-antigravity' : PI_AI_SCOPE}/${provider}`)
 
 /** One question the running attempt is waiting on. */
 export interface SignInPrompt {

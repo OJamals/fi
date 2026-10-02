@@ -4477,6 +4477,44 @@ export interface AntigravityOAuthFingerprintPair {
 ```
 <!-- END GENERATED config-catalog:@fi/llm-antigravity -->
 
+<!-- BEGIN GENERATED config-catalog:@fi/llm-opencode -->
+<a id="fillm-opencode"></a>
+
+## `@fi/llm-opencode`
+
+- `inject`: `authorization` · `credentials` · `llm`
+- `refs`: `Volatile` (`@deepseek-ai/cordis`)
+- `source`: [`packages/fi/llm-opencode/src/index.ts:18`](../packages/fi/llm-opencode/src/index.ts)
+
+```ts config-catalog
+/** Loader configuration; credentials and discovered models are never user-settings fields. */
+export interface OpenCodeConfig extends ConsoleOptions {
+  /** FI route ids activated by user settings; the grant chooses the account and organization. */
+  providers: Volatile<Record<string, Record<string, never>>>
+}
+
+/** Non-secret deployment settings frozen for one authorization or model operation. */
+export interface ConsoleOptions {
+  /** HTTPS Console server without query parameters or embedded credentials. */
+  server: string
+  /** Public device-authorization client id. */
+  clientId: string
+  /** Reviewed OpenCode compatibility identity sent on Console and inference requests. */
+  userAgent: string
+  /** Maximum duration of a Console request or provider response-header wait, in milliseconds. */
+  requestTimeoutMs: number
+  /** Maximum silence between provider stream events, in milliseconds. */
+  streamIdleTimeoutMs: number
+  /** Rotate tokens this many milliseconds before their expiration. */
+  refreshMarginMs: number
+  /** Context capacity when the authenticated catalog omits it. */
+  defaultContextWindow: number
+  /** Output capacity when the authenticated catalog omits it. */
+  defaultMaxTokens: number
+}
+```
+<!-- END GENERATED config-catalog:@fi/llm-opencode -->
+
 <!-- BEGIN GENERATED config-catalog:@fi/provider-compat -->
 <a id="fiprovider-compat"></a>
 

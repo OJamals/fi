@@ -32,6 +32,7 @@
     "@fi/client-ui-model-signin": "workspace:^",
     "@fi/client-ui-web-search-preferences": "workspace:^",
     "@fi/llm-antigravity": "workspace:^",
+    "@fi/llm-opencode": "workspace:^",
     "@fi/provider-compat": "workspace:^",
     "@fi/web-search-preferences": "workspace:^",
     "@fi/tool-image-generation": "workspace:^"

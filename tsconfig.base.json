@@ -343,6 +343,7 @@
       "@fi/client-ui-web-search-preferences": ["./packages/fi/client-ui-web-search-preferences/src/index.ts"],
       "@fi/client-ui-web-search-preferences/client": ["./packages/fi/client-ui-web-search-preferences/src/client/index.ts"],
       "@fi/llm-antigravity": ["./packages/fi/llm-antigravity/src/index.ts"],
+      "@fi/llm-opencode": ["./packages/fi/llm-opencode/src/index.ts"],
       "@fi/llm-antigravity/transport": ["./packages/fi/llm-antigravity/src/transport.ts"],
       "@fi/provider-compat": ["./packages/fi/provider-compat/src/index.ts"],
       "@fi/tool-image-generation": ["./packages/fi/tool-image-generation/src/index.ts"],

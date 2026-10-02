@@ -13,6 +13,8 @@ English | [中文](README.zh.md)
 
 ## Table of Contents
 
+The package root also exports `toPiContext`, `toStreamChunks`, `createModels`, and `createProvider` for adapters that own their authentication and dynamic catalogs. These helpers share request conversion and durable replay with the generic adapter; consumers remain responsible for prepared-call consistency, image admission, cancellation, and timeouts.
+
 - [Use this package](#use-this-package)
 - [Understand the implementation](#understand-the-implementation)
 - [Further Exploration](#further-exploration)
