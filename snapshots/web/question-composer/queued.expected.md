@@ -10,7 +10,7 @@
 - status: Completed
 - button "Completed in {{duration}}" [expanded]
 - button "Asked questions" [expanded]
-- button "Think The user wants me to use the ask_user_question tool with specific parameters. Let me do exactly that."
+- button "Thinking The user wants me to use the ask_user_question tool with specific parameters. Let me do exactly that."
 - button "Ask question" [expanded]
 - text: Ask question 1/1 answered
 - button "View answers"

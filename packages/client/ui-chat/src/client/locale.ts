@@ -5,7 +5,7 @@ export const NS = 'chat'
 
 /** Simplified Chinese dictionary and key-set source of truth. */
 export const zh = {
-  'message.stepProcess.thinking': '正在分析请求',
+  'message.stepProcess.thinking': '思考中',
   'message.stepProcess.read': '正在读取文件',
   'message.stepProcess.readImage': '正在读取图片',
   'message.stepProcess.write': '正在写入文件',
@@ -86,8 +86,8 @@ export const zh = {
   'chat.loadError': '历史加载失败：{message}（{code}）',
   'chat.loadOlder': '加载更早',
   'chat.toBottom': '回到底部',
-  'chat.deepDiving': '深度求索中',
-  'chat.deepDivingFor': '深度求索中，用时 {duration} ···',
+  'chat.deepDiving': '正在工作',
+  'chat.deepDivingFor': '正在工作，用时 {duration}',
   'chat.turnNavigation.label': '轮次导航',
   'chat.turnNavigation.jump': '跳转到第 {turn} 轮',
   'chat.turnNavigation.jumpLoad': '加载并跳转到第 {turn} 轮',
@@ -198,7 +198,7 @@ export type ChatKey = keyof typeof zh
 
 /** English dictionary, checked against the Chinese key set. */
 export const en = {
-  'message.stepProcess.thinking': 'Analyzing the request',
+  'message.stepProcess.thinking': 'Thinking',
   'message.stepProcess.read': 'Reading files',
   'message.stepProcess.readImage': 'Reading images',
   'message.stepProcess.write': 'Writing files',
@@ -279,8 +279,8 @@ export const en = {
   'chat.loadError': 'Failed to load history: {message} ({code})',
   'chat.loadOlder': 'Load earlier',
   'chat.toBottom': 'Back to bottom',
-  'chat.deepDiving': 'Deep diving',
-  'chat.deepDivingFor': 'Deep diving for {duration} ···',
+  'chat.deepDiving': 'Working',
+  'chat.deepDivingFor': 'Working for {duration}',
   'chat.turnNavigation.label': 'Turn navigation',
   'chat.turnNavigation.jump': 'Jump to turn {turn}',
   'chat.turnNavigation.jumpLoad': 'Load and jump to turn {turn}',
@@ -332,7 +332,7 @@ export const en = {
   'message.compaction.expand': 'View compaction summary',
   'message.compaction.unavailable': 'Compaction summary unavailable',
   'message.compaction.commandTitle': 'compact',
-  'message.think': 'Think',
+  'message.think': 'Thinking',
   'message.unknownSurface': 'Unknown surface event: {type}',
   'message.unknownBlock': 'Unknown content block',
   'message.turnProcess.toolCalls.one': '{count} tool call',

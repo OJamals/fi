@@ -21,25 +21,17 @@ const renderMessageImages: AssistantMarkdownProps['renderMessageImages'] = () =>
 
 describe('ReasoningRow', () => {
   it.each([
-    ['', ''],
-    ['An unfinished line', ''],
-    ['A completed first line\nUnfinished continuation', 'A completed first line'],
-    ['First\nSecond\nThird\n', 'First'],
-    ['First\n\nNext unfinished', 'First'],
-    ['First\n\nNext complete\nDetails', 'Next complete'],
-    ['First\n\n\nNext complete\n', 'Next complete'],
-    ['First\n \n\t\nNext complete\nDetails', 'Next complete'],
-    ['First\r\n\r\n\r\nNext complete\r\n', 'Next complete'],
-    ['First\r\n \r\n\t\r\nNext complete\r\nDetails', 'Next complete'],
-    ['First\n\n\nNext unfinished', 'First'],
-    ['\n\n\nFirst complete\n', 'First complete'],
-    ['First\r\n \t\r\nNext complete\r\n', 'Next complete'],
-    ['First\n\n\n', 'First'],
-  ])('previews the completed paragraph first line for %j', (text, summary) => {
+    '',
+    'An unfinished line',
+    'A completed first line\nUnfinished continuation',
+    'First\n\nNext complete\nDetails',
+    'First\r\n \r\n\t\r\nNext complete\r\nDetails',
+  ])('keeps running reasoning collapsed behind its stable label for %j', (text) => {
     const view = render(<ReasoningRow useDisclosure={useDisclosure} text={text} running usePresentation={useDetailedPresentation} t={t} />)
     const root = view.container.querySelector('[data-variant="think"]')!
-    expect(root.querySelector('[class*="summaryText"]')?.textContent).toBe(summary)
-    expect(root.hasAttribute('data-preview')).toBe(summary !== '')
+    expect(root.querySelector('[class*="summaryText"]')?.textContent).toBe('')
+    expect(root.hasAttribute('data-preview')).toBe(false)
+    expect(view.getByRole('button').textContent).toBe('思考')
   })
 
   it('retains summaries and expanded Markdown when the work-details mode changes', () => {
@@ -72,17 +64,17 @@ describe('ReasoningRow', () => {
     expect(view.getByRole('button')).toBe(toggle)
   })
 
-  it('keeps a running preview enabled in Compact and hides it on settlement without removing it', () => {
+  it('keeps reasoning previews hidden in Compact during streaming and settlement', () => {
     const mode = createSnapshotStore<TranscriptViewMode>('compact')
     const usePresentation = bindSnapshotSelector(derivePresentationPolicy(mode))
     const props = { text: 'First line\n', usePresentation, t }
     const view = render(<ReasoningRow useDisclosure={useDisclosure} {...props} running />)
-    const summary = view.getByText('First line')
     const root = view.container.querySelector('[data-variant="think"]')!
-    expect(root.hasAttribute('data-preview')).toBe(true)
+    expect(root.hasAttribute('data-preview')).toBe(false)
+    expect(view.queryByText('First line')).toBeNull()
     view.rerender(<ReasoningRow useDisclosure={useDisclosure} {...props} running={false} />)
     expect(root.hasAttribute('data-preview')).toBe(false)
-    expect(view.getByText('First line')).toBe(summary)
+    expect(view.getByText('First line')).toBeTruthy()
   })
 
   it.each([
@@ -114,7 +106,7 @@ describe('ReasoningRow', () => {
     expect(view.getByRole('button').getAttribute('aria-expanded')).toBe('false')
   })
 
-  it('advances on completed paragraph first lines, then restores the settled first line', () => {
+  it('keeps live text out of the collapsed row, then restores the settled first line', () => {
     const view = render(
       <AssistantMarkdown useDisclosure={useDisclosure}
         usePresentation={useDetailedPresentation}
@@ -126,8 +118,7 @@ describe('ReasoningRow', () => {
     )
     expect(view.getByText('运行中')).toBeTruthy()
     expect(view.getByRole('button').getAttribute('aria-expanded')).toBe('false')
-    expect(view.getByText('Newest reasoning tokens').closest('[data-streaming]')?.getAttribute('data-streaming'))
-      .toBe('true')
+    expect(view.queryByText('Newest reasoning tokens')).toBeNull()
 
     view.rerender(
       <AssistantMarkdown useDisclosure={useDisclosure}
@@ -138,8 +129,7 @@ describe('ReasoningRow', () => {
         renderMessageImages={renderMessageImages}
       />,
     )
-    expect(view.getByText('Newest reasoning tokens').closest('[data-streaming]')
-      ?.getAttribute('data-streaming')).toBe('true')
+    expect(view.queryByText('Newest reasoning tokens')).toBeNull()
     expect(view.queryByText('Checking boundaries')).toBeNull()
 
     const text = 'Inspect the session\nDetails\n\nNewest reasoning tokens\nMore details\n\nChecking boundaries\n'
@@ -152,7 +142,7 @@ describe('ReasoningRow', () => {
         renderMessageImages={renderMessageImages}
       />,
     )
-    expect(view.getByText('Checking boundaries')).toBeTruthy()
+    expect(view.queryByText('Checking boundaries')).toBeNull()
     expect(view.queryByText('Newest reasoning tokens')).toBeNull()
 
     view.rerender(
@@ -212,7 +202,8 @@ describe('ReasoningRow', () => {
       />,
     )
 
-    expect(view.getByText('Comparing checkout and merge bases')).toBeTruthy()
+    if (streaming) expect(view.queryByText('Comparing checkout and merge bases')).toBeNull()
+    else expect(view.getByText('Comparing checkout and merge bases')).toBeTruthy()
     expect(view.queryByText('**Comparing checkout and merge bases**')).toBeNull()
 
     fireEvent.click(view.getByText('思考'))

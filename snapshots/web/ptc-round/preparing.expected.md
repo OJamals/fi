@@ -1,2 +1,2 @@
-- 'button "Think The user wants me to write a single `run_code` program that:"'
+- 'button "Thinking The user wants me to write a single `run_code` program that:"'
 - text: Preparing tool call Code

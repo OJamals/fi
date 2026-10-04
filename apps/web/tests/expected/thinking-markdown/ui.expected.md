@@ -1,4 +1,4 @@
-- button "Think" [expanded]
+- button "Thinking" [expanded]
 - heading "Compact reasoning with a deliberately long summary with a deliberately long summary with a deliberately long summary with a deliberately long summary with a deliberately long summary with a deliberately long summary with a deliberately long summary with a deliberately long summary" [level=2]
 - paragraph:
   - text: A paragraph with

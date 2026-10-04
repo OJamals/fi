@@ -41,7 +41,7 @@ class PausedReasoningAdapter extends LlmAdapter {
   }
 }
 
-it('shows completed paragraph first lines across blank lines with a right-edge fade', async () => {
+it('shows a stable Thinking label during streaming and reveals reasoning on expansion', async () => {
   const scaffold = await launchWebScaffold()
   const adapter = new PausedReasoningAdapter()
   try {
@@ -121,20 +121,23 @@ it('shows completed paragraph first lines across blank lines with a right-edge f
 
       first.proceed.resolve(undefined)
       await second.arrived.promise
-      const preview = reasoning.locator('[data-streaming]:not([inert] *)')
-      await expect.poll(() => preview.textContent()).toBe('First paragraph')
-      expect(await preview.isVisible()).toBe(true)
-      await preview.evaluate((element) => { element.setAttribute('data-retained-preview', 'true') })
+      const toggle = reasoning.getByRole('button', { name: 'Thinking', exact: true })
+      await toggle.waitFor()
+      expect(await reasoning.getAttribute('data-preview')).toBeNull()
+      expect(await reasoning.locator('[class*="summaryText"]:not([inert] *)').textContent()).toBe('')
 
       second.proceed.resolve(undefined)
       await third.arrived.promise
-      await expect.poll(() => preview.textContent()).toBe(SUMMARY)
-      expect(await preview.getAttribute('data-retained-preview')).toBe('true')
-      expect(await preview.evaluate(element => getComputedStyle(element).maskImage)).toContain('linear-gradient')
-      expect(await preview.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(true)
-      expect(await reasoning.getByRole('button').getAttribute('aria-expanded')).toBe('false')
+      expect(await toggle.textContent()).toBe('Thinking')
+      expect(await toggle.getAttribute('aria-expanded')).toBe('false')
+      expect(await reasoning.getAttribute('data-preview')).toBeNull()
       await compareOrRefreshGolden(UI_EXPECTED,
         await captureStableAria(page, '[data-variant="think"]', scaffold.workspaceCwd), webSnapshotMode())
+
+      await toggle.click()
+      const body = reasoning.locator('[class*="thinkBody"]')
+      await expect.poll(() => body.textContent()).toContain(SUMMARY)
+      expect(await toggle.getAttribute('aria-expanded')).toBe('true')
 
       third.proceed.resolve(undefined)
       await settled

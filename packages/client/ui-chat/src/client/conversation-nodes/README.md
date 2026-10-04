@@ -140,7 +140,7 @@ The labels below describe recorded activity, not successful outcomes. For exampl
 
 | Category | Running label | Closed label |
 |---|---|---|
-| No live category / no counted categories | Analyzing the request | Analysis completed |
+| No live category / no counted categories | Thinking | Analysis completed |
 | `read` | Reading files | Read files |
 | `readImage` | Reading images | Read images |
 | `search` | Searching code | Searched code |
