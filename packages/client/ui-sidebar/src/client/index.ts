@@ -34,6 +34,9 @@ const NS = 'sidebar'
 
 interface WorkspaceNavigation {
   startSession(workspaceId?: Parameters<SidebarRootInjected['startSession']>[0]): void
+  goBack(): void
+  goForward(): void
+  readonly navigation: SidebarRootInjected['hooks']['navigation']
 }
 
 /** Services required by the sidebar plugin. */
@@ -67,11 +70,13 @@ export function apply(ctx: ClientContext): void {
     // (current Session Workspace, then recent Workspace).
     startSession: (workspaceId) => { workspaceNavigation.startSession(workspaceId) },
     toggleSidebar: () => { ctx.layout.toggleSidebar() },
+    goBack: () => { workspaceNavigation.goBack() },
+    goForward: () => { workspaceNavigation.goForward() },
     selectPanel: (id) => {
       if (id === 'plugins' || id === 'schedules') ctx.get('productAnalytics')?.track('sidebar_menu_click', { menu_name: id === 'plugins' ? 'plugin' : 'cron' })
       ctx.layout.selectPanel(id)
     },
-    hooks: { panels, shortcuts: ctx.shortcuts.catalog },
+    hooks: { panels, shortcuts: ctx.shortcuts.catalog, navigation: workspaceNavigation.navigation },
   })
   ctx.slots.inject('sidebar', () => ctx.slots.register({
     name: 'sidebar',
@@ -87,8 +92,8 @@ export function apply(ctx: ClientContext): void {
     },
     inject: injectProps,
   }, SidebarRoot))
-  // macOS desktop hides the collapsed sidebar entirely, so the open/New
-  // Session controls move into the frame's window-chrome seat beside the
+  // macOS desktop hides the collapsed sidebar entirely, so the sidebar,
+  // history, and New Session controls move into the frame's seat beside the
   // traffic lights; the occupant reuses the shell's injected actions, and
   // the AppFrame mounts the seat only while the column is fully hidden.
   ctx.slots.inject('shell.leading', () => ctx.slots.register({

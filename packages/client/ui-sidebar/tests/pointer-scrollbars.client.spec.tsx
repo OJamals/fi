@@ -44,6 +44,7 @@ function mountColumn(): { column: HTMLElement; quiet: () => boolean } {
       usePanelInfo={usePanelInfo} selectPanel={() => {}} usePanels={selector => selector([])} useShortcuts={selector => selector([])}
       useResource={useResource} useWorkspaces={neverHook}
       startSession={vi.fn()} toggleSidebar={vi.fn()} t={t}
+      goBack={vi.fn()} goForward={vi.fn()} useNavigation={select => select({ canGoBack: false, canGoForward: false })}
       renderSlot={((_key: string, owner: SidebarSectionOwnerProps) =>
         <div data-testid="region" data-wide={owner.wide} />) as SidebarRootComponentProps['renderSlot']}
     />,

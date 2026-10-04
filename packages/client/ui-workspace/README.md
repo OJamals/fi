@@ -73,6 +73,8 @@ Grouped and flat Session rows show a clock mark when the Session has active sche
 
 Navigation and startup restoration obtain the selected Session's projections from its `follow`; neither issues a separate projection refresh for that Session or its parent.
 
+`ctx.uiWorkspace.goBack()` and `goForward()` revisit committed Session and global-panel selections, including direct-parent subagent addresses. `navigation` exposes their availability. Repeated selection adds no entry; a new visit discards the forward branch. Archived Sessions and removed panels are skipped. History is local to the open client and does not persist across reloads. Revisiting a view replaces only its main-view reference and cancels pending navigation without stopping running work.
+
 New Session tries to acquire the first eligible blank in catalog order; startup restoration tries the saved blank. If that writer is held, navigation creates a new Session without trying other blanks. Other acquisition failures abort the request: an explicit New Session or hero Workspace pick shows the failure as a transient notice quoting the Host's code and message (for example a preset that fails to mount) or, for a failure that is not a Host refusal, that failure's own message; a request a later navigation or owner disposal superseded raises no notice, and startup restoration reports only to the console. Released blanks retain their slash-command state when reused. Later navigation cancels a pending startup selection.
 
 Once both Workspace and Session startup baselines are ready, an empty installation calls `workspaces.initializeDefault` and creates or reuses its blank Session. The composer becomes editable when that Session is selected; no message is submitted automatically. Later navigation or owner disposal prevents startup from selecting its result. Ineligible first use leaves the folder picker available without an error. Default Workspace creation failure shows a transient notice directing the user to Choose workspace, and is not retried until the next startup. Session creation failures use the ordinary restoration error handling. The registered Workspace remains available if Session creation or later submission fails.
@@ -225,4 +227,4 @@ None.
 
 </details>
 
-**Runtime invariant:** No companion is published. This is a pure-consumer plugin that registers presentational components into two host-declared slots and registers its locale dictionaries; its inject face consists of stateless RPC wrappers plus a create-and-open call. It emits no Cordis events and owns no cross-plugin mutable state.
+**Runtime invariant:** No companion is published. This consumer plugin owns the main-view reference and ephemeral navigation history; it emits no Cordis events. Service tests exercise reference replacement, cancellation, and visited-view sequencing.

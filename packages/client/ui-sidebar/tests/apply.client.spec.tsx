@@ -33,7 +33,10 @@ async function bench(declare = true) {
   if (ctx === undefined) throw new Error('the sidebar fixture owner did not activate')
   await ctx.plugin(SlotRegistry).await()
   const layout = { toggleSidebar: vi.fn(), selectPanel: vi.fn() }
-  const uiWorkspace = { startSession: vi.fn() }
+  const uiWorkspace = {
+    startSession: vi.fn(), goBack: vi.fn(), goForward: vi.fn(),
+    navigation: createSnapshotStore({ canGoBack: false, canGoForward: false }),
+  }
   ctx.provide('shortcuts', { catalog: createSnapshotStore([]) } as never)
   ctx.provide('layout', layout)
   ctx.provide('uiWorkspace', uiWorkspace as never)
@@ -80,7 +83,12 @@ describe('ui-sidebar apply', () => {
     expect(leading[0]!.locale).toBe('sidebar')
     expect(leading[0]!.inject).toBe(b.slots.entries('sidebar')[0]!.inject)
     const injected = (b.slots.entries('sidebar')[0]!.inject as () => SidebarRootInjected)()
-    expect(Object.keys(injected)).toEqual(['startSession', 'toggleSidebar', 'selectPanel', 'hooks'])
+    expect(Object.keys(injected)).toEqual(['startSession', 'toggleSidebar', 'goBack', 'goForward', 'selectPanel', 'hooks'])
+    injected.goBack()
+    injected.goForward()
+    expect(b.uiWorkspace.goBack).toHaveBeenCalledOnce()
+    expect(b.uiWorkspace.goForward).toHaveBeenCalledOnce()
+    expect(injected.hooks.navigation).toBe(b.uiWorkspace.navigation)
     expect(injected.hooks.panels.getSnapshot()).toEqual([])
     expect(b.slots.entries('main')).toEqual([])
     // Both arms delegate to the Workspace UI's shared New Session action.

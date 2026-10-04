@@ -85,14 +85,42 @@
   display: none;
 }
 
+:global(html[data-windows-titlebar]) {
+  --dsh-windows-menu-start: 120px;
+}
+
 :global(html[data-windows-titlebar]:has([data-sidebar-collapsed='true'])) {
-  --dsh-windows-menu-start: 84px;
+  --dsh-windows-menu-start: 156px;
+}
+
+.navigationControls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.collapsed .navigationControls {
+  flex-direction: column;
+}
+
+:global([data-windows-titlebar]) .navigationControls {
+  position: fixed;
+  top: calc((var(--dsh-windows-titlebar-height) - 28px) / 2);
+  left: 12px;
+  z-index: 30;
+  flex-direction: row;
+  -webkit-app-region: no-drag;
+}
+
+:global([data-windows-titlebar]) .navigationControls .toggle {
+  position: static;
 }
 
 :global([data-windows-titlebar]) .collapsed .newSession {
   position: fixed;
   top: calc((var(--dsh-windows-titlebar-height) - 28px) / 2);
-  left: 48px;
+  left: 120px;
   margin: 0;
   padding: 0;
   border: none;
@@ -184,6 +212,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  gap: 8px;
   height: 52px;
   box-sizing: border-box;
   margin: -6px calc(-1 * var(--dsh-sidebar-inline-padding)) 0;
@@ -233,7 +262,7 @@
 }
 
 .collapsed .logoRow {
-  height: 36px;
+  height: 108px;
   padding: 0;
   margin-bottom: 12px;
   justify-content: flex-start;

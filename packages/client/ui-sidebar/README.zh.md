@@ -39,17 +39,19 @@ dsh Web 客户端的侧边栏让用户识别当前构建、启动新会话、将
 
 ### 折叠行为
 
+返回与前进按钮位于侧栏开关旁，标签随语言切换，历史端点处按钮禁用；两者使用 [Workspace 导航服务](../ui-workspace/README.zh.md#understand-the-implementation)。收起的 Web 控制栏纵向排列三个控件；macOS 侧栏隐藏后，三个控件移入头部，排在新建会话之前。
+
 侧栏及会话头部的开关从命令目录读取当前有效快捷键，用于悬停、键盘聚焦提示和 `aria-keyshortcuts`。未绑定的命令只显示操作名称。
 
 侧栏收起时，顶部展开按钮承载可选、不可交互的 `sidebar.toggle.badge` slot。占用方提供状态和提示内容，不增加操作，也不改变按钮的导航行为。
 
 实时收起时，展开内容在当前宽度淡出，上方控件共用同一段透明度渐变，并向左平移进入 56px 轨道，由布局的栏滑动结束整段动画。页面初始即为收起状态时会静态渲染轨道；减少动态效果模式会禁用两段过渡。固定在底部的 `sidebar.settings` 控件共用相同的透明度渐变时序，但不发生横向位移。
 
-在 Windows Electron 中，`html[data-windows-titlebar]` 将两种状态下的侧栏开关固定在顶栏左上角，仅在展开态与新建会话按钮左边缘对齐。展开态品牌位于顶栏下方、新建会话按钮上方，按钮上方额外留出 8px。收起后，品牌和侧栏内容隐藏，新建会话按钮排在侧栏开关与 Desktop 菜单之间。侧栏在收起态将根元素的 `--dsh-windows-menu-start` 设为 84px；Desktop preload 使用它将菜单放在新建会话之后，展开态默认为 48px。顶栏图标按钮采用 28px 圆形控件中的居中 16px 图标，并从窗口拖拽区域中排除。侧栏开关与新建会话的悬停提示在顶栏下方展开，Desktop 菜单文字不会盖住它们；占用 `sidebar.toggle.badge` 的控件自行决定气泡展开方向。
+在 Windows Electron 中，`html[data-windows-titlebar]` 将侧栏开关、返回和前进固定在顶栏左上角。展开态品牌位于顶栏下方、新建会话按钮上方，该按钮上方额外留出 8px。收起后品牌和侧栏内容隐藏，新建会话排在前进之后。侧栏将 `--dsh-windows-menu-start` 设为展开态 120px、收起态 156px，使 Desktop 菜单避开这些控件。顶栏控件从窗口拖拽区域中排除，提示在菜单下方展开。占用 `sidebar.toggle.badge` 的控件自行选择提示方向。
 
 ### macOS 桌面
 
-在 `html[data-platform='darwin']`（仅由桌面 preload 设置）下，展开的侧边栏列顶部有一条 52px 的顶部条：避开 hiddenInset 红绿灯并承载收起按钮；顶部条与其下的 logo 行各自打上 `data-window-drag`，于是每行自己的盒子就是窗口的拖拽区（唯一的 darwin drag 规则由 ui-web base.css 声明），因此品牌 wordmark 在 macOS 上不再是 New Session 快捷入口——专用的 New Session 按钮保留该操作；收起时整列隐藏而非保留轨道。本包向框架的 `shell.leading` 窗口 chrome 座（ui-layout）注册 `HeaderLeadingControls`——打开侧边栏与 New Session 两个控件，由框架仅在列隐藏时挂载于红绿灯旁，覆盖所有主面板。设计依据与窗口集成约定见 [macOS 隐藏标题栏 Agent Note](../../../.agents/notes/implemented/feature/2026-09-13-macos-hidden-titlebar-vibrancy.zh.md)。
+在 `html[data-platform='darwin']`（仅由桌面 preload 设置）下，展开的侧栏顶部有一条 52px 的顶部条，避开 hiddenInset 红绿灯并承载侧栏与历史控件。顶部条和 logo 行标记 `data-window-drag`；ui-web base.css 让各行盒子可拖拽，按钮仍可点击。品牌是拖拽区，专用新建会话按钮负责该操作。收起时整列隐藏；此时 `HeaderLeadingControls` 占据框架的 `shell.leading` 座，在红绿灯旁覆盖所有主面板，依次显示侧栏、返回、前进和新建会话控件。见 [macOS 隐藏标题栏 Agent Note](../../../.agents/notes/implemented/feature/2026-09-13-macos-hidden-titlebar-vibrancy.zh.md)。
 
 ### 滚动条
 

@@ -13,27 +13,65 @@ exports[`sidebar shell snapshots > renders Windows caption controls in expanded 
       class="logoRow"
       data-window-drag="true"
     >
-      <button
-        aria-label="Open sidebar"
-        class="iconButton toggle"
-        type="button"
+      <div
+        class="navigationControls"
       >
-        <svg
-          aria-hidden="true"
-          class="panelIcon"
-          data-content="88020f34"
-          fill="none"
-          height="16"
-          stroke-width="1"
-          viewBox="0 0 16 16"
-          width="16"
-          xmlns="http://www.w3.org/2000/svg"
-        />
-        <div
-          data-slot="sidebar.toggle.badge"
-          style="display: contents;"
-        />
-      </button>
+        <button
+          aria-label="Open sidebar"
+          class="iconButton toggle"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            class="panelIcon"
+            data-content="88020f34"
+            fill="none"
+            height="16"
+            stroke-width="1"
+            viewBox="0 0 16 16"
+            width="16"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+          <div
+            data-slot="sidebar.toggle.badge"
+            style="display: contents;"
+          />
+        </button>
+        <button
+          aria-label="Back"
+          class="button"
+          disabled=""
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            data-content="599d85c9"
+            fill="none"
+            height="16"
+            stroke-width="1"
+            viewBox="0 0 16 16"
+            width="16"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+        </button>
+        <button
+          aria-label="Forward"
+          class="button"
+          disabled=""
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            data-content="199019d7"
+            fill="none"
+            height="16"
+            stroke-width="1"
+            viewBox="0 0 16 16"
+            width="16"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+        </button>
+      </div>
     </div>
     <button
       aria-label="New session"
@@ -155,23 +193,61 @@ exports[`sidebar shell snapshots > renders Windows caption controls in expanded 
           </span>
         </span>
       </button>
-      <button
-        aria-label="Collapse sidebar"
-        class="iconButton toggle"
-        type="button"
+      <div
+        class="navigationControls"
       >
-        <svg
-          aria-hidden="true"
-          class="panelIcon"
-          data-content="88020f34"
-          fill="none"
-          height="16"
-          stroke-width="1"
-          viewBox="0 0 16 16"
-          width="16"
-          xmlns="http://www.w3.org/2000/svg"
-        />
-      </button>
+        <button
+          aria-label="Collapse sidebar"
+          class="iconButton toggle"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            class="panelIcon"
+            data-content="88020f34"
+            fill="none"
+            height="16"
+            stroke-width="1"
+            viewBox="0 0 16 16"
+            width="16"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+        </button>
+        <button
+          aria-label="Back"
+          class="button"
+          disabled=""
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            data-content="599d85c9"
+            fill="none"
+            height="16"
+            stroke-width="1"
+            viewBox="0 0 16 16"
+            width="16"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+        </button>
+        <button
+          aria-label="Forward"
+          class="button"
+          disabled=""
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            data-content="199019d7"
+            fill="none"
+            height="16"
+            stroke-width="1"
+            viewBox="0 0 16 16"
+            width="16"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+        </button>
+      </div>
     </div>
     <button
       aria-label="New session"
@@ -247,45 +323,83 @@ exports[`sidebar shell snapshots > renders the collapsed rail after the crossfad
       class="logoRow"
       data-window-drag="true"
     >
-      <button
-        aria-label="Open sidebar"
-        class="iconButton toggle"
-        type="button"
+      <div
+        class="navigationControls"
       >
-        <span
-          aria-hidden="true"
-          class="railMark"
+        <button
+          aria-label="Open sidebar"
+          class="iconButton toggle"
+          type="button"
         >
-          <div
-            data-slot="sidebar.brand.mark"
-            style="display: contents;"
+          <span
+            aria-hidden="true"
+            class="railMark"
           >
-            <svg
-              aria-hidden="true"
-              data-content="965fe321"
-              fill="none"
-              height="17.6580310880829"
-              viewBox="0 0 23.16 17.04"
-              width="24"
-            />
-          </div>
-        </span>
-        <svg
-          aria-hidden="true"
-          class="panelIcon"
-          data-content="88020f34"
-          fill="none"
-          height="18"
-          stroke-width="1"
-          viewBox="0 0 16 16"
-          width="18"
-          xmlns="http://www.w3.org/2000/svg"
-        />
-        <div
-          data-slot="sidebar.toggle.badge"
-          style="display: contents;"
-        />
-      </button>
+            <div
+              data-slot="sidebar.brand.mark"
+              style="display: contents;"
+            >
+              <svg
+                aria-hidden="true"
+                data-content="965fe321"
+                fill="none"
+                height="17.6580310880829"
+                viewBox="0 0 23.16 17.04"
+                width="24"
+              />
+            </div>
+          </span>
+          <svg
+            aria-hidden="true"
+            class="panelIcon"
+            data-content="88020f34"
+            fill="none"
+            height="18"
+            stroke-width="1"
+            viewBox="0 0 16 16"
+            width="18"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+          <div
+            data-slot="sidebar.toggle.badge"
+            style="display: contents;"
+          />
+        </button>
+        <button
+          aria-label="Back"
+          class="button"
+          disabled=""
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            data-content="599d85c9"
+            fill="none"
+            height="16"
+            stroke-width="1"
+            viewBox="0 0 16 16"
+            width="16"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+        </button>
+        <button
+          aria-label="Forward"
+          class="button"
+          disabled=""
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            data-content="199019d7"
+            fill="none"
+            height="16"
+            stroke-width="1"
+            viewBox="0 0 16 16"
+            width="16"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+        </button>
+      </div>
     </div>
     <button
       aria-label="New session"
@@ -407,23 +521,61 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
           </span>
         </span>
       </button>
-      <button
-        aria-label="Collapse sidebar"
-        class="iconButton toggle"
-        type="button"
+      <div
+        class="navigationControls"
       >
-        <svg
-          aria-hidden="true"
-          class="panelIcon"
-          data-content="88020f34"
-          fill="none"
-          height="16"
-          stroke-width="1"
-          viewBox="0 0 16 16"
-          width="16"
-          xmlns="http://www.w3.org/2000/svg"
-        />
-      </button>
+        <button
+          aria-label="Collapse sidebar"
+          class="iconButton toggle"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            class="panelIcon"
+            data-content="88020f34"
+            fill="none"
+            height="16"
+            stroke-width="1"
+            viewBox="0 0 16 16"
+            width="16"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+        </button>
+        <button
+          aria-label="Back"
+          class="button"
+          disabled=""
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            data-content="599d85c9"
+            fill="none"
+            height="16"
+            stroke-width="1"
+            viewBox="0 0 16 16"
+            width="16"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+        </button>
+        <button
+          aria-label="Forward"
+          class="button"
+          disabled=""
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            data-content="199019d7"
+            fill="none"
+            height="16"
+            stroke-width="1"
+            viewBox="0 0 16 16"
+            width="16"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+        </button>
+      </div>
     </div>
     <button
       aria-label="New session"
@@ -550,23 +702,61 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
           </span>
         </span>
       </button>
-      <button
-        aria-label="收起侧边栏"
-        class="iconButton toggle"
-        type="button"
+      <div
+        class="navigationControls"
       >
-        <svg
-          aria-hidden="true"
-          class="panelIcon"
-          data-content="88020f34"
-          fill="none"
-          height="16"
-          stroke-width="1"
-          viewBox="0 0 16 16"
-          width="16"
-          xmlns="http://www.w3.org/2000/svg"
-        />
-      </button>
+        <button
+          aria-label="收起侧边栏"
+          class="iconButton toggle"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            class="panelIcon"
+            data-content="88020f34"
+            fill="none"
+            height="16"
+            stroke-width="1"
+            viewBox="0 0 16 16"
+            width="16"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+        </button>
+        <button
+          aria-label="返回"
+          class="button"
+          disabled=""
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            data-content="599d85c9"
+            fill="none"
+            height="16"
+            stroke-width="1"
+            viewBox="0 0 16 16"
+            width="16"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+        </button>
+        <button
+          aria-label="前进"
+          class="button"
+          disabled=""
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            data-content="199019d7"
+            fill="none"
+            height="16"
+            stroke-width="1"
+            viewBox="0 0 16 16"
+            width="16"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+        </button>
+      </div>
     </div>
     <button
       aria-label="新建会话"

@@ -1,5 +1,6 @@
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { Context } from '@deepseek-ai/cordis'
+import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import type {
   SessionListState, SessionReference, SessionSummary,
@@ -7,7 +8,7 @@ import type {
 import type { WorkspaceId, WorkspaceSnapshot, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
-import type { StoredEntry } from '@deepseek-ai/dsh-client-ui-slots'
+import type { PropsRenderSlots, StoredEntry } from '@deepseek-ai/dsh-client-ui-slots'
 import { RemoteError, TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { apply, inject } from '@deepseek-ai/dsh-client-ui-workspace/client'
@@ -61,8 +62,9 @@ async function bench() {
     title: 'new', sessionIds: [], createdAt: '0', updatedAt: '0',
   }))
   const rename = vi.fn(async () => ({}))
-  const selectPanel = vi.fn()
-  ctx.provide('layout', { selectPanel, beginNavigation: () => new AbortController().signal })
+  const panelInfo = createSnapshotStore<{ activePanelId: MainPanelId | null }>({ activePanelId: null })
+  const selectPanel = vi.fn((activePanelId: MainPanelId | null) => { panelInfo.set({ activePanelId }) })
+  ctx.provide('layout', { selectPanel, panelInfo, beginNavigation: () => new AbortController().signal })
   const search = vi.fn(async () => ({
     ok: true as const,
     value: { items: [{ sessionId: 'session' as never, snippet: 'match' }], hasMore: false },
@@ -178,6 +180,25 @@ function viewInstance(slots: SlotRegistry) {
 const settled = (): Promise<void> => new Promise((resolve) => { setTimeout(resolve, 0) })
 
 describe('ui-workspace apply', () => {
+  it('keeps keyed main panels in visited-view history and skips removed registrations', async () => {
+    const b = await bench()
+    onTestFinished(() => b.ctx.fiber.dispose())
+    b.slots.register({ name: 'root', children: { main: { kind: 'keyed', scope: 'root' } } },
+      ({ renderSlot }: PropsRenderSlots<'main'>) => renderSlot('main', {}, { entryKey: 'plugins' }))
+    const panel = 'plugins' as MainPanelId
+    const remove = b.slots.register({ name: 'main', key: panel }, () => null)
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    b.ctx.uiWorkspace.openSession(sid('first'))
+    b.selectPanel(panel)
+    b.ctx.uiWorkspace.openSession(sid('second'))
+    b.ctx.uiWorkspace.goBack()
+    expect(b.selectPanel).toHaveBeenLastCalledWith(panel)
+    b.ctx.uiWorkspace.goForward()
+    remove()
+    b.ctx.uiWorkspace.goBack()
+    expect(b.selectPanel).toHaveBeenLastCalledWith(null)
+    expect(b.retain).toHaveBeenLastCalledWith(sid('first'), { source: 'mainView' })
+  })
   it('keeps the host Loader entry inert', () => {
     expect(hostApply).not.toThrow()
   })

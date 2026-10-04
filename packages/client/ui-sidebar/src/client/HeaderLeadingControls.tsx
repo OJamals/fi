@@ -7,6 +7,7 @@ import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-cli
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { SidebarRootInjected } from './contract/slots.ts'
 import css from './HeaderLeadingControls.module.css'
+import { NavigationButtons } from './NavigationButtons.tsx'
 
 /** Full props of the shell.leading occupant. */
 export type HeaderLeadingControlsProps =
@@ -15,15 +16,18 @@ export type HeaderLeadingControlsProps =
   & PropsLocale<'sidebar'>
 
 /**
- * Sidebar-open and New Session controls in the frame's window-chrome seat.
- * On macOS desktop a collapsed sidebar hides entirely (no rail), taking both
+ * Sidebar-open, visited-view, and New Session controls in the frame's seat.
+ * On macOS desktop a collapsed sidebar hides entirely (no rail), taking these
  * controls off screen; this occupant puts them back beside the traffic
  * lights. The frame mounts the seat only in that state and owns its
  * placement, so the occupant renders unconditionally.
  * @param props - Injected sidebar actions plus the sidebar locale seat.
- * @returns the two window-chrome controls.
+ * @returns the window-chrome controls.
  */
-export function HeaderLeadingControls({ toggleSidebar, startSession, useShortcuts, t }: HeaderLeadingControlsProps) {
+export function HeaderLeadingControls({
+  toggleSidebar, startSession, goBack, goForward, useNavigation, useShortcuts, t,
+}: HeaderLeadingControlsProps) {
+  const navigation = useNavigation(snapshot => snapshot)
   const shortcut = useShortcuts(rows => rows.find(row => row.id === 'sidebar.left.toggle'))
   const newShortcut = useShortcuts(rows => rows.find(row => row.id === 'session.new'))
   return (
@@ -39,6 +43,7 @@ export function HeaderLeadingControls({ toggleSidebar, startSession, useShortcut
           <IconPanelLeftOutlineRegular size={16} />
         </button>
       </Tooltip>
+      <NavigationButtons {...navigation} goBack={goBack} goForward={goForward} t={t} />
       <Tooltip label={t('session.new.label')} shortcutKeys={newShortcut?.keys} delayMs={500}>
         <button
           type="button"

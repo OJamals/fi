@@ -26,6 +26,7 @@ import type {
   SidebarPanelMetadata, SidebarRootComponentProps, SidebarRootInjected, SidebarSectionOwnerProps,
 } from './contract/slots.ts'
 import css from './SidebarRoot.module.css'
+import { NavigationButtons } from './NavigationButtons.tsx'
 
 /** Wide-content unmount delay; matches the 150ms wide-content fade-out. */
 const COLLAPSE_SETTLE_MS = 150
@@ -90,14 +91,18 @@ export function SidebarRoot({
   width,
   startSession,
   toggleSidebar,
+  goBack,
+  goForward,
   selectPanel,
   usePanels,
+  useNavigation,
   useShortcuts,
   usePanelInfo,
   t,
   renderSlot,
 }: SidebarRootComponentProps) {
   const panels = usePanels(snapshot => snapshot)
+  const navigation = useNavigation(snapshot => snapshot)
   const shortcut = useShortcuts(rows => rows.find(row => row.id === 'sidebar.left.toggle'))
   const newShortcut = useShortcuts(rows => rows.find(row => row.id === 'session.new'))
   const toggleLabel = collapsed ? t('toggle.open') : t('toggle.collapse')
@@ -199,6 +204,8 @@ export function SidebarRoot({
   return (
     <div
       ref={column}
+      aria-hidden={darwinDesktop && collapsed ? true : undefined}
+      {...(darwinDesktop && collapsed ? { inert: '' } : {})}
       className={clsx(
         css.root, !wide && css.collapsed, !wide && everWide.current && css.railIn,
         collapsed && wide && css.fading, !pointerInside && css.quietBars,
@@ -212,7 +219,9 @@ export function SidebarRoot({
     >
       {/* macOS hiddenInset titlebar: the strip shares the row with the
           traffic lights and keeps the toggle at the sidebar's top-right. */}
-      {darwinDesktop && <div className={css.topStrip} data-window-drag>{toggle}</div>}
+      {darwinDesktop && <div className={css.topStrip} data-window-drag>
+        {toggle}<NavigationButtons {...navigation} goBack={goBack} goForward={goForward} t={t} />
+      </div>}
       <div className={css.logoRow} data-window-drag>
         {/* Expanded, the brand doubles as a New Session shortcut — except on
             macOS, where it stays part of the logo row's window-drag surface
@@ -252,7 +261,9 @@ export function SidebarRoot({
               </button>
             )
         })()}
-        {!darwinDesktop && toggle}
+        {!darwinDesktop && <div className={css.navigationControls}>
+          {toggle}<NavigationButtons {...navigation} goBack={goBack} goForward={goForward} t={t} />
+        </div>}
       </div>
 
       {/* The label fades before the hover/focus shortcut, including on translucent backgrounds. */}

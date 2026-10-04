@@ -269,6 +269,7 @@ class FakeDirectoryPicker {
 }
 
 interface BenchOptions {
+  readonly panels?: ReadonlySet<MainPanelId>
   readonly configureWorkspaces?: (workspaces: FakeWorkspaces) => void
   readonly workspaces?: WorkspaceSnapshot
   readonly sessions?: SessionListState
@@ -278,11 +279,12 @@ interface BenchOptions {
 function bench(options: BenchOptions = {}) {
   const ctx = new Context()
   contexts.push(ctx)
+  const panelInfo = createSnapshotStore<{ activePanelId: MainPanelId | null }>({ activePanelId: null })
   const layout = new LayoutController({
-    selectPanel: vi.fn(), retainMainPanels: vi.fn(),
+    selectPanel: vi.fn((id) => { panelInfo.set({ activePanelId: id }) }), retainMainPanels: vi.fn(),
     setSidebar: vi.fn(), toggleSidebar: vi.fn(), setViewportWidth: vi.fn(),
     setRightbar: vi.fn(), openRightbar: vi.fn(), closeRightbar: vi.fn(),
-  }, () => true, createSnapshotStore({ activePanelId: null }))
+  }, () => true, panelInfo)
   const selectPanel = vi.spyOn(layout, 'selectPanel')
   ctx.provide('layout', layout)
   ctx.effect(() => () => { layout.dispose() })
@@ -300,11 +302,92 @@ function bench(options: BenchOptions = {}) {
     sessions,
     view.actions,
     notify,
+    id => options.panels?.has(id) ?? true,
   )
   return { ctx, directoryPicker, sessions, uiWorkspace, workspaces, layout, selectPanel, view, notify }
 }
 
 describe('UiWorkspaceService', () => {
+  it('revisits Sessions and panels, ignores repeated selection, and discards the forward branch on a new visit', () => {
+    const b = bench()
+    const panel = 'plugins' as MainPanelId
+    b.uiWorkspace.openSession(sid('first'))
+    expect(b.uiWorkspace.navigation.getSnapshot()).toEqual({ canGoBack: false, canGoForward: false })
+    b.layout.selectPanel(panel)
+    b.layout.selectPanel(panel)
+    b.uiWorkspace.openSession(sid('second'))
+    b.uiWorkspace.goBack()
+    expect(b.layout.panelInfo.getSnapshot().activePanelId).toBe(panel)
+    expect(b.sessions.retain).toHaveBeenLastCalledWith(sid('first'), { source: 'mainView' })
+    expect(b.uiWorkspace.navigation.getSnapshot()).toEqual({ canGoBack: true, canGoForward: true })
+    b.uiWorkspace.goBack()
+    expect(b.layout.panelInfo.getSnapshot().activePanelId).toBeNull()
+    expect(b.uiWorkspace.navigation.getSnapshot()).toEqual({ canGoBack: false, canGoForward: true })
+    b.uiWorkspace.goBack()
+    b.uiWorkspace.goForward()
+    expect(b.layout.panelInfo.getSnapshot().activePanelId).toBe(panel)
+    b.uiWorkspace.openSession(sid('third'))
+    expect(b.uiWorkspace.navigation.getSnapshot()).toEqual({ canGoBack: true, canGoForward: false })
+    b.uiWorkspace.goForward()
+    expect(b.sessions.retain).toHaveBeenLastCalledWith(sid('third'), { source: 'mainView' })
+    expect(b.sessions.retained.slice(0, -1).every(item => item.release.mock.calls.length === 1)).toBe(true)
+  })
+
+  it('revisits delegated Sessions with their durable parent address', () => {
+    const b = bench()
+    const child: SubagentAddress = { parentSessionId: sid('parent'), childSessionId: sid('child'), mode: 'continuable' }
+    b.uiWorkspace.openSession(child)
+    b.uiWorkspace.openSession(sid('other'))
+    b.uiWorkspace.goBack()
+    expect(b.sessions.retain).toHaveBeenLastCalledWith(child, { source: 'mainView' })
+  })
+
+  it('keeps the current view and forward branch when retaining a history target fails', () => {
+    const b = bench()
+    b.uiWorkspace.openSession(sid('first'))
+    b.uiWorkspace.openSession(sid('second'))
+    b.uiWorkspace.openSession(sid('third'))
+    b.uiWorkspace.goBack()
+    b.sessions.retain.mockImplementationOnce(() => { throw new Error('unavailable') })
+    expect(() => { b.uiWorkspace.goBack() }).toThrow('unavailable')
+    expect(b.sessions.retained.at(-1)?.release).not.toHaveBeenCalled()
+    expect(b.uiWorkspace.navigation.getSnapshot()).toEqual({ canGoBack: true, canGoForward: true })
+    b.uiWorkspace.goForward()
+    expect(b.sessions.retain).toHaveBeenLastCalledWith(sid('third'), { source: 'mainView' })
+  })
+
+  it('skips archived Sessions and unregistered panels', () => {
+    const panel = 'plugins' as MainPanelId
+    const panels = new Set([panel])
+    const b = bench({ panels })
+    b.uiWorkspace.openSession(sid('first'))
+    b.layout.selectPanel(panel)
+    b.uiWorkspace.openSession(sid('archived'))
+    b.uiWorkspace.openSession(sid('last'))
+    panels.delete(panel)
+    b.workspaces.list.set(workspaceState([], [sid('archived')]))
+    b.uiWorkspace.goBack()
+    expect(b.sessions.retain).toHaveBeenLastCalledWith(sid('first'), { source: 'mainView' })
+    expect(b.layout.panelInfo.getSnapshot().activePanelId).toBeNull()
+    expect(b.uiWorkspace.navigation.getSnapshot()).toEqual({ canGoBack: false, canGoForward: true })
+  })
+
+  it('cancels pending Workspace navigation when revisiting history', async () => {
+    let finish: ((id: SessionId) => void) | undefined
+    const b = bench({ workspaces: workspaceState([workspace('new')]), configureSessions: (sessions) => {
+      sessions.create.mockImplementation(() => new Promise<SessionId>((resolve) => { finish = resolve }))
+    } })
+    b.uiWorkspace.openSession(sid('first'))
+    b.uiWorkspace.openSession(sid('second'))
+    const pending = b.uiWorkspace.openWorkspace(wid('new'))
+    await setImmediate()
+    b.uiWorkspace.goBack()
+    if (finish === undefined) throw new Error('creation did not start')
+    finish(sid('created'))
+    await pending
+    expect(b.sessions.retain).toHaveBeenLastCalledWith(sid('first'), { source: 'mainView' })
+  })
+
   it('prepares and selects the default Workspace after both startup baselines', async () => {
     const b = bench({ configureWorkspaces: (workspaces) => {
       workspaces.initializeDefault.mockImplementation(async () => {

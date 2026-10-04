@@ -1,0 +1,3 @@
+- button "Open sidebar"
+- button "Back"
+- button "Forward" [disabled]

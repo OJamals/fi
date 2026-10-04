@@ -1,5 +1,6 @@
 /* The frame's leadingSeat (ui-layout AppFrame) owns placement — position,
-   traffic-light clearance, no-drag; this box only lays out the two controls.
+   traffic-light clearance, no-drag; this box lays out the sidebar, history,
+   and New Session controls.
    Same 8px rhythm as the conversation header's trailing controls
    (ConversationRoot .headerUtilities/.headerCorner), so both ends of the
    title row read as one control set. */

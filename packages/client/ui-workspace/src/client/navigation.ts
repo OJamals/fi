@@ -10,12 +10,13 @@ import type {
   SessionListState,
 } from '@deepseek-ai/dsh-api-session-controller/client'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SubagentAddress } from '@deepseek-ai/dsh-subagent/client'
 import type {
   IWorkspaces, WorkspaceId, WorkspaceSnapshot, WorkspaceView,
 } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { RowToast } from './contract/slots.ts'
 import { pinOrderAccounts, pinOrderSource } from './pin-order.ts'
 import type { WorkspaceViewStoreActions } from './stores.ts'
@@ -25,8 +26,27 @@ interface MainSelection {
   readonly subagentAddress?: SubagentAddress
 }
 
+/** Availability of the browser's in-memory visited-view history. */
+export interface NavigationInfo {
+  /** A previous Session or global panel is available. */
+  readonly canGoBack: boolean
+  /** A later Session or global panel is available. */
+  readonly canGoForward: boolean
+}
+
+interface NavigationEntry {
+  readonly selection: MainSelection
+  readonly panelId: MainPanelId | null
+}
+
 /** Workspace archive and directory operations consumed by Client UI domains. */
 export interface UiWorkspace {
+  /** Reactive Back/Forward availability; history lasts until this client closes. */
+  readonly navigation: HostObservable<NavigationInfo>
+  /** Return to the previous visited view; does nothing at the beginning. */
+  goBack(): void
+  /** Revisit the next view; does nothing at the end. */
+  goForward(): void
   /**
    * Select a Session and show its Conversation as one UI navigation action.
    * @param target - known Session identity or durable direct-parent subagent address to display.
@@ -125,6 +145,10 @@ export class DirectoryBrowseError extends Error {
 
 /** Implements Workspace archive and directory UI operations. */
 class UiWorkspaceService extends Service implements UiWorkspace {
+  readonly navigation = createSnapshotStore<NavigationInfo>({ canGoBack: false, canGoForward: false })
+  private history: NavigationEntry[] = []
+  private historyIndex = -1
+  private changingView = false
   private readonly connecting = new Map<WorkspaceId, Promise<SessionId>>()
   private readonly lifetime = new AbortController()
   private readonly selection = createSnapshotStore<MainSelection>(
@@ -139,6 +163,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
    * @param sessions - pure Session Controller.
    * @param view - the browser's viewing-store write set (one instance shared with its registration).
    * @param notify - show one notice through the Workspace notice channel.
+   * @param hasPanel - checks whether a global panel is still registered.
    */
   constructor(
     ctx: Context,
@@ -147,11 +172,14 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     private readonly sessions: ISessions,
     private readonly view: Pick<WorkspaceViewStoreActions, 'pinSessionOrder'>,
     private readonly notify: (toast: RowToast) => void,
+    private readonly hasPanel: (id: MainPanelId) => boolean,
   ) {
     super(ctx, 'uiWorkspace')
     ctx.effect(() => {
+      const stopPanels = ctx.layout.panelInfo.subscribe(() => { this.recordNavigation() })
       const stop = this.watchNavigation()
       return () => {
+        stopPanels()
         stop()
         this.lifetime.abort()
         const reference = this.mainReference
@@ -159,6 +187,65 @@ class UiWorkspaceService extends Service implements UiWorkspace {
         reference?.release()
       }
     }, 'ui-workspace: Workspace navigation policy')
+  }
+
+  goBack(): void { this.visitHistory(-1) }
+
+  goForward(): void { this.visitHistory(1) }
+
+  private visitHistory(direction: -1 | 1): void {
+    this.pruneHistory()
+    const index = this.historyIndex + direction
+    const entry = this.history[index]
+    if (entry === undefined) return
+    this.changingView = true
+    try {
+      const target = entry.selection.subagentAddress ?? entry.selection.sessionId
+      if (target === undefined) this.clearMain()
+      else this.replaceMain(target, this.lifetime.signal, 'preserve')
+      this.ctx.layout.selectPanel(entry.panelId)
+      this.historyIndex = index
+    } finally {
+      this.changingView = false
+      this.updateNavigation()
+    }
+  }
+
+  private recordNavigation(): void {
+    if (this.changingView || this.lifetime.signal.aborted) return
+    const entry = { selection: this.selection.getSnapshot(), panelId: this.ctx.layout.panelInfo.getSnapshot().activePanelId }
+    const current = this.history[this.historyIndex]
+    const address = entry.selection.subagentAddress
+    const previousAddress = current?.selection.subagentAddress
+    if (current?.panelId === entry.panelId && current.selection.sessionId === entry.selection.sessionId
+      && previousAddress?.parentSessionId === address?.parentSessionId
+      && previousAddress?.childSessionId === address?.childSessionId
+      && previousAddress?.mode === address?.mode) return
+    this.history.splice(this.historyIndex + 1)
+    this.history.push(entry)
+    this.historyIndex = this.history.length - 1
+    this.pruneHistory()
+  }
+
+  private pruneHistory(): void {
+    const archived = this.workspaces.list.getSnapshot().archivedSessionIds
+    const current = this.history[this.historyIndex]
+    this.history = this.history.filter((entry) => {
+      const sessionId = entry.selection.sessionId
+      return entry === current || ((sessionId === undefined || !archived.includes(sessionId))
+        && (entry.panelId === null || this.hasPanel(entry.panelId)))
+    })
+    this.historyIndex = current === undefined ? -1 : this.history.indexOf(current)
+    this.updateNavigation()
+  }
+
+  private updateNavigation(): void {
+    const canGoBack = this.historyIndex > 0
+    const canGoForward = this.historyIndex >= 0 && this.historyIndex < this.history.length - 1
+    const previous = this.navigation.getSnapshot()
+    if (previous.canGoBack !== canGoBack || previous.canGoForward !== canGoForward) {
+      this.navigation.set({ canGoBack, canGoForward })
+    }
   }
 
   async connectWorkspace(workspaceId: WorkspaceId): Promise<SessionId> {
@@ -286,6 +373,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     const reconcile = (): void => {
       if (this.lifetime.signal.aborted) return
       if (this.clearArchivedCurrent()) return
+      this.pruneHistory()
       if (initial !== 'waiting') return
       const workspace = this.workspaces.list.getSnapshot()
       const sessions = this.sessions.list.getSnapshot()
@@ -296,7 +384,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       }
       initial = 'connecting'
       void this.restoreSelection(workspace, sessions).then(
-        () => { initial = 'done' },
+        () => { initial = 'done'; this.recordNavigation() },
         (reason: unknown) => {
           if (this.lifetime.signal.aborted) return
           initial = 'waiting'
@@ -370,6 +458,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     this.selection.set({})
     previous?.release()
     this.ctx.layout.selectPanel(null)
+    this.recordNavigation()
   }
 
   private replaceMain(
@@ -402,6 +491,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     this.mainReference = reference
     previous?.release()
     if (panel === 'reveal') this.ctx.layout.selectPanel(null)
+    this.recordNavigation()
   }
 
 }
