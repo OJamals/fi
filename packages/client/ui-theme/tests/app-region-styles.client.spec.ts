@@ -113,16 +113,6 @@ const CHROME_ROWS: readonly ChromeRow[] = [
     markup: 'client/ui-settings-account/src/client/PlatformOverlay.tsx',
     height: ['height', '48px'],
   },
-  {
-    file: WINDOWS_CAPTION,
-    selector: '.desktopSidebarTitlebar',
-    markup: 'client/ui-layout/src/client/AppFrame.tsx',
-  },
-  {
-    file: WINDOWS_CAPTION,
-    selector: '.desktopMainTitlebar',
-    markup: 'client/ui-layout/src/client/AppFrame.tsx',
-  },
 ]
 
 /**

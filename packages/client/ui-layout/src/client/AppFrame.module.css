@@ -16,10 +16,6 @@
   transition: grid-template-columns var(--ds-transition-duration-slow) var(--ds-ease-in-out);
 }
 
-.frame[data-desktop-frame] {
-  grid-template-rows: 32px minmax(0, 1fr);
-}
-
 /* Dragging writes widths at pointer cadence; easing them would detach the
    column from the handle. */
 .frame[data-dragging] {
@@ -85,32 +81,6 @@
 .rightbarCol {
   grid-column: 3;
   grid-row: 1;
-}
-
-.frame[data-desktop-frame] .sidebarCol,
-.frame[data-desktop-frame] .centerCol,
-.frame[data-desktop-frame] .rightbarCol {
-  grid-row: 2;
-}
-
-/* Drag lives on the `data-window-drag` mark (ui-web base.css's one darwin
-   rule), not a declaration here, so this band stays the app-region gate's
-   two owners: the Windows caption row and that shared rule. */
-.desktopSidebarTitlebar,
-.desktopMainTitlebar {
-  grid-row: 1;
-  user-select: none;
-}
-
-.desktopSidebarTitlebar {
-  grid-column: 1;
-  background: var(--dsw-specific-sidebar-fill);
-  border-right: 0.5px solid var(--dsw-alias-border-l3);
-}
-
-.desktopMainTitlebar {
-  grid-column: 2 / -1;
-  background: var(--dsw-alias-bg-base);
 }
 
 /* macOS desktop: the frame goes transparent so window vibrancy reaches the
@@ -280,10 +250,6 @@
    and while dragging. */
 .frame[data-animating] .handle {
   transition: left var(--ds-transition-duration-slow) var(--ds-ease-in-out);
-}
-
-.frame[data-desktop-frame] .handle {
-  top: 32px;
 }
 
 .frame[data-dragging] .handle {

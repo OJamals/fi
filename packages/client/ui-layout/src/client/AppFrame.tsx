@@ -247,7 +247,6 @@ export function AppFrame({
     <MainPanel usePanelInfo={usePanelInfo} renderSlot={renderSlot} />
   ), [usePanelInfo, renderSlot])
   const overlays = useMemo(() => renderSlot('shell.overlay', {}), [renderSlot])
-  const desktopFrame = 'dshDesktop' in window
   // Window-chrome seat over the main panels' top-left corner: only a fully
   // hidden sidebar column on macOS desktop leaves window chrome without a
   // home — the Windows zero-width collapse keeps its controls in the caption
@@ -271,7 +270,6 @@ export function AppFrame({
       data-rightbar-fullscreen={layoutInfo.rightbarFullscreen || undefined}
       data-rightbar-instant={layoutInfo.rightbarInstant || undefined}
       data-dragging={dragging || undefined}
-      data-desktop-frame={desktopFrame || undefined}
       data-animating={animating > 0 || undefined}
     >
       <DocumentTitle
@@ -279,12 +277,6 @@ export function AppFrame({
         useSessions={useSessions}
         usePanelInfo={usePanelInfo}
       />
-      {desktopFrame && (
-        <>
-          <div className={css.desktopSidebarTitlebar} data-desktop-titlebar="sidebar" data-window-drag aria-hidden="true" />
-          <div className={css.desktopMainTitlebar} data-desktop-titlebar="main" data-window-drag aria-hidden="true" />
-        </>
-      )}
       <div className={css.sidebarCol}>
         {sidebar}
       </div>

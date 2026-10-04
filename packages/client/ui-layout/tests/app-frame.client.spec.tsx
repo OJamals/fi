@@ -187,7 +187,7 @@ afterEach(() => {
 })
 
 describe('AppFrame', () => {
-  it('adds the desktop drag strip as a continuation of the sidebar and main surfaces', () => {
+  it.each(['darwin', 'win32', 'linux'])('keeps %s desktop columns in the main frame without an extra title row', (platform) => {
     const descriptor = Object.getOwnPropertyDescriptor(window, 'dshDesktop')
     restoreProperties.push(() => {
       if (descriptor === undefined) Reflect.deleteProperty(window, 'dshDesktop')
@@ -197,12 +197,13 @@ describe('AppFrame', () => {
       configurable: true,
       value: { protocolVersion: 1 },
     })
+    document.documentElement.dataset.platform = platform
     const { frame } = mountFrame()
-    expect(frame.getAttribute('data-desktop-frame')).toBe('true')
-    expect(frame.querySelector('[data-desktop-titlebar="sidebar"]')).not.toBeNull()
-    expect(frame.querySelector('[data-desktop-titlebar="main"]')).not.toBeNull()
-    expect(frameCss).toMatch(/grid-template-rows:\s*32px minmax\(0, 1fr\)/)
-    expect(frameCss).toMatch(/\.frame\[data-desktop-frame\] \.handle\s*\{[^}]*top:\s*32px;/s)
+    expect(frame.querySelector('[data-desktop-titlebar]')).toBeNull()
+    expect(frame.hasAttribute('data-desktop-frame')).toBe(false)
+    expect(frameCss).toMatch(/\.frame\s*\{[^}]*grid-template-rows:\s*100%;/s)
+    expect(frameCss).not.toContain('grid-row: 2')
+    expect(frameCss).toMatch(/\.handle\s*\{[^}]*top:\s*0;/s)
   })
 
   it('omits the desktop drag strip in the browser client', () => {
