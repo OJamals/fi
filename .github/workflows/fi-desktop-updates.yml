@@ -30,7 +30,6 @@ jobs:
     env:
       FI_RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
       FI_RELEASE_REPOSITORY: ${{ github.repository }}
-      FI_RELEASE_ROOT: ${{ runner.temp }}/fi-release-feeds
     steps:
       - uses: actions/checkout@v6
         with:
@@ -54,6 +53,7 @@ jobs:
       - name: Download published release payloads and metadata
         env:
           GH_TOKEN: ${{ github.token }}
+          FI_RELEASE_ROOT: ${{ runner.temp }}/fi-release-feeds
         run: |
           if ($env:FI_RELEASE_TAG -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$') { throw 'Expected a v<SemVer> release tag' }
           New-Item -ItemType Directory -Path "$env:FI_RELEASE_ROOT/assets" -Force | Out-Null
@@ -64,6 +64,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Release payload download failed' }
 
       - name: Validate payloads and prepare channel metadata
+        env:
+          FI_RELEASE_ROOT: ${{ runner.temp }}/fi-release-feeds
         run: |
           pnpm exec tsx apps/desktop/scripts/prepare-github-release-feeds.ts "$env:FI_RELEASE_ROOT/release.json" "$env:FI_RELEASE_ROOT/assets" "$env:FI_RELEASE_ROOT/feeds"
           if ($LASTEXITCODE -ne 0) { throw 'Update feed validation failed' }
@@ -71,6 +73,7 @@ jobs:
       - name: Publish validated metadata to the same release
         env:
           GH_TOKEN: ${{ github.token }}
+          FI_RELEASE_ROOT: ${{ runner.temp }}/fi-release-feeds
         run: |
           $release = Get-Content "$env:FI_RELEASE_ROOT/release.json" -Raw | ConvertFrom-Json
           $files = @(Get-ChildItem "$env:FI_RELEASE_ROOT/feeds/*.yml" | Where-Object { $_.Name -notin $release.assets.name } | ForEach-Object { $_.FullName })
