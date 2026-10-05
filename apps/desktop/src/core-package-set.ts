@@ -3,7 +3,7 @@
 import { createHash } from 'node:crypto'
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { FI_DESKTOP_BUNDLE } from './desktop-profile.ts'
+import { DESKTOP_PROFILE_BUNDLES } from './desktop-profile.ts'
 
 /** Descriptor copied beside every Desktop profile's local core tarballs. */
 export const DESKTOP_PACKAGE_SET_FILE = 'desktop-packages.json'
@@ -41,7 +41,7 @@ const FILE_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]*\.tgz$/u
 const INTEGRITY_PATTERN = /^sha512-[A-Za-z0-9+/]+={0,2}$/u
 const DSH_PACKAGE = '@deepseek-ai/dsh'
 const RELEASE_PACKAGES: readonly string[] = [DSH_PACKAGE, DESKTOP_HOST_PACKAGE]
-const REQUIRED_PACKAGES = [...RELEASE_PACKAGES, FI_DESKTOP_BUNDLE] as const
+const REQUIRED_PACKAGES = [...RELEASE_PACKAGES, ...DESKTOP_PROFILE_BUNDLES.filter(name => name.startsWith('@fi/'))]
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)

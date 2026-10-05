@@ -224,7 +224,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@fi/llm-opencode` | yes | OpenCode Console subscription authorization and model transport for fi |
 | `@fi/provider-compat` | yes | Canonical provider metadata and subscription-only HTTP and WebSocket transport compatibility for FI |
 | `@fi/tool-image-generation` | yes | Opt-in Codex, Grok, and Antigravity image generation and editing through stored subscription OAuth |
-| `@fi/web-search-preferences` | yes | FI-owned preferred web-search routing over API-key and subscription providers |
+| `@fi/web-search-preferences` | yes | FI-owned preferred web-search routing over free, API-key, and subscription providers |
 | `@fi/web-search-subscription` | yes | Opt-in native web search through Codex, Grok, Antigravity, or Claude subscription OAuth |
 
 ## fs

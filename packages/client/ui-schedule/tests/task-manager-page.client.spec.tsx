@@ -139,6 +139,8 @@ function pinSystemZone(timeZone: string): void {
 // the open clock panel calls to bring the staged value into view.
 /** Device zone the cases pin: a rule without a stored zone seeds its clock in it. */
 const DEVICE_ZONE = 'Asia/Shanghai'
+/** The formatter's implicit zone; pinSystemZone changes only zone discovery. */
+const RUNNER_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone
 /** Elements whose `scrollIntoView` the open pickers called, in call order. */
 const scrolledIntoView: Element[] = []
 const scrollIntoView = vi.fn(function (this: Element) { scrolledIntoView.push(this) })
@@ -153,7 +155,7 @@ beforeEach(() => {
 // runner's own, so a task-zone render is distinguishable from a browser-zone
 // render on any host. The zone is chosen per instant by that offset rather than
 // by name, because two names can hold the same offset at one instant.
-const taskZone = (instant: string): string => zoneDifferingFrom(instant)
+const taskZone = (instant: string): string => zoneDifferingFrom(instant, RUNNER_ZONE)
 
 function mount(
   initial: Partial<CatalogSnapshot<ScheduleCatalogEntry>> = {},
@@ -1563,11 +1565,12 @@ describe('Task manager details', () => {
   })
 
   it('states the next run in the device zone even when the rule stores another one', () => {
-    const stored: ScheduleCatalogEntry = { ...daily, timeZone: 'America/New_York' }
+    const zone = taskZone(daily.scheduledAt)
+    const stored: ScheduleCatalogEntry = { ...daily, timeZone: zone }
     mount({ records: [stored] })
     const locale = en['time.locale']
     const ruleZone = new Intl.DateTimeFormat(locale, {
-      timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric',
+      timeZone: zone, month: 'short', day: 'numeric', year: 'numeric',
       hour: '2-digit', minute: '2-digit', hour12: false,
     }).format(Date.parse(stored.scheduledAt))
     const device = absoluteNextRun(stored.scheduledAt, en)
@@ -1579,7 +1582,7 @@ describe('Task manager details', () => {
     const detail = screen.getByRole('complementary', { name: en['detail.label'] })
     expect(nextRunTime(detail)?.textContent).toBe(device)
     // The rule keeps stating its own zone where the zone belongs.
-    expect(zoneButton().textContent).toContain(displayedZone('America/New_York'))
+    expect(zoneButton().textContent).toContain(displayedZone(zone))
   })
 
   /**
@@ -3354,7 +3357,7 @@ describe('Task detail rule header and run-time card', () => {
     // Precondition: the two zones hold different offsets at this instant, so the
     // task-zone render cannot coincide with the browser-zone render.
     expect(zoneOffsetMinutes(zone, delivery.scheduledAt))
-      .not.toBe(zoneOffsetMinutes(Intl.DateTimeFormat().resolvedOptions().timeZone, delivery.scheduledAt))
+      .not.toBe(zoneOffsetMinutes(RUNNER_ZONE, delivery.scheduledAt))
     const rendered = formatScheduleNextRun(delivery.scheduledAt, en['time.locale'], zone)
     expect(occurrence?.textContent).toBe(rendered)
     expect(rendered).not.toBe(formatScheduleNextRun(delivery.scheduledAt, en['time.locale']))

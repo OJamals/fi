@@ -237,8 +237,8 @@ function assertAdoptable(header: AdoptableHeader, events: Iterable<SessionEvent>
  * @param ctx - plugin context carrying the Session query service.
  * @param agents - the core Agent registry.
  * @param sessionId - exact Session identity to adopt.
- * @param agentOptions - provider/model pair for this run.
- * @param setup - per-Agent scope setup installing the model selection.
+ * @param agentOptions - default provider/model pair when no request header exists.
+ * @param setup - per-Agent setup used when the resumed Session has no request header.
  * @param cwd - working directory resolved in the mounted filesystem.
  * @returns the resumed Agent.
  */
@@ -246,7 +246,7 @@ async function resolveAgent(
   ctx: Context,
   agents: Context['agents'],
   sessionId: SessionId,
-  agentOptions: { provider: string; model: string },
+  agentOptions: { provider?: string; model?: string },
   setup: (agentCtx: Context) => void,
   cwd: string,
 ): Promise<Agent> {
@@ -276,7 +276,29 @@ async function resolveAgent(
   try {
     using observation = await query.observeSession(sessionId)
     assertAdoptable(observation.header, observation.events, sessionId, cwd)
-    const { agent } = await agents.resume({ resumeSessionId: sessionId, agentOptions, setup })
+    const { agent } = await agents.resume({
+      resumeSessionId: sessionId,
+      agentOptions,
+      setup: (agentCtx, resumed) => {
+        const header = resumed.session.requestHeader()
+        if (header === undefined) {
+          if (agentOptions.provider === undefined || agentOptions.model === undefined) {
+            throw new Error('Configure a model in FI Settings before running a headless task.')
+          }
+          setup(agentCtx)
+          return
+        }
+        const { provider, model, reasoningEffort } = header.config
+        installModelSelection(agentCtx, {
+          current: {
+            provider, model,
+            ...reasoningEffort === undefined || header.adapterDefaults?.reasoningEffort === true
+              ? {} : { reasoningEffort },
+          },
+          assembled: undefined,
+        })
+      },
+    })
     // The observation is a snapshot: another writer may have appended a preset
     // selection before this process took the write lease. Re-check the log
     // resume actually attached, now that no other process can append.
@@ -329,8 +351,11 @@ async function run(ctx: Context, config: Config, io: HeadlessIo): Promise<void> 
     throw new Error('a task is required, for example: dsh --profile headless "run the tests"')
   }
 
-  const selection = defaultModel.currentSelection()
-  const agentOptions = { provider: selection.provider, model: selection.model }
+  const selection = await defaultModel.resolveSelection()
+  if (selection === undefined && config.sessionId === undefined) {
+    throw new Error('Configure a model in FI Settings before running a headless task.')
+  }
+  const agentOptions = selection === undefined ? {} : { provider: selection.provider, model: selection.model }
   // This bundle composes no preset roster, so the model-facing rows sit in the
   // host plane and the agent reads them from the global layer. A deployment
   // that DOES configure one has to join it here first

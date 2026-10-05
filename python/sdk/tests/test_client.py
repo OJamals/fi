@@ -13,7 +13,8 @@ from deepseek_harness import DeepSeekHarness, HarnessClient, HarnessConfig, Noti
 from deepseek_harness.errors import JsonRpcError
 
 
-def test_high_level_sdk_runs_turn_and_preserves_auto_review_errors(tmp_path: Path) -> None:
+@pytest.mark.parametrize("explicit_model", [False, True])
+def test_high_level_sdk_runs_turn_and_preserves_auto_review_errors(tmp_path: Path, explicit_model: bool) -> None:
     script = tmp_path / "fake_runtime.py"
     env_dump = tmp_path / "env.json"
     init_dump = tmp_path / "init.json"
@@ -164,7 +165,7 @@ for line in sys.stdin:
     )
 
     with DeepSeekHarness(
-        model="deepseek-v4-flash",
+        **({"provider": "deepseek-official", "model": "deepseek-v4-flash"} if explicit_model else {}),
         reasoning_effort="max",
         max_tokens=4096,
         cwd=str(tmp_path),
@@ -210,8 +211,7 @@ for line in sys.stdin:
     assert dumped_env["DSH_CORDIS_CONFIG"] is None
     assert json.loads(init_dump.read_text()) == {
         "cwd": str(tmp_path),
-        "provider": "deepseek-official",
-        "model": "deepseek-v4-flash",
+        **({"provider": "deepseek-official", "model": "deepseek-v4-flash"} if explicit_model else {}),
         "reasoningEffort": "max",
         "maxTokens": 4096,
     }

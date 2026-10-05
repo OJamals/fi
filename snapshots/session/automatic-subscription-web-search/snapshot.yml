@@ -1,0 +1,13 @@
+version: 1
+scenario: automatic-subscription-web-search
+profile: headless
+composition: automatic-subscription-web-search
+recording: authored
+environment:
+  DSH_SNAPSHOT_AUTOMATIC_DEFAULT: '1'
+header:
+  class: automatic-subscription-web-search
+  pin: true
+  toolSchemasSource: text-turn
+replay:
+  override: true

@@ -87,7 +87,7 @@ function harness(options: HarnessOptions = {}): SessionHarness {
       },
     },
     agentDefaultModel: {
-      currentSelection() {
+      async resolveSelection() {
         calls.push('default-model')
         return { provider: 'default-provider', model: 'default-model', reasoningEffort: 'high' }
       },

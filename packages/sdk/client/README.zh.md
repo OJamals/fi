@@ -25,6 +25,8 @@ kind: "package-library"
 <a id="use-this-package"></a>
 ## 使用本包
 
+`DeepSeekConfig.provider` 和 `model` 同时可选。两者都省略时解析所选 profile 默认模型，同时提供则指定路由。FI `sdk` profile 优先使用可用订阅设置；`sdk-minimal` 要求显式提供两个字段。未完成设置时，初始化在接受提示前被拒绝。
+
 当 TypeScript 代码需要从另一进程驱动完整 Harness 运行时、且你能显式指名运行时可执行文件时，使用本客户端。常用路径极简：用启动规格构造 `DeepSeekHarness`，运行提示词，然后关闭它，使子进程总能被回收。
 
 ### 用 DeepSeekHarness 运行 agent 轮次

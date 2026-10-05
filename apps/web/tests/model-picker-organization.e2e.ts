@@ -90,7 +90,7 @@ describe('web e2e: organized model picker and compact subscription control', () 
     scaffold = await launchWebScaffold({
       extraOverlayPath: OVERLAY,
       extraInstallAnchors: [AUTHORIZATION_BUNDLE],
-      profile: { packages: [], bundles: ['@fi/authorization-bundle'] },
+      profile: { packages: [], bundles: ['@fi/runtime-bundle', '@fi/authorization-bundle'] },
     })
     // Settings are scoped to the scaffold profile and are the same production
     // catalog seam the Models page owns; no user configuration is touched.
@@ -154,7 +154,7 @@ describe('web e2e: organized model picker and compact subscription control', () 
     await expect.poll(() => antigravity.getAttribute('aria-expanded'), { timeout: 5_000 }).toBe('false')
     expect(await subscriptions.getByRole('menuitem', { name: 'Antigravity', exact: true }).count()).toBe(0)
     expect(await picker.getByRole('menuitem').allTextContents())
-      .toEqual(['DeepSeek', 'OpenRouter', 'Kilo', 'anthropic', 'antigravity'])
+      .toEqual(['DeepSeek', 'Kilo', 'OpenRouter', 'anthropic', 'antigravity'])
     expect(await picker.getByRole('menuitemradio', { name: 'OpenRouter Model 000', exact: true }).count()).toBe(0)
     expect(await picker.getByRole('menuitemradio', { name: SELECTED_LABEL, exact: true }).count()).toBe(0)
     await page.screenshot({ path: join(artifactDir, 'model-picker-light-desktop.png'), fullPage: true })
@@ -303,7 +303,7 @@ describe('web e2e: organized model picker and compact subscription control', () 
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
 
-  it('keeps all four subscription providers selectable in one compact control at desktop and narrow dark widths', async () => {
+  it('keeps all five subscription providers selectable in one compact control at desktop and narrow dark widths', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-compact-subscription-control'))
     const authorizationBegin = vi.spyOn(scaffold.ctx.fiAuthorizationController, 'begin')
     await page.setViewportSize({ width: 1440, height: 900 })
@@ -317,8 +317,8 @@ describe('web e2e: organized model picker and compact subscription control', () 
     const state = subscription.getByText('Not signed in', { exact: true })
     const action = subscription.getByRole('button').first()
     await expect.poll(() => provider.count(), { timeout: 10_000 }).toBe(1)
-    expect(await provider.locator('option').count()).toBe(4)
-    for (let index = 0; index < 4; index++) {
+    expect(await provider.locator('option').count()).toBe(5)
+    for (let index = 0; index < 5; index++) {
       await provider.selectOption({ index })
       // Choosing a row exposes its operation without initiating it.
       await expect.poll(() => subscription.getByRole('button').count(), { timeout: 5_000 }).toBe(1)

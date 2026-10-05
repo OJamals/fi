@@ -147,12 +147,39 @@ describe('preferred-search live settings', () => {
     expect(JSON.stringify(ctx.settings.describe({ redactSecrets: true }))).not.toContain('pplx-secret')
   })
 
-  it('fails loud when subscription search is selected without its explicit provider and model', async () => {
+  it('defaults to automatic free search without credentials for a non-subscription chat', async () => {
+    const ctx = await harness()
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => new Response('<rss><channel><item><link>https://source.test/free</link><title>Free result</title></item></channel></rss>'))
+    vi.stubGlobal('fetch', fetch)
+    const resolve = vi.spyOn(ctx.credentials, 'resolve')
+    await expect(ctx.web.search({ query: 'free search' })).resolves.toMatchObject({
+      sources: [{ url: 'https://source.test/free', title: 'Free result' }],
+    })
+    expect(requestUrl(fetch.mock.calls[0]![0])).toBe('https://www.bing.com/search?q=free+search&format=rss')
+    expect(resolve).not.toHaveBeenCalled()
+    expect(ctx.settings.describe({ redactSecrets: true }).find(section => section.ns === preferredPlugin.WEB_SEARCH_PREFERENCES_SETTINGS_NAMESPACE)?.value).toMatchObject({ provider: 'auto' })
+  })
+
+  it('asks for a linked account when subscription search is selected explicitly', async () => {
     const ctx = await harness({ provider: 'subscription-native' })
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
 
     await expect(ctx.web.search({ query: 'missing subscription configuration' })).rejects.toMatchObject({
-      code: 'WEB_PROVIDER_CONFIGURED_UNAVAILABLE',
+      code: 'WEB_PROVIDER_SUBSCRIPTION_OAUTH_REQUIRED',
     })
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('rejects insecure free-search endpoints and invalid response limits', async () => {
+    const ctx = await harness({ provider: 'bing-rss', bingBaseURL: 'http://unsafe.test' })
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
+    await expect(ctx.web.search({ query: 'endpoint validation' })).rejects.toMatchObject({ code: 'WEB_PROVIDER_CONFIGURED_UNAVAILABLE' })
+    await expect(ctx.settings.update(preferredPlugin.WEB_SEARCH_PREFERENCES_SETTINGS_NAMESPACE, {
+      bingMaxResponseBytes: 0,
+    })).rejects.toThrow()
+    expect(fetch).not.toHaveBeenCalled()
   })
 
   it('fails before dispatch when the selected direct provider has no stored credential', async () => {

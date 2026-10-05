@@ -1,0 +1,12 @@
+version: 1
+scenario: automatic-free-web-search
+profile: headless
+composition: automatic-free-web-search
+recording: authored
+header:
+  class: automatic-free-web-search
+  pin: true
+  systemPromptSource: text-turn
+  toolSchemasSource: text-turn
+replay:
+  override: true

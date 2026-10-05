@@ -1,35 +1,14 @@
-# FI subscription plugins compose after the upstream base bundle, which already
-# mounts `@deepseek-ai/dsh-authorization` under its own `authorization` row; a
-# second insert here would collide with that row rather than share it.
-# Cordis injection owns service ordering; this layer does not create credentials or routes.
-- id: web
-  config:
-    searchProvider: fi-preferred-search
-    fetchProvider: http
-
-- id: web-search-deepseek
-  disabled: true
-
-# fi is model-universal: first-run and Models-page onboarding are fi's own
-# (client-ui-model-signin's subscription cards, ui-settings-models'
-# ModelSetupDialog), never a DeepSeek-account sign-in or DeepSeek-API-key
-# gate. Disabling these rows here (rather than in the upstream base/web-app
-# bundles) turns off DeepSeek's own account UI/Remote and its account-based
-# LLM route; DeepSeek stays available as an ordinary provider through
-# `llm-deepseek`'s API key on the Models page.
+# GUI additions; compose after base, web-app, and @fi/runtime-bundle.
 - id: ui-settings-account
   disabled: true
 
 - id: account-controller
   disabled: true
 
-- id: deepseek-account
-  disabled: true
-
-- id: llm-deepseek-account
-  disabled: true
-
 - id: product-analytics
+  disabled: true
+
+- id: desktop-product-telemetry
   disabled: true
 
 - insert:
@@ -38,18 +17,6 @@
 
     - id: fi-ui-model-signin
       name: '@fi/client-ui-model-signin'
-
-    - id: fi-antigravity
-      name: '@fi/llm-antigravity'
-
-    - id: fi-opencode
-      name: '@fi/llm-opencode'
-
-    - id: fi-provider-compat
-      name: '@fi/provider-compat'
-
-    - id: fi-web-search-preferences
-      name: '@fi/web-search-preferences'
 
     - id: fi-ui-web-search-preferences
       name: '@fi/client-ui-web-search-preferences'

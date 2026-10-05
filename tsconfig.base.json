@@ -338,6 +338,7 @@
       // FI extensions resolve through source during static checks and tests.
       "@fi/api-authorization-controller": ["./packages/fi/api-authorization-controller/src/index.ts"],
       "@fi/authorization-bundle": ["./packages/fi/authorization-bundle/src/index.ts"],
+      "@fi/runtime-bundle": ["./packages/fi/runtime-bundle/src/index.ts"],
       "@fi/client-ui-model-signin": ["./packages/fi/client-ui-model-signin/src/index.ts"],
       "@fi/client-ui-model-signin/client": ["./packages/fi/client-ui-model-signin/src/client/index.ts"],
       "@fi/client-ui-web-search-preferences": ["./packages/fi/client-ui-web-search-preferences/src/index.ts"],

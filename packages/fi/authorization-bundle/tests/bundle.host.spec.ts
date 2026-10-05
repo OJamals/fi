@@ -25,46 +25,18 @@ function own(name: string): string {
 
 describe('the bundle layer', () => {
   it('mounts the Remote owner and browser cards beside the base-owned authorization seam', () => {
-    expect(parse(own('cordis.patch.yml'))).toEqual([
-      {
-        id: 'web',
-        config: {
-          searchProvider: 'fi-preferred-search',
-          fetchProvider: 'http',
-        },
-      },
-      { id: 'web-search-deepseek', disabled: true },
+    const inserted: unknown = expect.arrayContaining([
+      { id: 'fi-authorization-controller', name: '@fi/api-authorization-controller' },
+      { id: 'fi-ui-model-signin', name: '@fi/client-ui-model-signin' },
+      { id: 'fi-ui-web-search-preferences', name: '@fi/client-ui-web-search-preferences' },
+    ])
+    expect(parse(own('cordis.patch.yml'))).toEqual(expect.arrayContaining([
       { id: 'ui-settings-account', disabled: true },
       { id: 'account-controller', disabled: true },
-      { id: 'deepseek-account', disabled: true },
-      { id: 'llm-deepseek-account', disabled: true },
       { id: 'product-analytics', disabled: true },
-      {
-        insert: [
-          { id: 'fi-authorization-controller', name: '@fi/api-authorization-controller' },
-          { id: 'fi-ui-model-signin', name: '@fi/client-ui-model-signin' },
-          { id: 'fi-antigravity', name: '@fi/llm-antigravity' },
-          { id: 'fi-provider-compat', name: '@fi/provider-compat' },
-          { id: 'fi-web-search-preferences', name: '@fi/web-search-preferences' },
-          {
-            id: 'fi-ui-web-search-preferences',
-            name: '@fi/client-ui-web-search-preferences',
-          },
-          {
-            id: 'fi-image-generation',
-            name: '@fi/tool-image-generation',
-            config: {
-              defaultProvider: 'codex',
-              targets: {
-                codex: { imageModel: 'gpt-image-2' },
-                grok: { imageModel: 'grok-imagine-image-2.0' },
-                antigravity: { imageModel: 'gemini-3.1-flash-image' },
-              },
-            },
-          },
-        ],
-      },
-    ])
+      { id: 'desktop-product-telemetry', disabled: true },
+      { insert: inserted },
+    ]))
   })
 
   it('depends on every package its rows name, so a real install resolves them', () => {
@@ -91,7 +63,8 @@ describe('the bundle layer', () => {
       { logLevel: 'silent' },
     ) as PatchLayer
     const layer = parse(own('cordis.patch.yml')) as PatchLayer
-    const effective = composeEntries([base, webApp, layer])
+    const runtime = parse(readFileSync(new URL('../../runtime-bundle/cordis.patch.yml', import.meta.url), 'utf8'), { logLevel: 'silent' }) as PatchLayer
+    const effective = composeEntries([base, webApp, runtime, layer])
 
     expect(effective.filter(entry => entry.name === '@deepseek-ai/dsh-authorization'))
       .toEqual([{ id: 'authorization', name: '@deepseek-ai/dsh-authorization' }])
@@ -99,7 +72,7 @@ describe('the bundle layer', () => {
       readFileSync(new URL('../../../../apps/web/tests/model-picker-organization.overlay.yml', import.meta.url), 'utf8'),
       { logLevel: 'silent' },
     ) as PatchLayer
-    expect(composeEntries([base, webApp, layer, browserOverlay])
+    expect(composeEntries([base, webApp, runtime, layer, browserOverlay])
       .filter(entry => entry.name === '@deepseek-ai/dsh-authorization'))
       .toEqual([{ id: 'authorization', name: '@deepseek-ai/dsh-authorization' }])
 
@@ -107,6 +80,12 @@ describe('the bundle layer', () => {
       searchProvider: 'fi-preferred-search',
       fetchProvider: 'http',
     })
+    expect(effective.find(entry => entry.id === 'agent-default-model')?.config)
+      .toMatchObject({ selectionPolicy: 'available' })
+    expect(effective.find(entry => entry.id === 'session-telemetry-otel')?.config)
+      .toMatchObject({ mode: 'DISABLED' })
+    expect(effective.find(entry => entry.id === 'deepseek-account')).toMatchObject({ disabled: true })
+    expect(effective.find(entry => entry.id === 'llm-deepseek-account')).toMatchObject({ disabled: true })
     expect(effective.find(entry => entry.id === 'web-search-deepseek')).toMatchObject({
       name: '@deepseek-ai/dsh-web-search-deepseek',
       disabled: true,
@@ -130,7 +109,8 @@ describe('the bundle layer', () => {
       { logLevel: 'silent' },
     ) as PatchLayer
     const layer = parse(own('cordis.patch.yml')) as PatchLayer
-    const effective = composeEntries([base, webApp, layer])
+    const runtime = parse(readFileSync(new URL('../../runtime-bundle/cordis.patch.yml', import.meta.url), 'utf8'), { logLevel: 'silent' }) as PatchLayer
+    const effective = composeEntries([base, webApp, runtime, layer])
 
     for (const id of ['ui-settings-account', 'account-controller', 'deepseek-account', 'llm-deepseek-account']) {
       expect(effective.find(entry => entry.id === id)).toMatchObject({ disabled: true })

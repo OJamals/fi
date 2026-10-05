@@ -19,6 +19,7 @@ import {
 } from '@deepseek-ai/dsh-web-search-perplexity'
 import type { Volatile } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+import { BING_DEFAULT_BASE_URL, BING_DEFAULT_MAX_RESPONSE_BYTES } from './bing-provider.ts'
 import {
   DEFAULT_MAX_OUTPUT_TOKENS,
   DEFAULT_MAX_RESPONSE_BYTES,
@@ -43,6 +44,8 @@ const BRAVE_API_KEY_ENV = 'BRAVE_SEARCH_API_KEY'
 
 /** Upstream and FI-owned provider ids selectable by the preference router. */
 export type PreferredSearchProviderId =
+  | 'auto'
+  | 'bing-rss'
   | 'deepseek-official'
   | 'exa'
   | 'perplexity'
@@ -56,6 +59,10 @@ export type PreferredSearchProviderId =
 export interface PreferredSearchSettings {
   /** Provider used by the next search operation. */
   provider: PreferredSearchProviderId
+  /** Keyless Bing RSS endpoint base. */
+  bingBaseURL?: string
+  /** Maximum Bing RSS response bytes before parsing. */
+  bingMaxResponseBytes?: number
   /** Legacy literal DeepSeek key; retained only for upstream settings compatibility. */
   apiKey?: string
   /** DeepSeek credential reference, preserving the upstream field name. */
@@ -108,9 +115,9 @@ export interface PreferredSearchSettings {
   braveApiKeyEnv?: string
   /** Brave Search endpoint base. */
   braveBaseURL?: string
-  /** Stored-grant family used by subscription-native search. */
+  /** Stored-grant family; omission follows the current chat or another linked subscription. */
   subscriptionProvider?: SubscriptionSearchFamily
-  /** Exact model id for subscription-native search. */
+  /** Exact subscription model id; omission follows the chat or the selected provider catalog. */
   subscriptionModel?: string
   /** Subscription operation timeout. */
   subscriptionTimeoutMs?: number
@@ -124,6 +131,8 @@ export interface PreferredSearchSettings {
 
 const PreferredConfig = z.object({
   provider: z.union([
+    'auto',
+    'bing-rss',
     DEEPSEEK_PROVIDER_ID,
     EXA_PROVIDER_ID,
     PERPLEXITY_PROVIDER_ID,
@@ -132,7 +141,9 @@ const PreferredConfig = z.object({
     'serper',
     'brave',
     'subscription-native',
-  ] as const).default(DEEPSEEK_PROVIDER_ID).volatile(),
+  ] as const).default('auto').volatile(),
+  bingBaseURL: z.string().default(BING_DEFAULT_BASE_URL).volatile(),
+  bingMaxResponseBytes: z.number().step(1).min(1).default(BING_DEFAULT_MAX_RESPONSE_BYTES).volatile(),
   exaApiKeyEnv: z.string().role('credential-ref').default(EXA_API_KEY_ENV).volatile(),
   exaBaseURL: z.string().default(EXA_DEFAULT_BASE_URL).volatile(),
   exaSearchType: z.union(['auto', 'keyword', 'neural'] as const).default(EXA_DEFAULT_SEARCH_TYPE).volatile(),
@@ -164,6 +175,10 @@ const PreferredConfig = z.object({
 export interface Config {
   /** Provider used by the next search operation. */
   provider: Volatile<PreferredSearchProviderId>
+  /** Keyless Bing RSS endpoint base. */
+  bingBaseURL: Volatile<string | undefined>
+  /** Maximum Bing RSS response bytes before parsing. */
+  bingMaxResponseBytes: Volatile<number | undefined>
   /** Legacy literal DeepSeek key; retained only for upstream settings compatibility. */
   apiKey: Volatile<string | undefined>
   /** DeepSeek credential reference, preserving the upstream field name. */
@@ -216,9 +231,9 @@ export interface Config {
   braveApiKeyEnv: Volatile<string | undefined>
   /** Brave Search endpoint base. */
   braveBaseURL: Volatile<string | undefined>
-  /** Stored-grant family used by subscription-native search. */
+  /** Stored-grant family; omission follows the current chat or another linked subscription. */
   subscriptionProvider: Volatile<SubscriptionSearchFamily | undefined>
-  /** Exact model id for subscription-native search. */
+  /** Exact subscription model id; omission follows the chat or the selected provider catalog. */
   subscriptionModel: Volatile<string | undefined>
   /** Subscription operation timeout. */
   subscriptionTimeoutMs: Volatile<number | undefined>
@@ -253,6 +268,8 @@ export function snapshotConfig(config: Config): PreferredSearchSettings {
     if (value !== undefined) snapshot[key] = value
   }
   set('apiKey', config.apiKey.get())
+  set('bingBaseURL', config.bingBaseURL.get())
+  set('bingMaxResponseBytes', config.bingMaxResponseBytes.get())
   set('apiKeyEnv', config.apiKeyEnv.get())
   set('baseURL', config.baseURL.get())
   set('model', config.model.get())

@@ -343,10 +343,10 @@ describe('loadProfile', () => {
       .toThrow('profile "custom" does not exist')
     expect(PROFILE_TEMPLATES.web?.bundles).toContain('@deepseek-ai/dsh-base')
     expect(PROFILE_TEMPLATES.acp).toEqual({
-      bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-acp-app'],
+      bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-acp-app', '@fi/runtime-bundle'],
     })
     expect(PROFILE_TEMPLATES.sdk).toEqual({
-      bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-sdk-app'],
+      bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-sdk-app', '@fi/runtime-bundle'],
     })
     expect(PROFILE_TEMPLATES['sdk-minimal']).toEqual({
       bundles: ['@deepseek-ai/dsh-sdk-minimal'],
@@ -372,7 +372,7 @@ describe('loadProfile', () => {
     writeProfileManifest(stock, retiredManifest)
     loadProfile('t', 'headless', anchor, home)
     expect(readProfileManifest('t', stock).dsh?.profile).toEqual({
-      bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-headless'],
+      bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-headless', '@fi/runtime-bundle'],
     })
 
     const customHome = tmp()

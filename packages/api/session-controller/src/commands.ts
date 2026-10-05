@@ -266,7 +266,7 @@ export class SessionCommandController {
     const childId = brandString<SessionId>(`session-${randomUUID()}`)
     const composition = await this.agents.composeAgent(this.agents.presetForObservation(source))
     try {
-      const { provider, model } = this.ctx.agentDefaultModel.currentSelection()
+      const selected = await this.ctx.agentDefaultModel.resolveSelection()
       await this.ctx.agents.create({
         sessionId: childId,
         seed,
@@ -279,7 +279,7 @@ export class SessionCommandController {
             ? {}
             : { agentPreset: composition.agentPreset }),
         },
-        agentOptions: { provider, model },
+        agentOptions: selected === undefined ? {} : { provider: selected.provider, model: selected.model },
         setup: composition.setup,
       })
     } catch (error) {
@@ -328,6 +328,7 @@ export class SessionCommandController {
     }
     const agent = await this.resolveAgent(request.sessionId)
     if (hasPromptRequest(agent, request.requestId)) return { accepted: true }
+    await this.requireModel(this.agents.selectionFor(agent).current)
     const source: MessageSource = {
       kind: 'user',
       rpcId: request.requestId,

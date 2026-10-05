@@ -19,8 +19,8 @@ class DeepSeekHarnessConfig:
     intentionally override or inject variables for a subprocess.
     """
 
-    provider: str = "deepseek-official"
-    model: str = "deepseek-v4-flash"
+    provider: str | None = None
+    model: str | None = None
     reasoning_effort: str | None = None
     max_tokens: int | None = None
     cwd: str | None = None

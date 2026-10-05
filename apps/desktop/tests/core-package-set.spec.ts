@@ -32,6 +32,7 @@ function packageSetProject(): {
   base: DesktopCorePackageRecord
   host: DesktopCorePackageRecord
   authorization: DesktopCorePackageRecord
+  runtime: DesktopCorePackageRecord
 } {
   const root = mkdtempSync(join(tmpdir(), 'dsh-desktop-package-set-'))
   roots.push(root)
@@ -45,15 +46,17 @@ function packageSetProject(): {
   const base = record('@deepseek-ai/dsh-base', 'dsh-base.tgz', baseBody)
   const host = record('@deepseek-ai/dsh-desktop-host', 'dsh-desktop-host.tgz', hostBody)
   const authorization = record('@fi/authorization-bundle', 'fi-authorization-bundle.tgz', authorizationBody, '0.1.0-preview.1')
+  const runtime = record('@fi/runtime-bundle', 'fi-runtime-bundle.tgz', Buffer.from('runtime'), '0.1.0-preview.1')
   writeFileSync(join(packageDir, dsh.file), dshBody)
   writeFileSync(join(packageDir, base.file), baseBody)
   writeFileSync(join(packageDir, host.file), hostBody)
   writeFileSync(join(packageDir, authorization.file), authorizationBody)
+  writeFileSync(join(packageDir, runtime.file), Buffer.from('runtime'))
   writeFileSync(join(root, DESKTOP_PACKAGE_SET_FILE), `${JSON.stringify({
     schemaVersion: 1,
-    packages: [dsh, base, host, authorization],
+    packages: [dsh, base, host, authorization, runtime],
   })}\n`)
-  return { root, dsh, base, host, authorization }
+  return { root, dsh, base, host, authorization, runtime }
 }
 
 afterEach(() => {
@@ -70,6 +73,7 @@ describe('desktop core package set', () => {
       '@deepseek-ai/dsh-base': 'file:./desktop-packages/dsh-base.tgz',
       '@deepseek-ai/dsh-desktop-host': 'file:./desktop-packages/dsh-desktop-host.tgz',
       '@fi/authorization-bundle': 'file:./desktop-packages/fi-authorization-bundle.tgz',
+      '@fi/runtime-bundle': 'file:./desktop-packages/fi-runtime-bundle.tgz',
     })
   })
 
@@ -92,9 +96,12 @@ describe('desktop core package set', () => {
     const dsh = record('@deepseek-ai/dsh', 'dsh.tgz', Buffer.from('dsh'))
     const host = record('@deepseek-ai/dsh-desktop-host', 'host.tgz', Buffer.from('host'))
     expect(() => parseDesktopCorePackageSet({ schemaVersion: 1, packages: [dsh, host] }))
-      .toThrow(/missing @fi\/authorization-bundle/u)
+      .toThrow(/missing @fi\/runtime-bundle/u)
     const authorization = record('@fi/authorization-bundle', 'authorization.tgz', Buffer.from('authorization'), '9.8.7')
-    expect(() => parseDesktopCorePackageSet({ schemaVersion: 1, packages: [dsh, host, authorization] }, '1.2.3'))
+    expect(() => parseDesktopCorePackageSet({ schemaVersion: 1, packages: [dsh, host, authorization] }))
+      .toThrow(/missing @fi\/runtime-bundle/u)
+    const runtime = record('@fi/runtime-bundle', 'runtime.tgz', Buffer.from('runtime'), '9.8.7')
+    expect(() => parseDesktopCorePackageSet({ schemaVersion: 1, packages: [dsh, host, authorization, runtime] }, '1.2.3'))
       .not.toThrow()
   })
 
@@ -102,7 +109,8 @@ describe('desktop core package set', () => {
     const dsh = record('@deepseek-ai/dsh', 'dsh.tgz', Buffer.from('dsh'))
     const host = record('@deepseek-ai/dsh-desktop-host', 'host.tgz', Buffer.from('host'))
     const authorization = record('@fi/authorization-bundle', 'authorization.tgz', Buffer.from('authorization'), '0.1.0')
-    const packageSet = parseDesktopCorePackageSet({ schemaVersion: 1, packages: [dsh, host, authorization] })
+    const runtime = record('@fi/runtime-bundle', 'runtime.tgz', Buffer.from('runtime'), '0.1.0')
+    const packageSet = parseDesktopCorePackageSet({ schemaVersion: 1, packages: [dsh, host, authorization, runtime] })
     expect(() => {
       verifyDesktopCoreLockfile(
         "packages:\n  '@deepseek-ai/dsh@file:desktop-packages/dsh.tgz':\n    resolution: {}\n",

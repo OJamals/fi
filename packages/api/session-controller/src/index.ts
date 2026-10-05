@@ -285,12 +285,16 @@ export class SessionController extends TypertRemoteService {
   }
 
   /**
-   * Select the first available account model after login when no provider API key is configured.
-   * @returns after saving the first available model or retaining the existing default.
+   * Resolve the deployment default, or select a requested account route after login.
+   * @param provider - Optional account route; an API key preserves the existing default.
+   * @returns after resolving the default or saving the requested account selection.
    */
   @Remote
-  async initializeDefaultModel(): Promise<void> {
-    const provider = 'deepseek-account'
+  async initializeDefaultModel(provider?: string): Promise<void> {
+    if (provider === undefined) {
+      await this.ctx.agentDefaultModel.resolveSelection()
+      return
+    }
     if (await hasProviderApiKey(this.ctx)) return
     const catalog = await buildModelCatalog(this.ctx)
     const model = catalog.groups.find(group => group.id === provider)?.models[0]

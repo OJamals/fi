@@ -29,7 +29,9 @@ Mount this package wherever agents are created without an explicit model route. 
 
 ### Configure the default
 
-The composition requires a provider and model. Consumers read the live references even when no configuration editor is mounted.
+Configure provider and model together, or omit both for an unconfigured default. Consumers read the live references even when no configuration editor is mounted. `selectionPolicy: configured` preserves the configured pair. `selectionPolicy: available` requires LLM, Credentials, and Settings services and resolves a usable explicit choice, then linked subscription grants, then configured API providers. `subscriptionCredentials` maps routes to grant keys; `credentiallessProviders` explicitly permits automatic selection without credentials.
+
+A legacy complete profile override that names only provider/model inherits its profile's resolution policy through ConfigEditor. Explicit `selectionPolicy` fields override that policy; subsequent selection saves retain it.
 
 ```yaml
 - name: '@deepseek-ai/dsh-agent-default-model'
@@ -40,21 +42,21 @@ The composition requires a provider and model. Consumers read the live reference
 
 | Field | Default | Meaning |
 |---|---|---|
-| `provider` | required | Registered provider route for fresh agents |
-| `model` | required | Provider-owned model id for fresh agents |
+| `provider` | omitted | Registered provider route; configure with `model` |
+| `model` | omitted | Provider-owned model id; configure with `provider` |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-agent-default-model) lists every accepted field. `reasoningEffort` is optional; saving a selection without it removes that field from the profile’s complete config override.
 
 ### Read and change the default
 
-`currentSelection()` returns a detached `{ provider, model, reasoningEffort? }` for a newly created agent; `saveSelection()` stores the complete selection for later agents.
+Await `resolveSelection()` before creating a fresh agent. It returns a usable selection or `undefined` when setup is required. `currentSelection()` returns a detached configured or last resolved selection, or `undefined`. `saveSelection()` stores an explicit complete selection for later agents; passing `undefined` clears it while retaining policy configuration. Automatic resolution never writes the profile.
 
 ```text
-const selection = ctx.agentDefaultModel.currentSelection()
+const selection = await ctx.agentDefaultModel.resolveSelection()
 await ctx.agentDefaultModel.saveSelection({ provider, model, reasoningEffort: 'high' })
 ```
 
-Without a configuration editor, `saveSelection()` is a no-op. The service does not validate catalog membership; the consumer opening a model request owns availability diagnostics.
+Without a configuration editor, `saveSelection()` is a no-op. Available resolution skips failed catalogs and unresolved models; configured resolution retains the explicit pair. Consumers diagnose unavailable selections for existing sessions. Configured credentials do not guarantee successful generation.
 
 -----
 
@@ -75,7 +77,7 @@ The service retains its validated Config references and samples them in `current
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | Live default selection and profile-backed writes |
-| — | No invariant companion is published because Config references are the only owned values. |
+| — | No invariant companion is published because the resolved value is derived from configuration and live provider metadata, not an independent observation. |
 
 ### Behavior notes
 

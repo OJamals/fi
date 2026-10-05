@@ -94,6 +94,7 @@ describe('desktop development project', () => {
     expect(manifest.dsh.profile.bundles).toEqual([
       '@deepseek-ai/dsh-base',
       '@deepseek-ai/dsh-web-app',
+      '@fi/runtime-bundle',
       '@fi/authorization-bundle',
     ])
     const descriptor = JSON.parse(readFileSync(join(project, 'desktop-runtime.json'), 'utf8')) as { platform: string; arch: string }

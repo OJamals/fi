@@ -8,7 +8,8 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { resolve } from 'node:path'
 import { brandString } from '@deepseek-ai/dsh-brand'
-import type { Agent, AgentHandle } from '@deepseek-ai/dsh-agent'
+import type { Agent, AgentHandle, ModelSelection } from '@deepseek-ai/dsh-agent'
+import type {} from '@deepseek-ai/dsh-agent-default-model'
 import { admitEncodedImages, type EncodedImageAttachment, type ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import { createUserMessage, ReasoningEffortId, type ContentBlock, type LlmRuntime } from '@deepseek-ai/dsh-llm'
 import { carrierKeyOf, type Scoped } from '@deepseek-ai/dsh-scope'
@@ -74,8 +75,8 @@ function successStatus(reason: string, options: HarnessSdkJsonRpcServerOptions):
  */
 export class HarnessSdkJsonRpcServer {
   private cwd = process.cwd()
-  private provider = 'deepseek-official'
-  private model = 'deepseek-official'
+  private provider = ''
+  private model = ''
   private reasoningEffort: ReturnType<typeof ReasoningEffortId> | undefined
   private maxTokens: number | undefined
   private llmFiber: { dispose(): Promise<void> } | undefined
@@ -144,10 +145,22 @@ export class HarnessSdkJsonRpcServer {
       throw new TypeError('initialize maxTokens must be a positive safe integer')
     }
     const cwd = resolve(params.cwd)
-    const provider = params.provider
-    const model = params.model
+    if ((params.provider === undefined) !== (params.model === undefined)) {
+      throw new TypeError('initialize provider and model must be supplied together')
+    }
+    if ((params.provider !== undefined && (typeof params.provider !== 'string' || params.provider.length === 0))
+      || (params.model !== undefined && (typeof params.model !== 'string' || params.model.length === 0))) {
+      throw new TypeError('initialize provider and model must be non-empty strings')
+    }
+    const selected: ModelSelection | undefined = params.provider === undefined || params.model === undefined
+      ? await this.ctx.get('agentDefaultModel')?.resolveSelection()
+      : { provider: params.provider, model: params.model }
+    if (selected === undefined) {
+      throw new Error('Configure a model in Settings or supply both provider and model to initialize')
+    }
+    const { provider, model } = selected
     const reasoningEffort = params.reasoningEffort === undefined
-      ? undefined
+      ? selected.reasoningEffort
       : ReasoningEffortId(params.reasoningEffort)
     if (!this.hasAdapterFor(provider)) {
       if (provider !== 'deepseek-official') throw new Error(`no adapter registered for provider "${provider}"`)

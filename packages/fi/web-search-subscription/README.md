@@ -72,6 +72,8 @@ The plugin creates one pi-ai model registry over the Harness credential store an
 
 `createSubscriptionSearchProvider(ctx, config)` exposes the same construction without registering a second `subscription-native` id. The FI preferred-search router uses that factory for one snapshotted operation; ordinary direct mounts continue through `apply()`.
 
+`defaultSubscriptionSearchModel(provider)` reads the first model in the bundled Codex, Grok, or Claude catalog without authentication or network access. Antigravity requires a live Harness catalog or an explicit model. Account and model selection belong to the [preferred-search router](../web-search-preferences/README.md).
+
 The Codex, Grok, and Claude credential-bearing fetches reject redirects. Antigravity delegates dispatch and upstream collection to its package-owned transport, which provides redirect rejection, cancellation, response-size limits, and error redaction. This package's response readers enforce the configured byte limit before parsing SSE or JSON. Provider parsers accept only completed native terminals and project citation-bearing provider fields into `WebSearchSource`; they do not invent URLs. Plugin disposal aborts and awaits active requests, while `ctx.web.registerSearchProvider()` owns reversible registration.
 
 | File | Role |

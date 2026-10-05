@@ -37,6 +37,7 @@ export function apply(ctx: Context, config: Config): void {
     { provider: PROVIDER, displayName: 'DeepSeek', settingsNs: ctx.fiber.entry?.options.id ?? name, settingsPath: [] },
   ])
   registerDeepSeekProvider(ctx, PROVIDER, {
+    enabled: () => config.enabled.get(),
     options, providerName: 'DeepSeek',
     resolveAuth: async connection => ({ headers: { 'x-api-key': await resolveApiKey(connection) } }),
     discoverModels: (provider) => {

@@ -8,11 +8,14 @@ import type { Options as ProtocolOptions, DeepSeekConnectionOptions } from '@dee
 
 /** Messages configuration with a per-request API-key reference. */
 export interface Config extends ProtocolConfig {
+  /** Whether the official route is registered; disabling retains its settings for re-adding. */
+  enabled: Volatile<boolean>
   /** Credential reference resolved per request; defaults to DEEPSEEK_API_KEY. */
   apiKeyEnv: Volatile<string>
 }
 export const Config = z.object({
   ...deepSeekConfigFields,
+  enabled: z.boolean().default(true).volatile(),
   apiKeyEnv: z.string().role('credential-ref').default('DEEPSEEK_API_KEY').volatile(),
 })
 /** Plain deployment inputs for the API-key provider. */

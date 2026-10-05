@@ -426,18 +426,27 @@ Owns the default model selection independently of any Host or transport. Each op
 ```ts cordis-catalog
 /**
  * Read the current default model selection.
- * @returns a detached provider, model, and optional reasoning selection.
+ * @returns a detached selection, or undefined when no route is configured.
  */
-currentSelection(): ModelSelection
+currentSelection(): ModelSelection | undefined
+
+/**
+ * Resolve the default before creating an Agent or presenting a model catalog.
+ * Available selection retains a usable saved route, otherwise prefers linked
+ * subscriptions, then configured API providers. Automatic choices are runtime
+ * selections; only explicit saves change the profile configuration.
+ * @returns a usable selection, or undefined when no configured provider has models.
+ */
+resolveSelection(): Promise<ModelSelection | undefined>
 
 /**
  * Save the complete default model selection. A deployment without a configuration
  * editor keeps its composition entry. Saves commit in submission order; a failed
  * save rejects its caller without blocking later saves.
- * @param next - resolved selection accepted by an entry point.
+ * @param next - resolved selection, or undefined to clear an unavailable default.
  * @returns fulfillment after the optional profile write settles.
  */
-async saveSelection(next: ModelSelection): Promise<void>
+async saveSelection(next: ModelSelection | undefined): Promise<void>
 ```
 
 Source: [`packages/core/agent-default-model/src/index.ts`](../../packages/core/agent-default-model/src/index.ts)

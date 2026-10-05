@@ -1,6 +1,6 @@
 {
   "name": "@fi/web-search-preferences",
-  "description": "FI-owned preferred web-search routing over API-key and subscription providers",
+  "description": "FI-owned preferred web-search routing over free, API-key, and subscription providers",
   "version": "0.2.0-rc.2",
   "private": true,
   "type": "module",
@@ -23,7 +23,9 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@deepseek-ai/schemastery": "workspace:~"
+    "@deepseek-ai/schemastery": "workspace:~",
+    "fast-xml-parser": "^5.11.1",
+    "fast-xml-validator": "^1.4.2"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:~",
@@ -31,12 +33,14 @@
     "@deepseek-ai/dsh-credentials": "workspace:*",
     "@deepseek-ai/dsh-credentials-local": "workspace:*",
     "@deepseek-ai/dsh-launch-environment": "workspace:*",
+    "@deepseek-ai/dsh-llm": "workspace:*",
     "@deepseek-ai/dsh-session": "workspace:*",
     "@deepseek-ai/dsh-settings": "workspace:*",
     "@deepseek-ai/dsh-web": "workspace:*",
     "@deepseek-ai/dsh-web-search-deepseek": "workspace:*",
     "@deepseek-ai/dsh-web-search-exa": "workspace:*",
     "@deepseek-ai/dsh-web-search-perplexity": "workspace:*",
+    "@fi/llm-antigravity": "workspace:^",
     "@fi/web-search-subscription": "workspace:^"
   },
   "devDependencies": {
@@ -44,12 +48,14 @@
     "@deepseek-ai/dsh-agent": "workspace:*",
     "@deepseek-ai/dsh-credentials": "workspace:*",
     "@deepseek-ai/dsh-launch-environment": "workspace:*",
+    "@deepseek-ai/dsh-llm": "workspace:*",
     "@deepseek-ai/dsh-session": "workspace:*",
     "@deepseek-ai/dsh-settings": "workspace:*",
     "@deepseek-ai/dsh-web": "workspace:*",
     "@deepseek-ai/dsh-web-search-deepseek": "workspace:*",
     "@deepseek-ai/dsh-web-search-exa": "workspace:*",
     "@deepseek-ai/dsh-web-search-perplexity": "workspace:*",
+    "@fi/llm-antigravity": "workspace:^",
     "@fi/web-search-subscription": "workspace:^"
   }
 }

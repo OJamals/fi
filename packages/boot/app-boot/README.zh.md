@@ -25,6 +25,8 @@ kind: "package-library"
 <a id="use-this-package"></a>
 ## 使用本包
 
+FI 默认 Web、headless、ACP 和 SDK 模板在上游 base/mode bundle 后添加 `@fi/runtime-bundle`；Web 再添加 `@fi/authorization-bundle`。与旧版默认值完全匹配的列表在加载时迁移并保留其他 manifest 字段；自定义列表保持不变。`sdk-minimal` 保持独立的显式路由 profile。
+
 用此包启动应用是一个小而显式的入口：你给它一个配置文件，它运行整个启动过程。本节说明你能做什么、能得到什么；每个结果背后的 helper 调用记录在下方可折叠的实现章节中。
 
 ### 何时使用

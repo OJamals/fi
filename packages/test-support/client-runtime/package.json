@@ -55,6 +55,8 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
+    "@fi/runtime-bundle": "workspace:^",
+    "@fi/authorization-bundle": "workspace:^",
     "@deepseek-ai/cordis": "workspace:~",
     "@deepseek-ai/cordis-plugin-include": "workspace:~",
     "@deepseek-ai/cordis-plugin-loader": "workspace:~",

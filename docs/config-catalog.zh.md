@@ -18,7 +18,7 @@
 
 - `inject`: `agents` · `llm` · `sessionPersistence` · `sessions`
 - `refs`: `Stream` (`@agentclientprotocol/sdk`)
-- `source`: [`packages/acp/acp/src/index.ts:75`](../packages/acp/acp/src/index.ts)
+- `source`: [`packages/acp/acp/src/index.ts:76`](../packages/acp/acp/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: the provider/model selection used for each ACP-created agent. */
@@ -41,17 +41,23 @@ export interface AcpConfig {
 ## `@deepseek-ai/dsh-agent-default-model`
 
 - `refs`: `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/core/agent-default-model/src/index.ts:24`](../packages/core/agent-default-model/src/index.ts)
+- `source`: [`packages/core/agent-default-model/src/index.ts:25`](../packages/core/agent-default-model/src/index.ts)
 
 ```ts config-catalog
 /** Default model selection supplied by plugin configuration. */
 export interface Config {
   /** Registered provider route. */
-  provider: Volatile<string>
+  provider: Volatile<string | undefined>
   /** Provider-owned model id. */
-  model: Volatile<string>
+  model: Volatile<string | undefined>
   /** Adapter-owned reasoning effort; omission follows the provider default. */
   reasoningEffort: Volatile<string | undefined>
+  /** Keep the configured route, or resolve a route with configured credentials. */
+  selectionPolicy: 'configured' | 'available'
+  /** Provider ids mapped to the OAuth credential record keys they consume. */
+  subscriptionCredentials: Record<string, string>
+  /** Providers whose automatic selection does not require a credential. */
+  credentiallessProviders: string[]
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-agent-default-model -->
@@ -1608,6 +1614,8 @@ export type Config = ProtocolConfig
 ```ts config-catalog
 /** Messages configuration with a per-request API-key reference. */
 export interface Config extends ProtocolConfig {
+  /** Whether the official route is registered; disabling retains its settings for re-adding. */
+  enabled: Volatile<boolean>
   /** Credential reference resolved per request; defaults to DEEPSEEK_API_KEY. */
   apiKeyEnv: Volatile<string>
 }
@@ -4587,13 +4595,17 @@ export interface ImageGenerationTarget {
 
 - `inject`: `web`
 - `refs`: [`PerplexityRecency`](../packages/web/web-search-perplexity/src/index.ts) · [`SubscriptionSearchFamily`](../packages/fi/web-search-subscription/src/index.ts) · `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/fi/web-search-preferences/src/types.ts:164`](../packages/fi/web-search-preferences/src/types.ts)
+- `source`: [`packages/fi/web-search-preferences/src/types.ts:175`](../packages/fi/web-search-preferences/src/types.ts)
 
 ```ts config-catalog
 /** Plugin Config: every field is volatile, so the profile-backed settings form edits it live. */
 export interface Config {
   /** Provider used by the next search operation. */
   provider: Volatile<PreferredSearchProviderId>
+  /** Keyless Bing RSS endpoint base. */
+  bingBaseURL: Volatile<string | undefined>
+  /** Maximum Bing RSS response bytes before parsing. */
+  bingMaxResponseBytes: Volatile<number | undefined>
   /** Legacy literal DeepSeek key; retained only for upstream settings compatibility. */
   apiKey: Volatile<string | undefined>
   /** DeepSeek credential reference, preserving the upstream field name. */
@@ -4646,9 +4658,9 @@ export interface Config {
   braveApiKeyEnv: Volatile<string | undefined>
   /** Brave Search endpoint base. */
   braveBaseURL: Volatile<string | undefined>
-  /** Stored-grant family used by subscription-native search. */
+  /** Stored-grant family; omission follows the current chat or another linked subscription. */
   subscriptionProvider: Volatile<SubscriptionSearchFamily | undefined>
-  /** Exact model id for subscription-native search. */
+  /** Exact subscription model id; omission follows the chat or the selected provider catalog. */
   subscriptionModel: Volatile<string | undefined>
   /** Subscription operation timeout. */
   subscriptionTimeoutMs: Volatile<number | undefined>
@@ -4662,6 +4674,8 @@ export interface Config {
 
 /** Upstream and FI-owned provider ids selectable by the preference router. */
 export type PreferredSearchProviderId =
+  | 'auto'
+  | 'bing-rss'
   | 'deepseek-official'
   | 'exa'
   | 'perplexity'
@@ -4906,4 +4920,5 @@ export type SubscriptionSearchFamily = 'codex' | 'grok' | 'antigravity' | 'claud
 | `@deepseek-ai/dsh-util-workspace-path` | — | [`packages/util/workspace-path/src/index.ts`](../packages/util/workspace-path/src/index.ts) |
 | `@deepseek-ai/dsh-win32-process` | — | [`packages/subprocess/win32-process/src/index.ts`](../packages/subprocess/win32-process/src/index.ts) |
 | `@fi/authorization-bundle` | — | [`packages/fi/authorization-bundle/src/index.ts`](../packages/fi/authorization-bundle/src/index.ts) |
+| `@fi/runtime-bundle` | — | [`packages/fi/runtime-bundle/src/index.ts`](../packages/fi/runtime-bundle/src/index.ts) |
 <!-- END GENERATED config-catalog:library -->

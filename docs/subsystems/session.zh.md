@@ -831,10 +831,11 @@ inspect( sessionId: SessionId, signal?: AbortSignal, ): Promise<SessionInspectio
 @Remote('selectModel') selectModel(request: SessionSelectModelRequest): Promise<SessionSelectModelValue>
 
 /**
- * Select the first available account model after login when no provider API key is configured.
- * @returns after saving the first available model or retaining the existing default.
+ * Resolve the deployment default, or select a requested account route after login.
+ * @param provider - Optional account route; an API key preserves the existing default.
+ * @returns after resolving the default or saving the requested account selection.
  */
-@Remote async initializeDefaultModel(): Promise<void>
+@Remote async initializeDefaultModel(provider?: string): Promise<void>
 
 /**
  * Describe every currently routable model for Host-generation selectors.

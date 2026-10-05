@@ -1,6 +1,6 @@
 {
   "name": "@fi/authorization-bundle",
-  "description": "fi provider, authorization UI, and tool integrations over the base composition",
+  "description": "FI authorization and search settings UI over the shared runtime composition",
   "version": "0.2.0-rc.2",
   "private": true,
   "type": "module",
@@ -31,10 +31,7 @@
     "@fi/api-authorization-controller": "workspace:^",
     "@fi/client-ui-model-signin": "workspace:^",
     "@fi/client-ui-web-search-preferences": "workspace:^",
-    "@fi/llm-antigravity": "workspace:^",
-    "@fi/llm-opencode": "workspace:^",
-    "@fi/provider-compat": "workspace:^",
-    "@fi/web-search-preferences": "workspace:^",
+    "@fi/runtime-bundle": "workspace:^",
     "@fi/tool-image-generation": "workspace:^"
   },
   "peerDependencies": {

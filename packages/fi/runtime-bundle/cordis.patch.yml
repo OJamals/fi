@@ -1,0 +1,41 @@
+# Shared FI runtime defaults; compose after the upstream base bundle.
+- id: web
+  config:
+    searchProvider: fi-preferred-search
+    fetchProvider: http
+
+- id: web-search-deepseek
+  disabled: true
+
+- id: deepseek-account
+  disabled: true
+
+- id: llm-deepseek-account
+  disabled: true
+
+- id: session-telemetry-otel
+  config:
+    mode: DISABLED
+
+- id: agent-default-model
+  config:
+    provider: !!js undefined
+    model: !!js undefined
+    reasoningEffort: !!js undefined
+    selectionPolicy: available
+    subscriptionCredentials:
+      anthropic: llm-pi-ai/anthropic
+      openai-codex: llm-pi-ai/openai-codex
+      xai: llm-pi-ai/xai
+      antigravity: fi-antigravity/antigravity
+      opencode-console: fi-opencode/opencode-console
+
+- insert:
+    - id: fi-antigravity
+      name: '@fi/llm-antigravity'
+    - id: fi-opencode
+      name: '@fi/llm-opencode'
+    - id: fi-provider-compat
+      name: '@fi/provider-compat'
+    - id: fi-web-search-preferences
+      name: '@fi/web-search-preferences'

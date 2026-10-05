@@ -72,6 +72,8 @@ Codex 和 Grok 引用来自 Responses URL annotation，Claude 引用来自 `web_
 
 `createSubscriptionSearchProvider(ctx, config)` 公开同一构造过程，但不注册第二个 `subscription-native` id。FI 首选搜索路由为单个设置快照操作使用该工厂；普通直接挂载继续使用 `apply()`。
 
+`defaultSubscriptionSearchModel(provider)` 无需鉴权或网络访问即可读取内置 Codex、Grok 或 Claude 目录中的首个模型。Antigravity 需要实时 Harness 目录或显式模型。账户与模型选择由[首选搜索路由](../web-search-preferences/README.zh.md)负责。
+
 Codex、Grok 和 Claude 携带凭据的 fetch 会拒绝重定向。Antigravity 把发送和上游收集委托给其包所属 transport，后者提供重定向拒绝、取消、响应大小限制和错误脱敏。本包的响应读取器在解析 SSE 或 JSON 前执行配置的字节限制。提供方解析器只接受已完成的原生终态，并把携带引用的提供方字段投影为 `WebSearchSource`；它们不会虚构 URL。插件卸载会中止并等待活动请求，而 `ctx.web.registerSearchProvider()` 负责可逆注册。
 
 | 文件 | 作用 |

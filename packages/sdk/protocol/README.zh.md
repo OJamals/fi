@@ -25,6 +25,8 @@ kind: "package-library"
 <a id="use-this-package"></a>
 ## 使用本包
 
+`InitializeParams.provider` 和 `model` 同时可选。省略时运行时解析 profile 默认值；仅提供一个字段属于无效请求。接受提示前校验解析的路由。
+
 当你构建或调试 SDK 协议端——服务插件、客户端库或使用该协议的自定义工具——时使用本包。它为你提供一个在调用方持有的字节流上承载 JSON-RPC 2.0 的传输，以及每个 SDK 方法与通知的类型化结构。
 
 ### 分帧与传输

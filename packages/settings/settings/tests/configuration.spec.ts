@@ -42,7 +42,7 @@ it('refuses an edit shadowed by a higher home layer', async () => {
   const before = readFileSync(profile.patchPath, 'utf8')
   await expect(ctx.settings.update('default-model', { model: 'profile' })).rejects.toThrow('overridden')
   expect(readFileSync(profile.patchPath, 'utf8')).toBe(before)
-  expect(ctx.agentDefaultModel.currentSelection().model).toBe('home')
+  expect(ctx.agentDefaultModel.currentSelection()?.model).toBe('home')
 }, 15_000)
 
 it('serializes concurrent writes and refuses stale revisions after external changes', async () => {
@@ -318,7 +318,7 @@ it('imports the removed settings.yaml into the profile once and keeps rejected s
   const legacy = join(home, 'settings.yaml')
   writeFileSync(legacy, 'default-model:\n  model: legacy\nfirst:\n  ordinary: rejected\nmissing:\n  count: 1\n')
   const restored = await start()
-  await vi.waitFor(() => { expect(restored.agentDefaultModel.currentSelection().model).toBe('legacy') })
+  await vi.waitFor(() => { expect(restored.agentDefaultModel.currentSelection()?.model).toBe('legacy') })
   expect(parse(readFileSync(profile.patchPath, 'utf8'))).toContainEqual({ id: 'default-model', name: 'cordis:model', config: { provider: 'test', model: 'legacy' } })
   expect(restored.settings.describe({ redactSecrets: true }).find(row => row.ns === 'first')!.value).toEqual({ count: 2, list: [] })
   expect(existsSync(legacy)).toBe(false)
@@ -336,7 +336,7 @@ it('imports the removed settings.yaml into the profile once and keeps rejected s
   const failures = (): unknown[] => blocked.logger.buffer.filter(message => message.type === 'error').map((message): unknown => message.args[0])
   // The rename fails with EISDIR on POSIX and EPERM on Windows; the reported error names the rename either way.
   await vi.waitFor(() => { expect(failures().some(failure => failure instanceof Error && failure.message.includes('rename'))).toBe(true) })
-  expect(blocked.agentDefaultModel.currentSelection().model).toBe('legacy')
+  expect(blocked.agentDefaultModel.currentSelection()?.model).toBe('legacy')
 })
 
 it('describes an entry whose required field only the profile supplies, and reports a failed refresh instead of crashing', async () => {

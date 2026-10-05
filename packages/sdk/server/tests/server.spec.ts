@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry, { type Agent, type AgentHandle } from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
+import DefaultModel from '@deepseek-ai/dsh-agent-default-model'
 import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
 
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
@@ -906,6 +907,49 @@ describe('HarnessSdkJsonRpcServer', () => {
       expect(ctx.get('llm')?.listProviders().filter(provider => provider.id === 'deepseek-official')).toEqual([{ id: 'deepseek-official', name: 'DeepSeek' }])
       await server.shutdown()
     } finally {
+      await ctx.fiber.dispose()
+      await rm(storageDir, { recursive: true, force: true })
+    }
+  })
+
+  it('resolves the profile model when initialize omits both model fields', async () => {
+    const storageDir = await mkdtemp(join(tmpdir(), 'dsh-jsonrpc-profile-default-'))
+    const ctx = await makeHarness(storageDir)
+    class DefaultAdapter extends LlmAdapter {
+      override resolveModel(provider: string, model: string): Promise<LlmResolvedModelInfo> {
+        return Promise.resolve({ provider, id: model, name: model })
+      }
+      async *stream(_options: GenerateOptions): AsyncIterable<StreamChunk> { throw new Error('No generation expected') }
+    }
+    const unregister = ctx.llm.registerAdapter(['linked-subscription'], new DefaultAdapter())
+    await ctx.plugin(DefaultModel, { provider: 'linked-subscription', model: 'subscription-model' })
+    const resolve = vi.spyOn(ctx.llm, 'resolveCallConfig')
+    const server = new HarnessSdkJsonRpcServer(ctx, new FakeTransport())
+    try {
+      await server.initialize({ cwd: storageDir })
+      expect(resolve).toHaveBeenCalledWith({ provider: 'linked-subscription', model: 'subscription-model' })
+      expect(ctx.llm.listProviders().some(provider => provider.id === 'deepseek-official')).toBe(false)
+    } finally {
+      await server.shutdown()
+      unregister()
+      await ctx.fiber.dispose()
+      await rm(storageDir, { recursive: true, force: true })
+    }
+  })
+
+  it.each([
+    {}, { provider: 'private' }, { model: 'model' }, { provider: '', model: '' },
+  ])('requires setup or a complete explicit model at initialize: %j', async (fields) => {
+    const storageDir = await mkdtemp(join(tmpdir(), 'dsh-jsonrpc-missing-default-'))
+    const ctx = await makeHarness(storageDir)
+    const server = new HarnessSdkJsonRpcServer(ctx, new FakeTransport())
+    try {
+      await expect(server.initialize({ cwd: storageDir, ...fields })).rejects.toThrow(
+        Object.keys(fields).length === 0 ? 'Configure a model in Settings' : 'initialize provider and model',
+      )
+      expect(ctx.llm.listProviders().some(provider => provider.id === 'deepseek-official')).toBe(false)
+    } finally {
+      await server.shutdown()
       await ctx.fiber.dispose()
       await rm(storageDir, { recursive: true, force: true })
     }

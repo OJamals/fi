@@ -25,6 +25,8 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
+Fresh runs await the deployment default model resolver. FI's shipped profile prefers a usable linked subscription, then configured API providers; no usable model fails before Agent creation. Resumed conversations retain their logged route.
+
 Run one task, get the final answer, and exit. The task is the command-line argument, or stdin when you omit it; the whole invocation is the smallest working example.
 
 ### Running a one-shot task

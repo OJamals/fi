@@ -4,10 +4,10 @@
   - menu "Model":
     - group "DeepSeek":
       - menuitem "DeepSeek"
-    - group "OpenRouter":
-      - menuitem "OpenRouter"
     - group "Kilo":
       - menuitem "Kilo"
+    - group "OpenRouter":
+      - menuitem "OpenRouter"
     - group "Subscriptions":
       - group "anthropic":
         - menuitem "anthropic"

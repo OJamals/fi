@@ -49,6 +49,8 @@ import {
   type ResolvedSearchProvider,
 } from './provider.ts'
 import { snapshotConfig, type Config, type PreferredSearchSettings } from './types.ts'
+import { resolveCurrentSubscriptionTarget, resolveSubscriptionTarget } from './subscription-target.ts'
+import { BING_DEFAULT_BASE_URL, BING_DEFAULT_MAX_RESPONSE_BYTES, BingRssSearchProvider } from './bing-provider.ts'
 
 export {
   FI_PREFERRED_SEARCH_PROVIDER_ID,
@@ -126,6 +128,17 @@ export async function resolveSelectedProvider(
   signal: AbortSignal,
 ): Promise<ResolvedSearchProvider> {
   switch (config.provider) {
+    case 'auto': {
+      const target = await resolveCurrentSubscriptionTarget(ctx, signal)
+      return resolveSelectedProvider(ctx, target === undefined
+        ? { ...config, provider: 'bing-rss' }
+        : { ...config, provider: 'subscription-native', subscriptionProvider: target.provider, subscriptionModel: target.model }, signal)
+    }
+    case 'bing-rss':
+      return new BingRssSearchProvider(
+        requireHttpsEndpoint('Bing RSS', config.bingBaseURL ?? BING_DEFAULT_BASE_URL),
+        config.bingMaxResponseBytes ?? BING_DEFAULT_MAX_RESPONSE_BYTES,
+      )
     case DEEPSEEK_PROVIDER_ID: {
       const baseURL = requireHttpsEndpoint(
         'DeepSeek',
@@ -217,25 +230,16 @@ export async function resolveSelectedProvider(
         baseURL,
       })
     }
-    case 'subscription-native':
-      if (
-        config.subscriptionProvider === undefined
-        || config.subscriptionModel === undefined
-        || config.subscriptionModel.trim() === ''
-      ) {
-        throw new WebError(
-          'subscription-native search requires subscriptionProvider and subscriptionModel',
-          'WEB_PROVIDER_CONFIGURED_UNAVAILABLE',
-        )
-      }
+    case 'subscription-native': {
+      const target = await resolveSubscriptionTarget(ctx, config, signal)
       return createSubscriptionSearchProvider(ctx, {
-        provider: config.subscriptionProvider,
-        model: config.subscriptionModel.trim(),
+        ...target,
         timeoutMs: config.subscriptionTimeoutMs ?? DEFAULT_TIMEOUT_MS,
         maxResponseBytes: config.subscriptionMaxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES,
         maxUses: config.subscriptionMaxUses ?? DEFAULT_MAX_USES,
         maxOutputTokens: config.subscriptionMaxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
       })
+    }
     default:
       return assertNever(config.provider)
   }

@@ -1,0 +1,46 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/fi/runtime-bundle/README.md
+/:
+  en: d4351cbc721988e6
+  zh: f29ec230b6ae0133
+/fi-runtime-bundle:
+  en: 989b5adc136ea3fb
+  zh: 0f1303ffedb09bcc
+/fi-runtime-bundle/summary:
+  en: 9d786dd36269c59a
+  zh: 53b6de6f1d6ec2dc
+/fi-runtime-bundle/table-of-contents:
+  en: 65663b0d5dfa1600
+  zh: dc8dd4f5941b9f74
+/fi-runtime-bundle/use-this-package:
+  en: 251867082d6dda8d
+  zh: bf25a9342040d7f6
+/fi-runtime-bundle/understand-the-implementation:
+  en: 4124868c76e95c18
+  zh: b10d40849e106c3e
+/fi-runtime-bundle/further-exploration:
+  en: 473572896c436a47
+  zh: 54f7fb83261f8492
+/fi-runtime-bundle/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/fi-runtime-bundle/model-experience/default-selection-and-search-routing:
+  en: 60c35ec29ae5a39d
+  zh: f7e0610aa9604ac7
+/fi-runtime-bundle/model-experience/default-selection-and-search-routing/what-the-model-sees:
+  en: fad4e4eb7a7051fd
+  zh: 6956793e82f46724
+/fi-runtime-bundle/model-experience/default-selection-and-search-routing/token-effect:
+  en: 8e1058e62fc4cbd5
+  zh: 03ae18d6b0efae7c
+/fi-runtime-bundle/model-experience/default-selection-and-search-routing/kv-cache-effect:
+  en: c873ab192eb41a60
+  zh: af99b5b10576e8b7
+/fi-runtime-bundle/known-limitations-and-deferred-work:
+  en: d62f017eed3652f6
+  zh: 9cfe730eb5cbf80f
+/fi-runtime-bundle/known-limitations-and-deferred-work/dev-note:
+  en: e7fc2e4892635069
+  zh: 946b57f72f2d8c03

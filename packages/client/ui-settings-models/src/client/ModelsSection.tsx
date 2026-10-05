@@ -144,14 +144,14 @@ function renderProviderEditor({ target, entry, configured, renderSlot, ...props 
 }
 
 /**
- * Remove one user-added provider and its page-managed credential. Credential
- * removal comes first so a second-step failure leaves the provider row visible
- * and the whole operation safely retryable; both unsets are idempotent.
+ * Disable a root provider with an enabled setting or remove a user-added profile.
+ * Managed credential removal comes first so a settings failure leaves the row
+ * visible and the operation retryable; both operations are idempotent.
  * The settings removal names the profile rather than rebuilding its whole
  * namespace from a partial view.
  * @param operations - the page's Host operations.
  * @param controller - the page store to refresh.
- * @param target - the provider's settings address and optional managed credential.
+ * @param target - settings address (root requires an enabled setting) and optional managed credential.
  * @returns the failure message, or undefined once the write and reload landed.
  */
 export async function removeProviderProfile(
@@ -165,7 +165,9 @@ export async function removeProviderProfile(
   }
   const written = await operations.writeSettings(
     target.settingsNs,
-    [{ op: 'unset', path: [...target.settingsPath] }],
+    target.settingsPath.length === 0
+      ? [{ op: 'set', path: ['enabled'], value: false }]
+      : [{ op: 'unset', path: [...target.settingsPath] }],
     undefined,
   )
   if (written.kind !== 'written') return written.message
@@ -184,6 +186,7 @@ export async function removeProviderProfile(
  */
 export function needsSetup(row: ProviderRow, anyUsable: boolean): boolean {
   if (anyUsable || row.entry.provider === 'deepseek-account') return false
+  if (row.entry.provider === 'deepseek-official' && row.removable) return false
   if (row.entry.settingsPath.length > 0) return false
   return row.credential?.configured !== true
 }
@@ -711,9 +714,11 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
         description={deleteTarget === undefined
           ? ''
           : providerCopy(
-            deleteTarget.credentialRef === undefined
-              ? t('deleteDescription')
-              : t('deleteDescriptionWithCredential'),
+            deleteTarget.settingsPath.length === 0
+              ? t('deleteDescriptionRetained')
+              : deleteTarget.credentialRef === undefined
+                ? t('deleteDescription')
+                : t('deleteDescriptionWithCredential'),
             deleteTarget,
           )}
         className={styles['deleteDialog'] as string}

@@ -25,6 +25,8 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
+`initialize` 同时接受 provider/model 或同时省略。省略时等待 `agentDefaultModel.resolveSelection()`；没有可用默认模型则拒绝初始化。显式路由保持精确，缺少路由不会隐式选择 DeepSeek。`sdk-minimal` 没有默认模型服务，调用者需提供两个字段。
+
 当运行时必须服务 SDK 客户端时挂载本插件：把它加入组合了 agent 服务的 `cordis.yml`，启动运行时，客户端即可通过 stdio 连接。常用路径是显式的——插件需要 `agents` 服务；其余每个能力都来自外围插件树。
 
 ### 组装

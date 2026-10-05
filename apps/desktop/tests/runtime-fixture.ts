@@ -36,9 +36,10 @@ export function runtimeFixture(root: string, version = '1.0.0', nodeVersion = '2
     '@deepseek-ai/dsh-base',
     '@deepseek-ai/dsh-web-app',
     '@deepseek-ai/cordis',
+    '@fi/runtime-bundle',
     '@fi/authorization-bundle',
   ]
-  const bundlePackages = new Set(['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@fi/authorization-bundle'])
+  const bundlePackages = new Set(['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@fi/runtime-bundle', '@fi/authorization-bundle'])
   for (const name of names) {
     const bundle = bundlePackages.has(name)
     const path = writePackage(join(root, 'node_modules'), name, {

@@ -40,7 +40,7 @@ function requiredString(record: Record<string, unknown>, field: string): string 
 }
 
 /** Snapshot and validate a same-process rule result before crossing awaits. */
-function resolveRequest(ctx: Context, input: WebhookSessionRequest): ResolvedWebhookSessionRequest {
+async function resolveRequest(ctx: Context, input: WebhookSessionRequest): Promise<ResolvedWebhookSessionRequest> {
   const candidate: unknown = input
   if (candidate === null || typeof candidate !== 'object' || Array.isArray(candidate)) {
     throw new TypeError('webhook rule result must be null or a Session request object')
@@ -61,7 +61,8 @@ function resolveRequest(ctx: Context, input: WebhookSessionRequest): ResolvedWeb
   let agentOptions: ResolvedWebhookSessionRequest['agentOptions']
   let modelSelection: ModelSelection
   if (model === undefined) {
-    const selected = ctx.agentDefaultModel.currentSelection()
+    const selected = await ctx.agentDefaultModel.resolveSelection()
+    if (selected === undefined) throw new Error('webhook Session request requires a configured model or an explicit model route')
     agentOptions = { provider: selected.provider, model: selected.model }
     modelSelection = { ...selected }
   } else {
@@ -121,7 +122,7 @@ export async function createWebhookSession(
   request: WebhookSessionRequest,
   signal: AbortSignal,
 ): Promise<void> {
-  const resolved = resolveRequest(ctx, request)
+  const resolved = await resolveRequest(ctx, request)
   ctx.permissionPresets.resolve(resolved.permissionPreset)
   const preset = await ctx.agentPresets.resolve(resolved.agentPreset)
   await using presetScope = await ctx.agentPresets.acquireScope(preset.id)

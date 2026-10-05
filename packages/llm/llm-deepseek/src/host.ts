@@ -3,7 +3,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-settings'
 import type {} from '@deepseek-ai/cordis-plugin-loader'
 import type {} from '@deepseek-ai/dsh-fs'
-import { resolveImageAttachmentAccess } from '@deepseek-ai/dsh-llm'
+import { resolveImageAttachmentAccess, type AdapterRegistrationHandle } from '@deepseek-ai/dsh-llm'
 import { getOrCreateAnonymousUserId, type AnonymousUserId } from '@deepseek-ai/dsh-anonymous-user-id'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
 import { DeepSeekAdapter } from './adapter.ts'
@@ -13,11 +13,11 @@ import type { DeepSeekAdapterOptions, DeepSeekConnectionOptions } from './types.
  * Register one provider with request-local transport services and live retry policy.
  * @param ctx - provider plugin lifetime with the LLM registry injected.
  * @param provider - exact route owned by this plugin.
- * @param dependencies - provider-owned discovery, credential, and configuration callbacks.
+ * @param dependencies - provider-owned discovery, credential, configuration, and optional live enablement callbacks.
  */
 export function registerDeepSeekProvider<C extends DeepSeekConnectionOptions>(
   ctx: Context, provider: string, dependencies: Pick<DeepSeekAdapterOptions<C>,
-  'options' | 'resolveAuth' | 'providerName' | 'discoverModels'>): void {
+  'options' | 'resolveAuth' | 'providerName' | 'discoverModels'> & { enabled?: () => boolean }): void {
   ctx.inject(['settings'], (child) => { child.effect(() => child.settings.configure({ auto: false }, ctx.fiber)) })
   let userId: AnonymousUserId | undefined
   const adapter = new DeepSeekAdapter({
@@ -36,12 +36,23 @@ export function registerDeepSeekProvider<C extends DeepSeekConnectionOptions>(
     prepareExtensions: request => ctx.get('deepseekLlmApiExtensions')?.prepare(request)
       ?? Promise.resolve({ fields: {}, accept: () => Promise.resolve() }),
   })
-  const registration = ctx.llm.registerAdapter([provider], adapter)
   let registeredPolicy = dependencies.options().retryPolicy
+  let registration: AdapterRegistrationHandle | undefined = dependencies.enabled?.() === false
+    ? undefined : ctx.llm.registerAdapter([provider], adapter)
   ctx.on('loader/volatile-update', () => {
+    if (dependencies.enabled?.() === false) {
+      registration?.()
+      registration = undefined
+      return
+    }
     let policy: typeof registeredPolicy
     try { policy = dependencies.options().retryPolicy }
     catch (error) { ctx.logger.warn(error); return }
+    if (registration === undefined) {
+      registration = ctx.llm.registerAdapter([provider], adapter)
+      registeredPolicy = policy
+      return
+    }
     if (deepEqualJson(policy, registeredPolicy)) return
     registration.replace([provider])
     registeredPolicy = policy

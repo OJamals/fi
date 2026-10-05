@@ -205,7 +205,7 @@ describe.skipIf(MODE === 'record').each([
     await target.getByText('Acme Swift', { exact: true }).click()
     await menu.waitFor({ state: 'detached' })
     expect(selections).toBe(1)
-    await expect.poll(() => scaffold.ctx.agentDefaultModel.currentSelection().model, { timeout: 10_000 })
+    await expect.poll(() => scaffold.ctx.agentDefaultModel.currentSelection()?.model, { timeout: 10_000 })
       .toBe('acme-swift')
 
     await trigger.click()
@@ -213,7 +213,7 @@ describe.skipIf(MODE === 'record').each([
     await page.getByRole('menuitemradio', { name: 'Max', exact: true }).click()
     await menu.waitFor({ state: 'detached' })
     expect(selections).toBe(2)
-    await expect.poll(() => scaffold.ctx.agentDefaultModel.currentSelection().reasoningEffort, { timeout: 10_000 })
+    await expect.poll(() => scaffold.ctx.agentDefaultModel.currentSelection()?.reasoningEffort, { timeout: 10_000 })
       .toBe('max')
 
     await page.route('**/api/session/selectModel', async (route) => {

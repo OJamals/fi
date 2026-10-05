@@ -16,10 +16,10 @@ import type { SubagentStopReason } from '@deepseek-ai/dsh-subagent'
 export interface InitializeParams {
   /** Working directory recorded on every SDK-created session's header. */
   cwd: string
-  /** Provider route every SDK-created agent runs on. */
-  provider: string
-  /** Model name every SDK-created agent runs on (the server may mount a fallback adapter; see `HarnessSdkJsonRpcServer.initialize`). */
-  model: string
+  /** Explicit provider route; omit together with model to resolve the profile default. */
+  provider?: string
+  /** Explicit model id; omit together with provider to resolve the profile default. */
+  model?: string
   /** Optional adapter-owned reasoning effort for the selected provider/model route. */
   reasoningEffort?: ReasoningEffortId
   /** Optional positive output-token cap inherited by SDK-created agents and their in-process descendants. */

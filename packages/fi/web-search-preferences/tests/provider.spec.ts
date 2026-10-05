@@ -29,6 +29,19 @@ function testContext(services: Record<string, object>): Context {
 }
 
 describe('preferred search provider', () => {
+  it('routes automatic searches from the current model and preserves explicit engine choices', async () => {
+    const current = { provider: 'openai-codex', model: 'gpt-5.4' }
+    const ctx = testContext({
+      credentials: { listRecords: async () => [{ key: 'llm-pi-ai/openai-codex', kind: 'grant' }] },
+      agents: { currentInitiator: () => ({ session: { requestContext: () => current } }) },
+    })
+    const signal = new AbortController().signal
+    expect((await resolveSelectedProvider(ctx, { provider: 'auto' }, signal)).id).toBe('subscription-native')
+    expect((await resolveSelectedProvider(ctx, { provider: 'bing-rss' }, signal)).id).toBe('bing-rss')
+    current.provider = 'deepseek-official'
+    expect((await resolveSelectedProvider(ctx, { provider: 'auto' }, signal)).id).toBe('bing-rss')
+  })
+
   function credentialContext(ref: string, value: string): Context {
     return testContext({
       credentials: { resolve: vi.fn(async (candidate: string) => candidate === ref ? { value } : undefined) },

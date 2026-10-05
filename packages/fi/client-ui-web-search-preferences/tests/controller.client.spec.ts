@@ -13,6 +13,45 @@ function deferred<T>() {
 }
 
 describe('PreferredSearchCardController', () => {
+  it('clears explicit subscription overrides when automatic selection is saved', async () => {
+    const host = stubConfigForm<PreferredSearchSettings>()
+    host.publish({ status: 'ready', writable: true, revision: 1, base: {}, user: {}, value: {
+      provider: 'subscription-native', subscriptionProvider: 'codex', subscriptionModel: 'fixed-model',
+    } })
+    const mutate = vi.spyOn(host.scope, 'mutate').mockImplementation(async () => {
+      host.publish({ status: 'ready', writable: true, revision: 2, base: {}, user: {}, value: {
+        provider: 'subscription-native',
+      } })
+      return true
+    })
+    const controller = new PreferredSearchCardController(host.scope, {
+      remote: { credentials: { describe: vi.fn(), set: vi.fn(), unset: vi.fn() } },
+    } as never)
+    const face = controller.inject()
+    face.editSubscriptionProvider('auto')
+    face.editSubscriptionModel('')
+    face.save()
+    await vi.waitFor(() => { expect(face.hooks.preferredSearchCard.getSnapshot()).toMatchObject({
+      subscriptionProvider: 'auto', subscriptionModel: '', dirty: false, failed: false,
+    }) })
+    expect(mutate).toHaveBeenCalledWith([
+      { op: 'unset', path: ['subscriptionProvider'] },
+      { op: 'unset', path: ['subscriptionModel'] },
+    ], 1)
+    controller.dispose()
+  })
+  it('defaults to following the chat model without requiring a search key or model', () => {
+    const host = stubConfigForm<PreferredSearchSettings>()
+    const describe = vi.fn()
+    const controller = new PreferredSearchCardController(host.scope, {
+      remote: { credentials: { describe, set: vi.fn(), unset: vi.fn() } },
+    } as never)
+    expect(controller.inject().hooks.preferredSearchCard.getSnapshot()).toMatchObject({
+      provider: 'auto', subscriptionProvider: 'auto', subscriptionModel: '', invalid: false,
+    })
+    expect(describe).not.toHaveBeenCalled()
+    controller.dispose()
+  })
   it('registers a distinct Plugins-page entry while the Host serves its namespace', () => {
     const host = stubConfigForm<PreferredSearchSettings>()
     const register = vi.fn(() => vi.fn())

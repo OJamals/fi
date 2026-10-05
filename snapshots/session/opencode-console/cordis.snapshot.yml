@@ -21,8 +21,8 @@
     - id: opencode-console-fixture
       name: './console-fixture.mjs'
 
-    - id: fi-opencode
-      name: '@fi/llm-opencode'
-      config:
-        providers:
-          opencode-console: {}
+- id: fi-opencode
+  name: '@fi/llm-opencode'
+  config:
+    providers:
+      opencode-console: {}

@@ -87,15 +87,21 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Owns the default model selection independently of any Host or transport. Each operation reads the owning Config references.',
     methods: [
       {
-        signature: 'currentSelection(): ModelSelection',
+        signature: 'currentSelection(): ModelSelection | undefined',
         description: 'Read the current default model selection.',
         parameters: [],
-        returns: 'a detached provider, model, and optional reasoning selection.',
+        returns: 'a detached selection, or undefined when no route is configured.',
       },
       {
-        signature: 'async saveSelection(next: ModelSelection): Promise<void>',
+        signature: 'resolveSelection(): Promise<ModelSelection | undefined>',
+        description: 'Resolve the default before creating an Agent or presenting a model catalog. Available selection retains a usable saved route, otherwise prefers linked subscriptions, then configured API providers. Automatic choices are runtime selections; only explicit saves change the profile configuration.',
+        parameters: [],
+        returns: 'a usable selection, or undefined when no configured provider has models.',
+      },
+      {
+        signature: 'async saveSelection(next: ModelSelection | undefined): Promise<void>',
         description: 'Save the complete default model selection. A deployment without a configuration editor keeps its composition entry. Saves commit in submission order; a failed save rejects its caller without blocking later saves.',
-        parameters: [{ name: 'next', description: 'resolved selection accepted by an entry point.' }],
+        parameters: [{ name: 'next', description: 'resolved selection, or undefined to clear an unavailable default.' }],
         returns: 'fulfillment after the optional profile write settles.',
       },
     ],
@@ -2061,10 +2067,10 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the normalized selection installed for the Session, without waiting for default persistence.',
       },
       {
-        signature: '@Remote async initializeDefaultModel(): Promise<void>',
-        description: 'Select the first available account model after login when no provider API key is configured.',
-        parameters: [],
-        returns: 'after saving the first available model or retaining the existing default.',
+        signature: '@Remote async initializeDefaultModel(provider?: string): Promise<void>',
+        description: 'Resolve the deployment default, or select a requested account route after login.',
+        parameters: [{ name: 'provider', description: 'Optional account route; an API key preserves the existing default.' }],
+        returns: 'after resolving the default or saving the requested account selection.',
       },
       {
         signature: '@Remote(\'modelCatalog\') modelCatalog(): Promise<ModelCatalog>',
@@ -6035,7 +6041,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ModelCatalog',
-    declaration: 'export interface ModelCatalog {\n    readonly default: ModelSelection;\n    readonly routableProviders: readonly string[];\n    readonly groups: readonly ModelProviderGroup[];\n    readonly failures: readonly ModelCatalogFailure[];\n}',
+    declaration: 'export interface ModelCatalog {\n    readonly default: ModelSelection | null;\n    readonly routableProviders: readonly string[];\n    readonly groups: readonly ModelProviderGroup[];\n    readonly failures: readonly ModelCatalogFailure[];\n}',
   },
   {
     name: 'ModelCatalogFailure',

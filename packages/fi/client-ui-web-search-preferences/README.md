@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This browser plugin adds **Preferred web search** to Settings → Plugins. It extends the Host-owned `web-search-deepseek` settings section and manages API keys through the credentials API without exposing stored values.
+This browser plugin adds **Preferred web search** to Settings → Plugins. It extends the Host-owned `fi-web-search-preferences` settings section and manages API keys through the credentials API without exposing stored values.
 
 ## Table of Contents
 
@@ -27,14 +27,14 @@ This browser plugin adds **Preferred web search** to Settings → Plugins. It ex
 
 Load this package beside [`@fi/web-search-preferences`](../web-search-preferences/README.md). The FI authorization bundle includes both.
 
-Users select DeepSeek official, Exa, Perplexity, Parallel, Tavily, Serper, Brave Search, or subscription search. Direct-provider keys are added, replaced, or removed through password controls. A provider with no configured key cannot be activated. Credential writes finish before a provider change is committed, so a refused write leaves the active route unchanged. A credential-only save remains available when Settings is read-only and Credentials reports the active reference as writable.
+Users select automatic routing, free Bing search, DeepSeek official, Exa, Perplexity, Parallel, Tavily, Serper, Brave Search, or subscription search. API-provider keys are added, replaced, or removed through password controls. An API provider with no configured key cannot be activated. Credential writes finish before a provider change is committed, so a refused write leaves the active route unchanged. A credential-only save remains available when Settings is read-only and Credentials reports the active reference as writable.
 
-Subscription search has no key field. Users sign in from Models first, then choose Codex, Grok, Antigravity, or Claude and enter an exact model id. This card never starts OAuth or changes the conversation model route.
+**Automatic (follow chat model)** is the default: a linked subscription chat uses its native search and exact model; other chats use free Bing RSS search. Automatic and Bing choices have no credential or model fields. Explicit subscription search offers **Automatic (linked subscription)** family selection and an optional model override; users sign in from Models first. This card never starts OAuth or changes the conversation model route.
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
-An FI-local controller binds the `web-search-deepseek` settings namespace, stages edits, resolves the selected provider's configured credential reference, and injects a snapshot hook into the presentation component. Credential status contains only `configured` and `writable`; key values are never read back. Stale credential responses are discarded after a provider or reference change. Host refusals and credential read, write, or removal failures remain visible in the card.
+An FI-local controller binds the `fi-web-search-preferences` settings namespace, stages edits, resolves the selected provider's configured credential reference, and injects a snapshot hook into the presentation component. Credential status contains only `configured` and `writable`; key values are never read back. Stale credential responses are discarded after a provider or reference change. Host refusals and credential read, write, or removal failures remain visible in the card.
 
 No runtime invariant companion is published: this package owns browser presentation only, while the settings and credentials services validate their own durable state.
 

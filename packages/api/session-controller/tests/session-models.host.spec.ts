@@ -152,8 +152,10 @@ function registerTextOnly(ctx: Context): void {
 function currentSelection(ctx: Context, sessionId: SessionId) {
   const session = ctx.sessions.get(sessionId)
   if (session === undefined) throw new Error('expected a live test Session')
-  return ctx.sessionProjections.snapshot(session).values.modelSelection?.next
+  const selected = ctx.sessionProjections.snapshot(session).values.modelSelection?.next
     ?? ctx.agentDefaultModel.currentSelection()
+  if (selected === undefined) throw new Error('expected a configured test model')
+  return selected
 }
 
 describe('Web session model selection', () => {
@@ -395,9 +397,9 @@ describe('Web session model selection', () => {
     }])
     await ctx.agentDefaultModel.saveSelection({ provider: 'removed', model: 'saved' })
     const controller = createSessionTestController(ctx, {
-      defaultModelSelection: () => ctx.agentDefaultModel.currentSelection(), cwd: '/tmp',
+      defaultModelSelection: () => ctx.agentDefaultModel.currentSelection()!, cwd: '/tmp',
     })
-    await controller.initializeDefaultModel()
+    await controller.initializeDefaultModel('deepseek-account')
     expect(describe).toHaveBeenCalledWith('CUSTOM_API_KEY')
     expect(ctx.agentDefaultModel.currentSelection()).toEqual(configuredKey
       ? { provider: 'removed', model: 'saved' }
@@ -688,7 +690,7 @@ describe('Web session model selection', () => {
     await ctx.fiber.dispose()
   })
 
-  it('admits saved selections without querying the advisory model catalog', async () => {
+  it('refuses prompts when the saved route catalog is unavailable', async () => {
     const { ctx, sessionId, agent } = await harness()
     const followup = vi.fn()
     Object.assign(agent, { followup })
@@ -700,9 +702,9 @@ describe('Web session model selection', () => {
     try {
       expect(await remote.prompt(promptRequest({
         sessionId, mode: 'queue', content: [{ type: 'text', text: 'hello' }],
-      }))).toMatchObject({ ok: true, value: { accepted: true } })
-      expect(list).not.toHaveBeenCalled()
-      expect(followup).toHaveBeenCalledOnce()
+      }))).toMatchObject({ ok: false, error: { code: 'session/model-unavailable' } })
+      expect(list).toHaveBeenCalledOnce()
+      expect(followup).not.toHaveBeenCalled()
     } finally {
       list.mockRestore()
       await ctx.fiber.dispose()
@@ -726,7 +728,7 @@ describe('Web session model selection', () => {
     }
   })
 
-  it('admits an unavailable saved route for execution without rewriting the selection', async () => {
+  it('refuses an unavailable saved route without rewriting its selection', async () => {
     const { ctx, sessionId, agent } = await harness()
     const followup = vi.fn()
     Object.assign(agent, { followup })
@@ -738,8 +740,8 @@ describe('Web session model selection', () => {
     const admitted = await remote.prompt(promptRequest({
       sessionId, mode: 'queue' as const, content: [{ type: 'text' as const, text: 'hi' }],
     }))
-    expect(admitted).toMatchObject({ ok: true, value: { accepted: true } })
-    expect(followup).toHaveBeenCalledOnce()
+    expect(admitted).toMatchObject({ ok: false, error: { code: 'session/model-unavailable' } })
+    expect(followup).not.toHaveBeenCalled()
     const unavailableCatalog = await buildModelCatalog(ctx)
     expect(unavailableCatalog.routableProviders.includes(currentSelection(ctx, sessionId).provider)).toBe(false)
 
@@ -750,7 +752,7 @@ describe('Web session model selection', () => {
     await ctx.fiber.dispose()
   })
 
-  it('admits a removed model without changing its saved selection', async () => {
+  it('refuses a removed model without changing its saved selection', async () => {
     const { ctx, sessionId, agent } = await harness({ provider: 'deepseek-official', model: 'removed-model' })
     const remote = createSessionTestRemote(ctx, {
       defaultModelSelection: () => ({ provider: 'deepseek-official', model: 'deepseek-chat' }), cwd: '/tmp',
@@ -759,8 +761,8 @@ describe('Web session model selection', () => {
     const followup = vi.fn()
     Object.assign(agent, { followup })
     expect(await remote.prompt(promptRequest({ sessionId, mode: 'queue', content: [{ type: 'text', text: 'hi' }] })))
-      .toMatchObject({ ok: true, value: { accepted: true } })
-    expect(followup).toHaveBeenCalledOnce()
+      .toMatchObject({ ok: false, error: { code: 'session/model-unavailable' } })
+    expect(followup).not.toHaveBeenCalled()
     expect(agent.session.snapshotEvents()).toEqual(events)
     expect(currentSelection(ctx, sessionId)).toMatchObject({ provider: 'deepseek-official', model: 'removed-model' })
     await ctx.fiber.dispose()
@@ -888,12 +890,12 @@ it('initializes the account model without reasoning metadata and rejects an empt
     { provider: 'deepseek-account', id: 'basic', name: 'Basic' },
   ]))
   const controller = createSessionTestController(ctx, {
-    defaultModelSelection: () => ctx.agentDefaultModel.currentSelection(), cwd: '/tmp',
+    defaultModelSelection: () => ctx.agentDefaultModel.currentSelection()!, cwd: '/tmp',
   })
-  await controller.initializeDefaultModel()
+  await controller.initializeDefaultModel('deepseek-account')
   expect(ctx.agentDefaultModel.currentSelection()).toEqual({ provider: 'deepseek-account', model: 'basic' })
   dispose()
-  await expect(controller.initializeDefaultModel()).rejects.toMatchObject({
+  await expect(controller.initializeDefaultModel('deepseek-account')).rejects.toMatchObject({
     code: 'session/provider-models-unavailable', details: { provider: 'deepseek-account' },
   })
 })

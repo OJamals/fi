@@ -25,6 +25,8 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
+`InitializeParams.provider` and `model` are optional as a pair. When omitted, the runtime resolves its profile default; supplying only one field is an invalid request. The resolved route is validated before prompt admission.
+
 Use this package when you build or debug an SDK wire end — the serving plugin, a client library, or custom tooling that speaks the SDK protocol. It gives you one transport for JSON-RPC 2.0 over caller-owned byte streams and the typed shapes for every SDK method and notification.
 
 ### Framing and transport

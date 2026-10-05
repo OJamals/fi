@@ -11,6 +11,7 @@ const roots: string[] = []
 const BUILT_IN_BUNDLES = [
   '@deepseek-ai/dsh-base',
   '@deepseek-ai/dsh-web-app',
+  '@fi/runtime-bundle',
   '@fi/authorization-bundle',
 ] as const
 function temporaryRoot(): string {

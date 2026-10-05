@@ -10,6 +10,8 @@ python -m pip install deepseek-harness-sdk
 
 ## 启动运行时
 
+`DeepSeekConfig.provider` 和 `model` 默认为 `None`。同时省略以使用所选 profile 解析的模型；同时提供以指定路由。FI 完整 `sdk` profile 使用订阅感知设置。`sdk-minimal` 要求两个字段；没有模型设置时，初始化在工作入队前被拒绝。
+
 Python SDK 没有独立的应用入口。它以 `--profile sdk` 启动内置的 `dsh` CLI（命令行界面）；所选 profile 负责 JSON-RPC 服务器、agent（智能体）组合、凭据、持久化、工具和关闭流程。
 
 每次启动都必须显式指定 Harness home。请传入 `dsh_home`，或在子进程环境中提供非空的 `DSH_HOME`。SDK 刻意不会发现 `~/.fi`。

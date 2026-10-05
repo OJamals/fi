@@ -137,6 +137,18 @@ function prompt(ctx: Context) {
 }
 
 describe('request-level dynamic configuration', () => {
+  it('disables and restores the official route through Loader configuration updates', async () => {
+    const { ctx } = await boot(await home(), { enabled: true, models: [{ id: 'retained-model' }] })
+    await configurations.get(ctx)!.update({ enabled: false })
+    expect(ctx.llm.listProviders()).toEqual([])
+    expect(ctx.llm.listConfigurableProviders()).toMatchObject([{ provider: 'deepseek-official' }])
+    await configurations.get(ctx)!.update({ models: [{ id: 'retained-model', name: 'Edited while disabled' }] })
+    expect(ctx.llm.listProviders()).toEqual([])
+    await configurations.get(ctx)!.update({ enabled: true })
+    await expect(ctx.llm.listModels('deepseek-official')).resolves.toMatchObject([
+      { id: 'retained-model', name: 'Edited while disabled' },
+    ])
+  })
   it('routes the next request with the freshly resolved base URL and credential', async () => {
     vi.stubEnv('DEEPSEEK_API_KEY', '')
     const dir = await home()

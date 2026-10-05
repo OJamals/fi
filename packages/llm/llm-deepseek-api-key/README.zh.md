@@ -25,6 +25,8 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用此包
 
+`enabled` 默认为 `true`。设为 `false` 时，官方推理路由不再注册，但保留配置目录项、凭据和模型目录。用户可在“设置”→“模型”移除 DeepSeek，再通过“添加提供方”恢复；恢复时将 `enabled` 设为 `true`。
+
 `apiKeyEnv` 默认为 `DEEPSEEK_API_KEY`，在每次请求时解析凭据。已组合 credentials 服务时，按其优先级解析；只有未组合该服务时才直接读取启动环境。请求时凭据缺失以 `MISSING_CREDENTIAL` 失败；格式错误以 `INVALID_CREDENTIAL` 失败。模型发现始终返回配置的目录，不依赖凭据。
 
 ```yaml

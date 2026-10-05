@@ -29,7 +29,7 @@ describe('settings Remote', () => {
     const model = describe.namespaces.find(row => row.ns === 'default-model')!
     const saved = await controller.mutate(model.ns, [{ op: 'set', path: ['model'], value: 'next' }], model.revision)
     expect(saved.value).toEqual({ provider: 'test', model: 'next' })
-    expect(ctx.agentDefaultModel.currentSelection().model).toBe('next')
+    expect(ctx.agentDefaultModel.currentSelection()?.model).toBe('next')
     await expect(controller.update(model.ns, { model: 'stale' }, model.revision)).rejects.toMatchObject({ code: 'settings/conflict' })
     await expect(controller.update('first', { count: 0 }, undefined)).rejects.toMatchObject({ code: 'settings/rejected' })
     await expect(controller.update('', {}, undefined)).rejects.toMatchObject({ code: 'gateway/bad-request' })

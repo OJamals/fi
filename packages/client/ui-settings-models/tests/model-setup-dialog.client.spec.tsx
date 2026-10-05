@@ -65,12 +65,18 @@ function harness(options: {
   const configured = options.configured ?? (() => fileConfigured)
   const apiKeyEnv = 'DEEPSEEK_API_KEY'
   const face = {
+    session: { modelCatalog: async () => ({ ok: true as const, value: {
+      default: configured() && options.provider !== false ? { provider: 'deepseek-official', model: 'fixture' } : null,
+      groups: [{ id: 'deepseek-official', name: 'DeepSeek', models: [{ id: 'fixture', name: 'Fixture' }] }],
+      routableProviders: ['deepseek-official'], failures: [],
+    } }) },
     llm: {
       listProviders: () => {
         if (options.providersFailure !== undefined) {
           return Promise.resolve({ ok: false as const, error: new RemoteError('gateway/internal', options.providersFailure, {}) })
         }
-        return Promise.resolve({ ok: true as const, value: [{ id: 'deepseek-official', name: 'DeepSeek' }] })
+        return Promise.resolve({ ok: true as const, value: options.provider === false
+          ? [] : [{ id: 'deepseek-official', name: 'DeepSeek' }] })
       },
       listConfigurableProviders: () => Promise.resolve({ ok: true as const, value:
         options.provider === false

@@ -27,10 +27,10 @@ const DIRECT_PROVIDER_CREDENTIALS = {
 type DirectSearchProvider = keyof typeof DIRECT_PROVIDER_CREDENTIALS
 
 /** Search engines available in FI's stable preferred-search router. */
-export type PreferredSearchProvider = DirectSearchProvider | 'subscription-native'
+export type PreferredSearchProvider = DirectSearchProvider | 'subscription-native' | 'bing-rss' | 'auto'
 
 /** Subscription-backed search families. */
-export type SubscriptionProvider = 'codex' | 'grok' | 'antigravity' | 'claude'
+export type SubscriptionProvider = 'auto' | 'codex' | 'grok' | 'antigravity' | 'claude'
 
 /** Browser-visible Host settings; credential literals are excluded. */
 export interface PreferredSearchSettings {
@@ -42,7 +42,7 @@ export interface PreferredSearchSettings {
   tavilyApiKeyEnv?: string
   serperApiKeyEnv?: string
   braveApiKeyEnv?: string
-  subscriptionProvider?: SubscriptionProvider
+  subscriptionProvider?: Exclude<SubscriptionProvider, 'auto'>
   subscriptionModel?: string
 }
 
@@ -94,20 +94,20 @@ interface Draft {
   apiKey?: string
 }
 
-const DEFAULT_PROVIDER: PreferredSearchProvider = 'deepseek-official'
-const DEFAULT_SUBSCRIPTION_PROVIDER: SubscriptionProvider = 'codex'
+const DEFAULT_PROVIDER: PreferredSearchProvider = 'auto'
+const DEFAULT_SUBSCRIPTION_PROVIDER: SubscriptionProvider = 'auto'
 
 /**
  * Resolve the exact credential reference named by the selected provider settings.
  * @param settings - current Host-owned provider settings.
  * @param provider - provider whose credential reference is required.
- * @returns configured reference, default reference, or `undefined` for subscription search.
+ * @returns configured reference, default reference, or `undefined` for keyless or subscription search.
  */
 export function credentialRefFor(
   settings: PreferredSearchSettings,
   provider: PreferredSearchProvider = settings.provider,
 ): string | undefined {
-  if (provider === 'subscription-native') return undefined
+  if (provider === 'auto' || provider === 'subscription-native' || provider === 'bing-rss') return undefined
   const [setting, fallback] = DIRECT_PROVIDER_CREDENTIALS[provider]
   return nonBlank(settings[setting]) ?? fallback
 }
@@ -236,8 +236,8 @@ export class PreferredSearchCardController {
       || this.draft.subscriptionModel !== undefined
     const credentialKnown = credentialRef === undefined
       || (this.credential.ref === credentialRef && this.credential.checked)
-    const invalid = provider === 'subscription-native'
-      ? this.subscriptionModel().trim().length === 0
+    const invalid = provider === 'auto' || provider === 'subscription-native' || provider === 'bing-rss'
+      ? false
       : !credentialKnown || (!this.credential.configured && apiKey.trim().length === 0)
     return {
       available: snapshot.status === 'ready',
@@ -337,14 +337,15 @@ export class PreferredSearchCardController {
     }
     if (state.provider === 'subscription-native') {
       if (this.draft.subscriptionProvider !== undefined || this.draft.provider !== undefined) {
-        ops.push({
-          op: 'set' as const,
-          path: ['subscriptionProvider'],
-          value: state.subscriptionProvider,
-        })
+        ops.push(state.subscriptionProvider === 'auto'
+          ? { op: 'unset' as const, path: ['subscriptionProvider'] }
+          : { op: 'set' as const, path: ['subscriptionProvider'], value: state.subscriptionProvider })
       }
       if (this.draft.subscriptionModel !== undefined || this.draft.provider !== undefined) {
-        ops.push({ op: 'set' as const, path: ['subscriptionModel'], value: state.subscriptionModel.trim() })
+        const model = state.subscriptionModel.trim()
+        ops.push(model === ''
+          ? { op: 'unset' as const, path: ['subscriptionModel'] }
+          : { op: 'set' as const, path: ['subscriptionModel'], value: model })
       }
     }
     return ops
@@ -357,11 +358,11 @@ export class PreferredSearchCardController {
     if (state.provider !== 'subscription-native') return true
     if (
       (this.draft.subscriptionProvider !== undefined || this.draft.provider !== undefined)
-      && accepted.subscriptionProvider !== state.subscriptionProvider
+      && (accepted.subscriptionProvider ?? 'auto') !== state.subscriptionProvider
     ) return false
     return !(
       (this.draft.subscriptionModel !== undefined || this.draft.provider !== undefined)
-      && accepted.subscriptionModel !== state.subscriptionModel.trim()
+      && (accepted.subscriptionModel ?? '') !== state.subscriptionModel.trim()
     )
   }
 

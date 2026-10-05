@@ -50,10 +50,10 @@
     - id: subscription-native-search-fixture
       name: './subscription-native-search-fixture.mjs'
 
-    - id: fi-web-search-preferences
-      name: '@fi/web-search-preferences'
-      config:
-        provider: subscription-native
-        subscriptionProvider: codex
-        subscriptionModel: gpt-5.6-sol
-        subscriptionMaxResponseBytes: 4096
+- id: fi-web-search-preferences
+  name: '@fi/web-search-preferences'
+  config:
+    provider: subscription-native
+    subscriptionProvider: codex
+    subscriptionModel: gpt-5.6-sol
+    subscriptionMaxResponseBytes: 4096

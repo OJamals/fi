@@ -134,16 +134,18 @@ class HarnessClient:
         self,
         *,
         cwd: str,
-        provider: str,
-        model: str,
+        provider: str | None = None,
+        model: str | None = None,
         reasoning_effort: str | None = None,
         max_tokens: int | None = None,
     ) -> InitializeResponse:
         payload: JsonObject = {
             "cwd": str(Path(cwd).resolve()),
-            "provider": provider,
-            "model": model,
         }
+        if provider is not None:
+            payload["provider"] = provider
+        if model is not None:
+            payload["model"] = model
         if reasoning_effort is not None:
             payload["reasoningEffort"] = reasoning_effort
         if max_tokens is not None:

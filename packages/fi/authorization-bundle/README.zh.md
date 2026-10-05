@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-`@fi/authorization-bundle` 为基于 base 的 `dsh --profile` 组合添加订阅登录、模型访问、图片生成和首选网页搜索。FI Desktop 将它放在上游 base 与 Web bundle 之后。源码和自定义 profile 通过在 `@deepseek-ai/dsh-base` 后列出该层来启用。该层自身不获取凭据或模型路由；用户在设置中配置授权和密钥。
+`@fi/authorization-bundle` 在共享 [FI 运行时层](../runtime-bundle/README.zh.md)上添加订阅登录和搜索设置界面。FI Web 和 Desktop 将它放在 base、web-app 和 runtime-bundle 后；自定义 GUI profile 使用相同顺序。该层自身不获取凭据或模型路由；用户在设置中配置授权和密钥。
 
 ## 目录
 
@@ -27,13 +27,13 @@ kind: "package-bundle"
 
 ### 安装进 profile
 
-FI Desktop 在本地包集和固定内置 profile 中提供这个私有层，不从 npm 安装。已声明 `@deepseek-ai/dsh-base` 的源码或自定义 profile，只需在其后列出本层即可获得这些功能：
+FI Desktop 在本地包集和固定内置 profile 中提供这个私有层，不从 npm 安装。源码或自定义 GUI profile 在 base、web-app 和 runtime-bundle 后列出本层即可获得这些功能：
 
 ```json
 {
   "dsh": {
     "profile": {
-      "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "@fi/authorization-bundle"]
+      "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "@fi/runtime-bundle", "@fi/authorization-bundle"]
     }
   }
 }
@@ -50,13 +50,13 @@ add 命令会对 profile 做协调并激活该层；它通过 profile 的包管�
 
 ### 你得到什么
 
-FI 使用不绑定提供方的引导流程，并禁用 DeepSeek 账户界面、账户模型路由以及依赖该账户的产品分析。DeepSeek 仍可通过 API key 使用。
+FI 使用不绑定提供方的引导流程，并禁用 DeepSeek 账户界面、账户 Remote、产品分析和 Desktop 产品遥测。只有解析的默认模型属于可用目录分组时，引导才就绪。运行时层负责模型与搜索解析、可选 DeepSeek 访问、适配器及禁用 Session 反馈上传。
 
-基础 bundle 挂载授权服务；该层挂载其 Remote 控制器、Models 订阅页脚、原生 Antigravity 与 OpenCode Console 适配器、提供方 HTTP 兼容处理和 FI 首选网页搜索。页脚支持 Claude、Codex、Grok、Antigravity 和 OpenCode Console；成功登录后采用模型路由，已有授权则可重试设置，无需再次登录。提供方兼容处理提供捕获派生的请求头及 Grok 订阅端点，不改变普通 API-key 请求。“首选网页搜索”卡片选择 DeepSeek、Exa、Perplexity、Parallel、Tavily、Serper、Brave Search 或订阅原生搜索，并通过凭据存储直接提供方密钥。
+基础 bundle 挂载授权服务；该层挂载其 Remote 控制器、Models 订阅页脚和首选搜索卡片。页脚支持 Claude、Codex、Grok、Antigravity 和 OpenCode Console；成功登录后采用模型路由，已有授权可重试设置，无需再次登录。搜索设置提供 Auto、Bing RSS、显式 API 提供方及订阅原生搜索，并通过凭据存储直接提供方密钥。
 
 composer 的 Model 面板把订阅路由放在普通提供方下方、标为“订阅服务”的分区。Antigravity 的目录提供方名称是 `antigravity`，与小写路由标签一致；提供方和模型 id 不变。
 
-该层还配置一个 `image_gen` 工具，包含 Codex、Grok 和 Antigravity 目标。Codex 是显式默认值；工具调用可以选择另一个已配置的提供方，失败请求不会切换提供方。`cordis.patch.yml` 中的 `fi-image-generation` 行负责模型选择和默认提供方。[图片生成包](../tool-image-generation/README.zh.md)负责参考图片编辑、限制及结果行为。Claude 没有原生光栅图片生成目标，但可以通过此工具使用另一个已登录的提供方。
+此 GUI bundle 为 Codex、Grok 和 Antigravity 配置 `image_gen`；Codex 是显式图片默认值。失败请求不切换提供方。[图片生成包](../tool-image-generation/README.zh.md)负责参考图片编辑、限制及结果行为。
 
 <a id="understand-the-implementation"></a>
 ## 理解实现
@@ -64,7 +64,7 @@ composer 的 Model 面板把订阅路由放在普通提供方下方、标为“�
 <details>
 <summary>实现内部——点击展开</summary>
 
-patch 文档为 `cordis.patch.yml`，通过一个 `insert` 块添加带 FI 前缀的行。它把基础 `web` 行的完整配置替换为稳定 FI 路由和现有 `http` fetch 提供方，并在 FI 路由拥有现有设置命名空间时禁用已被取代的基础 DeepSeek 提供方。FI 登录客户端插件向通用模型选择器的 `ctx.modelSubscriptions` 服务注册四条路由 id；Cordis 注入控制服务顺序，client-modules 插件把声明的客户端包纳入浏览器启动 manifest。上游 bundle 文档保持不变；移除此层会恢复上游组合并读取同一份已存储 DeepSeek 设置。
+patch 文档为 `cordis.patch.yml`，通过 `insert` 添加带 FI 前缀的浏览器和 Remote 行。FI 登录客户端插件向通用模型选择器的 `ctx.modelSubscriptions` 注册订阅路由；Cordis 注入控制服务顺序，client-modules 将声明的客户端包纳入浏览器启动 manifest。移除此 GUI 层保留运行时提供方和偏好。
 
 </details>
 
@@ -87,17 +87,17 @@ patch 文档为 `cordis.patch.yml`，通过一个 `insert` 块添加带 FI 前�
 <a id="model-experience"></a>
 ## 模型体验
 
-间接影响：该层挂载[图片生成工具](../tool-image-generation/README.zh.md#model-experience)和未修改的上游 `web_search` 工具，由相应包负责其 schema 和结果。
+间接影响：显式模型和搜索选择，以及已挂载的图片工具。所属包定义请求 schema 和结果。
 
 #### KV Cache 影响
 
-添加或移除此层会改变已挂载的图像工具 schema。搜索提供方偏好不会更改 `web_search` schema 或 prompt。
+添加或移除此 GUI 层改变图片工具 schema。搜索提供方偏好不会更改 `web_search` schema 或 prompt。
 
 ## 已知限制与延期工作
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- FI Desktop 自动挂载本组合包。其他 profile 必须显式列出；本包为私有包期间，无法从 registry 安装。
+- FI Web 和 Desktop 自动挂载此 GUI bundle。自定义 GUI profile 需在 runtime-bundle 后显式列出；本包为私有包期间，无法从 registry 安装。
 - 移除登录会保留该提供方的 settings 路由；两个动作为何分离，见登录卡片的说明。
 
 <a id="dev-note"></a>

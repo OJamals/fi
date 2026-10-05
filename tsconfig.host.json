@@ -31,6 +31,7 @@
     "apps/web/tests/auto-review-denial.e2e.ts",
     "apps/web/tests/scaffold-generation.spec.ts",
     "apps/web/tests/default-model.e2e.ts",
+    "apps/web/tests/fi-runtime-defaults.e2e.ts",
     "apps/web/tests/model-picker-organization.e2e.ts",
     "apps/web/tests/model-menu-observer.e2e.ts",
     "apps/web/tests/github-ready-review.e2e.ts",
@@ -317,6 +318,7 @@
     // that mounts the seam. Additive — no upstream project is modified.
     { "path": "./packages/fi/api-authorization-controller" },
     { "path": "./packages/fi/authorization-bundle" },
+    { "path": "./packages/fi/runtime-bundle" },
     { "path": "./packages/fi/llm-antigravity" },
     { "path": "./packages/fi/llm-opencode" },
     { "path": "./packages/fi/provider-compat" },

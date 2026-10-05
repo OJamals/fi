@@ -97,6 +97,9 @@ describe('preferred-search settings card', () => {
     const actions = mount()
     const select = screen.getByRole('combobox', { name: en.provider })
     expect([...select.querySelectorAll('option')].map(option => option.getAttribute('value'))).toEqual([
+      'auto',
+      'bing-rss',
+      'subscription-native',
       'deepseek-official',
       'exa',
       'perplexity',
@@ -104,12 +107,19 @@ describe('preferred-search settings card', () => {
       'tavily',
       'serper',
       'brave',
-      'subscription-native',
     ])
 
     fireEvent.change(select, { target: { value: 'tavily' } })
     expect(actions.editProvider).toHaveBeenCalledWith('tavily')
     expect(actions.save).not.toHaveBeenCalled()
+  })
+
+  it.each(['auto', 'bing-rss'] as const)('shows %s search without credential or subscription override controls', (provider) => {
+    mount({ provider })
+    expect(screen.getByText(provider === 'auto' ? en.autoSearchHint : en.freeSearchHint)).toBeTruthy()
+    expect(screen.queryByLabelText(en.apiKey)).toBeNull()
+    expect(screen.queryByLabelText(en.subscriptionModel)).toBeNull()
+    expect(screen.queryByLabelText(en.subscriptionProvider)).toBeNull()
   })
 
   it('keeps direct-provider credentials write-only', () => {

@@ -431,6 +431,9 @@ importers:
       '@fi/authorization-bundle':
         specifier: workspace:^
         version: link:../../packages/fi/authorization-bundle
+      '@fi/runtime-bundle':
+        specifier: workspace:^
+        version: link:../../packages/fi/runtime-bundle
       commander:
         specifier: ^15.0.0
         version: 15.0.0
@@ -1031,6 +1034,9 @@ importers:
       '@deepseek-ai/dsh-agent':
         specifier: workspace:*
         version: link:../../core/agent
+      '@deepseek-ai/dsh-agent-default-model':
+        specifier: workspace:*
+        version: link:../../core/agent-default-model
       '@deepseek-ai/dsh-agent-loop':
         specifier: workspace:*
         version: link:../../core/agent-loop
@@ -6850,6 +6856,9 @@ importers:
       '@deepseek-ai/dsh-config-editor':
         specifier: workspace:*
         version: link:../../boot/config-editor
+      '@deepseek-ai/dsh-credentials':
+        specifier: workspace:*
+        version: link:../../credentials/credentials
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
@@ -8619,21 +8628,12 @@ importers:
       '@fi/client-ui-web-search-preferences':
         specifier: workspace:^
         version: link:../client-ui-web-search-preferences
-      '@fi/llm-antigravity':
+      '@fi/runtime-bundle':
         specifier: workspace:^
-        version: link:../llm-antigravity
-      '@fi/llm-opencode':
-        specifier: workspace:^
-        version: link:../llm-opencode
-      '@fi/provider-compat':
-        specifier: workspace:^
-        version: link:../provider-compat
+        version: link:../runtime-bundle
       '@fi/tool-image-generation':
         specifier: workspace:^
         version: link:../tool-image-generation
-      '@fi/web-search-preferences':
-        specifier: workspace:^
-        version: link:../web-search-preferences
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:~
@@ -8864,6 +8864,25 @@ importers:
         specifier: ^8.18.1
         version: 8.18.1
 
+  packages/fi/runtime-bundle:
+    dependencies:
+      '@fi/llm-antigravity':
+        specifier: workspace:^
+        version: link:../llm-antigravity
+      '@fi/llm-opencode':
+        specifier: workspace:^
+        version: link:../llm-opencode
+      '@fi/provider-compat':
+        specifier: workspace:^
+        version: link:../provider-compat
+      '@fi/web-search-preferences':
+        specifier: workspace:^
+        version: link:../web-search-preferences
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+
   packages/fi/tool-image-generation:
     dependencies:
       '@deepseek-ai/schemastery':
@@ -8930,6 +8949,12 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
+      fast-xml-parser:
+        specifier: ^5.11.1
+        version: 5.11.1
+      fast-xml-validator:
+        specifier: ^1.4.2
+        version: 1.4.2
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:~
@@ -8943,6 +8968,9 @@ importers:
       '@deepseek-ai/dsh-launch-environment':
         specifier: workspace:*
         version: link:../../util/launch-environment
+      '@deepseek-ai/dsh-llm':
+        specifier: workspace:*
+        version: link:../../llm/llm
       '@deepseek-ai/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
@@ -8961,6 +8989,9 @@ importers:
       '@deepseek-ai/dsh-web-search-perplexity':
         specifier: workspace:*
         version: link:../../web/web-search-perplexity
+      '@fi/llm-antigravity':
+        specifier: workspace:^
+        version: link:../llm-antigravity
       '@fi/web-search-subscription':
         specifier: workspace:^
         version: link:../web-search-subscription
@@ -10252,6 +10283,9 @@ importers:
       '@deepseek-ai/dsh-llm-deepseek':
         specifier: workspace:*
         version: link:../llm-deepseek
+      '@deepseek-ai/dsh-settings':
+        specifier: workspace:*
+        version: link:../../settings/settings
 
   packages/llm/llm-pi-ai:
     dependencies:
@@ -11119,6 +11153,9 @@ importers:
       '@deepseek-ai/dsh-agent':
         specifier: workspace:*
         version: link:../../core/agent
+      '@deepseek-ai/dsh-agent-default-model':
+        specifier: workspace:*
+        version: link:../../core/agent-default-model
       '@deepseek-ai/dsh-agent-loop':
         specifier: workspace:*
         version: link:../../core/agent-loop
@@ -13762,6 +13799,12 @@ importers:
       '@deepseek-ai/dsh-web-app':
         specifier: workspace:*
         version: link:../../bundle/web-app
+      '@fi/authorization-bundle':
+        specifier: workspace:^
+        version: link:../../fi/authorization-bundle
+      '@fi/runtime-bundle':
+        specifier: workspace:^
+        version: link:../../fi/runtime-bundle
       '@types/js-yaml':
         specifier: ^4.0.9
         version: 4.0.9
@@ -14688,6 +14731,9 @@ importers:
       '@deepseek-ai/dsh-agent':
         specifier: workspace:*
         version: link:../../packages/core/agent
+      '@deepseek-ai/dsh-agent-default-model':
+        specifier: workspace:*
+        version: link:../../packages/core/agent-default-model
       '@deepseek-ai/dsh-agent-instructions':
         specifier: workspace:*
         version: link:../../packages/context/agent-instructions
@@ -16750,8 +16796,20 @@ packages:
     resolution: {integrity: sha512-oN+QwyX7VSHotibwubG3kpzbwKrfnyR6OOO+3Nk/53ADL7FmgHHz4TgrbaYKvvOw09u6QTx0oiH1cNCIOuN0CQ==}
     engines: {node: '>= 20.19.0'}
 
+  '@nodable/base-output-builder@2.0.0':
+    resolution: {integrity: sha512-DECrOg3zZuhOx2Iesj1mkINjFvasP3HV3pjGBs3A104V4zJIZJOeqOzF5qNWRl17oGheNsfnqINwUBVu6n7wrQ==}
+
+  '@nodable/compact-builder@2.0.0':
+    resolution: {integrity: sha512-TLyrdyV+KIh9n7waO45m9LsbxpoNXkHfXmQ4tWgXJynsJwCCZm2qT5NFvcjzWq3AN+tsA7XpmQOwAC5vbqzjkg==}
+
+  '@nodable/entities@2.2.0':
+    resolution: {integrity: sha512-9uGyhaQavEUMC8AIddIjau4NsnsXhou+j5sBAGojCM1oxmQpVKTWR/9JxABD6UAv12vpIms55fPZKFQEhG6uBg==}
+
   '@nodable/entities@3.0.0':
     resolution: {integrity: sha512-8L9xFeTYKhm49xfIypoe2W5wV1m/3Z58kT+7kR9A8OyFxcPduI4VmxaUMQyKYrRjUoLLSXv6EKKID5Tvj9cUVw==}
+
+  '@nodable/flexible-xml-parser@1.11.3':
+    resolution: {integrity: sha512-fNX6VI3qlgTogvjnE80OWoGrFJ05oeq3lTr13mCtl64zbOEW+cqAKnxTxE+n6S4dGXcBzDVuCK9K7UvcWZPniA==}
 
   '@octokit/openapi-types@28.0.0':
     resolution: {integrity: sha512-0rFyLuyHvIj6uuZWuDslxkowFYdPXoNIkeAv4b27dzm2Tf4vGWXnPsMcxs7d65kLdMERgP3wc1AEPlqMz8e1cQ==}
@@ -19179,6 +19237,9 @@ packages:
     resolution: {integrity: sha512-2sJGJTaXIIaR1w4iJSNoN0hnMY7Gpc/n8D4qSCJw8QqFWXf7cuAgnEHxBpweaVcPevC2l3KpjYCx3NypQQgaJg==}
     engines: {node: '>= 0.8', npm: 1.2.8000 || >= 1.4.16}
 
+  detailed-xml-validator@2.2.0:
+    resolution: {integrity: sha512-dffr/kTqIqq2BpybOEddhQRF1KBQcLdKHww9/urAKwZC1+epDnPnbT5IOb0ffCT4QTioAvKYEsojXeOYk030UQ==}
+
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
@@ -19531,6 +19592,9 @@ packages:
   fast-xml-parser@5.11.1:
     resolution: {integrity: sha512-TBw6K/fxoQGGjCmZDw9w/ZwP3uDcnTM4YH/g+PFRWr8sbe5idXtxNN6vITh4+1ruCZaho6uBFurElsA7F0zzgw==}
     hasBin: true
+
+  fast-xml-validator@1.4.2:
+    resolution: {integrity: sha512-dN1Z5tBDxhJ1e8ccerKI+MWdwZ8oUWhWTSYISFeHKUOzlaZrwnwxcHKN3d7R9IOqtCtk6ynbEiZhjo/8RtDwIA==}
 
   fdir@6.5.0:
     resolution: {integrity: sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==}
@@ -20011,6 +20075,9 @@ packages:
   is-unicode-supported@2.1.0:
     resolution: {integrity: sha512-mE00Gnza5EEB3Ds0HfMyllZzbBrmLOX3vfWoj9A9PEnTfratQ/BcaJOuMhnkhjXvb2+FkY3VuHqtAGpTPmglFQ==}
     engines: {node: '>=18'}
+
+  is-unsafe@1.0.1:
+    resolution: {integrity: sha512-CLK2+VdgERgD96EYm5lUQssZYlRg2tkZnbsxZoacmSiRxiFJ4Nk4SzjCl+Ur+v3kXIY9dTIdb3IH22y1mZ56LA==}
 
   is-unsafe@2.0.2:
     resolution: {integrity: sha512-HgbIHPBH0KHHCcjLfGsCvhtPTVxjaAZlXjwdz7/GQC40SjSe4sfQsar8J5VFo8JOSbarkpV0OLG95bbaNd9aAQ==}
@@ -24009,7 +24076,28 @@ snapshots:
 
   '@noble/hashes@2.3.0': {}
 
+  '@nodable/base-output-builder@2.0.0':
+    dependencies:
+      '@nodable/entities': 2.2.0
+      is-unsafe: 1.0.1
+      path-expression-matcher: 1.6.2
+      strnum: 2.4.2
+
+  '@nodable/compact-builder@2.0.0':
+    dependencies:
+      '@nodable/base-output-builder': 2.0.0
+      path-expression-matcher: 1.6.2
+
+  '@nodable/entities@2.2.0': {}
+
   '@nodable/entities@3.0.0': {}
+
+  '@nodable/flexible-xml-parser@1.11.3':
+    dependencies:
+      '@nodable/base-output-builder': 2.0.0
+      '@nodable/compact-builder': 2.0.0
+      path-expression-matcher: 1.6.2
+      xml-naming: 0.3.0
 
   '@octokit/openapi-types@28.0.0': {}
 
@@ -26308,6 +26396,12 @@ snapshots:
 
   destroy@1.2.0: {}
 
+  detailed-xml-validator@2.2.0:
+    dependencies:
+      '@nodable/base-output-builder': 2.0.0
+      '@nodable/compact-builder': 2.0.0
+      '@nodable/flexible-xml-parser': 1.11.3
+
   detect-libc@2.1.2: {}
 
   detect-node@2.1.0:
@@ -26805,6 +26899,12 @@ snapshots:
       is-unsafe: 2.0.2
       path-expression-matcher: 1.6.2
       strnum: 2.4.2
+      xml-naming: 0.3.0
+
+  fast-xml-validator@1.4.2:
+    dependencies:
+      detailed-xml-validator: 2.2.0
+      path-expression-matcher: 1.6.2
       xml-naming: 0.3.0
 
   fdir@6.5.0(picomatch@4.0.4):
@@ -27362,6 +27462,8 @@ snapshots:
   is-typedarray@1.0.0: {}
 
   is-unicode-supported@2.1.0: {}
+
+  is-unsafe@1.0.1: {}
 
   is-unsafe@2.0.2: {}
 

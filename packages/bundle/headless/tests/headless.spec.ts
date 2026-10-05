@@ -43,6 +43,8 @@ interface BenchOptions {
   filesystemCwd?: string
   task?: string
   useStdin?: boolean
+  /** Leave fresh runs without a default while allowing recorded-session adoption. */
+  noDefaultModel?: boolean
   readStdin?: () => Promise<string>
   sessionId?: string
   json?: boolean
@@ -172,7 +174,7 @@ async function bench(script: Script, options: BenchOptions = {}): Promise<{
   await ctx.plugin(SessionStore)
   await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(AgentRegistry)
-  await ctx.plugin(AgentDefaultModelConfig, { provider: 'test-provider', model: 'test-model' })
+  await ctx.plugin(AgentDefaultModelConfig, options.noDefaultModel === true ? {} : { provider: 'test-provider', model: 'test-model' })
   ctx.agents.setFactory({
     async createAgent(ownerCtx: Context, createOptions: CreateAgentOptions): Promise<AgentHandle> {
       const session = ctx.sessions.create(createOptions.sessionId, {
@@ -616,6 +618,41 @@ describe('headless runner', () => {
     await test.ctx.fiber.dispose()
   })
 
+  it('adopts a recorded Session when no fresh-run default is configured', async () => {
+    const test = await bench({
+      afterPrompt(session, message, agent) {
+        expect(agent.options).toEqual({})
+        expect(session.requestHeader()?.config).toEqual({ provider: 'recorded-provider', model: 'recorded-model' })
+        appendTurn(session, 1, message, 'continued answer', true)
+      },
+    }, {
+      noDefaultModel: true,
+      sessionId: 'session-exact',
+      observe: () => Promise.resolve({
+        header: { cwd: process.cwd(), origin: 'user' },
+        events: [],
+        [Symbol.dispose]() {},
+      }),
+    })
+    const session = test.ctx.sessions.create(brandString<SessionId>('session-exact'), { meta: { cwd: process.cwd() } })
+    session.append('request/header', {
+      header: { config: { provider: 'recorded-provider', model: 'recorded-model' } }, reason: 'initial',
+    })
+    try { expect(await test.run()).toMatchObject({ code: 0, out: 'continued answer\n', err: '' }) }
+    finally { await test.ctx.fiber.dispose() }
+  })
+
+  it('requires a fresh-run model before creating an Agent', async () => {
+    let prompted = false
+    const test = await bench({ afterPrompt() { prompted = true } }, { noDefaultModel: true })
+    try {
+      const result = await test.run()
+      expect(result.code).toBe(1)
+      expect(result.err).toContain('Configure a model in FI Settings')
+      expect(prompted).toBe(false)
+    } finally { await test.ctx.fiber.dispose() }
+  })
+
   it('rejects a persisted Session recorded in another working directory', async () => {
     const test = await bench({ afterPrompt: () => {} }, {
       sessionId: 'session-exact',
@@ -985,7 +1022,7 @@ describe('headless runner', () => {
     const exited = new Promise<number>((resolve) => {
       ctx.provide('appExit', resolve)
     })
-    ctx.provide('agentDefaultModel', { currentSelection: () => ({ provider: 'p', model: 'm' }) } as never)
+    ctx.provide('agentDefaultModel', { resolveSelection: async () => ({ provider: 'p', model: 'm' }) } as never)
     ctx.provide('sessions', { flush: () => Promise.resolve(true) } as never)
     ctx.provide('agents', { create: () => Promise.reject(new Error('factory exploded')) } as never)
     apply(ctx, { task: 't' })
@@ -1002,7 +1039,7 @@ describe('headless runner', () => {
     const exited = new Promise<number>((resolve) => {
       ctx.provide('appExit', resolve)
     })
-    ctx.provide('agentDefaultModel', { currentSelection: () => ({ provider: 'p', model: 'm' }) } as never)
+    ctx.provide('agentDefaultModel', { resolveSelection: async () => ({ provider: 'p', model: 'm' }) } as never)
     ctx.provide('sessions', { flush: () => Promise.resolve(true) } as never)
     const rejected = {
       then(_resolve: (value: never) => void, reject: (reason: unknown) => void): void {
@@ -1023,7 +1060,7 @@ describe('headless runner', () => {
     internals.stderr = { write: () => true }
     ctx.provide('appExit', () => { exited = true })
     const services = ctx.plugin((child: Context) => {
-      child.provide('agentDefaultModel', { currentSelection: () => ({ provider: 'p', model: 'm' }) } as never)
+      child.provide('agentDefaultModel', { resolveSelection: async () => ({ provider: 'p', model: 'm' }) } as never)
       child.provide('sessions', {} as never)
       child.provide('agents', {} as never)
     })

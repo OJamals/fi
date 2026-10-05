@@ -1,0 +1,9 @@
+# Automatic search uses free RSS for a non-subscription chat model.
+- id: web
+  name: '@deepseek-ai/dsh-web'
+  config:
+    searchProvider: fi-preferred-search
+    fetchProvider: http
+
+- id: web-search-deepseek
+  disabled: true

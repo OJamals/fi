@@ -14,11 +14,13 @@
     { "path": "../../util/launch-environment" },
     { "path": "../../core/agent" },
     { "path": "../../core/session" },
+    { "path": "../../llm/llm" },
     { "path": "../../settings/settings" },
     { "path": "../../web/web" },
     { "path": "../../web/web-search-deepseek" },
     { "path": "../../web/web-search-exa" },
     { "path": "../../web/web-search-perplexity" },
-    { "path": "../web-search-subscription" }
+    { "path": "../web-search-subscription" },
+    { "path": "../llm-antigravity" }
   ]
 }

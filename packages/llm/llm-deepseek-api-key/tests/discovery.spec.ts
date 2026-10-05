@@ -3,6 +3,30 @@ import { Context } from '@deepseek-ai/cordis'
 import LlmRuntime from '@deepseek-ai/dsh-llm'
 import { expect, it, vi } from 'vitest'
 import * as ApiKey from '../src/index.ts'
+import { volatileForm } from '../../../settings/settings/src/schema.ts'
+
+it('exposes official route enablement to live Settings edits', () => {
+  const enabled = volatileForm(ApiKey.Config)?.dict?.enabled
+  expect(enabled?.type).toBe('boolean')
+  expect(enabled?.meta.default).toBe(true)
+})
+
+it('keeps disabled DeepSeek available for configuration without advertising its route', async () => {
+  const ctx = new Context()
+  try {
+    await ctx.plugin(LlmRuntime)
+    const disabled = await ctx.plugin(ApiKey, { enabled: false })
+    expect(ctx.llm.listProviders()).toEqual([])
+    expect(ctx.llm.listConfigurableProviders()).toMatchObject([
+      { provider: 'deepseek-official', settingsPath: [] },
+    ])
+    await disabled.dispose()
+    await ctx.plugin(ApiKey, { enabled: true })
+    expect(ctx.llm.listProviders().map(provider => provider.id)).toEqual(['deepseek-official'])
+  } finally {
+    await ctx.fiber.dispose()
+  }
+})
 
 it.each(['', 'invalid\nheader'])('advertises configured models without a usable API key: %j', async (key) => {
   vi.stubEnv('DEEPSEEK_API_KEY', key)

@@ -295,7 +295,14 @@ export class ApiSessionAgentController {
       get current(): AgentModelSelection {
         if (picked !== undefined) return picked
         const loggedHeader = agent.session.requestHeader()
-        if (loggedHeader === undefined) return defaultModel.currentSelection()
+        if (loggedHeader === undefined) {
+          const current = defaultModel.currentSelection()
+          if (current === undefined) {
+            throw new RemoteError('session/model-unconfigured',
+              'Configure a model in Settings before sending a message.', {})
+          }
+          return current
+        }
         const logged = loggedHeader.config
         return {
           provider: logged.provider,
@@ -436,7 +443,7 @@ export class ApiSessionAgentController {
     }
     return (await this.ctx.agents.resume({
       resumeSessionId: sessionId,
-      agentOptions: this.agentOptions(),
+      agentOptions: await this.agentOptions(),
       setup: composition.setup,
     })).agent
   }
@@ -468,7 +475,7 @@ export class ApiSessionAgentController {
         const composition = await this.composeAgent(storedPreset)
         return (await this.ctx.agents.resume({
           resumeSessionId: sessionId,
-          agentOptions: this.agentOptions(),
+          agentOptions: await this.agentOptions(),
           setup: composition.setup,
         })).agent
       } catch (error: unknown) {
@@ -485,7 +492,7 @@ export class ApiSessionAgentController {
     const composition = await this.composeAgent(presetId)
     return (await this.ctx.agents.create({
       sessionId,
-      agentOptions: this.agentOptions(),
+      agentOptions: await this.agentOptions(),
       meta: {
         cwd,
         ...(composition.agentPreset === undefined ? {} : { agentPreset: composition.agentPreset }),
@@ -494,9 +501,9 @@ export class ApiSessionAgentController {
     })).agent
   }
 
-  private agentOptions(): AgentOptions {
-    const { provider, model } = this.ctx.agentDefaultModel.currentSelection()
-    return { provider, model }
+  private async agentOptions(): Promise<AgentOptions> {
+    const selected = await this.ctx.agentDefaultModel.resolveSelection()
+    return selected === undefined ? {} : { provider: selected.provider, model: selected.model }
   }
 
   private installSelection(agent: Agent): void {

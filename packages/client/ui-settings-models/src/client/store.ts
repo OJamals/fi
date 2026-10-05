@@ -37,7 +37,7 @@ export interface ProviderDirectoryEntry {
  * Join declared configurable providers with the currently registered routes.
  * @param registered - live provider routes in registration order.
  * @param directory - declared configurable providers in declaration order.
- * @returns account and official routes first, then other routes in their original order.
+ * @returns active routes first, then provider ids in neutral order.
  */
 export function joinProviderDirectory(
   registered: readonly LlmProviderInfo[],
@@ -65,8 +65,8 @@ export function joinProviderDirectory(
     })
   }
   return rows.toSorted((left, right) =>
-    (left.provider === 'deepseek-account' ? 0 : left.provider === 'deepseek-official' ? 1 : 2)
-      - (right.provider === 'deepseek-account' ? 0 : right.provider === 'deepseek-official' ? 1 : 2))
+    Number(right.active) - Number(left.active)
+      || left.provider.localeCompare(right.provider, 'en'))
 }
 
 /** One provider row the page renders. */
@@ -77,7 +77,7 @@ export interface ProviderRow {
   entry: ProviderDirectoryEntry
   /** Whether any layer configures this provider (its profile resolves). */
   configured: boolean
-  /** Whether the user layer alone carries the profile (removal restores the base). */
+  /** Whether the row can be disabled or its user-owned profile removed. */
   removable: boolean
   /** The credential reference the resolved profile names, when one does. */
   apiKeyEnv: string | undefined
@@ -101,6 +101,8 @@ export interface ModelsSettingsState {
   credentialError: string | null
   /** Whether the settings provider accepts writes. */
   writable: boolean
+  /** The resolved default is present in the current model catalog. */
+  selectionReady?: boolean
   /** Every configurable provider joined with its configured/credential state. */
   rows: readonly ProviderRow[]
   /** Namespace views by ns, for the editor's schema/layers/secrets. */
@@ -202,12 +204,17 @@ export class ModelsSettingsStore {
     const namespaces = new Map(views.map(view => [view.ns, view]))
     const rows: ProviderRow[] = providers.map((entry) => {
       const namespace = namespaces.get(entry.settingsNs)
+      const optionalDeepSeek = entry.provider === 'deepseek-official'
+        && entry.settingsPath.length === 0
+        && namespace !== undefined
+        && this.schema.nodeAtPath(this.schema.rehydrate(namespace.schema), ['enabled']) !== undefined
       const configured = namespace !== undefined
+        && (!optionalDeepSeek || this.schema.getPath(namespace.value, ['enabled']) !== false)
         && (entry.settingsPath.length === 0 || this.schema.getPath(namespace.value, entry.settingsPath) !== undefined)
       const removable = namespace !== undefined
-        && entry.settingsPath.length > 0
-        && this.schema.hasPath(namespace.user, entry.settingsPath)
-        && !this.schema.hasPath(namespace.base, entry.settingsPath)
+        && (optionalDeepSeek || (entry.settingsPath.length > 0
+          && this.schema.hasPath(namespace.user, entry.settingsPath)
+          && !this.schema.hasPath(namespace.base, entry.settingsPath)))
       return {
         entry,
         configured,
@@ -216,12 +223,14 @@ export class ModelsSettingsStore {
         credential: undefined,
       }
     })
-    if (rows.some(row => row.entry.provider === 'deepseek-account')) {
-      const catalog = await this.ctx.remote.session.modelCatalog()
-      for (const row of rows) {
-        if (row.entry.provider === 'deepseek-account') row.accountAvailable = catalog.ok
-          && catalog.value.groups.some(group => group.id === 'deepseek-account' && group.models.length > 0)
-      }
+    const catalog = await this.ctx.remote.session.modelCatalog()
+    if (!catalog.ok) { this.failLoad(generation, catalog.error.message); return }
+    const selected = catalog.value.default
+    const selectionReady = selected !== null && catalog.value.groups.some(group => group.id === selected.provider
+      && group.models.some(model => model.id === selected.model))
+    for (const row of rows) {
+      if (row.entry.provider === 'deepseek-account') row.accountAvailable =
+        catalog.value.groups.some(group => group.id === 'deepseek-account' && group.models.length > 0)
     }
     const refs = [...new Set(rows.filter(row => row.entry.provider !== 'deepseek-account').map(row => row.apiKeyEnv ?? deriveKeyRef(row.entry.provider)))]
     let credentials: Record<string, CredentialInfo> = {}
@@ -240,6 +249,7 @@ export class ModelsSettingsStore {
       s.error = null
       s.credentialError = credentialError
       s.writable = writable
+      s.selectionReady = selectionReady
       s.rows = rows.filter(row => row.entry.provider !== 'deepseek-account' || row.accountAvailable === true).map((row) => {
         if (row.entry.provider === 'deepseek-account') return row
         const named = row.apiKeyEnv === undefined ? undefined : credentials[row.apiKeyEnv]
@@ -290,15 +300,10 @@ export type OnboardingReadiness =
   | { kind: 'unavailable'; reason: 'load-failed' }
 
 /**
- * Project first-run readiness from the provider/settings/credential join used
- * by the Models page. The step exists to leave the user with a model to talk
- * to, so ANY usable provider ends it; when none exists the step routes to the
- * Models page, where every provider — shipped or user-added — is configured.
- * No provider is presumed: the product is model-universal, so the join answers
- * only "can the user talk to some model yet", never "which vendor to ask for".
- * A catalog with no configurable provider rows at all cannot be acted on from
- * the settings surface either, so that deployment skips the step rather than
- * routing to a page with nothing to configure.
+ * Project first-run readiness from the Models join and resolved catalog default.
+ * Setup completes only when that default belongs to an available model group.
+ * With no provider rows, the deployment skips setup because Settings has no
+ * provider to configure. Failed loads remain visible as an unavailable state.
  * @param state - the shared Models join snapshot.
  * @returns the onboarding state without reading a parallel fact source.
  */
@@ -312,7 +317,7 @@ export function onboardingReadiness(state: ModelsSettingsState): OnboardingReadi
       reason: 'load-failed',
     }
   }
-  if (state.rows.some(providerUsable)) return { kind: 'provider-ready' }
+  if (state.selectionReady === true) return { kind: 'provider-ready' }
   if (state.rows.length === 0) return { kind: 'no-providers' }
   return { kind: 'model-unconfigured' }
 }

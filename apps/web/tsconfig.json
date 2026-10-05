@@ -88,6 +88,7 @@
     "tests/deepseek-messages-chat.e2e.ts",
     "tests/models-settings-recovery.e2e.ts",
     "tests/default-model.e2e.ts",
+    "tests/fi-runtime-defaults.e2e.ts",
     "tests/model-menu-observer.e2e.ts",
     "tests/default-workspace.e2e.ts",
     "tests/new-session-refused.e2e.ts",

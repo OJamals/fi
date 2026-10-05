@@ -244,7 +244,10 @@ function ctxWith(face: object): PageContext {
   const existing = contexts.get(face)
   if (existing !== undefined) return existing
   const ctx = Object.assign(new Context(), { remote: { ...face,
-    session: { initializeDefaultModel: async () => ({ ok: true, value: undefined }) },
+    session: {
+      initializeDefaultModel: async () => ({ ok: true, value: undefined }),
+      modelCatalog: async () => ({ ok: true, value: { default: null, groups: [], failures: [], routableProviders: [] } }),
+    },
   } })
   contexts.set(face, ctx)
   return ctx
@@ -1410,6 +1413,43 @@ describe('ModelsSection', () => {
     fireEvent.change(editorKey, { target: { value: 'sk-live' } })
     fireEvent.click(screen.getByText(en.apply))
     await waitFor(() => { expect(set).toHaveBeenCalledTimes(1) })
+  })
+
+  it.each([undefined, true])('removes optional DeepSeek with enabled %s while retaining its configuration', async (enabled) => {
+    const scripted = scriptedFace()
+    scripted.face.credentials.describe.mockImplementation(async refs => remoteOk(
+      Object.fromEntries(refs.map(ref => [ref, { configured: false, writable: true }])),
+    ))
+    const namespaces = wireNamespaces()
+    const optionalConfig = Schema.object({ ...DeepSeekConfig.dict, enabled: Schema.boolean().default(true) })
+    namespaces[0]!.schema = JSON.parse(JSON.stringify(optionalConfig.toJSON())) as JsonValue
+    if (enabled !== undefined) namespaces[0]!.value = settingsSchema.setPath(namespaces[0]!.value as Record<string, JsonValue>, ['enabled'], enabled) as JsonValue
+    scripted.face.settings.describe.mockResolvedValue(remoteOk({ writable: true, hasDocument: true, namespaces }))
+    const { mutate, unset } = await mountFace(scripted)
+    fireEvent.click(screen.getByRole('button', { name: deepSeekCopy(en.removeProvider) }))
+    const dialog = screen.getByRole('dialog', { name: deepSeekCopy(en.deleteTitle) })
+    expect(dialog.textContent).toContain(deepSeekCopy(en.deleteDescriptionRetained))
+    expect(mutate).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole('button', { name: deepSeekCopy(en.deleteConfirm) }))
+    await waitFor(() => { expect(mutate).toHaveBeenCalledWith(
+      'llm-deepseek', [{ op: 'set', path: ['enabled'], value: false }], undefined,
+    ) })
+    expect(unset).not.toHaveBeenCalled()
+  })
+
+  it('re-adds disabled DeepSeek through its existing editor without clearing model settings', async () => {
+    const namespace = wireNamespaces()[0]!
+    namespace.value = settingsSchema.setPath(namespace.value as Record<string, JsonValue>, ['enabled'], false) as JsonValue
+    namespace.user = { enabled: false, baseURL: 'https://base' }
+    const scripted = scriptedFace()
+    scripted.face.settings.mutate.mockResolvedValue(remoteOk(namespace))
+    render(<ProviderEditor provider="deepseek-official" displayName="DeepSeek"
+      settingsPath={[]} namespace={namespace} schema={settingsSchema}
+      operations={operationsWith(scripted.face)} t={t} readOnly={false} onClose={vi.fn()} />)
+    fireEvent.click(screen.getByText(en.apply))
+    await waitFor(() => { expect(scripted.mutate).toHaveBeenCalledWith(
+      'llm-deepseek', [{ op: 'set', path: ['enabled'], value: true }], 0,
+    ) })
   })
 
   it('requires confirmation before removing a user-added provider', async () => {

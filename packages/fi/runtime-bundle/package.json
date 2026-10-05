@@ -1,0 +1,26 @@
+{
+  "name": "@fi/runtime-bundle",
+  "description": "FI provider, model, search, and feedback defaults shared by supported applications",
+  "version": "0.2.0-rc.2",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": { "types": "./lib/types/index.d.ts", "default": "./lib/index.js" },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": ["lib/index.js", "cordis.patch.yml", "lib/types/**/*.d.ts"],
+  "license": "MIT",
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } },
+  "dependencies": {
+    "@fi/llm-antigravity": "workspace:^",
+    "@fi/llm-opencode": "workspace:^",
+    "@fi/provider-compat": "workspace:^",
+    "@fi/web-search-preferences": "workspace:^"
+  },
+  "peerDependencies": { "@deepseek-ai/cordis": "workspace:~" },
+  "devDependencies": { "@deepseek-ai/cordis": "workspace:~" }
+}

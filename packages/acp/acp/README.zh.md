@@ -33,7 +33,7 @@ kind: "package-reference"
 
 ### 最小配置
 
-服务器创建的每个会话都使用此处配置的提供方与模型。两个字段都是可选的，以便由另一个 agent/request 监听器提供；可运行的演示组合会同时设置两者。Stdout 只承载协议流量，因此请让日志远离它。
+同时配置 provider 和 model 指定显式路由。同时省略时，创建 Session 前解析部署默认模型；FI 默认 ACP profile 使用共享的订阅感知设置。没有可用默认值时，在创建 Agent 前拒绝新 Session。恢复的 Session 保留日志中的模型。Stdout 只承载协议流量，因此请让日志远离它。
 
 ```yaml
 - name: '@deepseek-ai/dsh-acp'

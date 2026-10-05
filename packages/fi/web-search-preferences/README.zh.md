@@ -1,5 +1,5 @@
 ---
-description: "FI 所属的实时网页搜索偏好路由，可在 API key 与订阅原生提供方之间选择。"
+description: "FI 所属的自动网页搜索路由，可在免费、API key 与订阅原生提供方之间选择。"
 kind: "package-reference"
 ---
 
@@ -36,13 +36,17 @@ kind: "package-reference"
   name: '@fi/web-search-preferences'
 ```
 
-FI authorization bundle 提供此覆盖层。同级的[浏览器设置包](../client-ui-web-search-preferences/README.zh.md)在“设置”→“插件”中添加“首选网页搜索”。用户可以选择 DeepSeek 官方搜索、Exa、Perplexity、Parallel、Tavily、Serper、Brave Search 或订阅搜索。直接提供方密钥通过 Credentials 写入；密钥字面量绝不会进入设置文档或 Session 日志。
+FI authorization bundle 提供此覆盖层。同级的[浏览器设置包](../client-ui-web-search-preferences/README.zh.md)在“设置”→“插件”中添加“首选网页搜索”。用户可以选择自动路由、免费的 Bing RSS 搜索、DeepSeek 官方搜索、Exa、Perplexity、Parallel、Tavily、Serper、Brave Search 或订阅搜索。API 提供方密钥通过 Credentials 写入；密钥字面量绝不会进入设置文档或 Session 日志。
 
-本包中的所有直接提供方都使用 API key。本包不提供 Exa、Perplexity 或 Parallel MCP OAuth。订阅搜索复用从“模型”页面获得的 Codex、Grok、Antigravity 或 Claude 授权。选择订阅搜索不会启动 OAuth、采用推理路由或更改聊天模型。用户必须选择订阅系列和精确搜索模型 id。
+默认 `auto` 在每次搜索时跟随发起聊天的模型。Codex、Grok、Antigravity 或 Claude 路由具有匹配的已存储 OAuth 授权时，采用该订阅的原生搜索和精确聊天模型。其他模型、API-key 记录及没有发起聊天的调用使用 Bing 的免密钥 RSS 搜索。Bing 无需登录、API 密钥或订阅。显式选择的引擎覆盖此路由；请求发送后，搜索失败不会切换提供方。选择不会启动 OAuth 或更改聊天模型。
+
+显式订阅搜索支持可选系列和模型覆盖值。没有覆盖值时，优先采用当前聊天的已关联订阅，再按 Codex、Grok、Antigravity、Claude 顺序选择首个具有模型的已关联系列。模型选择依次使用匹配的聊天模型、实时提供方目录、内置订阅目录。缺少授权时在发送前失败。其他引擎使用 API 密钥；不提供 Exa、Perplexity 或 Parallel MCP OAuth。
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `provider` | `deepseek-official` | 下一次搜索使用的提供方 |
+| `provider` | `auto` | 跟随聊天的已关联订阅模型，否则使用免费的 Bing |
+| `bingBaseURL` | `https://www.bing.com` | 免密钥 RSS 端点基础地址 |
+| `bingMaxResponseBytes` | `1048576` | 解析前的 RSS 响应字节上限 |
 | `apiKeyEnv` | `DEEPSEEK_API_KEY` | DeepSeek 凭据引用；保留上游字段名 |
 | `exaApiKeyEnv` | `EXA_API_KEY` | Exa 凭据引用 |
 | `perplexityApiKeyEnv` | `PERPLEXITY_API_KEY` | Perplexity 凭据引用 |
@@ -50,19 +54,19 @@ FI authorization bundle 提供此覆盖层。同级的[浏览器设置包](../cl
 | `tavilyApiKeyEnv` | `TAVILY_API_KEY` | Tavily 凭据引用 |
 | `serperApiKeyEnv` | `SERPER_API_KEY` | Serper 凭据引用 |
 | `braveApiKeyEnv` | `BRAVE_SEARCH_API_KEY` | Brave Search 凭据引用 |
-| `subscriptionProvider` | 无 | `codex`、`grok`、`antigravity` 或 `claude` |
-| `subscriptionModel` | 无 | 精确的原生订阅模型 id |
+| `subscriptionProvider` | 自动 | 可选的 `codex`、`grok`、`antigravity` 或 `claude` 覆盖值 |
+| `subscriptionModel` | 自动 | 可选的精确原生订阅模型 id 覆盖值 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#fiweb-search-preferences)列出所有端点、模型、结果、超时和响应限制字段。
 
 <a id="understand-the-implementation"></a>
 ## 理解实现
 
-Host 在插件生命周期内注册一个提供方。每次 `search()` 在解析凭据或授权前复制已解析设置，然后委托给上游 DeepSeek、Exa 或 Perplexity 提供方、FI 本地 Parallel、Tavily、Serper 或 Brave 适配器，或者订阅提供方。每个可配置端点基础地址必须使用 HTTPS，FI 才会解析或发送凭据。FI 本地适配器实现相同的提供方中立请求/结果类型，在投影前验证外部响应字段，取消失败响应的正文，并且失败时只报告提供方和 HTTP 状态。卸载会中止活动操作，并且并发卸载调用会等待同一次排空。缺失所选凭据或订阅配置不完整时会显式失败；不会尝试其他提供方。
+Host 在插件生命周期内注册一个提供方。每次 `search()` 在解析提供方和凭据前复制设置，然后委托给所选适配器。所有可配置端点基础地址必须使用 HTTPS。Bing 适配器限制流式响应字节数，拒绝格式错误的 XML 和非 HTTP 结果 URL，返回标题、URL 和摘要，并且不将 RSS 时间戳当作发布日期。卸载会中止活动操作，并且并发卸载调用会等待同一次排空。缺少显式所选凭据或订阅授权时在发送前失败。
 
 DeepSeek 辅助请求日志继续使用 `web/deepseek-search-llm-request`。面向模型的工具 schema、结果格式、来源上限、fetch 提供方、agent loop、Session 格式和 SDK 投影继续由上游拥有且保持不变。
 
-FI 路由在单独注册的基础行被禁用时拥有现有 `web-search-deepseek` 设置命名空间。其 schema 保留上游 `apiKey`、`apiKeyEnv`、`baseURL`、`model`、`apiVersion`、`maxTokens` 和 `maxUses` 字段名与默认值；FI 另外要求 `baseURL` 使用 HTTPS。移除 FI 层后，上游行使用同一份已存储 DeepSeek 设置恢复。
+FI 路由在单独注册的基础搜索行被禁用时拥有 `fi-web-search-preferences` 设置命名空间。其 schema 保留上游 `apiKey`、`apiKeyEnv`、`baseURL`、`model`、`apiVersion`、`maxTokens` 和 `maxUses` 字段名与默认值；FI 另外要求 `baseURL` 使用 HTTPS。移除 FI 层后恢复上游行及其自身的设置命名空间。
 
 不发布运行时 invariant companion：同一个路由对象拥有每次设置快照、委托、abort signal 和卸载路径，不存在可能分歧的独立观测关系。
 
@@ -86,7 +90,7 @@ FI 路由在单独注册的基础行被禁用时拥有现有 `web-search-deepsee
 
 #### Token 影响
 
-不增加 prompt 或 schema token。搜索结果保留所选上游提供方已有的有界内容。
+不增加 prompt 或 schema token。Bing 从有界 RSS feed 返回标准化来源；其他提供方保留已有的有界内容。
 
 #### KV Cache 影响
 
@@ -98,6 +102,7 @@ FI 路由在单独注册的基础行被禁用时拥有现有 `web-search-deepsee
 
 - 卡片管理提供方选择、直接提供方密钥及订阅系列/模型。高级端点和限制字段仍可通过 `cordis.yml` 或已存储设置文档配置，但尚无手写控件。
 - 订阅可用性在搜索期间检查，因为 OAuth 刷新是异步的。
+- Bing RSS 提供有限的结果 feed，而非保证服务的搜索 API；端点可用性和速率限制由上游控制。
 - 常规测试模拟厂商 transport。真实直接提供方和订阅调用需要相应用户凭据或授权。
 
 <a id="dev-note"></a>

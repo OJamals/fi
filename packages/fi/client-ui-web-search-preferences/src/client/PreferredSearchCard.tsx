@@ -11,6 +11,9 @@ import type {
 import css from './PreferredSearchCard.module.css'
 
 const PROVIDER_OPTIONS = [
+  ['auto', 'providerAuto'],
+  ['bing-rss', 'bing'],
+  ['subscription-native', 'subscription'],
   ['deepseek-official', 'deepseek'],
   ['exa', 'exa'],
   ['perplexity', 'perplexity'],
@@ -18,10 +21,10 @@ const PROVIDER_OPTIONS = [
   ['tavily', 'tavily'],
   ['serper', 'serper'],
   ['brave', 'brave'],
-  ['subscription-native', 'subscription'],
 ] as const satisfies readonly (readonly [PreferredSearchProvider, string])[]
 
 const SUBSCRIPTION_OPTIONS = [
+  ['auto', 'automatic'],
   ['codex', 'codex'],
   ['grok', 'grok'],
   ['antigravity', 'antigravity'],
@@ -75,7 +78,9 @@ export function PreferredSearchCard(props: PreferredSearchCardProps) {
           ))}
         </select>
       </label>
-      {state.provider === 'subscription-native' ? (
+      {state.provider === 'auto' || state.provider === 'bing-rss' ? (
+        <p className={css.hint}>{props.t(state.provider === 'auto' ? 'autoSearchHint' : 'freeSearchHint')}</p>
+      ) : state.provider === 'subscription-native' ? (
         <div className={css.group}>
           <label className={css.field} htmlFor="fi-preferred-search-subscription-provider">
             <span>{props.t('subscriptionProvider')}</span>
@@ -97,6 +102,7 @@ export function PreferredSearchCard(props: PreferredSearchCardProps) {
             <input
               id="fi-preferred-search-subscription-model"
               value={state.subscriptionModel}
+              placeholder={props.t('automaticModel')}
               aria-invalid={state.invalid || undefined}
               disabled={settingsDisabled}
               onChange={(event) => { props.editSubscriptionModel(event.target.value) }}

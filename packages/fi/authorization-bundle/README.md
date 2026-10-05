@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@fi/authorization-bundle` adds subscription sign-in, model access, image generation, and preferred web search to a base-backed `dsh --profile` composition. FI Desktop includes it after the upstream base and Web bundles. Source and custom profiles opt in by listing the layer after `@deepseek-ai/dsh-base`. The layer obtains no credential or model route by itself; users configure grants and keys in settings.
+`@fi/authorization-bundle` adds subscription sign-in and search settings UI to the shared [FI runtime layer](../runtime-bundle/README.md). FI Web and Desktop include it after base, web-app, and runtime-bundle. Custom GUI profiles use the same order. The layer obtains no credential or model route by itself; users configure grants and keys in settings.
 
 ## Table of Contents
 
@@ -27,13 +27,13 @@ English | [中文](README.zh.md)
 
 ### Install into a profile
 
-FI Desktop ships this private layer in its local package set and fixed built-in profile; it does not install the layer from npm. A source or custom profile that already names `@deepseek-ai/dsh-base` gains the features by listing this layer after it:
+FI Desktop ships this private layer in its local package set and fixed built-in profile; it does not install the layer from npm. A source or custom GUI profile gains these features by listing this layer after base, web-app, and runtime-bundle:
 
 ```json
 {
   "dsh": {
     "profile": {
-      "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "@fi/authorization-bundle"]
+      "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "@fi/runtime-bundle", "@fi/authorization-bundle"]
     }
   }
 }
@@ -50,13 +50,13 @@ The add command reconciles the profile and activates the layer; it resolves the 
 
 ### What you get
 
-FI uses provider-neutral onboarding and disables the DeepSeek-account UI, account model route, and account-dependent product analytics. DeepSeek remains available through an API key.
+FI uses provider-neutral onboarding and disables the DeepSeek-account UI, account Remote, product analytics, and Desktop product telemetry. Onboarding becomes ready only when the resolved default belongs to an available model group. The runtime layer owns model and search resolution, optional DeepSeek access, adapters, and disabled session feedback uploads.
 
-The base mounts authorization; this layer mounts its Remote controller, the Models subscription footer, the native Antigravity and OpenCode Console adapters, provider HTTP compatibility, and FI preferred web search. The footer supports Claude, Codex, Grok, Antigravity, and OpenCode Console; successful sign-in adopts the model route, while an existing grant can retry setup without another login. Provider compatibility supplies captured request headers and the Grok subscription endpoint without changing ordinary API-key requests. The Preferred web search card selects DeepSeek, Exa, Perplexity, Parallel, Tavily, Serper, Brave Search, or subscription-native search and stores direct-provider keys through Credentials.
+The base mounts authorization; this layer mounts its Remote controller, Models subscription footer, and Preferred web search card. The footer supports Claude, Codex, Grok, Antigravity, and OpenCode Console; successful sign-in adopts the model route, while an existing grant can retry setup without another login. Search settings offer Auto, Bing RSS, explicit API providers, and subscription-native search, storing direct-provider keys through Credentials.
 
 The composer Model pane places the subscription routes under a labeled Subscriptions section below regular providers. Antigravity's catalog provider name is `antigravity`, matching the lowercase route labels; provider and model ids do not change.
 
-The layer also configures one `image_gen` tool with Codex, Grok, and Antigravity targets. Codex is the explicit default; a tool call can select another configured provider, and a failed request never switches providers. The `fi-image-generation` row in `cordis.patch.yml` owns model choices and the default provider. The [image-generation package](../tool-image-generation/README.md) owns reference-image editing, limits, and result behavior. Claude has no native raster-generation target but can call this tool using another signed-in provider.
+This GUI bundle configures `image_gen` for Codex, Grok, and Antigravity; Codex is the explicit image default. Failed requests do not switch providers. The [image-generation package](../tool-image-generation/README.md) owns reference-image editing, limits, and result behavior.
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
@@ -64,7 +64,7 @@ The layer also configures one `image_gen` tool with Codex, Grok, and Antigravity
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The patch document is `cordis.patch.yml`: an `insert` block adds FI-prefixed rows. It replaces the base `web` row's complete configuration with the stable FI router plus the existing `http` fetch provider, and disables the superseded base DeepSeek provider while the FI router owns its existing settings namespace. The FI sign-in client plugin registers its four route ids with the generic model selector's `ctx.modelSubscriptions` service; Cordis injection controls service ordering, and the client-modules plugin includes the declared client package in the browser boot manifest. Upstream bundle documents remain unchanged; removing this layer restores their composition and reads the same stored DeepSeek settings.
+The patch document is `cordis.patch.yml`: an `insert` block adds FI-prefixed browser and Remote rows. The FI sign-in client plugin registers subscription route ids with the generic model selector's `ctx.modelSubscriptions` service; Cordis injection controls service ordering, and client-modules includes declared client packages in the browser boot manifest. Removing this GUI layer keeps runtime providers and preferences intact.
 
 </details>
 
@@ -87,17 +87,17 @@ The patch document is `cordis.patch.yml`: an `insert` block adds FI-prefixed row
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through the mounted [image-generation tool](../tool-image-generation/README.md#model-experience) and unchanged upstream `web_search` tool. Their owning packages retain the schemas and results.
+Indirectly, through explicit model and search choices and the mounted image tool. The owning packages define request schemas and results.
 
 #### KV Cache effect
 
-Adding or removing the layer changes the mounted image tool schema. Search-provider preference does not change the `web_search` schema or prompt.
+Adding or removing this GUI layer changes the image tool schema. Search-provider preference does not change the `web_search` schema or prompt.
 
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- FI Desktop mounts this bundle automatically. Other profiles must list it explicitly, and registry installation remains unavailable while the package is private.
+- FI Web and Desktop mount this GUI bundle automatically. Custom GUI profiles must list it after runtime-bundle, and registry installation remains unavailable while the package is private.
 - Removing a sign-in keeps the provider's settings route standing; the sign-in card documents why the two are separate actions.
 
 <a id="dev-note"></a>

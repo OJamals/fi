@@ -25,6 +25,8 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
+`initialize` accepts provider/model together or neither. Omission awaits `agentDefaultModel.resolveSelection()`; a profile without a usable default rejects initialization. Explicit routes remain exact, and no missing route silently selects DeepSeek. `sdk-minimal` callers supply the pair because that profile has no default-model service.
+
 Mount this plugin when a runtime must serve SDK clients: add it to a `cordis.yml` that composes the agent service, boot the runtime, and clients connect over stdio. The common path is explicit — the plugin needs the `agents` service; every other capability comes from the surrounding tree.
 
 ### Wiring

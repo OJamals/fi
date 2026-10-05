@@ -618,7 +618,7 @@ it('shows the unselected model control with the inherited effort', async () => {
 })
 
 
-it('places account and official models before third-party models', async () => {
+it('orders unselected providers by route id without preferring DeepSeek', async () => {
   const groups = ['custom', 'deepseek-official', 'deepseek-account', 'another'].map(id => ({
     id, name: id, models: [1, 2].map(index => ({ id: `${id}-${index}`, name: `${id}-${index}` })),
   }))
@@ -627,8 +627,8 @@ it('places account and official models before third-party models', async () => {
   fireEvent.click(screen.getByRole('button', { name: '请选择模型' }))
   const names = screen.getAllByRole('menuitemradio').map(row => row.textContent)
   expect(names).toEqual([
+    'another-1', 'another-2', 'custom-1', 'custom-2',
     'deepseek-account-1', 'deepseek-account-2', 'deepseek-official-1', 'deepseek-official-2',
-    'custom-1', 'custom-2', 'another-1', 'another-2',
   ])
   expect(groups.map(group => group.id)).toEqual(['custom', 'deepseek-official', 'deepseek-account', 'another'])
   await expect(`${names.join('\n')}\n`).toMatchFileSnapshot('./expected/account-first.txt')
@@ -743,7 +743,7 @@ describe('ModelSelect provider disclosure and search', () => {
     }, ['anthropic', 'openai-codex', 'xai', 'antigravity'])
 
     expect(screen.getAllByRole('menuitem').map(item => item.textContent))
-      .toEqual(['Open Router', 'Kilo Code', 'anthropic', 'antigravity', 'openai-codex', 'xai'])
+      .toEqual(['Kilo Code', 'Open Router', 'anthropic', 'antigravity', 'openai-codex', 'xai'])
     expect(screen.getByRole('group', { name: '订阅服务' })).toBeTruthy()
     expect(screen.getByText('订阅服务')).toBeTruthy()
     expect(screen.getAllByRole('menuitem').every(item => item.getAttribute('aria-expanded') === 'false')).toBe(true)
@@ -836,15 +836,18 @@ describe('ModelSelect provider disclosure and search', () => {
 
     fireEvent.change(search, { target: { value: '' } })
     fireEvent.keyDown(search, { key: 'ArrowDown' })
+    const kilo = screen.getByRole('menuitem', { name: 'Kilo Code' })
+    expect(document.activeElement).toBe(kilo)
+    fireEvent.keyDown(kilo, { key: 'ArrowDown' })
     const openRouter = screen.getByRole('menuitem', { name: 'Open Router' })
     expect(document.activeElement).toBe(openRouter)
     fireEvent.click(openRouter)
     fireEvent.keyDown(openRouter, { key: 'ArrowDown' })
     expect(document.activeElement).toBe(screen.getByRole('menuitemradio', { name: 'Claude Sonnet' }))
     fireEvent.keyDown(document.activeElement!, { key: 'End' })
-    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Kilo Code' }))
+    expect(document.activeElement).toBe(screen.getByRole('menuitemradio', { name: 'Shared from Open Router' }))
     fireEvent.keyDown(document.activeElement!, { key: 'Home' })
-    expect(document.activeElement).toBe(openRouter)
+    expect(document.activeElement).toBe(kilo)
 
     fireEvent.keyDown(openRouter, { key: 'Escape' })
     await waitFor(() => {

@@ -29,7 +29,70 @@ it('persists complete selections through its owning profile entry', async () => 
   onTestFinished(() => standalone.fiber.dispose())
   await standalone.plugin(DefaultModel, { provider: 'test', model: 'original' })
   await standalone.agentDefaultModel.saveSelection({ provider: 'test', model: 'ignored' })
-  expect(standalone.agentDefaultModel.currentSelection().model).toBe('original')
+  expect(standalone.agentDefaultModel.currentSelection()?.model).toBe('original')
+})
+
+it('allows an unconfigured default and rejects incomplete configured pairs', async () => {
+  const ctx = new Context()
+  onTestFinished(() => ctx.fiber.dispose())
+  const live = await liveConfig(ctx, DefaultModel)
+  expect(ctx.agentDefaultModel.currentSelection()).toBeUndefined()
+  expect(await ctx.agentDefaultModel.resolveSelection()).toBeUndefined()
+  await live.update({ provider: 'missing-model' })
+  expect(() => ctx.agentDefaultModel.currentSelection()).toThrow('provider and model must be configured together')
+})
+
+it('prefers linked subscriptions, retains explicit choices, and re-resolves removed routes without writes', async () => {
+  const ctx = new Context()
+  onTestFinished(() => ctx.fiber.dispose())
+  let routes = ['deepseek-official', 'openai-codex', 'openai']
+  let linked = true
+  const edit = vi.fn()
+  ctx.provide('configEditor', { edit } as never)
+  ctx.provide('llm', {
+    listProviders: () => routes.map(id => ({ id, name: id })),
+    listConfigurableProviders: () => ['deepseek-official', 'openai'].map(provider => ({
+      provider, settingsNs: 'api', settingsPath: [provider],
+    })),
+    listModels: async (provider: string) => [{ id: `${provider}-model`, name: 'Model' }],
+    resolveModelInfo: async (_provider: string, id: string) => ({ id, name: 'Model' }),
+  } as never)
+  ctx.provide('credentials', {
+    listRecords: async () => linked ? [{ kind: 'grant', key: 'subscriptions/codex' }] : [],
+    describe: async () => ({ configured: true }),
+  } as never)
+  ctx.provide('settings', {
+    configure: () => () => {},
+    describe: () => [{ ns: 'api', value: {
+      'deepseek-official': { apiKeyEnv: 'DEEPSEEK_API_KEY' },
+      openai: { apiKeyEnv: 'OPENAI_API_KEY' },
+    } }],
+  } as never)
+  const live = await liveConfig(ctx, DefaultModel, {
+    selectionPolicy: 'available', subscriptionCredentials: { 'openai-codex': 'subscriptions/codex' },
+  })
+  expect(await ctx.agentDefaultModel.resolveSelection()).toEqual({ provider: 'openai-codex', model: 'openai-codex-model' })
+  const read = ctx.agentDefaultModel.currentSelection()!
+  read.model = 'changed'
+  expect(ctx.agentDefaultModel.currentSelection()?.model).toBe('openai-codex-model')
+  expect(edit).not.toHaveBeenCalled()
+  Object.assign(ctx.configEditor, { configuration: () => [{ entry: live.entry, inherited: {
+    selectionPolicy: 'available', subscriptionCredentials: { 'openai-codex': 'subscriptions/codex' },
+  }, override: {} }] })
+  await live.replace({ provider: 'deepseek-official', model: 'removed-model' })
+  expect(await ctx.agentDefaultModel.resolveSelection()).toEqual({ provider: 'openai-codex', model: 'openai-codex-model' })
+  await live.replace({ provider: 'openai', model: 'openai-model' })
+  expect(await ctx.agentDefaultModel.resolveSelection()).toEqual({ provider: 'openai', model: 'openai-model' })
+  routes = routes.filter(id => id !== 'openai')
+  expect(await ctx.agentDefaultModel.resolveSelection()).toEqual({ provider: 'openai-codex', model: 'openai-codex-model' })
+  linked = false
+  expect(await ctx.agentDefaultModel.resolveSelection()).toEqual({ provider: 'deepseek-official', model: 'deepseek-official-model' })
+  routes = []
+  expect(await ctx.agentDefaultModel.resolveSelection()).toBeUndefined()
+  expect(ctx.agentDefaultModel.currentSelection()).toBeUndefined()
+  expect(edit).not.toHaveBeenCalled()
+  await live.update({ selectionPolicy: 'configured' })
+  expect(await ctx.agentDefaultModel.resolveSelection()).toEqual({ provider: 'openai', model: 'openai-model' })
 })
 
 it('serializes overlapping saves and continues after a rejected write', async () => {

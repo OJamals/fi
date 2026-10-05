@@ -10,6 +10,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-agent-default-model'
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import { realpath } from 'node:fs/promises'
@@ -196,6 +197,12 @@ export function apply(ctx: Context, config: AcpConfig): void {
     async newSession(params: NewSessionRequest, signal: AbortSignal): Promise<NewSessionResponse> {
       assertOpen()
       validateWorkspaceParams(params)
+      await ctx.get('loader')?.await()
+      const defaultModel = ctx.get('agentDefaultModel')
+      const selected = initialSelection(config) ?? await defaultModel?.resolveSelection()
+      if (defaultModel !== undefined && selected === undefined) {
+        throw invalidParams('Configure a model in Settings before creating an ACP session')
+      }
       const sessionId = brandString<SessionId>(randomUUID())
       // No preset composition: the ACP bundle keeps the model-facing rows in
       // the host plane, so this agent reads them from the global layer. A
@@ -207,8 +214,8 @@ export function apply(ctx: Context, config: AcpConfig): void {
           sessionId,
           cwd: params.cwd,
           mcpServers: params.mcpServers,
-          agentOptions: agentOptions(config),
-          fallbackSelection: initialSelection(config),
+          agentOptions: selected === undefined ? agentOptions(config) : selected,
+          fallbackSelection: selected,
           signal,
           notify,
         })
@@ -253,13 +260,14 @@ export function apply(ctx: Context, config: AcpConfig): void {
           throw invalidParams(`session cwd does not match: ${params.cwd}`)
         }
         let record: AcpSession
+        const selected = initialSelection(config) ?? await ctx.get('agentDefaultModel')?.resolveSelection()
         try {
           record = await AcpSession.resume(ctx, {
             sessionId,
             cwd: params.cwd,
             mcpServers: params.mcpServers ?? [],
-            agentOptions: agentOptions(config),
-            fallbackSelection: initialSelection(config),
+            agentOptions: selected === undefined ? agentOptions(config) : selected,
+            fallbackSelection: selected,
             signal,
             notify,
           })

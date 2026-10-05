@@ -25,6 +25,8 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
+`DeepSeekConfig.provider` and `model` are optional together. Omit both to resolve the selected profile's default model, or supply both for an explicit route. The FI `sdk` profile prefers usable subscription settings; `sdk-minimal` requires an explicit pair. Missing setup rejects initialization before a prompt is accepted.
+
 Use this client when TypeScript code must drive a complete Harness runtime from another process and you can name the runtime executable explicitly. The common path is minimal: construct a `DeepSeekHarness` with a launch spec, run prompts, and close it so the child process is always reaped.
 
 ### Running agent turns with DeepSeekHarness

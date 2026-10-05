@@ -25,6 +25,8 @@ Authentication resolution returns the validated API key in `x-api-key` for both 
 <a id="use-this-package"></a>
 ## Use this package
 
+`enabled` defaults to `true`. Setting it to `false` unregisters the official inference route while retaining its configuration directory entry, credentials, and model catalog. Settings → Models can remove DeepSeek and re-add it through **Add provider**; re-adding sets `enabled` to `true`.
+
 `apiKeyEnv` defaults to `DEEPSEEK_API_KEY` and resolves per request. When the credentials service exists, its precedence applies; only compositions without that service read the launch environment directly. Requests with missing credentials fail with `MISSING_CREDENTIAL`; malformed credentials fail with `INVALID_CREDENTIAL`. Model discovery returns the configured catalog regardless of credentials.
 
 ```yaml

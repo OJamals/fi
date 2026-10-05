@@ -89,6 +89,19 @@ export function createSubscriptionSearchProvider(ctx: Context, config: Config): 
   })
 }
 
+/**
+ * Read the first model advertised by a subscription transport's bundled catalog.
+ * @param provider - native subscription family.
+ * @returns catalog model id, or undefined for families with only a live Harness catalog.
+ */
+export function defaultSubscriptionSearchModel(provider: SubscriptionSearchFamily): string | undefined {
+  if (provider === 'antigravity') return undefined
+  const models = createModels()
+  for (const builtin of builtinProviders()) models.setProvider(builtin)
+  const route = provider === 'codex' ? 'openai-codex' : provider === 'grok' ? 'xai' : 'anthropic'
+  return models.getModels(route)[0]?.id
+}
+
 /** Register one explicitly configured subscription-native search provider. */
 export function apply(ctx: Context, config: Config): void {
   const search = createSubscriptionSearchProvider(ctx, config)

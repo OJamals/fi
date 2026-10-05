@@ -1,6 +1,8 @@
 /** Page-store join: directory × namespaces × credentials, with last-good rows on failure. */
 import { describe, expect, it } from 'vitest'
-import type { RpcResponse } from '@deepseek-ai/dsh-api-remotes/client'
+import Schema from '@deepseek-ai/schemastery'
+import type { RpcResponse, SettingsNamespaceView } from '@deepseek-ai/dsh-api-remotes/client'
+import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import { SettingsDescribeMirror } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-mirror.ts'
 import { settingsSchema } from './settings-schema.client.ts'
@@ -16,13 +18,13 @@ it.each([false, true])('retains configuration diagnostics when the route is acti
   }])
 })
 
-it('places account and official before third-party providers', () => {
+it('orders providers by route id without preferring DeepSeek', () => {
   const providers = ['custom', 'deepseek-official', 'deepseek-account', 'openai']
   const directory = providers.map(provider => ({
     provider, displayName: provider, settingsNs: 'fixture', settingsPath: [],
   }))
   expect(joinProviderDirectory([], directory).map(row => row.provider))
-    .toEqual(['deepseek-account', 'deepseek-official', 'custom', 'openai'])
+    .toEqual(['custom', 'deepseek-account', 'deepseek-official', 'openai'])
   expect(directory.map(row => row.provider)).toEqual(providers)
 })
 
@@ -52,7 +54,7 @@ const DIRECTORY = [
   { provider: 'ghost', displayName: 'Ghost', settingsNs: '', settingsPath: [], active: true },
 ]
 
-const NAMESPACES = [
+const NAMESPACES: SettingsNamespaceView[] = [
   {
     ns: 'llm-deepseek',
     schema: {},
@@ -108,8 +110,12 @@ function api(overrides: {
       : remoteFail(response.result.error.message)
   }
   const face = {
-    session: { modelCatalog: async () => remoteOk({ groups: overrides.accountAvailable
-      ? [{ id: 'deepseek-account', models: [{ id: 'deepseek-flash' }] }] : [] }) },
+    session: { modelCatalog: async () => remoteOk({
+      default: overrides.accountAvailable ? { provider: 'deepseek-account', model: 'deepseek-flash' } : null,
+      failures: [],
+      groups: overrides.accountAvailable
+        ? [{ id: 'deepseek-account', name: 'DeepSeek Account', models: [{ id: 'deepseek-flash', name: 'Flash' }] }] : [],
+    }) },
     llm: {
       listProviders: () => mapProviderBatch(rows => rows
         .filter(row => row.active)
@@ -141,6 +147,20 @@ function api(overrides: {
 }
 
 describe('ModelsSettingsStore', () => {
+  it.each([undefined, true, false])('keeps optional DeepSeek addable when enabled is %s', async (enabled) => {
+    const namespaces = NAMESPACES.map(namespace => namespace.ns === 'llm-deepseek'
+      ? { ...namespace,
+        schema: JSON.parse(JSON.stringify(Schema.object({ enabled: Schema.boolean().default(true) }).toJSON())) as JsonValue,
+        value: { apiKeyEnv: 'DEEPSEEK_API_KEY', baseURL: 'https://base', ...enabled === undefined ? {} : { enabled } } }
+      : namespace)
+    const { ctx, mirror } = api({ describeSettings: async () => remoteOk({
+      writable: true, hasDocument: true, namespaces,
+    }) })
+    const store = new ModelsSettingsStore(ctx, settingsSchema, mirror)
+    await store.load()
+    expect(store.store.getSnapshot().rows.find(row => row.entry.provider === 'deepseek-official'))
+      .toMatchObject({ configured: enabled !== false, removable: true })
+  })
   it('joins rows with configured, removable, and credential state', async () => {
     const { ctx, mirror, seenRefs } = api()
     const store = new ModelsSettingsStore(ctx, settingsSchema, mirror)
@@ -151,7 +171,7 @@ describe('ModelsSettingsStore', () => {
     expect(state.credentialError).toBeNull()
     // Named references first (rows order), then the derived <ROUTE>_API_KEY
     // of every row whose profile names none — one batched describe.
-    expect(seenRefs).toEqual([['DEEPSEEK_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GHOST_API_KEY']])
+    expect(seenRefs).toEqual([['DEEPSEEK_API_KEY', 'GHOST_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY']])
     const byProvider = new Map(state.rows.map(row => [row.entry.provider, row]))
     expect(byProvider.get('deepseek-official')).toMatchObject({
       configured: true,
