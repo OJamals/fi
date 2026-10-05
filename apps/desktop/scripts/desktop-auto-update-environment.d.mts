@@ -87,6 +87,13 @@ export function desktopUpdateMetadataFilename(
 ): string
 
 /**
+ * Return the updater channel selected by one Desktop semantic version.
+ * @param version - Desktop semantic version.
+ * @returns First prerelease identifier, or `latest` for a stable version.
+ */
+export function desktopUpdateChannel(version: string): string
+
+/**
  * Resolve the public updater URL and object prefixes for one release target.
  * @param env - Packaging or upload environment.
  * @param platform - Target Node.js platform.

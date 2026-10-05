@@ -1,0 +1,80 @@
+name: FI Desktop update channel
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published fi release tag (v<SemVer>)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fi-desktop-updates-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  feeds:
+    if: github.repository == 'OJamals/fi'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      FI_RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      FI_RELEASE_REPOSITORY: ${{ github.repository }}
+      FI_RELEASE_ROOT: ${{ runner.temp }}/fi-release-feeds
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+        with:
+          dest: ${{ runner.temp }}/setup-pnpm
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - name: Install tooling without package scripts
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          if ($LASTEXITCODE -ne 0) { throw 'Tooling installation failed' }
+
+      - name: Download published release payloads and metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ($env:FI_RELEASE_TAG -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$') { throw 'Expected a v<SemVer> release tag' }
+          New-Item -ItemType Directory -Path "$env:FI_RELEASE_ROOT/assets" -Force | Out-Null
+          $release = gh api "repos/$env:FI_RELEASE_REPOSITORY/releases/tags/$env:FI_RELEASE_TAG"
+          if ($LASTEXITCODE -ne 0) { throw 'Published release lookup failed' }
+          $release | Set-Content -Path "$env:FI_RELEASE_ROOT/release.json" -Encoding utf8
+          gh release download $env:FI_RELEASE_TAG --repo $env:FI_RELEASE_REPOSITORY --dir "$env:FI_RELEASE_ROOT/assets" --pattern 'fi-*-mac-*.zip' --pattern 'fi-*-win-x64.exe' --pattern '*.yml'
+          if ($LASTEXITCODE -ne 0) { throw 'Release payload download failed' }
+
+      - name: Validate payloads and prepare channel metadata
+        run: |
+          pnpm exec tsx apps/desktop/scripts/prepare-github-release-feeds.ts "$env:FI_RELEASE_ROOT/release.json" "$env:FI_RELEASE_ROOT/assets" "$env:FI_RELEASE_ROOT/feeds"
+          if ($LASTEXITCODE -ne 0) { throw 'Update feed validation failed' }
+
+      - name: Publish validated metadata to the same release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $release = Get-Content "$env:FI_RELEASE_ROOT/release.json" -Raw | ConvertFrom-Json
+          $files = @(Get-ChildItem "$env:FI_RELEASE_ROOT/feeds/*.yml" | Where-Object { $_.Name -notin $release.assets.name } | ForEach-Object { $_.FullName })
+          if ($files.Count -gt 0) {
+            gh release upload $env:FI_RELEASE_TAG @files --repo $env:FI_RELEASE_REPOSITORY
+            if ($LASTEXITCODE -ne 0) { throw 'Update feed publication failed' }
+          }

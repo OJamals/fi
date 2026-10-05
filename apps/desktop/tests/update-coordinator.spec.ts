@@ -1,6 +1,6 @@
-import { EventEmitter } from 'node:events'
+import { GitHubProvider } from 'electron-updater/out/providers/GitHubProvider.js'
+import { ElectronHttpExecutor } from 'electron-updater/out/electronHttpExecutor.js'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { AppUpdater } from 'electron-updater'
 import { DESKTOP_HOST_PROTOCOL_VERSION } from '../src/host-protocol.ts'
 import { parseDesktopRelease } from '../src/release.ts'
 import type { DesktopUpdateState } from '../src/ipc.ts'
@@ -13,6 +13,15 @@ vi.mock('electron-updater', () => ({
 }))
 
 const { DesktopUpdateCoordinator } = await import('../src/update-coordinator.ts')
+const { NsisUpdater } = await vi.importActual<typeof import('electron-updater')>('electron-updater')
+
+function realUpdater(version: string) {
+  const updater = new NsisUpdater(null, { version, name: 'fi', isPackaged: true,
+    appUpdateConfigPath: '/unused/app-update.yml', userDataPath: '/unused/user-data', baseCachePath: '/unused/cache',
+    whenReady: async () => {}, relaunch: () => {}, quit: () => {}, onQuit: () => {} })
+  updater.logger = null
+  return updater
+}
 
 describe('desktop release metadata', () => {
   it('accepts one exact release identity for Electron and dsh', () => {
@@ -47,32 +56,88 @@ describe('desktop release metadata', () => {
 const coordinators: InstanceType<typeof DesktopUpdateCoordinator>[] = []
 afterEach(() => { for (const item of coordinators.splice(0)) item.dispose() })
 
-function fixture() {
-  const events = new EventEmitter()
+const downloadedInfo = { version: '1.1.0-rc.2', downloadedFile: 'verified-package', files: [],
+  path: 'fixture.exe', sha512: 'fixture-hash', releaseDate: '2026-10-05T12:00:00Z' }
+
+function downloadProgress(percent: number) {
+  return { percent, total: 100, delta: percent, transferred: percent, bytesPerSecond: 100 }
+}
+
+function fixture(currentVersion = '1.1.0-alpha.1', channel: string | null = null) {
+  const events = realUpdater(currentVersion)
+  if (channel !== null) events.channel = channel
+  const updaterErrorListeners = events.listenerCount('error')
   const checkForUpdates = vi.fn(async () => ({
     isUpdateAvailable: true,
     updateInfo: { version: '1.1.0-rc.2' },
   }))
   const downloadUpdate = vi.fn(async () => {
-    events.emit('download-progress', { percent: 58 })
-    events.emit('download-progress', { percent: 100 })
-    events.emit('update-downloaded', { version: '1.1.0-rc.2' })
+    events.emit('download-progress', downloadProgress(58))
+    events.emit('download-progress', downloadProgress(100))
+    events.emit('update-downloaded', downloadedInfo)
     return ['verified-package']
   })
   const quitAndInstall = vi.fn()
   const beforeRestart = vi.fn(async () => true)
   const downloadResult = vi.fn()
   const states: DesktopUpdateState[] = []
-  const updater = Object.assign(events, { checkForUpdates, downloadUpdate, quitAndInstall }) as unknown as AppUpdater
+  const updater = Object.assign(events, { checkForUpdates, downloadUpdate, quitAndInstall })
   const coordinator = new DesktopUpdateCoordinator(
     (state) => { states.push(state); return state },
-    beforeRestart, updater, () => true, () => '1.1.0-alpha.1', downloadResult,
+    beforeRestart, updater, () => true, () => currentVersion, downloadResult,
   )
   coordinators.push(coordinator)
-  return { coordinator, updater, events, states, checkForUpdates, downloadUpdate, quitAndInstall, beforeRestart, downloadResult }
+  return { coordinator, updater, events, states, checkForUpdates, downloadUpdate, quitAndInstall, beforeRestart, downloadResult,
+    updaterErrorListeners }
 }
 
 describe('desktop update coordinator', () => {
+  it.each([['1.0.0', 'v1.1.0', 'latest', false], ['1.0.0-preview.1', 'v1.0.0-preview.2', 'preview', true]] as const)
+  ('checks the actual GitHub provider for %s using its release channel', async (installed, tag, channel, preview) => {
+    const updater = realUpdater(installed)
+    const coordinator = new DesktopUpdateCoordinator(state => state, async () => true, updater, () => true, () => installed)
+    coordinators.push(coordinator)
+    const executor = new ElectronHttpExecutor()
+    const requests: string[] = []
+    vi.spyOn(executor, 'request').mockImplementation(async (options) => {
+      const path = String(options.path)
+      requests.push(path)
+      if (path === '/OJamals/fi/releases.atom') {
+        return `<feed><entry><link href="https://github.com/OJamals/fi/releases/tag/${tag}"/><title>fi</title><content>Release</content></entry></feed>`
+      }
+      if (path === '/OJamals/fi/releases/latest') return JSON.stringify({ tag_name: tag })
+      if (path === `/OJamals/fi/releases/download/${tag}/${channel}-mac.yml`) {
+        return `version: ${tag.slice(1)}\nfiles:\n  - url: fi-${tag.slice(1)}-mac-arm64.zip\n    sha512: fixture-hash\n    size: 42\n`
+      }
+      throw new Error(`unexpected update request: ${path}`)
+    })
+    const provider = new GitHubProvider({ provider: 'github', owner: 'OJamals', repo: 'fi', channel }, updater,
+      { executor, platform: 'darwin', isUseMultipleRangeRequest: false })
+    const info = await provider.getLatestVersion()
+    expect(info.version).toBe(tag.slice(1))
+    expect(updater.allowPrerelease).toBe(preview)
+    expect(updater.allowDowngrade).toBe(false)
+    expect(requests.at(-1)).toBe(`/OJamals/fi/releases/download/${tag}/${channel}-mac.yml`)
+    expect(requests.some(path => path.includes('nightly'))).toBe(false)
+    expect(provider.resolveFiles(info)[0]?.url.href).toBe(`https://github.com/OJamals/fi/releases/download/${tag}/fi-${tag.slice(1)}-mac-arm64.zip`)
+  })
+
+  it.each([null, 'latest', 'preview', 'rc', 'nightly'])('preserves packaged channel %s without enabling downgrades', (channel) => {
+    const f = fixture('1.1.0-preview.1', channel)
+    expect(f.updater.channel).toBe(channel)
+    expect(f.updater.allowPrerelease).toBe(true)
+    expect(f.updater.allowDowngrade).toBe(false)
+  })
+
+  it('keeps stable installations on stable releases even when metadata advertises a newer prerelease', async () => {
+    const f = fixture('1.0.0')
+    expect(f.updater.allowPrerelease).toBe(false)
+    expect(await f.coordinator.check()).toEqual({ phase: 'idle' })
+    f.checkForUpdates.mockResolvedValue({ isUpdateAvailable: true, updateInfo: { version: '1.1.0' } })
+    expect(await f.coordinator.check()).toEqual({ phase: 'available', version: '1.1.0' })
+    expect(f.downloadUpdate).not.toHaveBeenCalled()
+  })
+
   it('keeps safe preparation diagnostics separate and clears them on an explicit retry', async () => {
     const f = fixture()
     await f.coordinator.check()
@@ -100,7 +165,7 @@ describe('desktop update coordinator', () => {
     const f = fixture()
     const prepared = Promise.withResolvers<string[]>()
     f.downloadUpdate.mockImplementationOnce(async () => {
-      f.events.emit('update-downloaded', { version: '1.1.0-rc.2' })
+      f.events.emit('update-downloaded', downloadedInfo)
       return prepared.promise
     })
     await f.coordinator.check()
@@ -126,7 +191,7 @@ describe('desktop update coordinator', () => {
     checked.reject(new Error('offline'))
     await pending
     await Promise.resolve()
-    expect(f.events.listenerCount('error')).toBe(0)
+    expect(f.events.listenerCount('error')).toBe(f.updaterErrorListeners)
   })
 
   it('checks, downloads on demand, then requires separate installation approval', async () => {
@@ -145,7 +210,7 @@ describe('desktop update coordinator', () => {
       'available', 'downloading', 'downloading', 'verifying', 'ready', 'installing',
     ])
     expect(f.updater).toMatchObject({
-      autoDownload: false, autoInstallOnAppQuit: false, channel: 'nightly',
+      autoDownload: false, autoInstallOnAppQuit: false, channel: null,
       allowPrerelease: true, allowDowngrade: false,
     })
   })
@@ -188,7 +253,7 @@ describe('desktop update coordinator', () => {
   it('retains retry state after download failure and never equates 100 percent with readiness', async () => {
     const f = fixture()
     f.downloadUpdate.mockImplementationOnce(async () => {
-      f.events.emit('download-progress', { percent: 100 })
+      f.events.emit('download-progress', downloadProgress(100))
       throw new Error('signature rejected')
     })
     await f.coordinator.check()

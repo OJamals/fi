@@ -26,6 +26,15 @@ afterEach(async () => {
 })
 
 describe('macOS packaged updater configuration', () => {
+  it.each(['latest', 'preview', 'rc'])('seals the production GitHub channel %s before signing', async (channel) => {
+    const paths = await fixture()
+    const feed = resolveMacOSAppUpdateFeed([{ provider: 'github', owner: 'OJamals', repo: 'fi', channel }])
+    expect(createMacOSAppUpdateConfig(feed, 'fi-updater')).toEqual({ provider: 'github', owner: 'OJamals', repo: 'fi',
+      channel, updaterCacheDirName: 'fi-updater' })
+    await writeMacOSAppUpdateConfig(paths.resourcesDir, feed, 'fi-updater')
+    await expect(verifyMacOSAppUpdateConfig(paths.appPath, feed, 'fi-updater')).resolves.toBeUndefined()
+  })
+
   it('uses the final generic Nightly provider configured for the build', () => {
     expect(resolveMacOSAppUpdateFeed([{ provider: 'generic', url: update.publicUrl, channel: 'nightly' }]))
       .toEqual(update)

@@ -196,9 +196,9 @@ pnpm --dir apps/desktop run package:win:x64 --build-version 0.1.6-alpha.1.202609
 
 `--build-version auto` 会给出当天的下一个序号：读取目标 bucket 中已发布的对象，未配置 bucket 或列举未能在期限内完成时回退到本目标的本地输出目录。上传前请确认它打印的版本号；run script 会自行透传 `--`，打包入口两种写法都接受。
 
-production 发布使用产品版本本身，不传 `--build-version`。其上传成功后会把打包所用 commit 打成 `desktop-v<版本>` 标签；来自有改动工作区的构建不打标签，打标签失败也只打印手工命令，不会让已完成的上传变成失败。test 与本地构建有意不留标签，而所有产物的清单都记录 `dshBuildCommit` 与 `dshBuildDirty`，直接分发的构建同样可溯源。
+production 发布使用产品版本本身，不传 `--build-version`。在 GitHub 上发布时使用指向打包 commit 的 `v<版本>` 标签；GitHub updater 要求语义版本标签。test 与本地构建有意不留标签，而所有产物的清单都记录 `dshBuildCommit` 与 `dshBuildDirty`，直接分发的构建同样可溯源。
 
-版本派生不改变固定更新通道，也不改变 `nightly.yml` / `nightly-mac.yml` 文件名。SemVer 排序为 `0.1.6-alpha.1 < 0.1.6-alpha.1.20260916.1 < 0.1.6-alpha.2`，稳定基础版本的测试版低于该稳定版。客户端只接受更高版本：替换 feed 无法让已安装的较高版本更新到较低的纠正版。这类客户端需要手动安装；保持自动降级关闭。[版本决策](../../.agents/notes/implemented/process/2026-09-16-desktop-release-version-derivation.zh.md)解释为什么不能用通道名替换预发布标识。
+test 版本派生不改变其固定 Nightly 通道，也不改变 `nightly.yml` / `nightly-mac.yml` 文件名。production 元数据对稳定版使用 `latest`，对预发布版使用第一个预发布标识。SemVer 排序为 `0.1.6-alpha.1 < 0.1.6-alpha.1.20260916.1 < 0.1.6-alpha.2`，稳定基础版本的测试版低于该稳定版。客户端只接受更高版本：替换 feed 无法让已安装的较高版本更新到较低的纠正版。这类客户端需要手动安装；保持自动降级关闭。[版本决策](../../.agents/notes/implemented/process/2026-09-16-desktop-release-version-derivation.zh.md)解释为什么不能用测试通道名替换预发布标识。
 
 打包、上传以及手动 macOS 签名检查使用 `apps/desktop/.env.windows` 或 `.env.macos`，由目标平台选择。复制对应的 [Windows 模板](.env.windows.example) 或 [macOS 模板](.env.macos.example)，填写本机配置；Git 忽略这两个本地文件，安装产物也不包含它们。发布字段只从目标文件读取，不回退到系统或 shell 中的同名变量；`PATH`、代理和构建工具环境仍保留。发布版本是命令参数而非发布字段，上传从打包写下的完成记录中读取它。文件使用 UTF-8，支持 BOM；相对证书、SignTool、Apple API Key 和钥匙串路径以 `apps/desktop` 为基准，变量值不做 shell 展开，包含 `#` 或空格的密码需要引号。CI 同样在运行前生成目标文件。
 
@@ -249,6 +249,10 @@ Windows 安装器在启动时和选定目标目录后检查应用是否正在运
 ### 发布更新
 
 `DSH_DESKTOP_AUTO_UPDATE_ENV` 可取 `test` 或 `production`；未设置时使用 `test`。生成 GitHub Release 的已签名产物前需设置 `DSH_DESKTOP_AUTO_UPDATE_ENV=production`。打包随后写入源码固定的公开 GitHub provider [`OJamals/fi`](https://github.com/OJamals/fi)，因为 electron-builder 不会为 GitHub 推断预发布频道，还会根据 Desktop 版本为它显式设置频道，并继续禁用 electron-builder 自动发布；发布仍是显式 release 操作，下方的 COS 上传命令会直接拒绝 `production` 环境。已发布的稳定 release 是稳定安装的官方更新流；preview 安装会跟随已发布的 preview prerelease；草稿 release 永远不会到达 updater。每个 release 都必须包含平台更新元数据及其引用的全部产物；`fi Preview 04` 仅发布 macOS arm64，因此它的 `preview-mac.yml` 包含 arm64 ZIP 条目，不包含 x64 条目。
+
+[FI Desktop 更新频道工作流](../../.github/workflows/fi-desktop-updates.yml)在 GitHub release 发布时运行。在发布其 `v<版本>` 标签前，附上已签名的 `fi-<版本>-mac-arm64.zip`、`fi-<版本>-mac-x64.zip` 或 `fi-<版本>-win-x64.exe` 载荷。预发布版本需标记为 GitHub prerelease。工作流校验下载文件大小及 GitHub 提供的 SHA-256 摘要，再为所含平台补齐 SHA-512 元数据：稳定版使用 `latest-mac.yml` 和 `latest.yml`，预发布版使用版本频道。已有 builder 元数据必须引用该平台所含的每个载荷，且哈希与大小一致；通过校验的元数据及其灰度发布设置保留原样，不重新上传。载荷与已有元数据绝不覆盖。缺少匹配载荷或元数据无效时，更新 feed 发布失败。macOS 必须提供 ZIP 载荷；仅有 DMG 不能支持自动更新。
+
+工作流只使用仓库的 `GITHUB_TOKEN`；签名打包与已安装版本升级验证仍是发布前提。若需在发布后补附缺失元数据，必须关闭 GitHub release 不可变设置；不可变 release 必须在发布前包含完整元数据。补齐载荷后，可通过工作流的 **Run workflow** 操作与已发布标签，为可变 release 补建 feed。包含此 updater 的应用保留签名时写入的 provider 与频道；强制使用 Nightly 或写入测试 feed 的旧构建需要先手动安装一次修正后的 production 构建。
 
 <a id="upload-updates"></a>
 
@@ -413,7 +417,7 @@ NSIS 差分包与 macOS ZIP 目标让 electron-updater 可以复用未变化的�
 
 原生更新浮层在文档就绪且父窗口可见时显示，并在父窗口再次显示时恢复。关闭浮层会释放输入拦截和父窗口监听。[本地窗口验证](tests/README.zh.md#verification-overlay)无需启动工作区即可检查这些切换。
 
-打包应用在启动后异步检查固定 Nightly。常规轮询以十分钟为基础间隔，每次独立采样 ±20% 的随机抖动。每次检查失败将基础延迟翻倍，上限为一小时；成功后重置。随机延迟不超过该上限，并从全部复用调用结算后开始计时。本地化的“检查更新…”菜单项（Windows 可从顶栏的“应用”菜单进入）立即执行，并复用正在进行的检查。回到前台和系统恢复时遵守相同的单调时钟截止时间。新收到的强更策略也会立即请求检查更新清单。自动检查从不弹窗或下载安装包。手动检查显示正在检查、失败或包含已安装版本号的无更新反馈。常规更新弹窗原位渐入渐出；连续弹窗替换卡片内容并重置其滚动位置，保留黑色半透明蒙层，不模糊父页面。
+打包应用在启动后异步检查签名时写入的更新 provider 与频道。production 安装使用 GitHub Releases；test 安装保留 Nightly。已安装稳定版拒绝预发布版本，所有安装均拒绝降级。常规轮询以十分钟为基础间隔，每次独立采样 ±20% 的随机抖动。每次检查失败将基础延迟翻倍，上限为一小时；成功后重置。随机延迟不超过该上限，并从全部复用调用结算后开始计时。本地化的“检查更新…”菜单项（Windows 可从顶栏的“应用”菜单进入）立即执行，并复用正在进行的检查。回到前台和系统恢复时遵守相同的单调时钟截止时间。新收到的强更策略也会立即请求检查更新清单。自动检查从不弹窗或下载安装包。手动检查显示正在检查、失败或包含已安装版本号的无更新反馈。常规更新弹窗原位渐入渐出；连续弹窗替换卡片内容并重置其滚动位置，保留黑色半透明蒙层，不模糊父页面。
 
 `DSH_DESKTOP_UPDATE_CHECK_INTERVAL_MS` 配置常规基础间隔，`DSH_DESKTOP_UPDATE_CHECK_MAX_BACKOFF_MS` 配置上限；两者均接受 1000 至 2147483647 的整数毫秒数，且上限不能小于间隔。省略上限时取一小时与间隔中的较大值。`DSH_DESKTOP_UPDATE_CHECK_JITTER` 配置 0 至 1 的抖动比例，默认 `0.2`；最终延迟至少一秒，且不超过上限。这些配置不改变强更策略轮询，也不授权下载重试。
 

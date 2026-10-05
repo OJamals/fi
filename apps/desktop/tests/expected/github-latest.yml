@@ -1,0 +1,8 @@
+version: 1.2.3
+files:
+  - url: fi-1.2.3-win-x64.exe
+    sha512: WHrIG0fP1SyvUb/ME6i8Q0uqcsBaAnSa/ngafu6pIKI2YVa2LE/Et2ZbxM+zthenTT/MZXoytDe5GBaVGVkQ/A==
+    size: 26
+path: fi-1.2.3-win-x64.exe
+sha512: WHrIG0fP1SyvUb/ME6i8Q0uqcsBaAnSa/ngafu6pIKI2YVa2LE/Et2ZbxM+zthenTT/MZXoytDe5GBaVGVkQ/A==
+releaseDate: '2026-10-05T12:00:00Z'

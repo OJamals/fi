@@ -1,0 +1,11 @@
+version: 1.2.3
+files:
+  - url: fi-1.2.3-mac-x64.zip
+    sha512: tljL9jO3dUm1vgkf0fcYiMtz5FX6+3AOpoiz0Ph5BMxb96IpJzUnr8GC/dtcnh+woXMPRHddr+a785NK5YWRSg==
+    size: 26
+  - url: fi-1.2.3-mac-arm64.zip
+    sha512: TDx/56NlHcYLsa5a1j9YpOfTyb1yVRXvw4ngueJ5cYMW6Lj87C1zBFoTL6r7r1GdN0lHXKukP/i3sSTmLDTnFw==
+    size: 28
+path: fi-1.2.3-mac-x64.zip
+sha512: tljL9jO3dUm1vgkf0fcYiMtz5FX6+3AOpoiz0Ph5BMxb96IpJzUnr8GC/dtcnh+woXMPRHddr+a785NK5YWRSg==
+releaseDate: '2026-10-05T12:00:00Z'

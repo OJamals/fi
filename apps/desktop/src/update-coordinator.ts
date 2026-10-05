@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { app } from 'electron'
 import electronUpdater, { type AppUpdater, type ProgressInfo, type UpdateInfo } from 'electron-updater'
-import { gt, valid } from 'semver'
+import { gt, prerelease, valid } from 'semver'
 import type { DesktopUpdateState } from './ipc.ts'
 import { DesktopUpdateHttpExecutor } from './update-http-executor.ts'
 import { DesktopUpdatePreparationError } from './update-error.ts'
@@ -66,9 +66,8 @@ export class DesktopUpdateCoordinator {
     }
     this.updater.autoDownload = false
     this.updater.autoInstallOnAppQuit = false
-    this.updater.channel = 'nightly'
-    this.updater.allowPrerelease = true
-    // Selecting a channel can enable downgrade in electron-updater.
+    // The signed app-update.yml owns the provider and channel, including test Nightly feeds.
+    this.updater.allowPrerelease = prerelease(this.currentVersion()) !== null
     this.updater.allowDowngrade = false
     this.updater.on('download-progress', this.onProgress)
     this.updater.on('update-downloaded', this.onDownloaded)
@@ -187,7 +186,8 @@ export class DesktopUpdateCoordinator {
       if (result === null) throw new Error('desktop update: no check result was returned')
       const version = result.updateInfo.version
       if (valid(version) === null) throw new Error('desktop update: feed version is invalid')
-      this.candidate = result.isUpdateAvailable && gt(version, this.currentVersion()) ? version : undefined
+      this.candidate = result.isUpdateAvailable && gt(version, this.currentVersion())
+        && (this.updater.allowPrerelease || prerelease(version) === null) ? version : undefined
       return this.setState(this.candidate === undefined ? { phase: 'idle' } : { phase: 'available', version })
     } catch (error) {
       return this.failure(error, 'check')
