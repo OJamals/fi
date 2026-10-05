@@ -15,6 +15,8 @@ TypeScript 和 Python 的 `DeepSeekConfig` 默认省略 provider/model。JSON-RP
 
 FI 默认禁用上游账户界面、账户模型路由、产品分析和 Session 反馈上传。仍可显式配置自定义遥测。搜索使用 Auto：当前模型支持已关联订阅搜索时使用该搜索，否则使用无需密钥的 Bing RSS。仍支持显式搜索偏好。
 
+Fork 仓库通过仓库变量 `DSH_DEEPSEEK_E2E_ENABLED=true` 和密钥 `DEEPSEEK_API_KEY_EXTERNAL` 启用调用真实 DeepSeek API 的 GitHub Actions 任务。上游仓库默认启用该任务。已启用的任务在缺少密钥时仍会在预检阶段失败；无需密钥的 CI 保持独立。
+
 ## 迁移
 
 1. 重启 FI。与旧版默认值完全匹配的 Web、headless、ACP 和 SDK bundle 列表自动迁移；其他 manifest 字段和自定义列表保持不变。

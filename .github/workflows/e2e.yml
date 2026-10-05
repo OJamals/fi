@@ -11,7 +11,9 @@ name: E2E (real DeepSeek API)
 # keyless). The job-level `if:` below skips the whole job for those untrusted
 # PRs. The Dependabot test keys on the PR AUTHOR (pull_request.user.login), not
 # github.actor (the run trigger) — a maintainer reopening a Dependabot PR would
-# make github.actor human while the PR is still keyless. When the job runs, the
+# make github.actor human while the PR is still keyless. The upstream repository
+# enables this job by default; forks opt in with DSH_DEEPSEEK_E2E_ENABLED=true.
+# When the job runs, the
 # secret is expected, so the preflight hard-fails if it's missing (a missing
 # secret would otherwise make the self-skipping suite report a false green). A
 # job skipped by a job-level `if:` reports as a SUCCESSFUL check, so this
@@ -57,11 +59,12 @@ jobs:
       ${{ vars.DSH_CI_FAILOVER_LINUX == 'blacksmith'
           && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-latest' }}
     name: e2e
-    # Run on every trusted event. Skip untrusted PRs (forks + Dependabot) where
-    # the secret is withheld — they would otherwise hard-fail the preflight.
+    # Fork deployments can use other providers without a DeepSeek CI secret.
+    # Opting in retains the required-key preflight and the untrusted-PR exclusions.
     if: >-
-      github.event_name != 'pull_request'
-      || !(github.event.pull_request.head.repo.fork || github.event.pull_request.user.login == 'dependabot[bot]')
+      (github.repository == 'deepseek-ai/deepseek-harness' || vars.DSH_DEEPSEEK_E2E_ENABLED == 'true')
+      && (github.event_name != 'pull_request'
+          || !(github.event.pull_request.head.repo.fork || github.event.pull_request.user.login == 'dependabot[bot]'))
     # Profile e2e files can each own several complete dsh subprocess trees, so
     # four file workers preserve process/PTY headroom. Tests retain 120s/test
     # and retry 2; 45m still bounds retry storms against a slow API.

@@ -15,6 +15,8 @@ TypeScript `DeepSeekConfig` and Python `DeepSeekConfig` omit provider/model by d
 
 FI disables upstream account UI, account model routes, product analytics, and session feedback uploads by default. Explicit custom telemetry configuration remains possible. Search uses Auto: the current model's linked subscription search when supported, otherwise keyless Bing RSS. Explicit search preferences remain supported.
 
+Fork repositories enable the real-DeepSeek GitHub Actions job with repository variable `DSH_DEEPSEEK_E2E_ENABLED=true` and secret `DEEPSEEK_API_KEY_EXTERNAL`. The upstream repository enables it by default. An enabled job still fails its preflight when the key is missing; keyless CI remains separate.
+
 ## Migration
 
 1. Restart FI. Exact previously shipped Web, headless, ACP, and SDK bundle tuples migrate automatically; other manifest fields and custom tuples remain intact.

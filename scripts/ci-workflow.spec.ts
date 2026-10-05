@@ -701,6 +701,30 @@ describe('bubblewrap preparation script', () => {
 })
 
 describe('DeepSeek e2e workflow', () => {
+  it.each([
+    ['deepseek-ai/deepseek-harness', '', 'push', false, 'maintainer', true],
+    ['OJamals/fi', '', 'push', false, 'maintainer', false],
+    ['OJamals/fi', 'false', 'push', false, 'maintainer', false],
+    ['OJamals/fi', 'true', 'push', false, 'maintainer', true],
+    ['OJamals/fi', 'true', 'schedule', false, 'maintainer', true],
+    ['OJamals/fi', '', 'workflow_dispatch', false, 'maintainer', false],
+    ['deepseek-ai/deepseek-harness', '', 'pull_request', false, 'maintainer', true],
+    ['deepseek-ai/deepseek-harness', '', 'pull_request', true, 'maintainer', false],
+    ['OJamals/fi', 'true', 'pull_request', false, 'maintainer', true],
+    ['OJamals/fi', 'true', 'pull_request', true, 'maintainer', false],
+    ['OJamals/fi', 'true', 'pull_request', false, 'dependabot[bot]', false],
+  ] as const)('gates %s opt-in=%s event=%s fork=%s author=%s to %s', (repository, optIn, event, fork, author, enabled) => {
+    const job = workflowJob(loadWorkflow('.github/workflows/e2e.yml'), 'e2e')
+    if (typeof job.if !== 'string') throw new TypeError('DeepSeek e2e must declare its enablement condition')
+    expect(runInNewContext(job.if, {
+      github: {
+        repository, event_name: event,
+        event: { pull_request: { head: { repo: { fork } }, user: { login: author } } },
+      },
+      vars: { DSH_DEEPSEEK_E2E_ENABLED: optIn },
+    }, { timeout: 1000 })).toBe(enabled)
+  })
+
   it('prepares bubblewrap from the pinned payload without a package transaction', () => {
     const workflow = loadWorkflow('.github/workflows/e2e.yml')
     const e2e = workflowJob(workflow, 'e2e')
