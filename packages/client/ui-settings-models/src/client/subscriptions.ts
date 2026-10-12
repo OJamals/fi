@@ -29,6 +29,8 @@ export class ModelSettingsSubscriptions extends Service {
     if (ids.some(id => id.trim().length === 0) || new Set(ids).size !== ids.length) {
       throw new Error('ui-settings-models: subscription provider ids must be non-empty and unique')
     }
+    // The Models page and composer own independent registries and contribution lifetimes.
+    /* jscpd:ignore-start */
     const entry = { ids }
     this.entries.add(entry)
     this.publish()
@@ -41,4 +43,5 @@ export class ModelSettingsSubscriptions extends Service {
   private publish(): void {
     this.store.set([...new Set([...this.entries].flatMap(entry => [...entry.ids]))])
   }
+  /* jscpd:ignore-end */
 }

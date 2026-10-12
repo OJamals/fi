@@ -1,4 +1,8 @@
 # Replay-backed goal patch over the shipped headless profile.
+# Title requests must not consume the goal scenario's ordered replay chunks.
+- id: session-title-llm
+  disabled: true
+
 - id: headless-startup
   disabled: true
 

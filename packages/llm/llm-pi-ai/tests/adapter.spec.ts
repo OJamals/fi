@@ -432,15 +432,15 @@ describe('PiAiAdapter provider routing', () => {
 })
 
 describe('provider profile lifecycle', () => {
-  it('keeps adapter helpers off the package root', () => {
+  it('exports shared transport conversion while keeping adapter internals private', () => {
+    expect(LlmPiAi.toPiContext).toBeTypeOf('function')
+    expect(LlmPiAi.toStreamChunks).toBeTypeOf('function')
     for (const helper of [
       'resolveProfiles',
-      'toPiContext',
       'toPiReplayState',
       'toPiAssistant',
       'mapStopReason',
       'mapUsage',
-      'toStreamChunks',
     ]) expect(LlmPiAi).not.toHaveProperty(helper)
   })
 

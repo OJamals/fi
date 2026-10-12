@@ -3,6 +3,7 @@
   config:
     provider: cli-mock
     model: cli-mock
+    selectionPolicy: configured
 
 - insert:
     - id: cli-mock-llm

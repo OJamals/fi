@@ -107,6 +107,8 @@ async function readBoundedJson(response: Response): Promise<unknown> {
     await response.body?.cancel()
     throw new Error('live model listing exceeded the response size bound')
   }
+  // Subscription discovery owns JSON decoding and its size error; the SDK reader returns text.
+  /* jscpd:ignore-start */
   /* v8 ignore next -- fetch always exposes a body stream on a 2xx Response; the null guard is defensive. */
   if (response.body === null) return undefined
   const reader = response.body.getReader()
@@ -117,6 +119,7 @@ async function readBoundedJson(response: Response): Promise<unknown> {
       const { done, value } = await reader.read()
       if (done) break
       total += value.byteLength
+      /* jscpd:ignore-end */
       if (total > MAX_RESPONSE_BYTES) throw new Error('live model listing exceeded the response size bound')
       chunks.push(value)
     }

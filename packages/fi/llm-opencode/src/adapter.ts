@@ -80,6 +80,8 @@ export class OpenCodeAdapter extends LlmAdapter {
     private readonly profile: (provider: string) => { displayName?: string; models?: readonly string[] } | undefined = () => undefined,
   ) { super() }
 
+  // Each adapter applies the same picker fields to its independently discovered catalog.
+  /* jscpd:ignore-start */
   override providerInfo(provider: string) { return { id: provider, name: this.profile(provider)?.displayName ?? provider } }
 
   override async listModels(provider: string): Promise<readonly LlmModelInfo[]> {
@@ -87,6 +89,7 @@ export class OpenCodeAdapter extends LlmAdapter {
     const selected = this.profile(provider)?.models
     return selected === undefined ? models : models.filter(model => selected.includes(model.id))
   }
+  /* jscpd:ignore-end */
 
   /**
    * Discover the full authenticated catalog regardless of model-picker selection.
