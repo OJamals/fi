@@ -101,9 +101,10 @@ describe.skipIf(MODE === 'record')('web e2e: durable generic tool image', () => 
       await page.locator('[role="treeitem"]').first().click()
       await page.locator('[role="treeitem"]').nth(1).click()
       const tool = page.locator(`[data-tool="${TOOL_NAME}"]`)
-      await tool.waitFor({ timeout: 15_000 })
+      await tool.waitFor({ state: 'attached', timeout: 15_000 })
       await expandOwningTurnProcess(page, tool)
       const disclosure = tool.getByRole('button', { name: /Tool call/ })
+      await disclosure.click()
       await expect.poll(() => disclosure.getAttribute('aria-expanded'), { timeout: 15_000 }).toBe('true')
 
       const image = tool.getByRole('img', { name: 'generated.png' })

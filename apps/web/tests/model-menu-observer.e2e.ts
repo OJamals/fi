@@ -28,7 +28,7 @@ const PROVIDERS = [
 const EXPECTED_GROUPS = [
   { label: 'DeepSeek', rows: ['DeepSeek-V4-Flash', 'DeepSeek-V4-Flash-Vision-Exp'] },
   ...PROVIDERS.map(provider => ({ label: provider.name, rows: provider.models.map(model => model.name) })),
-]
+].sort((left, right) => left.label.localeCompare(right.label))
 
 // Native IO/RO callbacks need rendering opportunities, not elapsed-time sleeps.
 async function frames(page: Page): Promise<void> {
@@ -208,7 +208,7 @@ describe.skipIf(webSnapshotMode() === 'record').each([
         if (entry === 'button') buttonMaterial = material
         else expect(buttonMaterial).toBeDefined()
 
-        for (const index of [2, 4, 1]) {
+        for (const index of [3, 4, 1]) {
           await scrollToGroup(viewport, index)
           await assertPinned(page, viewport, index)
           const height = await viewport.evaluate(node => node.clientHeight)
