@@ -182,9 +182,9 @@ describe('web e2e: plugin manager', () => {
         await skeleton.waitFor({ state: 'detached' })
         expect(await panel.getAttribute('aria-busy')).toBe('false')
         for (const action of await actions.all()) expect(await action.isDisabled()).toBe(false)
-        const basic = panel.locator('[data-plugin-group="basic"]')
-        await basic.locator('[data-plugin-item]').first().waitFor()
-        const loaded = await measure(basic)
+        const extensions = panel.locator('[data-plugin-group="extensions"]')
+        await extensions.locator('[data-plugin-package]').first().waitFor()
+        const loaded = await measure(extensions)
         expect(loaded.rows).toHaveLength(4)
         const compare = (name: string, a: typeof loading.pageHeader, b: typeof loaded.pageHeader, axes: readonly (keyof typeof a)[] = ['x', 'y', 'width', 'height']) => {
           for (const axis of axes) {
@@ -434,6 +434,7 @@ describe('web e2e: plugin manager', () => {
     // configuration, and its other bundles stay off the page.
     expect(await panel.locator('[data-plugin-group="bundles"] [data-plugin-package]').count()).toBe(2)
     expect(await panel.locator('[data-plugin-group="basic"] [data-plugin-item]').count()).toBe(4)
+    expect(await panel.locator('[data-plugin-group="extensions"] [data-plugin-package]').count()).toBe(OPTIONAL_BUNDLES.length)
     await panel.getByRole('button', { name: '更多', exact: true }).click()
     expect(await panel.locator('[data-plugin-group="more"] [data-plugin-package]').count()).toBe(OPTIONAL_BUNDLES.length)
     expect(await panel.getByText('实验性', { exact: true }).count())

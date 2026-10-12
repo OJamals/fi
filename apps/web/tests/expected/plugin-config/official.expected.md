@@ -3,21 +3,8 @@
 - button "插件说明"
 - button "刷新"
 - button "添加插件"
-- heading "内置插件配置" [level=3]
-- list:
-  - listitem:
-    - button "查看 子智能体": 子智能体
-    - text: 设置子智能体的递归层级、数量和模型。
-  - listitem:
-    - button "查看 网页搜索": 网页搜索
-    - text: 设置 DeepSeek 的搜索提供方。
-  - listitem:
-    - button "查看 Agent 循环": Agent 循环
-    - text: 控制 Agent 派发工具调用的方式。
-  - listitem:
-    - button "查看 终端": 终端
-    - text: 限制每条命令最多能跑多久、最多输出多少内容。
 - heading "实验性插件" [level=3]
+- text: "4"
 - button "更多"
 - list:
   - listitem:
@@ -37,6 +24,7 @@
     - text: 实验性 按设定的时间或周期，在会话中自动执行任务。
     - switch "启用 自动化任务"
 - heading "已安装插件" [level=3]
+- text: "2"
 - list:
   - listitem:
     - button "查看 @fixture/live-client": "@fixture/live-client"
@@ -44,3 +32,18 @@
   - listitem:
     - button "查看 dsh-web-scaffold-defaults": dsh-web-scaffold-defaults
     - switch "启用 dsh-web-scaffold-defaults" [checked]
+- heading "内置插件配置" [level=3]
+- text: "4"
+- list:
+  - listitem:
+    - button "查看 子智能体": 子智能体
+    - text: 设置子智能体的递归层级、数量和模型。
+  - listitem:
+    - button "查看 网页搜索": 网页搜索
+    - text: 设置 DeepSeek 的搜索提供方。
+  - listitem:
+    - button "查看 Agent 循环": Agent 循环
+    - text: 控制 Agent 派发工具调用的方式。
+  - listitem:
+    - button "查看 终端": 终端
+    - text: 限制每条命令最多能跑多久、最多输出多少内容。

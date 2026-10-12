@@ -398,10 +398,10 @@ describe('PluginManagerPage', () => {
       '@deepseek-ai/dsh-experimental-agent-team-profile', 'dsh-better-sidebar', 'dsh-broken', 'dsh-protected', '@acme/dsh-tool', 'dsh-selected',
     ])
     expect(cards.map(card => card.getAttribute('data-plugin-status'))).toEqual(['disabled', 'running', 'problem', 'running', 'disabled', 'problem'])
-    // Group titles have no counts; the official bundle retains its experimental marker.
+    // Group counts include every visible card; the official bundle retains its experimental marker.
     expect(screen.getByRole('heading', { name: en.bundlesTitle })).toBeTruthy()
     expect(screen.getByRole('heading', { name: en.extensionsTitle })).toBeTruthy()
-    expect(document.querySelector('[data-plugin-count]')).toBeNull()
+    expect([...document.querySelectorAll('[data-plugin-count]')].map(count => count.textContent)).toEqual(['1', '5'])
     expect(screen.getAllByText(en.statusBeta)).toHaveLength(1)
     expect(screen.getByRole('switch', { name: en.enableToggle.replace('{name}', '@acme/dsh-tool') })).toHaveProperty('disabled', false)
     expect(screen.getByText('A sidebar.')).toBeTruthy()
@@ -434,7 +434,7 @@ describe('PluginManagerPage', () => {
     expect(screen.getAllByRole('listitem').map(card => card.getAttribute('data-plugin-package'))).toEqual([
       '@deepseek-ai/dsh-experimental-agent-team-profile', '@acme/dsh-base', 'dsh-better-sidebar',
     ])
-    expect(document.querySelector('[data-plugin-count]')).toBeNull()
+    expect([...document.querySelectorAll('[data-plugin-count]')].map(count => count.textContent)).toEqual(['1', '2'])
   })
 
   it.each([false, true])('shows an empty list for built-in bundles with errors and installed=%s', (installed) => {
@@ -743,16 +743,18 @@ describe('PluginManagerPage', () => {
       'plugins.row.config:dsh-better-sidebar#sidebar': view => view === 'summary' ? 'The sidebar row.' : <form aria-label="row form" />,
     }
 
-    it('keeps configuration pages before experimental bundles and opens their details', () => {
+    it('keeps management cards before configuration pages and opens their details', () => {
       renderTab(
         { packages: [pkg({ name: '@deepseek-ai/dsh-experimental-agent-team-profile', installed: false, optional: true, enabled: false })] },
         { items: [{ id: 'bash', label: 'Shell' }] },
         bodies,
       )
       const official = document.querySelector('[data-plugin-group="basic"]') as HTMLElement
+      expect([...document.querySelectorAll('[data-plugin-group]')].map(group => group.getAttribute('data-plugin-group')))
+        .toEqual(['extensions', 'basic'])
       expect(within(official).getAllByRole('listitem').map(card => card.getAttribute('data-plugin-item') ?? card.getAttribute('data-plugin-package')))
         .toEqual(['bash'])
-      expect(document.querySelector('[data-plugin-count]')).toBeNull()
+      expect(within(official).getByText('1')).toBeTruthy()
       expect(within(official).getByText('Limits every command.')).toBeTruthy()
       // An official plugin has no switch of its own: the Host composes it.
       expect(within(official).queryByRole('switch', { name: en.enableToggle.replace('{name}', 'Shell') })).toBeNull()
@@ -779,7 +781,25 @@ describe('PluginManagerPage', () => {
       expect(screen.getByRole('heading', { name: en.moreTitle, level: 1 })).toBeTruthy()
       expect(document.querySelector(`[data-plugin-package="${name}"]`)).not.toBeNull()
       fireEvent.click(screen.getByRole('button', { name: en.backToList }))
-      expect(document.querySelector(`[data-plugin-package="${name}"]`)).toBeNull()
+      expect(document.querySelector(`[data-plugin-package="${name}"]`)).not.toBeNull()
+    })
+
+    it('shows secondary plugins with logos and working switches on the main list', () => {
+      const name = '@deepseek-ai/dsh-subagent-codex'
+      const bundle = pkg({ name, optional: true, enabled: false, meta: { icon: '/codex.svg' } })
+      const b = renderTab({ packages: [bundle] })
+      const card = document.querySelector(`[data-plugin-package="${name}"]`) as HTMLElement
+      expect(card.querySelector('img')?.getAttribute('src')).toBe('/codex.svg')
+      const toggle = within(card).getByRole('switch')
+      fireEvent.click(toggle)
+      expect(b.actions.setEnabled).toHaveBeenLastCalledWith(name, true)
+      b.set({ packages: [{ ...bundle, enabled: true }] })
+      fireEvent.click(toggle)
+      expect(b.actions.setEnabled).toHaveBeenLastCalledWith(name, false)
+      fireEvent.click(within(card).getByRole('button', { name: en.openDetail.replace('{name}', name) }))
+      fireEvent.click(screen.getByRole('button', { name: en.backToList }))
+      expect(screen.getByRole('heading', { name: en.title, level: 1 })).toBeTruthy()
+      expect(document.querySelector(`[data-plugin-package="${name}"]`)).not.toBeNull()
     })
 
     it('keeps toggled plugins in their group and position', () => {
@@ -1743,11 +1763,7 @@ describe('PluginManagerPage', () => {
         pkg({ name, optional: true }),
         pkg({ name: '@deepseek-ai/dsh-subagent-codex', optional: true }),
       ] })
-      expect(document.querySelector(`[data-plugin-package="${name}"]`)).toBeNull()
-      set({ highlight: name })
-      expect(screen.getByRole('heading', { name: en.title, level: 1 })).toBeTruthy()
-      expect(scrollIntoView).not.toHaveBeenCalled()
-      set({ highlight: null })
+      expect(document.querySelector(`[data-plugin-package="${name}"]`)).not.toBeNull()
       fireEvent.click(screen.getByRole('button', { name: en.moreAction }))
       set({ highlight: name })
       expect(screen.getByRole('heading', { name: en.moreTitle, level: 1 })).toBeTruthy()
@@ -1756,7 +1772,7 @@ describe('PluginManagerPage', () => {
       act(() => { vi.advanceTimersByTime(1_600) })
       fireEvent.click(screen.getByRole('button', { name: en.backToList }))
       expect(screen.getByRole('heading', { name: en.title, level: 1 })).toBeTruthy()
-      expect(document.querySelector(`[data-plugin-package="${name}"]`)).toBeNull()
+      expect(document.querySelector(`[data-plugin-package="${name}"]`)).not.toBeNull()
       expect(scrollIntoView).toHaveBeenCalledTimes(1)
       set({ packages: [pkg({ name, optional: true })] })
       act(() => { vi.advanceTimersByTime(799) })

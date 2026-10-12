@@ -64,7 +64,7 @@ const BUILTIN_PROFILE_BUNDLES = new Set([
   '@deepseek-ai/dsh-sdk-minimal',
 ])
 
-/** Display order on the main and full optional plugin lists; new bundles join the main list. */
+/** Display order for known optional plugins; new bundles follow the catalog. */
 const EXTENSION_BUNDLES = [
   '@deepseek-ai/dsh-experimental-agent-team-profile',
   '@deepseek-ai/dsh-experimental-voice-input-bundle',
@@ -349,7 +349,7 @@ function CardHead({ title, t, onOpen, icon, tags, description, end }: {
   )
 }
 
-/** First-read placeholders share the core configuration group's card and text-line layout. */
+/** First-read placeholders share the plugin cards' icon and text-line layout. */
 function ListSkeleton({ label }: { readonly label: string }): ReactNode {
   return (
     <section className={css.group} role="status" aria-label={label} data-plugin-loading>
@@ -1308,8 +1308,8 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
     && (pkg.installed || pkg.optional || pkg.error !== undefined))
   const mine = listed.filter(pkg => !pkg.optional)
   const official = listed.filter(pkg => pkg.optional)
-  const extensions = orderPackages(official.filter(pkg => !MORE_BUNDLES.includes(pkg.name)), EXTENSION_BUNDLES)
-  const more = [...extensions, ...orderPackages(official.filter(pkg => MORE_BUNDLES.includes(pkg.name)), MORE_BUNDLES)]
+  const extensions = orderPackages(official, [...EXTENSION_BUNDLES, ...MORE_BUNDLES])
+  const more = extensions
   const loaded = state.status === 'ready' || state.status === 'error'
   const refreshing = state.refreshStatus === 'refreshing'
   const openPkg = view.kind === 'package' || view.kind === 'row' ? listed.find(pkg => pkg.name === view.name) : undefined
@@ -1317,7 +1317,7 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
   const openRow = view.kind === 'row' && openPkg !== undefined ? openPkg.rows.find(row => row.rowId === view.rowId) : undefined
   const showsCards = openPkg === undefined && openItem === undefined
   const detailFromMore = (view.kind === 'package' || view.kind === 'row')
-    && (view.from === 'more' || MORE_BUNDLES.includes(view.name))
+    && view.from === 'more'
   const showsMoreList = showsCards && (view.kind === 'more' || detailFromMore)
   const showsMainList = showsCards && !showsMoreList
   const openPkgInMore = openPkg !== undefined && openPkg.optional && detailFromMore
@@ -1352,6 +1352,7 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
       <section className={css.group} data-plugin-scope="global" data-plugin-group={id}>
         <div className={css.groupHead}>
           <h3 className={css.groupTitle}>{heading}</h3>
+          <span className={css.count} data-plugin-count={cards.length}>{cards.length}</span>
           {offersMore ? (
             <Button size="sm" className={css.groupMore} onClick={() => { setView({ kind: 'more' }) }}>
               {t('moreAction')}<IconChevronRightOutlineRegular size={14} aria-hidden="true" />
@@ -1475,9 +1476,9 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
                 </section>
               ) : (
                 <>
-                  {renderGroup('basic', t('basicTitle'), basicCards)}
                   {renderGroup('extensions', t('extensionsTitle'), extensions.map(packageCard))}
                   {renderGroup('bundles', t('bundlesTitle'), mine.map(packageCard))}
+                  {renderGroup('basic', t('basicTitle'), basicCards)}
                 </>
               )}
               {/* A failed package read trails the groups it left incomplete: right under the groups on a
