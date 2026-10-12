@@ -32,6 +32,8 @@ export function AntigravityProviderEditor(props: AntigravityProviderEditorProps)
   const { controller, useSnapshot, t } = props
   /* v8 ignore next -- the Models slot binds this component's inject face. */
   if (controller === undefined || useSnapshot === undefined || t === undefined) return null
+  if (props.configured && props.renderSubscriptionEditor !== undefined) return props.renderSubscriptionEditor('ids')
+  // Older Models slot owners do not supply the shared renderer.
   if (props.configured && props.operations !== undefined) return <SubscriptionProfileEditor
     key={`${props.provider.settingsNs}/${props.provider.provider}`}
     {...props} operations={props.operations} t={t} />

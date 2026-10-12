@@ -112,7 +112,7 @@ interface CatalogDraft {
 /** Values that vary around the shared provider-editor rendering. */
 interface ProviderEditorRenderProps extends Pick<
   ProviderEditorProps,
-  'namespace' | 'schema' | 'operations' | 't' | 'readOnly' | 'onClose' | 'hideTitle' | 'onBusyChange'
+  'namespace' | 'schema' | 'operations' | 't' | 'readOnly' | 'onClose' | 'hideTitle' | 'onBusyChange' | 'subscriptionModels'
 > {
   target: EditorTarget
   /** Directory entry for a keyed replacement editor, when the target still exists. */
@@ -138,7 +138,11 @@ function renderProviderEditor({ target, entry, configured, renderSlot, ...props 
   if (entry === undefined || configured === undefined) return fallback
   return renderSlot(
     'settings.models.provider-editor',
-    { provider: entry, configured, readOnly: props.readOnly, onClose: props.onClose },
+    { provider: entry, configured, readOnly: props.readOnly, onClose: props.onClose,
+      renderSubscriptionEditor: modelFormat => <ProviderEditor
+        key={target.provider} provider={target.provider} displayName={target.displayName}
+        settingsPath={target.settingsPath} {...target.declared === true ? { declared: true } : {}}
+        {...props} subscriptionModels={modelFormat} /> },
     { entryKey: entry.settingsNs, fallback },
   )
 }
@@ -522,6 +526,8 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
             entry: row.entry,
             configured: row.configured,
             renderSlot,
+            ...(subscriptionIds.has(row.entry.provider) && row.apiKeyEnv === undefined
+              ? { subscriptionModels: 'metadata' as const } : {}),
             namespace,
             schema,
             operations,

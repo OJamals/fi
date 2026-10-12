@@ -38,14 +38,18 @@
         - text: opencode-console
         - button "Edit opencode-console": Edit
         - button "Delete opencode-console": Delete
-        - text: Display name
+        - text: opencode-console Display name
         - textbox "Display name":
           - /placeholder: opencode-console
           - text: My opencode-console
-        - button "Fetch models"
-        - button "Use all models" [disabled]
-        - paragraph: All available models appear in the model picker, including new models.
-        - checkbox "Friendly (friendly)" [checked]
-        - text: Friendly friendly
-        - button "Apply"
+        - region "Models":
+          - text: Models Customized model catalog
+          - button "Restore defaults"
+          - button "Fetch available models"
+          - textbox "Model ID 1":
+            - /placeholder: Model ID
+            - text: friendly
+          - button "Delete model 1"
+          - button "Add model"
         - button "Cancel"
+        - button "Apply"

@@ -19,6 +19,8 @@ interface CapacityInput {
 
 /** Adapter-owned data and actions for one model row. */
 interface ModelRowProps {
+  /** The adapter persists IDs only; metadata controls are unavailable. */
+  idsOnly?: boolean
   model: DeepSeekModelDraft
   position: number
   inputField: 'inputModalities' | 'input'
@@ -46,7 +48,7 @@ export function ModelRow(props: ModelRowProps): ReactNode {
   return (
     <div className={styles['modelEntry']}>
       <div className={styles['modelRow']}>
-        {(['id', 'name'] as const).map(field => (
+        {(props.idsOnly === true ? ['id'] as const : ['id', 'name'] as const).map(field => (
           <input
             key={field}
             className={styles['input']}
@@ -62,7 +64,7 @@ export function ModelRow(props: ModelRowProps): ReactNode {
             onBlur={field === 'id' ? event => props.onIdBlur?.(event.target.value) : undefined}
           />
         ))}
-        <button
+        {props.idsOnly === true ? null : <button
           type="button"
           className={styles['iconButton']}
           aria-label={`${t('modelAdvanced')} ${String(position)}`}
@@ -71,7 +73,7 @@ export function ModelRow(props: ModelRowProps): ReactNode {
           onClick={props.onToggle}
         >
           {props.expanded ? <IconChevronDownOutlineRegular /> : <IconChevronRightOutlineRegular />}
-        </button>
+        </button>}
         <button
           type="button"
           className={`${styles['iconButton']} ${styles['iconButtonDanger']}`}
@@ -83,7 +85,7 @@ export function ModelRow(props: ModelRowProps): ReactNode {
           <IconTrashOutlineRegular size={14} />
         </button>
       </div>
-      {props.expanded
+      {props.expanded && props.idsOnly !== true
         ? (
           <div className={styles['modelAdvanced']}>
             {(['contextWindow', 'maxTokens'] as const).map(field => (

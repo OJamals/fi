@@ -1,5 +1,7 @@
 /**
- * One provider's editor card, hand-written per adapter family: the primary
+ * One provider's editor card. Subscription routes share name and model controls
+ * without credential inputs; ID-only adapters omit metadata and endpoint fields.
+ * API-key cards are hand-written per adapter family: the primary
  * field is a single write-only **API key** input (the page never asks for an
  * environment-variable name — a typed key stores through `credentials/set`
  * under the profile's reference, deriving `<ROUTE>_API_KEY` when the profile
@@ -21,7 +23,7 @@
  * see instead of rebuilding the whole subtree from a partial descriptor.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type {
   CredentialInfo, SettingsNamespaceView, SettingsPathOpView,
@@ -47,6 +49,8 @@ type EditorLayout = 'deepseek' | 'pi-ai' | 'unknown'
 
 /** Props of {@link ProviderEditor}. */
 export interface ProviderEditorProps {
+  /** Subscription authentication; model storage remains adapter-owned. */
+  subscriptionModels?: 'ids' | 'metadata'
   /** Provider route id. */
   provider: string
   /** Display name for the card title. */
@@ -170,6 +174,11 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
   const [keyState, setKeyState] = useState<CredentialInfo | undefined>(undefined)
   const [busy, setBusy] = useState(false)
   const [listBusy, setListBusy] = useState(false)
+  const active = useRef(true)
+  useEffect(() => {
+    active.current = true
+    return () => { active.current = false }
+  }, [])
   const { onBusyChange } = props
   useEffect(() => { onBusyChange?.(busy || listBusy) }, [busy, listBusy, onBusyChange])
   const [failure, setFailure] = useState<string | undefined>(undefined)
@@ -183,10 +192,12 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
   const root = useMemo(() => schema.rehydrate(namespace.schema), [namespace.schema, schema])
   const node = useMemo(() => schema.nodeAtPath(root, settingsPath), [root, schema, settingsPath])
   const fallback = schema.getPath(namespace.value, settingsPath)
-  const disabled = props.readOnly || busy
+  const disabled = props.readOnly || busy || listBusy
   const accountProvider = props.provider === 'deepseek-account'
   // Account settings use a configurable Cordis entry id.
-  const layout = accountProvider ? 'deepseek' : layoutOf(namespace.ns)
+  const subscription = props.subscriptionModels !== undefined
+  const idsOnly = props.subscriptionModels === 'ids'
+  const layout = accountProvider ? 'deepseek' : idsOnly ? 'pi-ai' : layoutOf(namespace.ns)
   const keyRef = refFor(schema, namespace, settingsPath, props.provider)
   // The same schema read the create card makes, so the choices offered here
   // and there cannot drift apart: both come from the adapter's own `Config`.
@@ -198,7 +209,7 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
   )
 
   useEffect(() => {
-    if (accountProvider) return
+    if (accountProvider || subscription) return
     let stale = false
     setKeyState(undefined)
     // The key state is a placeholder hint, not a precondition for editing: a
@@ -208,7 +219,7 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
       setKeyState(described)
     })
     return () => { stale = true }
-  }, [operations, keyRef, accountProvider])
+  }, [operations, keyRef, accountProvider, subscription])
 
   const stringAt = (source: unknown, key: string): string | undefined => {
     const value = schema.getPath(source, [key])
@@ -227,7 +238,9 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
 
   // The model list is validated by the same per-row checker for both families,
   // so a bad row is named by its position rather than by a blanket message.
-  const modelFailure = validateDeepSeekModels(schema.getPath(draft, ['models']))
+  const modelValues = (value: unknown): unknown => idsOnly && Array.isArray(value)
+    ? value.map((id: unknown) => ({ id })) : value
+  const modelFailure = validateDeepSeekModels(modelValues(schema.getPath(draft, ['models'])))
   const keyFailure = apiKeyFailure(keyDraft)
   // What a probe or a write must carry: the typed key with paste whitespace
   // removed. A blank field yields an empty string, which both call sites read
@@ -275,7 +288,7 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
       // with a bad row; it stays because the schema check below would refuse
       // the write with a message naming a path instead of the row, and because
       // nothing but this function decides what is written.
-      const failure = validateDeepSeekModels(schema.getPath(next, ['models']))
+      const failure = validateDeepSeekModels(modelValues(schema.getPath(next, ['models'])))
       /* v8 ignore next 3 -- unreachable from the card: the same failure disables submit */
       if (failure !== undefined) {
         return `${t('model')} ${String(failure.index + 1)}: ${t(failure.key)}`
@@ -297,6 +310,7 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
         : pathOps(settingsPath, committedOriginal, next)
     if (ops.length > 0) {
       const written = await operations.writeSettings(ns, ops, expectedRevision)
+      if (!active.current) return undefined
       if (written.kind !== 'written') return written.kind === 'conflict' ? t('conflict') : written.message
       setCommittedOriginal(schema.getPath(written.view.user, settingsPath))
       setExpectedRevision(written.view.revision)
@@ -315,13 +329,16 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
     setFailure(undefined)
     try {
       const failure = await applyOnce()
+      if (!active.current) return
       if (failure !== undefined) {
         setFailure(failure)
         return
       }
       props.onClose(true)
+    } catch (error) {
+      if (active.current) setFailure(error instanceof Error ? error.message : String(error))
     } finally {
-      setBusy(false)
+      if (active.current) setBusy(false)
     }
   }
 
@@ -357,7 +374,7 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
     const ownsIdentity = family === 'pi-ai' && props.declared === true
     const customModels = schema.getPath(draft, ['models'])
     const modelsOverridden = schema.hasPath(draft, ['models'])
-    const models = modelDrafts(modelsOverridden ? customModels : inheritedModels())
+    const models = modelDrafts(modelValues(modelsOverridden ? customModels : inheritedModels()))
     const defaultContextWindow = schema.getPath(fallback, ['defaultContextWindow'])
     const defaultMaxTokens = schema.getPath(fallback, ['maxTokens'])
     const defaultInput = schema.getPath(fallback, ['defaultInput'])
@@ -373,16 +390,30 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
       t,
       disabled,
       onChange: (next: Record<string, unknown>[]) => {
-        setDraft(current => schema.setPath(current, ['models'], next))
+        setDraft(current => schema.setPath(current, ['models'], idsOnly ? next.map(model => model['id']) : next))
       },
       onReset: () => { setDraft(current => schema.deletePath(current, ['models'])) },
     }
     if (accountProvider) return <DeepSeekModelsEditor {...catalogProps}
       defaultContextWindow={typeof defaultContextWindow === 'number' ? defaultContextWindow : undefined}
       defaultMaxTokens={typeof defaultMaxTokens === 'number' ? defaultMaxTokens : undefined} />
+    const modelList = <ModelListEditor
+      {...catalogProps}
+      idsOnly={idsOnly}
+      catalogProvider={props.declared === true || idsOnly ? undefined : props.provider}
+      defaultInput={Array.isArray(defaultInput) ? defaultInput : undefined}
+      probe={probe} probeBlocked={keyFailure} operations={operations} onBusyChange={setListBusy} />
     return (
       <>
-        <div className={styles['field']}>
+        {subscription ? <>
+          <label className={styles['field']}>
+            <span className={styles['fieldLabel']}>{t('customDisplayName')}</span>
+            <input className={styles['input']} value={stringAt(draft, 'displayName') ?? ''}
+              placeholder={stringAt(schema.getPath(namespace.base, settingsPath), 'displayName') ?? props.provider}
+              disabled={disabled} onChange={(event) => { setField('displayName', event.target.value) }} />
+          </label>
+          {modelList}
+        </> : <div className={styles['field']}>
           <span className={styles['fieldLabel']}>{t('keyInput')}</span>
           <input
             className={styles['input']}
@@ -398,14 +429,14 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
             onChange={(event) => { setKeyDraft(event.target.value) }}
           />
           {shownKeyFailure === undefined ? null : <p className={styles['error']}>{t(shownKeyFailure)}</p>}
-        </div>
-        {props.credentialOnly === true ? null : <details className={styles['customized']}>
+        </div>}
+        {props.credentialOnly === true || idsOnly ? null : <details className={styles['customized']}>
           <summary className={styles['customizedSummary']}>{t('customized')}</summary>
           <div className={styles['customizedBody']}>
             {/* The name and the protocol are the create card's two remaining
                 profile fields; a route the adapter ships defaults both from
                 its catalog entry and neither belongs on its card. */}
-            {ownsIdentity
+            {ownsIdentity && !subscription
               ? (
                 <div className={styles['field']}>
                   <span className={styles['fieldLabel']}>{t('customDisplayName')}</span>
@@ -485,17 +516,7 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
                   defaultMaxTokens={typeof defaultMaxTokens === 'number' ? defaultMaxTokens : undefined}
                 />
               )
-              : (
-                <ModelListEditor
-                  {...catalogProps}
-                  catalogProvider={props.declared === true ? undefined : props.provider}
-                  defaultInput={Array.isArray(defaultInput) ? defaultInput : undefined}
-                  probe={probe}
-                  probeBlocked={keyFailure}
-                  operations={operations}
-                  onBusyChange={setListBusy}
-                />
-              )}
+              : subscription ? null : modelList}
           </div>
         </details>}
       </>
@@ -535,7 +556,7 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
         submitLabelKey={props.submitLabelKey ?? 'apply'}
         submitBusyLabelKey={props.submitBusyLabelKey ?? 'applying'}
         {...props.cancelLabelKey === undefined ? {} : { cancelLabelKey: props.cancelLabelKey }}
-        onCancel={() => { props.onClose(false) }}
+        onCancel={() => { active.current = false; props.onClose(false) }}
         onSubmit={() => { props.onSubmitCredential?.(); void apply() }}
       />
     </div>

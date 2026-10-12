@@ -427,7 +427,8 @@ describe('ModelsSection', () => {
       : view)
     scripted.face.settings.describe.mockResolvedValue(remoteOk({ writable: true, hasDocument: false, namespaces }))
     const footer = stubRenderSlot()
-    footer.mockImplementation((name: string) => name === 'settings.models.footer' ? <h3>Sign in</h3> : null)
+    footer.mockImplementation((name: string, _owner: object, options?: { fallback?: ReactNode }) =>
+      name === 'settings.models.footer' ? <h3>Sign in</h3> : options?.fallback ?? null)
     await mountFace(scripted, footer, ['openai', 'anthropic'])
 
     const apiKeyRow = screen.getByRole('button', { name: openaiCopy(en.editProvider) }).closest('li')!
@@ -438,6 +439,11 @@ describe('ModelsSection', () => {
     expect(apiKeyRow.parentElement).not.toBe(subscriptionRow.parentElement)
     expect(within(screen.getByRole('region', { name: en.subscriptions })).getByRole('button', { name: 'Edit anthropic' })).toBeTruthy()
     expect(within(subscriptionRow).getByRole('button', { name: 'Delete anthropic' })).toBeTruthy()
+    fireEvent.click(within(subscriptionRow).getByRole('button', { name: 'Edit anthropic' }))
+    expect(within(subscriptionRow).getByLabelText(en.customDisplayName)).toBeTruthy()
+    expect(within(subscriptionRow).queryByLabelText(en.keyInput)).toBeNull()
+    fireEvent.click(within(apiKeyRow).getByRole('button', { name: openaiCopy(en.editProvider) }))
+    expect(within(apiKeyRow).getByLabelText(en.keyInput)).toBeTruthy()
   })
 
   it('renders a namespace editor override instead of the generic provider editor', async () => {

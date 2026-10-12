@@ -2524,7 +2524,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.models.footer\', () => ctx.slots.register(\n      { name: \'settings.models.footer\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-settings-models/src/client/slot-contract.ts:46',
+    source: 'packages/client/ui-settings-models/src/client/slot-contract.ts:47',
   },
   {
     key: 'settings.models.provider-card',
@@ -2562,7 +2562,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     occupants: [],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.models.provider-card\', () => ctx.slots.register(\n      { name: \'settings.models.provider-card\', key: \'<one key the owner dispatches>\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-settings-models/src/client/slot-contract.ts:39',
+    source: 'packages/client/ui-settings-models/src/client/slot-contract.ts:40',
   },
   {
     key: 'settings.models.provider-editor',
@@ -2579,7 +2579,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       },
     ],
     ownerProps: [
-      '/** Owner share of one provider-editor occurrence. */\nexport interface ProviderEditorOwnerProps {\n  /** The card\'s directory row (route id, display name, settings address, live state). */\n  provider: ProviderDirectoryEntry\n  /** Whether any layer configures this provider. */\n  configured: boolean\n  /** Whether the active settings provider accepts writes. */\n  readOnly: boolean\n  /** Close the editor; `changed` requests a fresh Models-page snapshot. */\n  onClose: (changed: boolean) => void\n}',
+      '/** Owner share of one provider-editor occurrence. */\nexport interface ProviderEditorOwnerProps {\n  /** Render the shared subscription editor using the adapter\'s persisted model format. */\n  renderSubscriptionEditor?: (modelFormat: \'ids\' | \'metadata\') => ReactNode\n  /** The card\'s directory row (route id, display name, settings address, live state). */\n  provider: ProviderDirectoryEntry\n  /** Whether any layer configures this provider. */\n  configured: boolean\n  /** Whether the active settings provider accepts writes. */\n  readOnly: boolean\n  /** Close the editor; `changed` requests a fresh Models-page snapshot. */\n  onClose: (changed: boolean) => void\n}',
     ],
     ownerPropsReferences: [
       'ProviderDirectoryEntry',
@@ -2603,7 +2603,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.models.provider-editor\', () => ctx.slots.register(\n      { name: \'settings.models.provider-editor\', key: \'<one key the owner dispatches>\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-settings-models/src/client/slot-contract.ts:30',
+    source: 'packages/client/ui-settings-models/src/client/slot-contract.ts:31',
   },
   {
     key: 'settings.models.sign-in',
@@ -2632,7 +2632,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.models.sign-in\', () => ctx.slots.register(\n      { name: \'settings.models.sign-in\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-settings-models/src/client/slot-contract.ts:41',
+    source: 'packages/client/ui-settings-models/src/client/slot-contract.ts:42',
   },
   {
     key: 'settings.onboarding',

@@ -14,7 +14,7 @@
  * rows the user can still fill in by hand.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { LlmDiscoveredModel } from '@deepseek-ai/dsh-api-remotes/client'
 import { Button, IconPlusOutlineRegular, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -63,6 +63,8 @@ export interface ProbeTarget {
 
 /** Props of {@link ModelListEditor}. */
 export interface ModelListEditorProps {
+  /** The adapter stores only model IDs, without editable metadata. */
+  idsOnly?: boolean
   /** The rows as currently drafted. */
   models: readonly ModelDraft[]
   /** Installed provider whose catalog supplies defaults without endpoint I/O. */
@@ -149,6 +151,11 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
   const { models, onChange, probe, operations, t, disabled, onBusyChange } = props
   const { catalogProvider } = props
   const [busy, setBusy] = useState(false)
+  const active = useRef(true)
+  useEffect(() => {
+    active.current = true
+    return () => { active.current = false }
+  }, [])
   useEffect(() => { onBusyChange(busy) }, [busy, onBusyChange])
   const [failure, setFailure] = useState<string | undefined>(undefined)
   const [inheritedCatalog, setInheritedCatalog] = useState<{
@@ -241,6 +248,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
         ...probe.api === undefined ? {} : { api: probe.api },
         ...probe.apiKey === undefined ? {} : { apiKey: probe.apiKey },
       })
+      if (!active.current) return
       if (answer.kind === 'refused') {
         setFailure(answer.message)
         return
@@ -257,8 +265,10 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
       setCandidateQuery('')
       setCandidates(found)
       setPicked(new Set(found.filter(model => !known.has(model.id)).map(model => model.id)))
+    } catch (error) {
+      if (active.current) setFailure(error instanceof Error ? error.message : String(error))
     } finally {
-      setBusy(false)
+      if (active.current) setBusy(false)
     }
   }
 
@@ -352,10 +362,11 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
           {busy ? t('fetching') : t('fetchModels')}
         </button>
       </div>
-      {models.length === 0 ? <p className={styles['modelEmpty']}>{t('modelsEmpty')}</p> : null}
+      {models.length === 0 ? <p className={styles['modelEmpty']}>{t(props.overridden === false ? 'modelsAutomatic' : 'modelsEmpty')}</p> : null}
       <div className={styles['modelList']}>
         {models.map((model, index) => (
           <ModelRow
+            {...props.idsOnly === true ? { idsOnly: true } : {}}
             key={index}
             model={model}
             position={index + 1}

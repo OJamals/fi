@@ -47,6 +47,8 @@ API 密钥输入框初始为空，并通过 `autocomplete="new-password"` 请求
 
 ### 编辑提供商
 
+已配置的订阅路由共用显示名称、模型列表、可搜索的「获取模型」选择器、「恢复默认模型」及应用/取消操作，不显示 API 密钥字段。仅保存模型 ID 的适配器只显示 ID 控件；pi-ai 保留模型名称、容量、输入类型及其支持的高级端点/协议设置。编辑保留无关的配置和模型字段，并使用打开时的设置修订号。
+
 收起的「自定义设置」折叠区承载精选的额外字段：两个家族都有 `baseURL`（deepseek 的占位符显示公共端点）、各适配器自己的模型目录，以及适配器未提供的 pi-ai 路由的**显示名称**与 **API 协议**。Profile `headers` 仍是 `cordis.patch.yml` 或 Cordis 配置中的部署配置，Models 页面不提供编辑器。Provider ID 保持固定：它是 settings 的键、其他每个 namespace 与每一条已记录会话引用的名字，也是页面读不回、因而搬不走的凭据引用词干。推理等级刻意不在可编辑字段之列：它是按模型的能力，提供商级的控件只可能被设成某些模型会拒绝的值。每个模型行可编辑 `id`、可选显示 `name`、可选 `contextWindow`/`maxTokens` 和输入类型；无关的模型字段在编辑后仍会保留。
 
 `llm-deepseek` 的 DeepSeek 卡片编辑端点、凭据和模型目录。它使用 Messages，默认端点占位符为 `https://api.deepseek.com/anthropic`。
@@ -62,6 +64,8 @@ API 密钥输入框初始为空，并通过 `autocomplete="new-password"` 请求
 版本化声明步骤完成后，设置步骤从同一份合并快照投影首次运行就绪状态。解析出的默认模型存在于可用模型目录中时，该步骤直接结束、不做渲染；否则用户会被引导至 Models 页面配置可用模型。「稍后设置」只完成这次协调器遍历；适配器缺失、路由不活动、合并失败、只读部署或能力不可用时，该步骤不渲染即完成——Models 仍是诊断界面。
 
 ### 扩展 slot
+
+编辑器槽位还提供可选的 `renderSubscriptionEditor(modelFormat)`：`ids` 保留字符串数组目录，`metadata` 保留模型对象。配套插件无需导入 React 实现即可复用所有者渲染的表单；现有槽位替换仍受支持。
 
 本分区为仓库外分发的插件声明三个席位，类型定义在 [`src/client/slot-contract.ts`](src/client/slot-contract.ts) 并从 `./client` 导出。`settings.models.provider-editor`（keyed）替换展示目录行的内置编辑器，以 `entryKey = settingsNs` 分发；其 owner props 携带该行、configured 状态、只读状态和关闭回调。没有组件注册时，分区保留内置编辑器。`settings.models.provider-card`（keyed）渲染在每张展示目录行的卡片内部——任一位置的已保存行卡片、其首次运行 setup 形态，以及「添加提供方」草稿卡——以 `entryKey = settingsNs` 分发，owner props 携带该行的 `ConfigurableProviderView`、其 configured 状态与已确认的 api-key 凭据状态，因此以某适配器家族的 namespace 注册一次即可收到该家族的全部卡片，含手工声明的路由；手工声明的草稿卡尚无目录行，保存之前不分发。`settings.models.footer`（list）渲染在主行列表与新增控件之后、分组订阅行之前。注册方通过 `ctx.slots.inject` 激活，并以 type-only import 引入本包 `/client` 入口；没有注册方时编辑器保持默认，其他席位不渲染任何内容。订阅界面通过 `ctx.modelSettingsSubscriptions` 注册当前提供的 OAuth 路由 id，将匹配的无密钥已配置行移到 footer 下方，而 API 密钥 profile 留在主列表。
 

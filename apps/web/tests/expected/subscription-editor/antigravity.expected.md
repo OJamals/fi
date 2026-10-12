@@ -34,73 +34,21 @@
         - text: antigravity
         - button "Edit antigravity": Edit
         - button "Delete antigravity": Delete
-        - text: Display name
+        - text: antigravity Display name
         - textbox "Display name":
           - /placeholder: antigravity
           - text: My antigravity
-        - button "Fetch models"
-        - button "Use all models" [disabled]
-        - paragraph: All available models appear in the model picker, including new models.
-        - checkbox "Gemini 3.1 Pro Low (antigravity-gemini-3.1-pro-low)" [checked]
-        - text: Gemini 3.1 Pro Low antigravity-gemini-3.1-pro-low
-        - checkbox "Gemini 3.1 Pro High (antigravity-gemini-3.1-pro-high)" [checked]
-        - text: Gemini 3.1 Pro High antigravity-gemini-3.1-pro-high
-        - checkbox "Gemini 3 Pro Low (antigravity-gemini-3-pro-low)" [checked]
-        - text: Gemini 3 Pro Low antigravity-gemini-3-pro-low
-        - checkbox "Gemini 3 Pro High (antigravity-gemini-3-pro-high)" [checked]
-        - text: Gemini 3 Pro High antigravity-gemini-3-pro-high
-        - checkbox "Gemini 3 Flash (antigravity-gemini-3-flash)" [checked]
-        - text: Gemini 3 Flash antigravity-gemini-3-flash
-        - checkbox "Claude Sonnet 4.6 (antigravity-claude-sonnet-4-6)" [checked]
-        - text: Claude Sonnet 4.6 antigravity-claude-sonnet-4-6
-        - checkbox "Claude Sonnet 4.6 Thinking Low (antigravity-claude-sonnet-4-6-thinking-low)" [checked]
-        - text: Claude Sonnet 4.6 Thinking Low antigravity-claude-sonnet-4-6-thinking-low
-        - checkbox "Claude Sonnet 4.6 Thinking Medium (antigravity-claude-sonnet-4-6-thinking-medium)" [checked]
-        - text: Claude Sonnet 4.6 Thinking Medium antigravity-claude-sonnet-4-6-thinking-medium
-        - checkbox "Claude Sonnet 4.6 Thinking High (antigravity-claude-sonnet-4-6-thinking-high)" [checked]
-        - text: Claude Sonnet 4.6 Thinking High antigravity-claude-sonnet-4-6-thinking-high
-        - checkbox "Claude Opus 4.6 Thinking Low (antigravity-claude-opus-4-6-thinking-low)" [checked]
-        - text: Claude Opus 4.6 Thinking Low antigravity-claude-opus-4-6-thinking-low
-        - checkbox "Claude Opus 4.6 Thinking Medium (antigravity-claude-opus-4-6-thinking-medium)" [checked]
-        - text: Claude Opus 4.6 Thinking Medium antigravity-claude-opus-4-6-thinking-medium
-        - checkbox "Claude Opus 4.6 Thinking High (antigravity-claude-opus-4-6-thinking-high)" [checked]
-        - text: Claude Opus 4.6 Thinking High antigravity-claude-opus-4-6-thinking-high
-        - checkbox "Gemini 2.5 Flash (gemini-2.5-flash)" [checked]
-        - text: Gemini 2.5 Flash gemini-2.5-flash
-        - checkbox "Gemini 2.5 Pro (gemini-2.5-pro)" [checked]
-        - text: Gemini 2.5 Pro gemini-2.5-pro
-        - checkbox "Gemini 3.6 Flash High (gemini-3.6-flash-high)" [checked]
-        - text: Gemini 3.6 Flash High gemini-3.6-flash-high
-        - checkbox "Gemini 3.6 Flash Medium (gemini-3.6-flash-medium)" [checked]
-        - text: Gemini 3.6 Flash Medium gemini-3.6-flash-medium
-        - checkbox "Gemini 3.6 Flash Low (gemini-3.6-flash-low)" [checked]
-        - text: Gemini 3.6 Flash Low gemini-3.6-flash-low
-        - checkbox "Gemini 3.7 Flash High (gemini-3.7-flash-high)" [checked]
-        - text: Gemini 3.7 Flash High gemini-3.7-flash-high
-        - checkbox "Gemini 3.7 Flash Medium (gemini-3.7-flash-medium)" [checked]
-        - text: Gemini 3.7 Flash Medium gemini-3.7-flash-medium
-        - checkbox "Gemini 3.7 Flash Low (gemini-3.7-flash-low)" [checked]
-        - text: Gemini 3.7 Flash Low gemini-3.7-flash-low
-        - checkbox "Gemini 3.5 Flash High (gemini-3.5-flash-high)" [checked]
-        - text: Gemini 3.5 Flash High gemini-3.5-flash-high
-        - checkbox "Gemini 3.5 Flash Medium (gemini-3.5-flash-medium)" [checked]
-        - text: Gemini 3.5 Flash Medium gemini-3.5-flash-medium
-        - checkbox "Gemini 3.5 Flash Low (gemini-3.5-flash-low)" [checked]
-        - text: Gemini 3.5 Flash Low gemini-3.5-flash-low
-        - checkbox "Gemini 3.1 Pro High (gemini-3.1-pro-high)" [checked]
-        - text: Gemini 3.1 Pro High gemini-3.1-pro-high
-        - checkbox "Gemini 3.1 Pro Low (gemini-3.1-pro-low)" [checked]
-        - text: Gemini 3.1 Pro Low gemini-3.1-pro-low
-        - checkbox "Claude Sonnet 4.6 (claude-sonnet-4-6)" [checked]
-        - text: Claude Sonnet 4.6 claude-sonnet-4-6
-        - checkbox "Claude Opus 4.6 Thinking (claude-opus-4-6-thinking)" [checked]
-        - text: Claude Opus 4.6 Thinking claude-opus-4-6-thinking
-        - checkbox "GPT OSS 120b Medium (gpt-oss-120b-medium)" [checked]
-        - text: GPT OSS 120b Medium gpt-oss-120b-medium
-        - checkbox "Gemini 3.1 Flash Image (gemini-3.1-flash-image)" [checked]
-        - text: Gemini 3.1 Flash Image gemini-3.1-flash-image
-        - button "Apply"
+        - region "Models":
+          - text: Models Customized model catalog
+          - button "Restore defaults"
+          - button "Fetch available models"
+          - textbox "Model ID 1":
+            - /placeholder: Model ID
+            - text: antigravity-gemini-3.1-pro-low
+          - button "Delete model 1"
+          - button "Add model"
         - button "Cancel"
+        - button "Apply"
       - listitem:
         - text: opencode-console
         - button "Edit opencode-console": Edit

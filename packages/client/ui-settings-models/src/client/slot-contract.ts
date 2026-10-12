@@ -19,6 +19,7 @@
  */
 
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
+import type { ReactNode } from 'react'
 import type { ProviderDirectoryEntry } from './store.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -49,6 +50,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 
 /** Owner share of one provider-editor occurrence. */
 export interface ProviderEditorOwnerProps {
+  /** Render the shared subscription editor using the adapter's persisted model format. */
+  renderSubscriptionEditor?: (modelFormat: 'ids' | 'metadata') => ReactNode
   /** The card's directory row (route id, display name, settings address, live state). */
   provider: ProviderDirectoryEntry
   /** Whether any layer configures this provider. */

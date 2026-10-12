@@ -73,6 +73,17 @@ function mount(
 }
 
 describe('AntigravityProviderEditor', () => {
+  it('delegates configured native routes to the Models owner with ID-only capabilities', () => {
+    const { view, props, adopt } = mount()
+    const renderSubscriptionEditor = vi.fn(() => <div>Shared subscription editor</div>)
+    view.rerender(<AntigravityProviderEditor {...props} configured renderSubscriptionEditor={renderSubscriptionEditor}
+      provider={{ provider: 'antigravity', displayName: 'Antigravity', settingsNs: 'fi-antigravity',
+        settingsPath: ['providers', 'antigravity'], active: true }} />)
+    expect(screen.getByText('Shared subscription editor')).toBeTruthy()
+    expect(renderSubscriptionEditor).toHaveBeenCalledWith('ids')
+    expect(adopt).not.toHaveBeenCalled()
+  })
+
   it('adopts a stored grant and closes the add-provider card after a route is written', async () => {
     const { adopt, onClose } = mount()
 
