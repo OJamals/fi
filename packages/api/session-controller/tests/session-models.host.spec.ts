@@ -881,6 +881,18 @@ describe('Web session model selection', () => {
   })
 })
 
+it('resolves automatic defaults and keeps an empty provider catalog unselected', async () => {
+  const { ctx } = await harness()
+  const controller = createSessionTestController(ctx, {
+    defaultModelSelection: () => ({ provider: 'deepseek-official', model: 'deepseek-chat' }), cwd: '/tmp',
+  })
+  const resolve = vi.spyOn(ctx.agentDefaultModel, 'resolveSelection').mockResolvedValue(undefined)
+  await controller.initializeDefaultModel()
+  expect(resolve).toHaveBeenCalledOnce()
+  expect((await buildModelCatalog(ctx)).default).toBeNull()
+  await ctx.fiber.dispose()
+})
+
 it('initializes the account model without reasoning metadata and rejects an empty account catalog', async () => {
   const { configurationFixture } = await import('../../../settings/settings/tests/configuration-fixture.ts')
   const configured = await configurationFixture({ hmr: false })

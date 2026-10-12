@@ -65,6 +65,8 @@ kind: "package-reference"
 
 响应读取器只接受一张 base64 图像，在分配前限制 JSON 与解码字节数，根据字节识别 PNG、JPEG 或 WebP，拒绝声明媒体类型不匹配的响应，并把完整栅格验证委托给 attachment 服务。成功结果包含安全 JSON 和一个持久 `ImageBlock`，且排除原始图像数据。HTTP 失败会保留状态但不保留响应正文；结果不明确的 POST 失败不会重试；插件卸载会中止并等待活动任务。
 
+配置 schema 在构造工具前提供操作限制，工具参数 schema 只允许已配置的提供方。有界正文读取完成后，格式错误的 UTF-8 或 JSON 会报告 `IMAGE_INVALID_RESPONSE`；调用方取消状态在解码前及成功解码后检查。
+
 | 文件 | 作用 |
 |---|---|
 | [`src/index.ts`](src/index.ts) | 配置验证、凭据适配器和生命周期连接 |

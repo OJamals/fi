@@ -294,6 +294,8 @@ export interface WebScaffold {
   hostFetch(path: string, init?: RequestInit): Promise<Response>
   /** Await a settled turn end: in-process turn/end, then the agent's idle flip (which follows the persistence flush). */
   whenTurnSettled(timeoutMs?: number): Promise<SessionId>
+  /** Compare the recorded turn before additional lifecycle operations append events. Never writes the borrowed fixture. */
+  assertReplaySession(): Promise<void>
   /**
    * Tear everything down; asserts the replay fixture was fully consumed first
    * (replay/refresh), unless booted with replayProvidersOnly (whose fixture
@@ -946,6 +948,11 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
             .then(() => { resolveSettled(session.id) }, reject)
         })
       })
+    },
+    async assertReplaySession(): Promise<void> {
+      if (replayFixture === undefined) throw new Error('web scaffold has no replay fixture')
+      await assertReplaySession([...observedSessions.values()], replayFixture, 'replay',
+        `http://${browserHost}:${port}`, harnessHome)
     },
     async close(): Promise<void> {
       const failures: unknown[] = []

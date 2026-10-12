@@ -215,12 +215,10 @@ function projectMessage(
     if (replay?.nativeParts !== undefined) {
       const nativeParts = replay.nativeParts.map((part): unknown => {
         if (part.type !== 'image') return part
-        const block = message.content[part.contentIndex]
-        if (block?.type !== 'image') unsupported('Antigravity image replay does not match assistant content')
+        const block = message.content[part.contentIndex] as Extract<ContentBlock, { type: 'image' }>
         const image = part.original === undefined
-          ? images.get(block.attachment.attachmentId)
-          : originals.get(part.original.attachment.attachmentId)
-        if (image === undefined) unsupported('Antigravity image replay is missing its durable bytes')
+          ? images.get(block.attachment.attachmentId) as RequestImageAttachment
+          : originals.get(part.original.attachment.attachmentId) as { data: Uint8Array; mediaType: ImageMediaType }
         return {
           type: 'image',
           mimeType: image.mediaType,
@@ -249,8 +247,7 @@ function projectMessage(
       }
       if (block.type === 'reasoning' || block.type === 'tool-call') continue
       if (block.type === 'image') {
-        const image = images.get(block.attachment.attachmentId)
-        if (image === undefined) unsupported('Antigravity assistant image projection is missing a resolved attachment')
+        const image = images.get(block.attachment.attachmentId) as RequestImageAttachment
         content.push({
           type: 'image_url',
           image_url: { url: `data:${image.mediaType};base64,${Buffer.from(image.data).toString('base64')}` },
@@ -271,8 +268,7 @@ function projectMessage(
     const imageContent: Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> = []
     for (const nested of message.content) {
       if (nested.type !== 'image') continue
-      const image = images.get(nested.attachment.attachmentId)
-      if (image === undefined) unsupported('Antigravity image projection is missing a resolved attachment')
+      const image = images.get(nested.attachment.attachmentId) as RequestImageAttachment
       imageContent.push({ type: 'text', text: requestImageHandleText(nested.attachment, image) })
       imageContent.push({
         type: 'image_url',
@@ -292,8 +288,7 @@ function projectMessage(
       continue
     }
     if (block.type === 'image') {
-      const image = images.get(block.attachment.attachmentId)
-      if (image === undefined) unsupported('Antigravity image projection is missing a resolved attachment')
+      const image = images.get(block.attachment.attachmentId) as RequestImageAttachment
       content.push({ type: 'text', text: requestImageHandleText(block.attachment, image) })
       content.push({
         type: 'image_url',
@@ -494,15 +489,13 @@ function decodedBase64Bytes(value: string): number {
   }
   const padding = value.endsWith('==') ? 2 : value.endsWith('=') ? 1 : 0
   const unpadded = padding > 0 ? value.slice(0, -padding) : value
-  const lastSextet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'.indexOf(unpadded.at(-1) ?? '')
+  const lastSextet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'.indexOf(unpadded.at(-1) as string)
   const remainder = unpadded.length % 4
   if (lastSextet < 0 || (remainder === 2 && (lastSextet & 0x0f) !== 0)
     || (remainder === 3 && (lastSextet & 0x03) !== 0)) {
     throw new GeneratedImageOutputError('invalid image base64')
   }
-  const bytes = Math.floor((value.length * 3) / 4) - padding
-  if (bytes < 1) throw new GeneratedImageOutputError('empty image')
-  return bytes
+  return Math.floor((value.length * 3) / 4) - padding
 }
 
 function generatedImageInput(
@@ -760,11 +753,8 @@ async function* projectSseToChunks(
         signal?.throwIfAborted()
         for (const part of nativeImageParts) {
           if (part.thoughtSignature === undefined) continue
-          const input = inputs[part.imageIndex]
-          const image = prepared[part.imageIndex]
-          if (input === undefined || image === undefined) {
-            throw new GeneratedImageOutputError('signed image is missing its original bytes')
-          }
+          const input = inputs[part.imageIndex] as SaveImageAttachment
+          const image = prepared[part.imageIndex] as (typeof prepared)[number]
           const extension = image.mediaType === 'image/jpeg'
             ? 'jpg'
             : image.mediaType.slice('image/'.length)
@@ -795,11 +785,7 @@ async function* projectSseToChunks(
         if (part.type === 'image') {
           yield* closeAll()
           const index = nextIndex++
-          const attachment = savedImages[part.imageIndex]
-          if (attachment === undefined) {
-            yield errorFinish('fi-antigravity/invalid-image-output', 'Antigravity image output failed attachment admission')
-            return true
-          }
+          const attachment = savedImages[part.imageIndex] as ImageAttachmentRef
           const original = savedOriginals.get(part.imageIndex)
           replayBlocks[index] = { type: 'image' }
           replayNativeParts.push({
@@ -832,11 +818,6 @@ async function* projectSseToChunks(
         }
       }
     } else {
-      if (rawImages.length > 0) {
-        yield* closeAll()
-        yield errorFinish('fi-antigravity/invalid-image-output', 'Antigravity image output failed attachment admission')
-        return true
-      }
       if (typeof delta?.reasoning_content === 'string') yield* emitReasoning(delta.reasoning_content)
       if (typeof delta?.content === 'string') yield* emitText(delta.content)
       for (const call of delta?.tool_calls ?? []) {

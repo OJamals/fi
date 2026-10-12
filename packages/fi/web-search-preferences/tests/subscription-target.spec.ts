@@ -28,6 +28,26 @@ function context(
 }
 
 describe('automatic subscription search target', () => {
+  it('requires linked credentials even when a chat uses a subscription route', async () => {
+    const ctx = new Context()
+    ctx.provide('agents', { currentInitiator: () => ({ session: { requestContext: () => ({ provider: 'xai', model: 'grok' }) } }) })
+    await expect(resolveCurrentSubscriptionTarget(ctx, new AbortController().signal)).resolves.toBeUndefined()
+    await expect(resolveSubscriptionTarget(ctx, defaults, new AbortController().signal))
+      .rejects.toMatchObject({ code: 'WEB_PROVIDER_SUBSCRIPTION_OAUTH_REQUIRED' })
+  })
+
+  it('refuses another linked family when the configured family is signed out', async () => {
+    const { ctx } = context([{ key: 'llm-pi-ai/xai', kind: 'grant' }])
+    await expect(resolveSubscriptionTarget(ctx, { ...defaults, subscriptionProvider: 'claude' }, new AbortController().signal))
+      .rejects.toMatchObject({ code: 'WEB_PROVIDER_SUBSCRIPTION_OAUTH_REQUIRED' })
+  })
+
+  it('reports a linked Antigravity account without an advertised model', async () => {
+    const { ctx, listModels } = context([{ key: ANTIGRAVITY_CREDENTIAL_KEY, kind: 'grant' }])
+    listModels.mockResolvedValue([])
+    await expect(resolveSubscriptionTarget(ctx, defaults, new AbortController().signal))
+      .rejects.toMatchObject({ code: 'WEB_PROVIDER_CONFIGURED_UNAVAILABLE' })
+  })
   it.each([
     ['codex', 'llm-pi-ai/openai-codex', 'openai-codex'],
     ['grok', 'llm-pi-ai/xai', 'xai'],

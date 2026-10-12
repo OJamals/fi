@@ -308,6 +308,18 @@ function bench(options: BenchOptions = {}) {
 }
 
 describe('UiWorkspaceService', () => {
+  it('returns to a global panel with no selected Session', () => {
+    const b = bench()
+    const panel = 'plugins' as MainPanelId
+    b.layout.selectPanel(panel)
+    b.uiWorkspace.openSession(sid('first'))
+    b.uiWorkspace.goBack()
+    expect(b.layout.panelInfo.getSnapshot().activePanelId).toBe(panel)
+    expect(b.sessions.retained[0]?.release).toHaveBeenCalledOnce()
+    b.uiWorkspace.goForward()
+    expect(b.sessions.retain).toHaveBeenLastCalledWith(sid('first'), { source: 'mainView' })
+  })
+
   it('revisits Sessions and panels, ignores repeated selection, and discards the forward branch on a new visit', () => {
     const b = bench()
     const panel = 'plugins' as MainPanelId

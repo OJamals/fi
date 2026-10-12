@@ -44,7 +44,7 @@ kind: "package-reference"
 
 注册通过 `settings.models.footer` 与 keyed 的 `settings.models.provider-editor` 槽位完成。原生编辑器使用页脚 store 完成设置，通过 settings 与 LLM Remote 操作编辑 profile 和发现模型。区块行由 `OFFERED` 白名单与 Host 已注册流程连接而成；`listAdoptable` 提供凭据范围到路由的映射。页脚在本地保存选择，从未完成尝试派生活跃提供方，并在外部刷新移除当前选择时回退到第一个剩余提供方。
 
-store 同一时间只持有一次尝试，并把每个流帧折叠进去。`applyFrame` 是该状态之上的纯函数：`withdraw` 只撤回当前屏幕上的那个问题，而结束态会清除仍在显示的任何问题。每次登录、采用与移除都有操作标识，因此迟到的 Remote 回复不能改写较新的快照。该状态中不保存任何密钥——用户输入的答复直接经由 `answer` 送出，草稿随即丢弃。
+store 同一时间只持有一次尝试，并把每个流帧折叠进去。`applyFrame` 是该状态之上的纯函数：`withdraw` 只撤回当前屏幕上的那个问题，而结束态会清除仍在显示的任何问题。每次登录、采用与移除都有操作标识，因此迟到的 Remote 回复不能改写较新的快照。释放时会使待完成操作失效，成功撤销授权的迟到结果也不能再发布。该状态中不保存任何密钥——用户输入的答复直接经由 `answer` 送出，草稿随即丢弃。
 
 <a id="further-exploration"></a>
 ## 进一步探索

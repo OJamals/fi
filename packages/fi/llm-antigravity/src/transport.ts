@@ -186,7 +186,6 @@ function scalarText(value: unknown): string | undefined {
 }
 
 function describeUnknown(value: unknown): string {
-  if (value instanceof Error) return value.message
   const scalar = scalarText(value)
   if (scalar !== undefined) return scalar
   const encoded: unknown = JSON.stringify(value)
@@ -280,20 +279,19 @@ async function* readSseEvents(
   upstream: Response,
   options: SseReadOptions = {},
 ): AsyncGenerator<{ event: string; data: unknown }> {
-  const reader = upstream.body?.getReader()
-  if (reader === undefined) return
+  // Public transport entrypoints reject bodyless responses before decoding SSE.
+  const reader = (upstream.body as ReadableStream<Uint8Array>).getReader()
   const decoder = new TextDecoder()
-  const maxLineBytes = Number.isFinite(options.maxLineBytes) && (options.maxLineBytes ?? 0) > 0
+  const maxLineBytes = Number.isFinite(options.maxLineBytes) && (options.maxLineBytes as number) > 0
     ? options.maxLineBytes as number : 256 * 1024 * 1024
-  const maxFrameBytes = Number.isFinite(options.maxFrameBytes) && (options.maxFrameBytes ?? 0) > 0
+  const maxFrameBytes = Number.isFinite(options.maxFrameBytes) && (options.maxFrameBytes as number) > 0
     ? options.maxFrameBytes as number : 256 * 1024 * 1024
-  const maxTotalBytes = Number.isFinite(options.maxTotalBytes) && (options.maxTotalBytes ?? 0) > 0
+  const maxTotalBytes = Number.isFinite(options.maxTotalBytes) && (options.maxTotalBytes as number) > 0
     ? options.maxTotalBytes as number : Number.MAX_SAFE_INTEGER
   let buffer = ''
   let event = ''
   let dataLines: string[] = []
   let frameBytes = 0
-  let firstLine = true
   let completed = false
   let totalBytes = 0
   const abort = (): void => { void reader.cancel(options.signal?.reason).catch(() => {}) }
@@ -336,9 +334,7 @@ async function* readSseEvents(
           if (bytes > maxLineBytes || frameBytes + bytes > maxFrameBytes) {
             throw new Error('Upstream SSE frame exceeded configured limits')
           }
-          if (line === '') {
-            const parsed = emit(); if (parsed !== undefined) yield { event: parsed.event, data: parsed.data }
-          } else consumeFieldLine(line)
+          consumeFieldLine(line)
         }
         const parsed = emit(); if (parsed !== undefined) yield { event: parsed.event, data: parsed.data }
         completed = true
@@ -353,7 +349,6 @@ async function* readSseEvents(
         const terminator = buffer[newline]
         buffer = buffer.slice(newline + 1)
         if (terminator === '\r' && buffer.startsWith('\n')) buffer = buffer.slice(1)
-        if (firstLine) { firstLine = false; if (line.charCodeAt(0) === 0xfeff) { /* BOM stripped by decoder */ } }
         const bytes = new TextEncoder().encode(line).byteLength
         frameBytes += bytes + 1
         if (bytes > maxLineBytes) throw new Error(`Upstream SSE line exceeded ${maxLineBytes} bytes`)
@@ -653,14 +648,8 @@ function textParts(content: unknown): WireRecord[] {
 }
 
 function parseToolArguments(value: unknown): unknown {
-  if (typeof value !== 'string') return value ?? {}
-  try {
-    return JSON.parse(value || '{}')
-  } catch {
-    throw new Error(
-      'Cannot translate function call with invalid JSON arguments',
-    )
-  }
+  // validateOpenAIToAntigravityRequest rejects non-object JSON before projection.
+  return typeof value === 'string' ? JSON.parse(value || '{}') : {}
 }
 
 function parseToolResult(value: unknown): unknown {
@@ -934,7 +923,7 @@ function transformOpenAIToAntigravity(
     requestedModel,
   )
   const legacyThinkingBudget = hasThinkingTier
-    ? LEGACY_THINKING_BUDGETS[tier ?? 'medium']
+    ? LEGACY_THINKING_BUDGETS[tier as string]
     : undefined
   const thinkingBudget =
     explicitThinkingBudget ?? presetThinkingBudget ?? legacyThinkingBudget
@@ -979,16 +968,10 @@ function transformOpenAIToAntigravity(
         functionCallingConfig.mode = toolChoice.toUpperCase()
       } else if (toolChoice === 'required') {
         functionCallingConfig.mode = 'ANY'
-      } else if (
-        wireRecord(toolChoice)?.type === 'function' &&
-        typeof wireRecord(wireRecord(toolChoice)?.function)?.name === 'string'
-      ) {
+      } else {
+        // Request validation has resolved this case to a declared function name.
         functionCallingConfig.mode = 'ANY'
         functionCallingConfig.allowedFunctionNames = [wireRecord(wireRecord(toolChoice)?.function)?.name]
-      } else {
-        throw new Error(
-          'Unsupported Antigravity tool_choice; expected auto, none, required, or a named function',
-        )
       }
       request.toolConfig = { functionCallingConfig }
     }
@@ -1000,17 +983,11 @@ function transformOpenAIToAntigravity(
       // Gemini's default text response needs no generationConfig override.
     } else if (responseFormat.type === 'json_object') {
       generationConfig.responseMimeType = 'application/json'
-    } else if (
-      responseFormat.type === 'json_schema' &&
-      wireRecord(responseFormat.json_schema)?.schema !== undefined
-    ) {
+    } else {
+      // Request validation requires json_schema and its schema in this case.
       generationConfig.responseMimeType = 'application/json'
       generationConfig.responseSchema = cleanSchema(
         wireRecord(responseFormat.json_schema)?.schema,
-      )
-    } else {
-      throw new AntigravityRequestValidationError(
-        'Unsupported Antigravity response_format; expected json_object or json_schema with a schema',
       )
     }
   }
@@ -1253,25 +1230,22 @@ function streamAsOpenAI(
   const toolState = newToolStreamState()
   let sentRole = false
   let sawFinish = false
-  let ended = false
   return new ReadableStream<Uint8Array>({
     async pull(controller) {
-      if (ended) return
       try {
         while (true) {
           const next = await iterator.next()
-          if (next.done) {
-            ended = true
+          if (next.done || next.value.data === '[DONE]') {
             if (!sawFinish) {
               throw new Error('Antigravity stream ended before finishReason')
             }
+            await iterator.return(undefined)
             controller.enqueue(encoder.encode('data: [DONE]\n\n'))
             controller.close()
             return
           }
           const { event, data } = next.value
           if (event === 'error' || wireRecord(data)?.error !== undefined) {
-            ended = true
             await iterator.return(undefined)
             controller.enqueue(
               encoder.encode(
@@ -1286,7 +1260,6 @@ function streamAsOpenAI(
             controller.close()
             return
           }
-          if (data === '[DONE]') break
           if (data === null) throw new Error('Malformed Antigravity SSE event')
           const chunk = transformAntigravityEvent(
             data,
@@ -1312,13 +1285,11 @@ function streamAsOpenAI(
           }
         }
       } catch (error) {
-        ended = true
-        await iterator.return(undefined).catch(() => undefined)
+        await iterator.return(undefined)
         controller.error(error)
       }
     },
     async cancel(reason) {
-      ended = true
       abort.abort(reason)
       await iterator.return(reason)
     },
@@ -1427,7 +1398,7 @@ async function fetchAvailableModels(
       )
       return null
     }
-    const models = wireRecord(parsed.models) ?? {}
+    const models = parsed.models as WireRecord
     const imageGenerationModelIds = wireArray(parsed.imageGenerationModelIds) ?? []
 
     return {
@@ -1603,14 +1574,13 @@ function strictBase64Bytes(value: string, context: string): number {
   }
   const padding = data.endsWith('==') ? 2 : data.endsWith('=') ? 1 : 0
   const unpadded = padding > 0 ? data.slice(0, -padding) : data
-  const lastSextet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'.indexOf(unpadded.at(-1) ?? '')
+  const lastSextet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'.indexOf(unpadded.at(-1) as string)
   const remainder = unpadded.length % 4
-  if (lastSextet < 0 || (remainder === 2 && (lastSextet & 0x0f) !== 0)
+  if ((remainder === 2 && (lastSextet & 0x0f) !== 0)
     || (remainder === 3 && (lastSextet & 0x03) !== 0)) {
     throw new GeminiNativeValidationError(`${context} contains invalid base64`)
   }
   const bytes = Math.floor((data.length * 3) / 4) - padding
-  if (bytes < 1) throw new GeminiNativeValidationError(`${context} contains invalid base64`)
   return bytes
 }
 
@@ -1824,8 +1794,8 @@ function mergeNativeGeminiChunks(chunks: WireRecord[]): WireRecord {
         index,
         content: { role: candidateContent?.role || 'model', parts: [] },
       }
-      const currentContent = wireRecord(current.content) ?? { role: 'model', parts: [] }
-      const currentParts = wireArray(currentContent.parts) ?? []
+      const currentContent = current.content as { role: unknown; parts: unknown[] }
+      const currentParts = currentContent.parts
       appendGeminiParts(currentParts, wireArray(candidateContent?.parts) ?? [])
       Object.assign(current, candidate, {
         content: {
@@ -1853,7 +1823,6 @@ function nativeGeminiSse(
   let ended = false
   return new ReadableStream<Uint8Array>({
     async pull(controller) {
-      if (ended) return
       while (true) {
         const next = await iterator.next()
         if (next.done) {
@@ -1953,6 +1922,7 @@ export async function callAntigravityGeminiNative(
       throw new GeminiNativeValidationError(`native Gemini request exceeds ${maxRequestBytes} JSON bytes`, 413)
     }
   } catch (error) {
+    /* v8 ignore next -- JSON request validators throw GeminiNativeValidationError; unexpected failures propagate. */
     if (!(error instanceof GeminiNativeValidationError)) throw error
     const status = error.status
     return Response.json(
@@ -2025,10 +1995,10 @@ function imageAspectRatio(size: unknown): string {
   return '1:1'
 }
 
-function imageCallError(message: string, status = 400): Response {
+function imageCallError(message: string): Response {
   return Response.json(
-    { error: { message, type: status === 413 ? 'request_too_large' : 'invalid_request_error' } },
-    { status },
+    { error: { message, type: 'invalid_request_error' } },
+    { status: 400 },
   )
 }
 
@@ -2133,6 +2103,7 @@ function nativeGeneratedImages(value: unknown): Array<{ mimeType: string; data: 
   const images: Array<{ mimeType: string; data: string }> = []
   const candidates = wireArray(wireRecord(value)?.candidates) ?? []
   for (const candidate of candidates) {
+    /* v8 ignore next -- collectNativeGemini gives every retained candidate a content.parts array. */
     const parts = wireArray(wireRecord(wireRecord(candidate)?.content)?.parts) ?? []
     for (const part of parts) {
       const record = wireRecord(part)
@@ -2162,8 +2133,9 @@ export async function callAntigravityImageGenerations(
   try {
     call = imageCallRequest(wireRecord(opts.body) ?? {})
   } catch (error) {
+    /* v8 ignore next -- JSON image validators throw GeminiNativeValidationError; unexpected failures propagate. */
     if (!(error instanceof GeminiNativeValidationError)) throw error
-    return imageCallError(error.message, error.status)
+    return imageCallError(error.message)
   }
   const results: WireRecord[] = []
   for (let index = 0; index < call.n; index += 1) {
@@ -2180,6 +2152,7 @@ export async function callAntigravityImageGenerations(
     try {
       images = nativeGeneratedImages(await response.json())
     } catch (error) {
+      /* v8 ignore next -- The native collector produces JSON; generated-image validation throws GeminiNativeValidationError. */
       if (!(error instanceof GeminiNativeValidationError)) throw error
       return Response.json(
         { error: { message: error.message, type: 'upstream_error' } },

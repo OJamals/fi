@@ -7,7 +7,7 @@
  * pushed through the control stream.
  */
 
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -335,6 +335,8 @@ describe('session.history projections block', () => {
   })
 
   it('publishes the attachments imageLimits as a constant unit while both seams are composed', async () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000)
+    onTestFinished(() => { now.mockRestore() })
     const { ctx, session } = await harness(true)
     const limits = {
       maxImageBytes: 5 * 1024 * 1024,
@@ -361,6 +363,7 @@ describe('session.history projections block', () => {
     const iterator = gateway.control(abort.signal)[Symbol.asyncIterator]()
     await iterator.next()
     const next = iterator.next()
+    now.mockReturnValue(1001)
     seedMessages(session, 1)
     await new Promise(resolve => setTimeout(resolve, 0))
     await expect(next).resolves.toMatchObject({

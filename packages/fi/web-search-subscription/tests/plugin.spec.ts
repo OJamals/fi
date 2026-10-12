@@ -70,6 +70,21 @@ afterEach(async () => {
 })
 
 describe('subscription search plugin composition', () => {
+  it('uses default resource limits when directly constructed with only a family and model', async () => {
+    const ctx = await composition()
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(responseSse())))
+    const provider = subscriptionPlugin.createSubscriptionSearchProvider(ctx, { provider: 'codex', model: 'fixture' })
+    await expect(provider.search({ query: 'weather' })).resolves.toMatchObject({ sources: [{ url: 'https://example.com/source' }] })
+    await provider.dispose()
+  })
+
+  it('advertises bundled defaults only for families with a bundled model catalog', () => {
+    expect(subscriptionPlugin.defaultSubscriptionSearchModel('antigravity')).toBeUndefined()
+    for (const family of ['codex', 'grok', 'claude'] as const) {
+      expect(subscriptionPlugin.defaultSubscriptionSearchModel(family)).toEqual(expect.any(String))
+    }
+  })
+
   it('resolves Antigravity credentials from its injected plugin context', async () => {
     const ctx = await composition()
     await ctx.credentials.modifyRecord(credentialKey('fi-antigravity', 'antigravity'), () => Promise.resolve({

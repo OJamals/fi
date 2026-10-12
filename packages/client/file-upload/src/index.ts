@@ -94,7 +94,7 @@ export class FileUploads extends TypertRemoteService {
     const dispose = this.ctx.effect(() => {
       this.agentResolver = registration
       return () => {
-        if (this.agentResolver === registration) this.agentResolver = undefined
+        this.agentResolver = undefined
       }
     }, 'file-upload: Agent resolver')
     return () => { void dispose() }

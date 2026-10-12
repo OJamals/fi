@@ -64,6 +64,8 @@ The controller carries the wire obligations the seam does not. A wire key is `<s
 
 `Attempt` is the buffer between the seam's push model and the stream's pull model: a flow calls `notify` whenever it likes, while the carrier reads on demand. It also holds the questions waiting on a browser answer, keyed by a per-attempt id. A prompt withdrawn by its own signal rejects with `authorization/withdrawn` rather than a decline, because the seam reads a decline as the human saying no and a later genuine failure would be misread.
 
+Attempt settlement rejects unanswered prompts and ignores later notices. If the Host unloads after committing a settings route, adoption reports `authorization/adopt-blocked`; the stored grant remains available after restart.
+
 <a id="further-exploration"></a>
 ## Further Exploration
 

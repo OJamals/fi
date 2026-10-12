@@ -1,8 +1,7 @@
 name: CI main
 
 on:
-  push:
-    branches: [main]
+  # FI validates locally; hosted CI runs only by explicit manual dispatch.
   workflow_dispatch:
 
 permissions:

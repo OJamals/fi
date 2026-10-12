@@ -365,7 +365,8 @@ const REFRESH_MARGIN_MS = 120_000
  * token with a refresh token rotates inside the seam's serialized
  * `modifyRecord`, so concurrent calls and processes cannot lose each other's
  * rotation; the refresh response omits the profile fields, so the stored
- * payload's email/account/project ride through untouched.
+ * payload's email/account/project ride through untouched. Revocation before
+ * the serialized update acquires the record returns signed out.
  * @param ctx - context carrying the canonical credential store.
  * @param signal - optional cancellation for an in-flight token refresh.
  * @param refs - the OAuth client refs to resolve before a refresh; defaults to
@@ -407,7 +408,8 @@ export async function resolveAntigravityGrant(
         },
       }
     })
-    payload = grantPayload(record) ?? payload
+    payload = grantPayload(record)
+    if (payload === undefined) return undefined
   }
   return { accessToken: payload.access, projectId: payload.projectId }
 }

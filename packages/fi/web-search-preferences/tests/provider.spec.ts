@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
+import { createLaunchEnvironmentSnapshot } from '@deepseek-ai/dsh-launch-environment'
 import type { WebSearchProvider, WebSearchResult } from '@deepseek-ai/dsh-web'
 import {
   createFiDirectSearchProvider,
@@ -29,6 +30,81 @@ function testContext(services: Record<string, object>): Context {
 }
 
 describe('preferred search provider', () => {
+  it.each(['exa', 'perplexity', 'parallel', 'tavily', 'serper', 'brave'] as const)
+  ('resolves %s defaults from launch credentials', async (id) => {
+    const ctx = testContext({ launchEnvironment: createLaunchEnvironmentSnapshot([{ source: 'process', values: {
+      EXA_API_KEY: 'fixture', PERPLEXITY_API_KEY: 'fixture', PARALLEL_API_KEY: 'fixture',
+      TAVILY_API_KEY: 'fixture', SERPER_API_KEY: 'fixture', BRAVE_SEARCH_API_KEY: 'fixture',
+    } }]) })
+    const selected = await resolveSelectedProvider(ctx, { provider: id }, new AbortController().signal)
+    expect(selected.available()).toBe(true)
+  })
+
+  it('forwards optional search settings into upstream requests', async () => {
+    const ctx = testContext({ credentials: { resolve: async () => ({ value: 'fixture' }) } })
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => Response.json({ results: [], choices: [{ message: { content: 'answer' } }] }))
+    vi.stubGlobal('fetch', fetch)
+    const signal = new AbortController().signal
+    const exa = await resolveSelectedProvider(ctx, { provider: 'exa', exaNumResults: 7 }, signal)
+    await exa.search({ query: 'query' })
+    expect(await new Request(...fetch.mock.calls[0]!).json()).toMatchObject({ numResults: 7 })
+    const perplexity = await resolveSelectedProvider(ctx, { provider: 'perplexity', perplexitySearchRecency: 'week' }, signal)
+    await perplexity.search({ query: 'query' })
+    expect(await new Request(...fetch.mock.calls[1]!).json()).toMatchObject({ search_recency_filter: 'week' })
+    const parallel = await resolveSelectedProvider(ctx, { provider: 'parallel', parallelMode: 'fast' }, signal)
+    await parallel.search({ query: 'query' })
+    expect(await new Request(...fetch.mock.calls[2]!).json()).toMatchObject({ mode: 'fast' })
+  })
+
+  it.each([undefined, 'https://configured.test/anthropic/v1'])('resolves the DeepSeek endpoint from launch settings: %s', async (endpoint) => {
+    const ctx = testContext({ launchEnvironment: createLaunchEnvironmentSnapshot([{ source: 'process', values: {
+      DEEPSEEK_API_KEY: 'fixture', ...endpoint === undefined ? {} : { DEEPSEEK_SEARCH_BASE_URL: endpoint },
+    } }]) })
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => Response.json({ content: [{ type: 'web_search_tool_result', content: [] }] }))
+    vi.stubGlobal('fetch', fetch)
+    const selected = await resolveSelectedProvider(ctx, { provider: 'deepseek-official' }, new AbortController().signal)
+    await selected.search({ query: 'query' })
+    expect(new Request(...fetch.mock.calls[0]!).url).toContain(endpoint ?? 'https://api.deepseek.com')
+  })
+  it.each([null, new Error('cancelled')])('cleans up a delegate resolved after cancellation: %s', async (reason) => {
+    const caller = new AbortController()
+    const dispose = vi.fn()
+    const search = vi.fn(async () => result('unexpected'))
+    const preferred = new PreferredSearchProvider({
+      resolveConfig: () => ({ provider: 'exa' }),
+      resolveProvider: async () => {
+        caller.abort(reason)
+        return { ...provider('exa', search), dispose }
+      },
+    })
+    const operation = preferred.search({ query: 'cancel' }, caller.signal)
+    if (reason === null) await expect(operation).rejects.toMatchObject({ code: 'WEB_ABORTED' })
+    else await expect(operation).rejects.toBe(reason)
+    expect(search).not.toHaveBeenCalled()
+    expect(dispose).toHaveBeenCalledOnce()
+    await preferred.dispose()
+    await expect(preferred.search({ query: 'after disposal' })).rejects.toMatchObject({ code: 'WEB_ABORTED' })
+  })
+
+  it('cleans up an unavailable selected provider without dispatch', async () => {
+    const dispose = vi.fn()
+    const search = vi.fn(async () => result('unexpected'))
+    const preferred = new PreferredSearchProvider({
+      resolveConfig: () => ({ provider: 'exa' }),
+      resolveProvider: async () => ({ id: 'exa', available: () => false, search, dispose }),
+    })
+    await expect(preferred.search({ query: 'unavailable' })).rejects.toMatchObject({ code: 'WEB_PROVIDER_CONFIGURED_UNAVAILABLE' })
+    expect(search).not.toHaveBeenCalled()
+    expect(dispose).toHaveBeenCalledOnce()
+    await preferred.dispose()
+  })
+
+  it('stops provider resolution when credential lookup cancels the operation', async () => {
+    const caller = new AbortController()
+    const ctx = testContext({ credentials: { resolve: async () => { caller.abort(); return { value: 'fixture' } } } })
+    await expect(resolveSelectedProvider(ctx, { provider: 'exa' }, caller.signal))
+      .rejects.toMatchObject({ code: 'WEB_ABORTED' })
+  })
   it('routes automatic searches from the current model and preserves explicit engine choices', async () => {
     const current = { provider: 'openai-codex', model: 'gpt-5.4' }
     const ctx = testContext({

@@ -54,7 +54,8 @@ describe('PreferredSearchCardController', () => {
   })
   it('registers a distinct Plugins-page entry while the Host serves its namespace', () => {
     const host = stubConfigForm<PreferredSearchSettings>()
-    const register = vi.fn(() => vi.fn())
+    const disposers: (() => void)[] = []
+    const register = vi.fn((_entry: { label(): string; inject(): unknown }, _component: unknown) => vi.fn())
     const ctx = {
       locale: { register: vi.fn(() => vi.fn()), bind: vi.fn(() => vi.fn()) },
       configForms: {
@@ -62,14 +63,21 @@ describe('PreferredSearchCardController', () => {
         whileServed: vi.fn((namespaces: string[], onServed: (served: Set<string>) => () => void) => onServed(new Set(namespaces))),
       },
       remote: {
-        $on: vi.fn(() => vi.fn()),
+        $on: vi.fn((_event: string, callback: (ref: string) => void) => {
+          callback('UNRELATED')
+          return vi.fn()
+        }),
         credentials: {
           describe: vi.fn(async () => ({ ok: true as const, value: {} })),
           set: vi.fn(),
           unset: vi.fn(),
         },
       },
-      effect: vi.fn((mount: () => unknown) => mount()),
+      effect: vi.fn((mount: () => unknown) => {
+        const dispose = mount()
+        if (typeof dispose === 'function') disposers.push(dispose as () => void)
+        return dispose
+      }),
       slots: {
         inject: vi.fn((_name: string, mount: () => unknown) => mount()),
         register,
@@ -92,6 +100,10 @@ describe('PreferredSearchCardController', () => {
       expect.any(Function),
       'fi-web-search-preferences: card controller',
     )
+    const entry = register.mock.calls[0]?.[0]
+    expect(entry?.inject()).toHaveProperty('hooks.preferredSearchCard')
+    entry?.label()
+    for (const dispose of disposers) dispose()
   })
 
   it('keeps a provider draft when the Host does not accept the settings mutation', async () => {

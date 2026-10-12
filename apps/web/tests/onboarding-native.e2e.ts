@@ -91,6 +91,7 @@ describe.skipIf(MODE === 'record').each([false, true])('web e2e: native credenti
       await openSettings(page, 'zh')
       const settings = page.getByRole('dialog', { name: '设置', exact: true })
       await settings.getByRole('button', { name: '模型', exact: true }).click()
+      await settings.getByRole('button', { name: '编辑 DeepSeek (deepseek-official)' }).click()
       await settings.getByLabel('API 密钥', { exact: true }).waitFor()
       expect(await page.getByRole('dialog', { name: '添加一个 API Key 开始使用' }).count()).toBe(0)
       expect(await welcome.count()).toBe(0)

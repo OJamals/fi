@@ -6,12 +6,13 @@ import { z } from 'zod'
 import { Context } from '@deepseek-ai/cordis'
 import AuthorizationService from '@deepseek-ai/dsh-authorization'
 import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
-import LlmRuntime, { BlockAssembler, createToolResultMessage } from '@deepseek-ai/dsh-llm'
+import LlmRuntime, { BlockAssembler, createToolResultMessage, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
+import { SessionId } from '@deepseek-ai/dsh-session'
 import { OpenCodeAdapter, OPENCODE_KEY, resolveConsoleGrant } from '../src/index.ts'
 import OpenCodeService from '../src/index.ts'
 import { registerConsoleFlow } from '../src/oauth.ts'
-import { projectCatalog } from '../src/catalog.ts'
-import { consoleJson, consoleUrl } from '../src/protocol.ts'
+import { loadCatalog, projectCatalog } from '../src/catalog.ts'
+import { consoleJson, consoleUrl, exchangeToken } from '../src/protocol.ts'
 import type { ConsoleGrant, ConsoleOptions } from '../src/protocol.ts'
 import { liveConfig } from '../../../settings/settings/tests/live-config.ts'
 
@@ -57,6 +58,8 @@ function script(handler: (request: Request) => Response | Promise<Response>) {
 }
 
 afterEach(async () => {
+  vi.useRealTimers()
+  vi.restoreAllMocks()
   vi.unstubAllGlobals()
   sleeps.length = 0
   for (const ctx of contexts.splice(0)) await ctx.fiber.dispose()
@@ -64,6 +67,79 @@ afterEach(async () => {
 })
 
 describe('OpenCode Console login and refresh', () => {
+  it.each(['wrong-kind', 'different-server', 'missing'] as const)('handles a %s durable grant', async (state) => {
+    const ctx = await harness()
+    if (state === 'wrong-kind') await ctx.credentials.modifyRecord(OPENCODE_KEY, async () => ({ kind: 'api-key', key: 'wrong' }))
+    if (state === 'different-server') await ctx.credentials.modifyRecord(OPENCODE_KEY, async () => ({
+      kind: 'grant', payload: { ...seed, server: 'https://opencode.ai/other' },
+    }))
+    if (state === 'missing') await expect(resolveConsoleGrant(ctx, config)).resolves.toBeUndefined()
+    else await expect(resolveConsoleGrant(ctx, config)).rejects.toThrow()
+  })
+
+  it.each(['revoked', 'different-server', 'no-organization'] as const)('resolves a refresh with %s state', async (state) => {
+    const ctx = await harness()
+    const { orgId: _id, orgName: _name, ...unscoped } = seed
+    await ctx.credentials.modifyRecord(OPENCODE_KEY, async () => ({ kind: 'grant', payload: {
+      ...state === 'no-organization' ? unscoped : seed, expires: 0,
+    } }))
+    if (state !== 'no-organization') {
+      const modify = ctx.credentials.modifyRecord.bind(ctx.credentials)
+      vi.spyOn(ctx.credentials, 'modifyRecord').mockImplementationOnce(async (key, update) => {
+        if (state === 'revoked') await ctx.credentials.deleteRecord(key)
+        else await modify(key, async () => ({ kind: 'grant', payload: { ...seed, server: 'https://opencode.ai/other', expires: 0 } }))
+        return modify(key, update)
+      })
+    }
+    script(() => json({ access_token: 'new', refresh_token: 'new-refresh', expires_in: 3600 }))
+    if (state === 'revoked') await expect(resolveConsoleGrant(ctx, config)).resolves.toBeUndefined()
+    else if (state === 'different-server') await expect(resolveConsoleGrant(ctx, config)).rejects.toThrow()
+    else {
+      const grant = await resolveConsoleGrant(ctx, config)
+      expect(grant?.access).toBe('new')
+      expect(grant).not.toHaveProperty('orgId')
+    }
+  })
+
+  it.each(['interval', 'credential-url', 'denied', 'http-failure', 'unknown-organization', 'sorted-organization', 'no-organization'] as const)
+  ('handles device authorization outcome %s', async (outcome) => {
+    const ctx = await harness()
+    script((request) => {
+      if (request.url.endsWith('/code')) return json({ device_code: 'd', user_code: 'C', expires_in: 60,
+        interval: outcome === 'interval' ? 61 : 1,
+        verification_uri_complete: outcome === 'credential-url' ? 'https://user:pass@opencode.ai/authorize' : '/authorize' })
+      if (request.url.endsWith('/token')) {
+        if (outcome === 'denied') return json({ error: 'access_denied' }, 400)
+        if (outcome === 'http-failure') return json({}, 503)
+        return json({ access_token: 'a', refresh_token: 'r', expires_in: 3600,
+          ...outcome === 'unknown-organization' ? { org_id: 'absent' } : {} })
+      }
+      if (request.url.endsWith('/user')) return json({ id: 'user', email: 'user@example.test' })
+      return json(outcome === 'no-organization' ? [] : [{ id: 'z', name: 'B' }, { id: 'b', name: 'A' }, { id: 'a', name: 'A' }])
+    })
+    registerConsoleFlow(ctx, () => config)
+    const login = ctx.authorization.begin({ key: OPENCODE_KEY, interaction: {
+      notify() {}, prompt: async () => { throw new Error('unexpected prompt') },
+    } })
+    if (outcome === 'sorted-organization' || outcome === 'no-organization') {
+      await login
+      const record = await ctx.credentials.readRecord(OPENCODE_KEY)
+      if (outcome === 'sorted-organization') expect(record).toMatchObject({ payload: { orgId: 'a', orgName: 'A' } })
+      else expect(record).toMatchObject({ payload: { access: 'a', accountId: 'user' } })
+    } else await expect(login).rejects.toThrow()
+  })
+
+  it.each([null, {}, { error: 'other' }, { error: 'invalid_grant' }])('classifies failed Console response %j', async (body) => {
+    script(() => json(body, 403))
+    await expect(consoleJson(config, '/test', {})).rejects.toThrow()
+  })
+
+  it('forwards cancellation while exchanging a token', async () => {
+    script(() => json({ access_token: 'a', refresh_token: 'r', expires_in: 3600 }))
+    await expect(exchangeToken(config, { grant_type: 'refresh_token' }, new AbortController().signal))
+      .resolves.toMatchObject({ access_token: 'a' })
+  })
+
   it('polls pending and slow-down, stores the browser-selected organization', async () => {
     const ctx = await harness()
     let polls = 0
@@ -155,6 +231,117 @@ describe('OpenCode Console login and refresh', () => {
 })
 
 describe('OpenCode model routing', () => {
+  it('reports an idle timeout after the SDK settles the cancelled request', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const reached = Promise.withResolvers<undefined>()
+    const adapter = new OpenCodeAdapter(() => config, async () => seed)
+    script(request => request.method === 'GET' ? json(catalog()) : new Promise<Response>((_resolve, reject) => {
+      request.signal.addEventListener('abort', () => { reject(new Error('idle stream cancelled')) }, { once: true })
+      reached.resolve(undefined)
+    }))
+    const drain = async () => {
+      for await (const _chunk of adapter.stream({ provider: 'opencode-console', model: 'friendly', messages: [] })) { /* drain */ }
+    }
+    const result = expect(drain()).rejects.toMatchObject({ code: 'TIMEOUT' })
+    await reached.promise
+    await vi.advanceTimersByTimeAsync(config.streamIdleTimeoutMs)
+    await result
+  })
+
+  it.each(['constructor', '__proto__', 'toString'])('rejects inherited object names as catalog protocol %s', (packageName) => {
+    expect(projectCatalog(catalog(packageName), 'opencode-console', config)).toEqual([])
+  })
+
+  it('mounts without a Loader entry and disables automatic settings forms', async () => {
+    const ctx = await harness()
+    const configure = vi.fn(() => vi.fn())
+    ctx.provide('settings', { configure } as never)
+    await ctx.plugin(OpenCodeService)
+    expect(configure).toHaveBeenCalledWith({ auto: false }, expect.anything())
+    expect(await ctx.llm.discoverModels('fi-opencode', { baseURL: 'https://opencode.ai/zen/v1' })).toEqual([])
+  })
+
+  it.each([{ clientId: '' }, { userAgent: '' }, { userAgent: 'bad\r\nheader' }])
+  ('refuses invalid configured client identity %j', async (config) => {
+    const ctx = await harness()
+    await expect(liveConfig(ctx, OpenCodeService, { ...config, providers: {} }, 'fi-opencode')).rejects.toThrow('client identity')
+  })
+
+  it('fills capacity and naming defaults while excluding disabled or non-text models', () => {
+    const data = { providers: {
+      disabled: { disabled: true, models: {} },
+      deprecated: { status: 'deprecated', models: {} },
+      noProtocol: { models: { missing: {} } },
+      opencode: { package: '@ai-sdk/openai-compatible', settings: { baseURL: 'https://opencode.ai/zen/v1' }, models: {
+        fallback: {}, disabled: { disabled: true }, deprecated: { status: 'deprecated' },
+        image: { capabilities: { input: ['image'], output: ['text'] } },
+      } },
+    } }
+    expect(projectCatalog(data, 'opencode-console', config)).toMatchObject([{ wireId: 'fallback', model: {
+      id: 'fallback', name: 'fallback', contextWindow: config.defaultContextWindow, maxTokens: config.defaultMaxTokens,
+    } }])
+  })
+
+  it('refuses missing endpoints and colliding qualified catalog ids', () => {
+    expect(() => projectCatalog({ providers: { opencode: { package: '@ai-sdk/openai', models: { model: {} } } } },
+      'opencode-console', config)).toThrow('no endpoint')
+    const source = catalog().providers.opencode
+    expect(() => projectCatalog({ providers: { other: source, opencode: { ...source, models: { 'other/friendly': {} } } } },
+      'opencode-console', config)).toThrow('ambiguous model identifiers')
+  })
+
+  it('discovers without an organization header and forwards the caller signal', async () => {
+    const { orgId: _id, orgName: _name, ...grant } = seed
+    script((request) => {
+      expect(request.headers.has('x-org-id')).toBe(false)
+      return json(catalog())
+    })
+    await expect(loadCatalog(config, grant, 'opencode-console', new AbortController().signal)).resolves.toHaveLength(1)
+  })
+
+  it('reports signed-out discovery and missing prepared models explicitly', async () => {
+    const adapter = new OpenCodeAdapter(() => config, async () => undefined)
+    expect(adapter.providerInfo('opencode-console')).toEqual({ id: 'opencode-console', name: 'opencode-console' })
+    await expect(adapter.listModels('opencode-console')).resolves.toEqual([])
+    await expect(adapter.resolveModel('opencode-console', 'missing')).rejects.toMatchObject({ code: 'MISSING_CREDENTIAL' })
+    const signedIn = new OpenCodeAdapter(() => config, async () => seed)
+    script(() => json(catalog()))
+    await expect(signedIn.resolveModel('opencode-console', 'missing')).rejects.toMatchObject({ code: 'MODEL_NOT_FOUND' })
+    await expect(signedIn.resolveModel('opencode-console', 'friendly')).resolves.toMatchObject({ context: { contextWindow: 64_000 } })
+  })
+
+  it('refuses changed prepared identity and unsupported request options before dispatch', async () => {
+    const adapter = new OpenCodeAdapter(() => config, async () => seed)
+    script(() => json(catalog()))
+    const prepared = await adapter.prepareCall('opencode-console', 'friendly')
+    for (const options of [
+      { provider: 'other', model: 'friendly' }, { provider: 'opencode-console', model: 'other' },
+      { provider: 'opencode-console', model: 'friendly', reasoningEffort: ReasoningEffortId('high') },
+    ]) {
+      await expect(prepared.stream({ ...options, messages: [] })[Symbol.asyncIterator]().next()).rejects.toThrow()
+    }
+  })
+
+  it('forwards sampling overrides and the explicit session identity without an organization', async () => {
+    const { orgId: _id, orgName: _name, ...grant } = seed
+    const adapter = new OpenCodeAdapter(() => config, async () => grant)
+    const bodies: unknown[] = []
+    script(async (request) => {
+      if (request.method === 'GET') return json(catalog())
+      expect(request.headers.has('x-org-id')).toBe(false)
+      bodies.push(await request.json())
+      return new Response('data: {"id":"r","choices":[{"index":0,"delta":{"content":"Done"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n', {
+        headers: { 'content-type': 'text/event-stream' },
+      })
+    })
+    const chunks = []
+    for await (const chunk of adapter.stream({ provider: 'opencode-console', model: 'friendly', messages: [],
+      reasoningEffort: ReasoningEffortId('off'), signal: new AbortController().signal,
+      sessionId: SessionId('session-fixture'), maxTokens: 20, temperature: 0.3 })) chunks.push(chunk)
+    expect(bodies).toEqual([expect.objectContaining({ temperature: 0.3, max_completion_tokens: 20 })])
+    expect(chunks.at(-1)).toMatchObject({ type: 'finish', reason: { kind: 'stop' } })
+  })
+
   it('retains provider-qualified IDs and strips credential and model-input overrides', () => {
     const data = catalog()
     const source = data.providers.opencode

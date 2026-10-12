@@ -188,13 +188,15 @@ describe('ApiSession Agent lookup and recovery', () => {
 
   it('returns raced ordinary Agents and ownership failures after resume throws', async () => {
     const ordinary = await harness()
+    vi.spyOn(ordinary.ctx.agentDefaultModel, 'resolveSelection').mockResolvedValue(undefined)
     const ordinaryMeta = header('ordinary-race')
     providePersistence(ordinary.ctx, {
       list: () => Promise.resolve([ordinaryMeta]),
       inspect: () => Promise.resolve({ meta: ordinaryMeta, events: [] }),
     })
     const winner = agent(ordinary.ctx, ordinaryMeta)
-    vi.spyOn(ordinary.ctx.agents, 'resume').mockImplementation(async () => {
+    vi.spyOn(ordinary.ctx.agents, 'resume').mockImplementation(async (options) => {
+      expect(options.agentOptions).toEqual({})
       await ordinary.ctx.agents.register(winner)
       throw new Error('raced publication')
     })
@@ -289,6 +291,15 @@ describe('ApiSession Agent lookup and recovery', () => {
 })
 
 describe('ApiSession model selection', () => {
+  it('rejects sending a fresh session without a configured model', async () => {
+    const { ctx, agents } = await harness()
+    vi.spyOn(ctx.agentDefaultModel, 'currentSelection').mockReturnValue(undefined)
+    const fresh = agent(ctx, header('unconfigured-model'))
+    expect(() => agents.selectionFor(fresh).current).toThrow(expect.objectContaining({
+      code: 'session/model-unconfigured',
+    }))
+  })
+
   it('requires the model-selection projection', async () => {
     const { ctx, agents } = await harness()
     const live = agent(ctx, header('missing-model-projection'))

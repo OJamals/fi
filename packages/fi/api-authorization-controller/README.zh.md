@@ -64,6 +64,8 @@ OpenCode Console 授权使用 `fi-opencode/opencode-console`；其原生适配�
 
 `Attempt` 是 seam 的推送模型与流的拉取模型之间的缓冲：流程可随时调用 `notify`，而载体按需读取。它同时持有等待浏览器答复的问题，按每次尝试内的 id 索引。被自身 signal 撤回的提示会以 `authorization/withdrawn` 拒绝，而非以“用户拒绝”拒绝，因为 seam 会把后者读作用户说不，从而导致之后真正的失败被误判。
 
+尝试结束时会拒绝尚未回答的提示，并忽略后续通知。如果 Host 在提交设置路由后卸载，采用操作会报告 `authorization/adopt-blocked`；已存储的授权在重启后仍然可用。
+
 <a id="further-exploration"></a>
 ## 进一步探索
 

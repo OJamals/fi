@@ -510,16 +510,23 @@ export class JsonlBackendTracker {
     for (const writer of [...this.writers.values()]) {
       if (writer === null) continue // a claim mid-construction routes nothing yet
       try {
-        await writer.drainLive()
-        await writer.flush()
+        await this.flushWriter(writer)
       } catch (error: unknown) {
-        // A handle closed during the sweep counts as flushed: close itself
-        // drained the routed buffer durably before refusing this flush.
-        if (error instanceof SessionHandleClosedError) continue
         errors.push(error)
       }
     }
     if (errors.length > 0) throw new AggregateError(errors, `${this.name} flush failed`)
+  }
+
+  /** A concurrent close owns the final durable drain; join it and propagate its failure. */
+  private async flushWriter(writer: JsonlSessionHandle): Promise<void> {
+    try {
+      await writer.drainLive()
+      await writer.flush()
+    } catch (error: unknown) {
+      if (!(error instanceof SessionHandleClosedError)) throw error
+      await writer.close()
+    }
   }
 
   /**
@@ -540,10 +547,7 @@ export class JsonlBackendTracker {
     ctx.on('session/flush', (session: Session) => {
       const writer = this.writers.get(session.id)
       if (writer === null || writer === undefined) return undefined
-      return (async () => {
-        await writer.drainLive()
-        await writer.flush()
-      })()
+      return this.flushWriter(writer)
     })
     ctx.on('session/disposed', (session: Session) => {
       const writer = this.writers.get(session.id)

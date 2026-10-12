@@ -1,9 +1,11 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AuthResult, FetchFunction } from '@earendil-works/pi-ai'
 import {
   SubscriptionSearchProvider,
   type SubscriptionSearchProviderOptions,
 } from '../src/provider.ts'
+
+afterEach(() => { vi.useRealTimers() })
 
 function jwt(payload: Record<string, unknown>): string {
   return `header.${Buffer.from(JSON.stringify(payload)).toString('base64url')}.signature`
@@ -113,6 +115,50 @@ function options(
 }
 
 describe('subscription native request contracts', () => {
+  it('times out a pending authenticated request and refuses calls after disposal', async () => {
+    vi.useFakeTimers()
+    const reached = Promise.withResolvers<undefined>()
+    const fetch: FetchFunction = async (_input, init) => new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => { reject(new Error('request aborted')) }, { once: true })
+      reached.resolve(undefined)
+    })
+    const provider = new SubscriptionSearchProvider(options('grok', { fetch, timeoutMs: 100 }))
+    const outcome = expect(provider.search({ query: 'weather' })).rejects.toMatchObject({ code: 'WEB_PROVIDER_TIMEOUT' })
+    await reached.promise
+    await vi.advanceTimersByTimeAsync(100)
+    await outcome
+    await provider.dispose()
+    await expect(provider.search({ query: 'weather' })).rejects.toMatchObject({ code: 'WEB_ABORTED' })
+  })
+
+  it('rejects OAuth resolutions without an access token', async () => {
+    const provider = new SubscriptionSearchProvider(options('grok', {
+      resolveOAuth: async () => ({ source: 'OAuth', auth: { apiKey: '' } }),
+    }))
+    await expect(provider.search({ query: 'weather' })).rejects.toMatchObject({ code: 'WEB_PROVIDER_SUBSCRIPTION_OAUTH_REQUIRED' })
+    await provider.dispose()
+  })
+
+  it('rejects an absent Antigravity grant and accepts projectless transport grants', async () => {
+    const missing = new SubscriptionSearchProvider(options('antigravity', { resolveAntigravityGrant: async () => undefined }))
+    await expect(missing.search({ query: 'weather' })).rejects.toMatchObject({ code: 'WEB_PROVIDER_SUBSCRIPTION_OAUTH_REQUIRED' })
+    await missing.dispose()
+    const callAntigravity = vi.fn(async () => Response.json(antigravityResponse()))
+    const provider = new SubscriptionSearchProvider(options('antigravity', {
+      resolveAntigravityGrant: async () => ({ accessToken: 'token', projectId: undefined }), callAntigravity,
+    }))
+    await expect(provider.search({ query: 'weather' })).resolves.toHaveProperty('sources')
+    expect(callAntigravity).toHaveBeenCalledWith(expect.objectContaining({ account: { token: { accessToken: 'token' } } }))
+    await provider.dispose()
+  })
+
+  it.each(['grok', 'antigravity'] as const)('preserves %s HTTP errors when body cancellation rejects', async (family) => {
+    const response = new Response(new ReadableStream({ cancel() { throw new Error('cancel failed') } }), { status: 503 })
+    const provider = new SubscriptionSearchProvider(options(family, { fetch: async () => response, callAntigravity: async () => response }))
+    await expect(provider.search({ query: 'weather' })).rejects.toMatchObject({ code: 'WEB_PROVIDER_UPSTREAM_ERROR' })
+    await provider.dispose()
+  })
+
   it.each([
     ['codex', 'https://chatgpt.com/backend-api/codex/responses', 'web_search'],
     ['grok', 'https://cli-chat-proxy.grok.com/v1/responses', 'web_search'],

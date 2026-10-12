@@ -46,6 +46,8 @@ Client 插件提供 `ctx.fileUpload`。其 `upload()` 方法接收所属 Session
 
 Host 插件提供 `ctx.fileUploads`。它拥有经过认证的流式路由、编码 Remote 兜底、命令凭证解析器与暂存凭证生命周期；编码准入、附件错误识别与字节存储仍由 `ctx.attachments` 提供。凭证表以接收方 Agent 的 Session 对象为键。Session Controller 注册可恢复休眠普通 Agent 的解析器，并在 prompt 准入时消费凭证。解析器注册归调用方 fiber 所有；释放 fiber 时会移除注册，因此上传服务保持活动时，替换后的控制器仍可注册解析器。Prompt 投递通过可释放事务持有每个凭证绑定。成功投递提交事务前，释放会恢复原绑定；提交后，队列或历史观察会退休该凭证。
 
+解析器的释放操作具有幂等性。替换解析器注册后再次调用旧的释放函数，不会移除替换后的解析器。
+
 | 文件 | 职责 |
 |---|---|
 | [`src/index.ts`](src/index.ts) | Host 流式路由、附件服务准入与按 Agent scope 管理的凭证生命周期 |

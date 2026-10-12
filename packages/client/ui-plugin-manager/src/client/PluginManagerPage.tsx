@@ -1347,7 +1347,7 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
   ))
   const renderGroup = (id: 'basic' | 'extensions' | 'bundles', heading: string, cards: readonly ReactNode[]): ReactNode => {
     const offersMore = id === 'extensions' && more.length > 0
-    if (cards.length === 0 && !offersMore) return null
+    if (cards.length === 0) return null
     return (
       <section className={css.group} data-plugin-scope="global" data-plugin-group={id}>
         <div className={css.groupHead}>
@@ -1359,7 +1359,7 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
             </Button>
           ) : null}
         </div>
-        {cards.length > 0 ? <ul className={css.cards}>{cards}</ul> : null}
+        <ul className={css.cards}>{cards}</ul>
       </section>
     )
   }

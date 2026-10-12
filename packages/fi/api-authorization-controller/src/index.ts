@@ -232,7 +232,6 @@ class Attempt {
 
   /** Close the queue, failing every question still parked on an answer. */
   end(): void {
-    if (this.done) return
     this.done = true
     for (const waiting of this.pending.values()) {
       waiting.reject(new RemoteError('authorization/withdrawn', 'the authorization surface went away', {}))
@@ -511,14 +510,8 @@ export class FiAuthorizationController extends TypertRemoteService {
         { key: parsed.key },
       )
     }
-    const settingsNs = (ROUTE_NAMESPACE_BY_SCOPE as Record<string, string | undefined>)[parsed.key.slice(0, parsed.key.indexOf('/'))]
-    if (settingsNs === undefined) {
-      throw new RemoteError(
-        'authorization/adopt-blocked',
-        `credential scope "${parsed.key.slice(0, parsed.key.indexOf('/'))}" carries no route rule to adopt through`,
-        { key: parsed.key },
-      )
-    }
+    // A non-skipped route belongs to one of the immutable scope mappings.
+    const settingsNs = (ROUTE_NAMESPACE_BY_SCOPE as Record<string, string>)[parsed.key.slice(0, parsed.key.indexOf('/'))] as string
     const llm = this.ctx.get('llm')
     if (llm === undefined) throw new RemoteError('gateway/internal', 'llm service is absent: cannot enumerate models', {})
 

@@ -16,6 +16,8 @@
 - **无障碍冒烟测试**（`apps/web/tests/accessibility-axe.e2e.ts`，属于上面的 `test:web` 门禁）：axe-core 依据 WCAG 2.x A/AA 标签扫描已连接并稳定下来的 shell 和打开的设置对话框；出现 `violations` 记录会使该车道失败，`incomplete` 结果（需要人工判断）不会（[GUI QA Agent Note](../.agents/notes/implemented/testing/2026-09-25-web-gui-qa-tooling.zh.md)）。
 - **Web 像素基线视觉车道**（`pnpm run test:web:visual`；独立的 `vitest.web-visual.config.ts`，为选择性加入且非必需门禁）：启动与 aria golden 车道相同的真实组合，并用 pixelmatch 将 `page.screenshot()` 的 PNG 与 `apps/web/visual/baselines/` 下已提交的各平台基线做差异比较；`DSH_SNAPSHOT=refresh pnpm run test:web:visual` 会重新录制基线。像素差异会钉住确切的绘制结果，比 aria golden 的信号更嘈杂，因此保持本地/选择性加入；其确定性手段（固定视口/语言区域/配色方案、冻结动画与光标、停靠指针、等待字体加载）与吸收光栅化噪声的容差见 `apps/web/visual/gui-surfaces.visual.ts`。
 
+`pnpm run check:ci:local` 在同一检出目录中依次运行静态检查、覆盖率与消费者检查。不同套件不得重叠运行：lint-contract 测试会创建临时源码 fixture，并发编译器或目录扫描可能在清理期间读取这些文件。覆盖率在非 Linux 主机上排除 Linux `execve` 绑定，与其原生测试的平台条件一致。仅运行 macOS 本地检查时，Linux 与 Windows 检查仍未验证。
+
 Session fixture 保留 header 与 payload，但省略正文 seq/time envelope；replay 会合成这些 envelope。Replay、record 与 refresh 会选择每个 parent/child 角色的最高 generation。当前 fixture 在文件名与 header 中使用[写入格式](session-format-status.zh.md)，每个事件一行，并嵌入紧凑 Assistant stream。历史 fixture 保留其已发布表示；显式 `sessionFormat` 所有者保留迁移覆盖。按照[格式版本实操手册](cookbook/adding-a-session-format-version.zh.md#snapshot-successors)添加后继代际，不改动前代。
 
 ## spec 如何被执行

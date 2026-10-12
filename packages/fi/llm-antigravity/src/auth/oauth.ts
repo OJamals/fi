@@ -213,7 +213,7 @@ export function waitForAntigravityCallback(
       if (error) {
         response.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' })
         response.end(`OAuth error: ${error}`)
-        finish(new Error(`OAuth error: ${error}`))
+        finish({ error: new Error(`OAuth error: ${error}`) })
         return
       }
       const code = url.searchParams.get('code')
@@ -225,23 +225,22 @@ export function waitForAntigravityCallback(
       }
       response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
       response.end('<!doctype html><title>Login successful</title><p>You can close this tab.</p>')
-      finish(undefined, { code, state })
+      finish({ result: { code, state } })
     })
-    const timer = setTimeout(() => { finish(new Error('Antigravity OAuth callback timeout')) }, timeoutMs)
-    const onAbort = (): void => { finish(abortError(options.signal?.reason)) }
+    const timer = setTimeout(() => { finish({ error: new Error('Antigravity OAuth callback timeout') }) }, timeoutMs)
+    const onAbort = (): void => { finish({ error: abortError(options.signal?.reason) }) }
 
-    const finish = (error?: Error, result?: AntigravityCallbackResult): void => {
+    const finish = (outcome: { error: Error } | { result: AntigravityCallbackResult }): void => {
       if (settled) return
       settled = true
       clearTimeout(timer)
       options.signal?.removeEventListener('abort', onAbort)
       server.close()
-      if (error !== undefined) reject(error)
-      else if (result !== undefined) resolve(result)
-      else reject(new Error('Antigravity OAuth callback ended without a result'))
+      if ('error' in outcome) reject(outcome.error)
+      else resolve(outcome.result)
     }
 
-    server.once('error', (error) => { finish(error) })
+    server.once('error', (error) => { finish({ error }) })
     options.signal?.addEventListener('abort', onAbort, { once: true })
     if (options.signal?.aborted) {
       onAbort()

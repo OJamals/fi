@@ -12,6 +12,8 @@ import {
 } from '../scripts/desktop-release-environment.mjs'
 import { notarizeMacOSDiskImageArtifact } from '../scripts/notarize-macos-disk-images.mjs'
 vi.mock('../lib/types/runtime-tree.js', () => import('../src/runtime-tree.ts'))
+// Vite keeps a root-relative id when the generated file is absent on a clean checkout.
+vi.mock('/apps/desktop/lib/types/runtime-tree.js', () => import('../src/runtime-tree.ts'))
 import {
   assertMacOSRuntimeSignatureDetails,
   assertMacOSSignatureDetails,

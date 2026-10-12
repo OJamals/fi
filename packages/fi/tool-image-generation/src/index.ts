@@ -59,7 +59,7 @@ interface ResolvedConfig {
 }
 
 function resolveConfig(config: Config): ResolvedConfig {
-  const resolved = Config(config)
+  const resolved = Config(config) as Required<Config>
   const allowed = new Set<ImageGenerationProvider>(['codex', 'grok', 'antigravity'])
   const entries = Object.entries(resolved.targets)
   if (entries.length === 0) throw new Error('tool-image-generation: targets must configure at least one provider')
@@ -79,8 +79,8 @@ function resolveConfig(config: Config): ResolvedConfig {
   return {
     defaultProvider: resolved.defaultProvider,
     targets,
-    timeoutMs: resolved.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-    maxOutputBytes: resolved.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES,
+    timeoutMs: resolved.timeoutMs,
+    maxOutputBytes: resolved.maxOutputBytes,
   }
 }
 

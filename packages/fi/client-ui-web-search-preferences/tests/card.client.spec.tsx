@@ -54,6 +54,25 @@ function mount(overrides: Partial<PreferredSearchCardState> = {}) {
 }
 
 describe('preferred-search settings card', () => {
+  it('hides an unavailable card until a failure needs explanation', () => {
+    mount({ available: false })
+    expect(document.body.textContent).toBe('')
+    cleanup()
+    mount({ available: false, failed: true })
+    expect(screen.getByText(en.unavailable)).toBeTruthy()
+    expect(screen.getByText(en.saveFailed)).toBeTruthy()
+  })
+
+  it('disables pending credential checks and displays a saving operation', () => {
+    mount({ apiKeyChecking: true, saving: true, dirty: true })
+    expect(screen.getByText(en.checkingKey)).toBeTruthy()
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: en.saving }).disabled).toBe(true)
+  })
+
+  it('disables a settings draft when its document is read-only', () => {
+    mount({ writable: false, dirty: true, settingsDirty: true })
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: en.save }).disabled).toBe(true)
+  })
   it('renders its one-liner alone in the summary view', () => {
     const store = createSnapshotStore<PreferredSearchCardState>({
       available: true,

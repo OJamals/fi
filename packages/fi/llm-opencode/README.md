@@ -59,7 +59,7 @@ Replay preserves ordered conversation blocks and supported native signatures. Th
 
 **Runtime invariant:** No companion is published. The credential store owns grant serialization; each prepared call retains one immutable catalog/credential generation without an independent registration mirror.
 
-Organization-managed policies require the official OpenCode client; a catalog declaring policies is rejected rather than silently ignoring them.
+Organization-managed policies require the official OpenCode client; a catalog declaring policies is rejected rather than silently ignoring them. Protocol selection accepts only the three supported package names, optionally prefixed with `aisdk:`; inherited JavaScript object-property names cannot advertise a protocol.
 
 ### Dev Note
 

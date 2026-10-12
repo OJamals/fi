@@ -1,9 +1,9 @@
 /** Managed-worktree creation, ownership resolution, and safety-checked removal against real Git repositories. */
 import { execFileSync } from 'node:child_process'
-import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, symlink, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
@@ -20,6 +20,7 @@ const cleanups: Array<() => Promise<unknown>> = []
 afterEach(async () => {
   for (const cleanup of cleanups.reverse()) await cleanup()
   cleanups.length = 0
+  vi.restoreAllMocks()
 })
 
 /** A temporary directory removed by the test's cleanup. */
@@ -42,11 +43,12 @@ async function repository(): Promise<string> {
 }
 
 /** A composed Context with the local FS and subprocess providers this class requires. */
-async function managed(overrides: Partial<ManagedWorktreeConfig> = {}): Promise<ManagedWorktrees> {
+async function managed(overrides: Partial<ManagedWorktreeConfig> = {}, configure?: (ctx: Context) => void): Promise<ManagedWorktrees> {
   const ctx = new Context()
   cleanups.push(() => ctx.fiber.dispose())
   await ctx.plugin(LocalFileSystem)
   await ctx.plugin(LocalSubprocessRuntime)
+  configure?.(ctx)
   const directory = await scratchDir('dsh-managed-worktree-store-')
   const config: ManagedWorktreeConfig = {
     managedWorktreeDirectory: directory, gitTimeoutMs: 30_000, gitGraceMs: 2_000, maxOutputBytes: 1024 * 1024,
@@ -56,6 +58,61 @@ async function managed(overrides: Partial<ManagedWorktreeConfig> = {}): Promise<
 }
 
 describe('ManagedWorktrees.create', () => {
+  it('requires an absolute managed directory and local filesystem mapping', async () => {
+    await expect(managed({ managedWorktreeDirectory: 'relative' })).rejects.toThrow('must be absolute')
+    const worktrees = await managed({}, (ctx) => {
+      vi.spyOn(ctx.fs, 'processPathFromHostPath').mockReturnValue(undefined)
+    })
+    await expect(worktrees.create(await repository())).rejects.toThrow('local filesystem')
+  })
+
+  it('refuses storage inside the source repository', async () => {
+    const source = await repository()
+    const worktrees = await managed({ managedWorktreeDirectory: join(source, 'managed') })
+    await expect(worktrees.create(source)).rejects.toThrow('outside every source checkout')
+  })
+
+  it('retains recovery metadata when Git cannot create the checkout', async () => {
+    const source = await repository()
+    const directory = await scratchDir('dsh-managed-worktree-recovery-')
+    const worktrees = await managed({ managedWorktreeDirectory: directory })
+    const run = worktrees.git.bind(worktrees)
+    vi.spyOn(worktrees, 'git').mockImplementation((cwd, args) => args[0] === 'worktree'
+      ? Promise.reject(new Error('disk full')) : run(cwd, args))
+    await expect(worktrees.create(source)).rejects.toThrow('recovery metadata retained')
+    const owners = await readdir(directory)
+    expect(owners).toHaveLength(1)
+    expect(JSON.parse(await readFile(join(directory, owners[0]!, 'worktree.json'), 'utf8'))).toMatchObject({ state: 'creating', source })
+  })
+
+  it('disables required clean and smudge filters while creating and inspecting checkouts', async () => {
+    const source = await repository()
+    await writeFile(join(source, '.gitattributes'), '*.txt filter=fixture\n')
+    git(source, 'add', '.gitattributes')
+    git(source, 'commit', '-q', '-m', 'attributes')
+    for (const name of ['clean', 'smudge', 'process']) git(source, 'config', `filter.fixture.${name}`, 'exit 99')
+    git(source, 'config', 'filter.fixture.required', 'true')
+    const worktrees = await managed()
+    const record = await worktrees.create(source)
+    expect(await readFile(join(record.path, 'f.txt'), 'utf8')).toBe('base\n')
+    await worktrees.remove(record)
+  })
+
+  it('rejects truncated Git output and a deadline reached before completion', async () => {
+    const source = await repository()
+    const limited = await managed({ maxOutputBytes: 1 })
+    await expect(limited.git(source, ['--version'])).rejects.toThrow('output exceeded its limit')
+    const aborter = new AbortController()
+    vi.spyOn(AbortSignal, 'timeout').mockReturnValue(aborter.signal)
+    const timed = await managed({}, (ctx) => {
+      vi.spyOn(ctx.subprocess, 'resolveExecutable').mockResolvedValue('git')
+      vi.spyOn(ctx.subprocess, 'spawn').mockImplementation(() => ({
+        done: Promise.resolve().then(() => { aborter.abort(); return { exitCode: 0, signal: null } }),
+      } as never))
+    })
+    await expect(timed.git(source, ['--version'])).rejects.toThrow('timed out or was aborted')
+  })
+
   it('creates an isolated checkout at the committed HEAD on a fresh branch, outside the source checkout', async () => {
     const source = await repository()
     const worktrees = await managed()
@@ -99,6 +156,39 @@ describe('ManagedWorktrees.create', () => {
 })
 
 describe('ManagedWorktrees.get', () => {
+  it.each(['null', 'text', 'empty', 'missing', 'directory', 'oversized', 'other-path', 'other-branch', 'symlink'] as const)(
+    'rejects or ignores %s ownership metadata without changing the checkout', async (state) => {
+      const source = await repository()
+      const worktrees = await managed()
+      const record = await worktrees.create(source)
+      const manifest = join(dirname(record.path), 'worktree.json')
+      if (state === 'missing' || state === 'directory') {
+        await unlink(manifest)
+        if (state === 'directory') await mkdir(manifest)
+      } else if (state === 'oversized') await writeFile(manifest, 'x'.repeat(1024 * 1024 + 1))
+      else if (state === 'other-branch') git(record.path, 'switch', '-q', '-c', 'replacement')
+      else if (state === 'symlink') {
+        const moved = join(dirname(record.path), 'moved')
+        await rename(record.path, moved)
+        await symlink(moved, record.path, 'junction')
+      } else await writeFile(manifest, JSON.stringify(state === 'null' ? null : state === 'text' ? 'foreign'
+        : state === 'empty' ? {} : { ...record, path: source }))
+      if (state === 'missing' || state === 'other-path') await expect(worktrees.get(record.path)).resolves.toBeUndefined()
+      else await expect(worktrees.get(record.path)).rejects.toThrow()
+    },
+  )
+
+  it('ignores lookalike paths outside storage and unavailable storage roots', async () => {
+    const directory = await scratchDir('dsh-managed-worktree-lookalike-')
+    const worktrees = await managed()
+    const path = join(directory, '00000000-0000-0000-0000-000000000000', 'files')
+    await expect(worktrees.get(path)).resolves.toBeUndefined()
+    const file = join(directory, 'not-directory')
+    await writeFile(file, 'file')
+    const unavailable = await managed({ managedWorktreeDirectory: join(file, 'nested') })
+    await expect(unavailable.get(path)).resolves.toBeUndefined()
+  })
+
   it('resolves ready ownership from the checkout path', async () => {
     const source = await repository()
     const worktrees = await managed()

@@ -1,10 +1,12 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Credential } from '@earendil-works/pi-ai'
 import type { StreamChunk } from '@deepseek-ai/dsh-llm'
 import { PiAiAdapter } from '../src/adapter.ts'
 import type { PiAiRequestTransportContext } from '../src/adapter.ts'
 import { resolveProfiles } from '../src/config.ts'
 import { memoryAuth } from './auth-double.ts'
+
+afterEach(() => { vi.unstubAllGlobals() })
 
 const OAUTH_GRANT: Credential = {
   type: 'oauth',
@@ -29,6 +31,34 @@ async function drain(adapter: PiAiAdapter): Promise<StreamChunk[]> {
 }
 
 describe('pi-ai authenticated request transport', () => {
+  it('ignores a transport candidate on a provider without subscription OAuth', async () => {
+    const fallback = vi.fn(() => Promise.resolve(new Response('denied', { status: 401 })))
+    vi.stubGlobal('fetch', fallback)
+    const fetch = vi.fn(() => Promise.resolve(new Response('unexpected', { status: 500 })))
+    const adapter = new PiAiAdapter({
+      profiles: () => resolveProfiles({ openai: {} }),
+      resolveApiKey: () => Promise.resolve(undefined),
+      auth: memoryAuth({ openai: { type: 'api_key', key: 'fixture-key' } }),
+      resolveRequestTransport: () => Promise.resolve({ fetch }),
+    })
+    await drainRequest(adapter, 'openai', 'gpt-4.1')
+    expect(fetch).not.toHaveBeenCalled()
+    expect(fallback).toHaveBeenCalledOnce()
+  })
+
+  it('uses the host fetch when a subscription patch only transforms headers', async () => {
+    const fetch = vi.fn(() => Promise.resolve(new Response('denied', { status: 401 })))
+    vi.stubGlobal('fetch', fetch)
+    const adapter = new PiAiAdapter({
+      profiles: () => resolveProfiles({ xai: {} }),
+      resolveApiKey: () => Promise.resolve(undefined),
+      auth: memoryAuth({ xai: OAUTH_GRANT }),
+      resolveRequestTransport: () => Promise.resolve({ transformHeaders: headers => ({ ...headers, 'x-test': 'yes' }) }),
+    })
+    await drain(adapter)
+    expect(fetch).toHaveBeenCalledOnce()
+  })
+
   it('applies transport-only additions to subscription OAuth requests', async () => {
     const fetch = vi.fn(() => Promise.resolve(new Response('denied', { status: 401 })))
     const transformHeaders = vi.fn((headers: Record<string, string | null>) => ({

@@ -155,6 +155,7 @@ function requestFor(
         },
       }
     }
+    /* v8 ignore next 2 -- FiDirectSearchProviderId is a closed union; this arm enforces exhaustive provider handling. */
     default:
       return assertNever(options.provider)
   }
@@ -220,6 +221,7 @@ function mapResponse(provider: FiDirectSearchProviderId, value: unknown): WebSea
       })
       break
     }
+    /* v8 ignore next 2 -- FiDirectSearchProviderId is a closed union; this arm enforces exhaustive response handling. */
     default:
       return assertNever(provider)
   }
@@ -310,6 +312,7 @@ function aborted(provider: FiDirectSearchProviderId, cause: unknown): WebError {
   return new WebError(`${providerName(provider)} search aborted`, 'WEB_ABORTED', { cause })
 }
 
+/* v8 ignore next 3 -- Only the exhaustive closed-union switch arms call this assertion. */
 function assertNever(value: never): never {
   throw new WebError(`unsupported FI direct search provider "${String(value)}"`, 'WEB_PROVIDER_ERROR')
 }

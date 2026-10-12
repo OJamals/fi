@@ -65,6 +65,8 @@ The plugin creates one pi-ai credential adapter for Codex and Grok and uses the 
 
 The response reader accepts exactly one base64 image, bounds JSON and decoded bytes before allocation, identifies PNG, JPEG, or WebP from bytes, rejects a declared-media mismatch, and delegates complete raster validation to the attachment service. A successful result contains safe JSON and one durable `ImageBlock`; it excludes raw image data. HTTP failures retain status without response bodies, ambiguous POST failures are not retried, and plugin disposal aborts and awaits active work.
 
+The configuration schema supplies operation limits before tool construction, and the tool argument schema permits only configured providers. After bounded body reading completes, malformed UTF-8 or JSON reports `IMAGE_INVALID_RESPONSE`; caller cancellation is checked before decoding and after a valid decoded value.
+
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | Config validation, credential adapters, and lifecycle wiring |

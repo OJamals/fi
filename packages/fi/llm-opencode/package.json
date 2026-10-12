@@ -39,6 +39,7 @@
     "@deepseek-ai/dsh-credentials-local": "workspace:*",
     "@deepseek-ai/dsh-llm": "workspace:*",
     "@deepseek-ai/dsh-settings": "workspace:*",
+    "@deepseek-ai/dsh-session": "workspace:*",
     "@types/node": "^22.20.0",
     "vitest": "^4.1.8"
   },

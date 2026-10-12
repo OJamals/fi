@@ -115,14 +115,14 @@ describe('catalog-route model discovery', () => {
 })
 
 describe('catalog-route discovery merged with a live model listing', () => {
-  it('adds a live-only id beyond the installed catalog', async () => {
+  it.each([undefined, 'Grok 9 Preview'])('adds a live-only id with optional display name: %s', async (name) => {
     const models = await discoverModels({ provider: 'xai' }, () => ({
       headers: undefined,
       resolveApiKey: () => Promise.resolve(undefined),
-      liveModelIds: () => Promise.resolve([{ id: 'grok-9-preview', name: 'Grok 9 Preview' }]),
+      liveModelIds: () => Promise.resolve([{ id: 'grok-9-preview', ...name === undefined ? {} : { name } }]),
     }))
 
-    expect(models.find(model => model.id === 'grok-9-preview')).toEqual({ id: 'grok-9-preview', name: 'Grok 9 Preview' })
+    expect(models.find(model => model.id === 'grok-9-preview')).toEqual({ id: 'grok-9-preview', name: name ?? 'grok-9-preview' })
   })
 
   it('does not duplicate a live id the installed catalog already lists', async () => {

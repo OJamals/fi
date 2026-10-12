@@ -5,6 +5,7 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { EMPTY_CHAT_SNAPSHOT } from '@deepseek-ai/dsh-client-ui-chat/client'
 import { EMPTY_CONVERSATION_SNAPSHOT } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { MainPanelId, PanelInfo } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
@@ -46,6 +47,28 @@ function entry(seq: number): SessionLiveEventEntry {
 }
 
 describe('fixture helpers', () => {
+  it('records managed workspace actions and permits behavior overrides', async () => {
+    const runtime = await SlotTestRuntime.create()
+    const id = 'workspace-fixture' as WorkspaceId
+    try {
+      const created = await runtime.workspaces.createIsolated(id)
+      expect(created).toMatchObject({ workspaceId: `${id}-worktree`, path: `/${id}-worktree` })
+      expect(await runtime.workspaces.inspectManaged(id)).toEqual({ kind: 'ordinary' })
+      await runtime.workspaces.removeManaged(id)
+      runtime.workspaces.stub('createIsolated', async () => ({ ...created, title: 'custom' }))
+      runtime.workspaces.stub('inspectManaged', async () => ({ kind: 'ordinary' as const }))
+      const remove = vi.fn(() => Promise.resolve())
+      runtime.workspaces.stub('removeManaged', remove)
+      expect((await runtime.workspaces.createIsolated(id)).title).toBe('custom')
+      expect(await runtime.workspaces.inspectManaged(id)).toEqual({ kind: 'ordinary' })
+      await runtime.workspaces.removeManaged(id)
+      expect(remove).toHaveBeenCalledWith(id)
+      expect(runtime.workspaces.calls.map(call => call.method)).toEqual([
+        'createIsolated', 'inspectManaged', 'removeManaged', 'createIsolated', 'inspectManaged', 'removeManaged',
+      ])
+    } finally { await runtime.dispose() }
+  })
+
   it('retracts default root sources without removing their live replacements', async () => {
     const runtime = await SlotTestRuntime.create()
     const hooks = { workspaces: runtime.workspaces.list, panelInfo: runtime.panelInfo }

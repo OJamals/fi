@@ -3,7 +3,7 @@ import { mkdir, realpath, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { canonicalPath, compareDisplay, displayPathOf, durablePathOf, isTemporaryPath, temporaryRoots } from '../src/paths.ts'
+import { canonicalPath, compareDisplay, displayPathOf, durablePathOf, isTemporaryPath, livePathOf, temporaryRoots } from '../src/paths.ts'
 import { scratchDir } from './support.ts'
 
 const cleanups: Array<() => Promise<unknown>> = []
@@ -30,6 +30,8 @@ describe('durablePathOf', () => {
   it('keeps cwd-relative paths relative and everything else absolute', () => {
     expect(durablePathOf('/home/u/proj/pkg/a.ts', cwd)).toBe('a.ts')
     expect(durablePathOf('/home/u/proj/b.ts', cwd)).toBe('/home/u/proj/b.ts')
+    expect(livePathOf('src/a.ts', cwd)).toBe('/home/u/proj/pkg/src/a.ts')
+    expect(livePathOf('/home/u/proj/b.ts', cwd)).toBe('/home/u/proj/b.ts')
   })
 })
 

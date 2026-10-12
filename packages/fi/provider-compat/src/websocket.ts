@@ -48,7 +48,6 @@ export function subscriptionWebSocketConnector(maxPayloadBytes: number): Subscri
       disposed = true
       closeOpenAICodexWebSocketConnector(connect)
       await Promise.all([...sockets].map(socket => new Promise<void>((resolve) => {
-        if (socket.readyState === WebSocket.CLOSED) { resolve(); return }
         socket.once('close', () => { resolve() })
         socket.terminate()
       })))

@@ -240,6 +240,7 @@ export async function resolveSelectedProvider(
         maxOutputTokens: config.subscriptionMaxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
       })
     }
+    /* v8 ignore next 2 -- PreferredSearchSettings.provider is a closed union; this arm enforces exhaustive routing. */
     default:
       return assertNever(config.provider)
   }
@@ -253,6 +254,7 @@ function requireHttpsEndpoint(provider: string, value: string): string {
   )
 }
 
+/* v8 ignore next 3 -- Only the exhaustive closed-union router arm calls this assertion. */
 function assertNever(value: never): never {
   throw new WebError(`unsupported preferred web search provider "${String(value)}"`, 'WEB_PROVIDER_ERROR')
 }

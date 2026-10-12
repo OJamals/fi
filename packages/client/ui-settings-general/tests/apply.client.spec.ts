@@ -175,13 +175,16 @@ describe('ui-settings-general apply', () => {
 
   it('reads availability from the shared mirror and follows its reconnect refresh', async ({ mock, start }) => {
     const { c } = await client(mock, start, true)
-    const { load, hooks } = actionInjectedOf(c)
+    const { load, open, hooks } = actionInjectedOf(c)
     // Boot reads the document twice: the mirror's own `ensure` at apply, then
     // the `connection/reset` of the first connection. The action's load adds none.
     expect(c.mock.log.calls('settings/describe')).toHaveLength(2)
     await load()
     expect(c.mock.log.calls('settings/describe')).toHaveLength(2)
     expect(hooks.snapshot.getSnapshot().status).toBe('ready')
+    mock.remote.settings.openSettingsDocument.mockResolvedValueOnce(ok({ opened: true }))
+    await open()
+    expect(mock.remote.settings.openSettingsDocument).toHaveBeenCalledOnce()
     c.connection.reconnect()
     await c.mock.streams.opened('$events', 2)
     await vi.waitFor(() => { expect(c.mock.log.calls('settings/describe')).toHaveLength(3) })

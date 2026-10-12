@@ -54,6 +54,7 @@ export class BingRssSearchProvider implements WebSearchProvider {
       }).parse(xml)
       const channel = record(record(record(parsed).rss).channel)
       const items: unknown = channel.item ?? []
+      /* v8 ignore next -- XMLParser.isArray above always wraps rss.channel.item; retain validation for its unknown parse result. */
       if (!Array.isArray(items)) throw new TypeError('RSS items must be an array')
       const sources = items.map((value: unknown) => {
         const item = record(value)

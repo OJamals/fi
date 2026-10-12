@@ -73,6 +73,22 @@ function mount(
 }
 
 describe('AntigravityProviderEditor', () => {
+  it.each([false, true])('supports older Models owners; profile operations available=%s', async (withOperations) => {
+    const { view, props } = mount()
+    const operations = {
+      read: vi.fn(async () => ({ ns: 'fi-antigravity', value: {}, schema: {}, revision: 1, applies: 'live' as const, autoGenerate: false, secrets: [] })),
+      discover: vi.fn(async () => []), write: vi.fn(async () => undefined),
+    }
+    view.rerender(<AntigravityProviderEditor {...props} configured
+      {...withOperations ? { operations } : {}}
+      provider={{ provider: 'antigravity', displayName: 'Antigravity', settingsNs: 'fi-antigravity', settingsPath: ['providers', 'antigravity'], active: true }} />)
+    if (withOperations) {
+      await waitFor(() => { expect(screen.getByRole('button', { name: en.apply }).hasAttribute('disabled')).toBe(false) })
+      expect(operations.read).toHaveBeenCalledWith('fi-antigravity')
+    } else {
+      expect(screen.getByRole('button', { name: 'Set up Antigravity provider' })).toBeTruthy()
+    }
+  })
   it('delegates configured native routes to the Models owner with ID-only capabilities', () => {
     const { view, props, adopt } = mount()
     const renderSubscriptionEditor = vi.fn(() => <div>Shared subscription editor</div>)

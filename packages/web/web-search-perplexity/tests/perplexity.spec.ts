@@ -325,7 +325,7 @@ describe('web-search-perplexity plugin registration', () => {
     await fiber.dispose()
   })
 
-  it('falls back to env key and defaults for base URL and model when config omits them', async () => {
+  it.each([true, false])('defaults credentials, endpoint, and model with schema resolution %s', async (schema) => {
     const prev = process.env.PERPLEXITY_API_KEY
     process.env.PERPLEXITY_API_KEY = 'env-key'
     try {
@@ -333,7 +333,9 @@ describe('web-search-perplexity plugin registration', () => {
       vi.stubGlobal('fetch', fetchMock)
       const ctx = new Context()
       await ctx.plugin(WebRuntime, { searchProvider: PERPLEXITY_PROVIDER_ID })
-      const fiber = await ctx.plugin(perplexityPlugin, {})
+      const fiber = schema ? await ctx.plugin(perplexityPlugin, {}) : await ctx.plugin({
+        inject: perplexityPlugin.inject, apply: (scope: Context) => { perplexityPlugin.apply(scope, {}) },
+      })
       await ctx.web.search({ query: 'q' })
       const [url, init] = fetchMock.mock.calls[0]!
       expect(url).toBe('https://api.perplexity.ai/chat/completions')

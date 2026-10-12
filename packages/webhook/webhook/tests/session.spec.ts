@@ -193,6 +193,13 @@ function modelRequestListener(test: SessionHarness): (
 }
 
 describe('webhook Session creation', () => {
+  it('rejects an absent default before creating a workspace or agent', async () => {
+    const test = harness()
+    vi.spyOn(test.ctx.agentDefaultModel, 'resolveSelection').mockResolvedValue(undefined)
+    await expect(create(test)).rejects.toThrow('requires a configured model or an explicit model route')
+    expect(test.calls).toEqual([])
+  })
+
   it('preflights, mounts, attaches, configures, titles, and prompts in order', async () => {
     const test = harness()
     await create(test)

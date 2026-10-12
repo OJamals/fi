@@ -14,11 +14,11 @@ import type { ConsoleModel } from './catalog.ts'
 import { consoleUrl } from './protocol.ts'
 import type { ConsoleGrant, ConsoleOptions } from './protocol.ts'
 
-const apis: Readonly<Record<string, () => ProviderStreams>> = {
+const apis = {
   'anthropic-messages': anthropicMessagesApi,
   'openai-responses': openAIResponsesApi,
   'openai-completions': openAICompletionsApi,
-}
+} satisfies Record<ConsoleModel['model']['api'], () => ProviderStreams>
 const payloadSchema = z.record(z.string(), z.unknown())
 const inferenceErrorSchema = z.union([
   z.object({ _tag: z.literal('SsoRequired') }),
@@ -144,7 +144,6 @@ export class OpenCodeAdapter extends LlmAdapter {
     try {
       const context = toPiContext({ ...options, signal: watchdog.signal })
       const api = apis[entry.model.api]
-      if (api === undefined) throw new LlmError('OpenCode model protocol is unsupported', 'UNSUPPORTED_OPTION')
       const models = createModels()
       models.setProvider(createProvider({
         id: entry.model.provider, name: 'OpenCode Console', models: [entry.model], api: api(),

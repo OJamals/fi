@@ -8,6 +8,50 @@ afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers() })
 const id = SessionId('fork')
 const url = 'api/present.open?sessionId=fork&seq=2&index=1'
 
+it.each(['restored', 'diverged', 'binary', 'oversized'] as const)('returns the Host restore outcome %s', async (kind) => {
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ kind }))
+  vi.stubGlobal('fetch', fetcher)
+  const controller = new PresentedOpenController()
+  try {
+    await expect(controller.restoreChanged(id, 9, 1, 'after')).resolves.toEqual({ kind })
+    expect(fetcher).toHaveBeenCalledWith('api/changes.restore?sessionId=fork&seq=9&index=1&side=after', {
+      method: 'POST', signal: expect.any(AbortSignal) as AbortSignal,
+    })
+  } finally { await controller.dispose() }
+})
+
+it.each(['http', 'json', 'invalid', 'network'] as const)('returns unavailable after a restore %s failure', async (failure) => {
+  const fetcher = vi.fn<typeof fetch>()
+  if (failure === 'network') fetcher.mockRejectedValue(new Error('offline'))
+  else fetcher.mockResolvedValue(failure === 'http' ? new Response(null, { status: 404 })
+    : failure === 'json' ? new Response('invalid JSON') : Response.json({ kind: 'unknown' }))
+  vi.stubGlobal('fetch', fetcher)
+  const controller = new PresentedOpenController()
+  try { await expect(controller.restoreChanged(id, 9, 1, 'before')).resolves.toBe('unavailable') }
+  finally { await controller.dispose() }
+})
+
+it('waits for restore cancellation and refuses requests after disposal', async () => {
+  const reply = Promise.withResolvers<Response>()
+  const aborted = Promise.withResolvers<undefined>()
+  const fetcher = vi.fn<typeof fetch>((_url, init) => {
+    init!.signal!.addEventListener('abort', () => { aborted.resolve(undefined) }, { once: true })
+    return reply.promise
+  })
+  vi.stubGlobal('fetch', fetcher)
+  const controller = new PresentedOpenController()
+  const restoring = controller.restoreChanged(id, 9, 1, 'before')
+  let disposed = false
+  const disposing = controller.dispose().then(() => { disposed = true })
+  await aborted.promise
+  expect(disposed).toBe(false)
+  reply.reject(new DOMException('Aborted', 'AbortError'))
+  await expect(restoring).resolves.toBe('unavailable')
+  await disposing
+  await expect(controller.restoreChanged(id, 9, 1, 'after')).resolves.toBe('unavailable')
+  expect(fetcher).toHaveBeenCalledOnce()
+})
+
 it('coalesces concurrent card and mention gestures, then allows another open', async () => {
   const reply = Promise.withResolvers<Response>()
   const fetcher = vi.fn().mockReturnValue(reply.promise)

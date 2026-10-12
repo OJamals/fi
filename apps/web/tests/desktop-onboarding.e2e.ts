@@ -149,7 +149,7 @@ describe.skipIf(MODE === 'record')('web e2e: App-only desktop onboarding', () =>
         const copyFonts = await page.locator('[class*="heroDescription"], [class*="subtitle"], [class*="cardTitle"], [class*="cardDescription"]')
           .evaluateAll(elements => elements.map(element => getComputedStyle(element).fontFamily))
         expect(copyFonts.every(font => font.includes('Montserrat'))).toBe(true)
-        const buttonFonts = await page.locator('[class*="navigation"] button').evaluateAll(elements =>
+        const buttonFonts = await page.locator('[data-desktop-onboarding] [class*="navigation"] button').evaluateAll(elements =>
           elements.map(element => getComputedStyle(element).fontFamily))
         expect(buttonFonts.every(font => font.includes('Montserrat'))).toBe(true)
         expect(await page.evaluate(async () => (await document.fonts.load('300 28px Montserrat')).length)).toBeGreaterThan(0)
@@ -380,9 +380,9 @@ describe.skipIf(MODE === 'record')('web e2e: App-only desktop onboarding', () =>
     await page.getByRole('button', { name: 'Continue', exact: true }).click()
     await page.getByRole('checkbox', { name: 'Office & creative work', exact: true }).waitFor()
     await snapshot('purpose-en-dark')
-    await page.getByRole('button', { name: 'Back', exact: true }).click()
+    await page.locator('[data-desktop-onboarding]').getByRole('button', { name: 'Back', exact: true }).click()
     await page.getByRole('button', { name: 'Continue', exact: true }).waitFor()
-    await page.getByRole('button', { name: 'Back', exact: true }).click()
+    await page.locator('[data-desktop-onboarding]').getByRole('button', { name: 'Back', exact: true }).click()
     await page.getByRole('button', { name: 'Get started', exact: true }).waitFor()
     expect(scaffold.ctx.settings.describe().find(row => row.ns === NS)?.value).not.toHaveProperty('creditFunded')
     bonusBalance = '0'

@@ -827,6 +827,11 @@ describe('plugin registration', () => {
     expect(openResource).toHaveBeenCalledWith('dsh-resource://changes-review/session/child-session/5/3', { params: { index: 1 } })
     expect((registered as { title(address: string): string }).title('dsh-resource://changes-review/session/child-session/5/3')).toBe('Review · turn 3')
     const tabFace = tabEntry!.inject!(SessionId('child-session') as never) as unknown as ReviewInjected
+    fetcher.mockResolvedValueOnce(Response.json({ kind: 'restored' }))
+    await expect(tabFace.restoreChanged(SessionId('child-session'), 5, 1, 'before')).resolves.toEqual({ kind: 'restored' })
+    expect(fetcher).toHaveBeenLastCalledWith('api/changes.restore?sessionId=child-session&seq=5&index=1&side=before', {
+      method: 'POST', signal: expect.any(AbortSignal) as AbortSignal,
+    })
     fetcher.mockResolvedValueOnce(Response.json({ turn: 3, files: [], total: 0, added: 0, deleted: 0 }))
     await tabFace.loadChangesSummary(SessionId('child-session'), 6)
     expect(tabFace.hooks.changesSummary.getSnapshot()['api/changes.summary?sessionId=child-session&seq=6']).toEqual({ turn: 3, files: [], total: 0, added: 0, deleted: 0 })

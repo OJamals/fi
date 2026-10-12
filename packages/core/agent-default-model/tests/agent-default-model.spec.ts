@@ -30,6 +30,7 @@ it('persists complete selections through its owning profile entry', async () => 
   await standalone.plugin(DefaultModel, { provider: 'test', model: 'original' })
   await standalone.agentDefaultModel.saveSelection({ provider: 'test', model: 'ignored' })
   expect(standalone.agentDefaultModel.currentSelection()?.model).toBe('original')
+  expect(await standalone.agentDefaultModel.resolveSelection()).toEqual({ provider: 'test', model: 'original' })
 })
 
 it('allows an unconfigured default and rejects incomplete configured pairs', async () => {
@@ -129,4 +130,89 @@ it('serializes overlapping saves and continues after a rejected write', async ()
   await last
   expect(calls).toEqual(['rejected', 'saved'])
   expect(ctx.agentDefaultModel.currentSelection()).toEqual({ provider: 'test', model: 'final' })
+})
+
+it('rejects available selection without its discovery services', async () => {
+  const ctx = new Context()
+  onTestFinished(() => ctx.fiber.dispose())
+  await liveConfig(ctx, DefaultModel, { selectionPolicy: 'available' })
+  await expect(ctx.agentDefaultModel.resolveSelection()).rejects.toThrow('requires llm, credentials, and settings')
+  await expect(ctx.agentDefaultModel.resolveSelection()).rejects.toThrow('requires llm, credentials, and settings')
+})
+
+it('skips unavailable catalogs and unresolved models while allowing explicitly credentialless routes', async () => {
+  const ctx = new Context()
+  onTestFinished(() => ctx.fiber.dispose())
+  const routes = ['a-unconfigured', 'b-broken-catalog', 'c-broken-model', 'd-local']
+  const listModels = vi.fn(async (provider: string) => {
+    if (provider === 'b-broken-catalog') throw new Error('offline catalog')
+    return [{ id: `${provider}-model`, name: 'Model' }]
+  })
+  ctx.provide('llm', {
+    listProviders: () => routes.map(id => ({ id, name: id })),
+    listConfigurableProviders: () => [{ provider: 'a-unconfigured', settingsNs: 'api', settingsPath: ['missing', 'nested'] }],
+    listModels,
+    resolveModelInfo: async (provider: string, id: string) => {
+      if (provider === 'c-broken-model') throw new Error('invalid model')
+      return { id, name: 'Model', reasoning: { defaultEffort: 'high' } }
+    },
+  } as never)
+  ctx.provide('credentials', { listRecords: async () => [], describe: async () => ({ configured: false }) } as never)
+  ctx.provide('settings', { configure: () => () => {}, describe: () => [{ ns: 'api', value: {} }] } as never)
+  const live = await liveConfig(ctx, DefaultModel, {
+    selectionPolicy: 'available', credentiallessProviders: routes.slice(1),
+  })
+  expect(await ctx.agentDefaultModel.resolveSelection()).toEqual({
+    provider: 'd-local', model: 'd-local-model', reasoningEffort: 'high',
+  })
+  expect(listModels.mock.calls.flat()).not.toContain('a-unconfigured')
+  await live.update({ provider: 'd-local', model: 'd-local-model', reasoningEffort: 'low' })
+  expect(await ctx.agentDefaultModel.resolveSelection()).toEqual({
+    provider: 'd-local', model: 'd-local-model', reasoningEffort: 'low',
+  })
+})
+
+it('restarts discovery when a saved selection changes while credentials load', async () => {
+  const ctx = new Context()
+  onTestFinished(() => ctx.fiber.dispose())
+  const entered = Promise.withResolvers<undefined>()
+  const release = Promise.withResolvers<undefined>()
+  onTestFinished(() => { release.resolve(undefined) })
+  const records = vi.fn(async () => [])
+  records.mockImplementationOnce(async () => { entered.resolve(undefined); await release.promise; return [] })
+  ctx.provide('credentials', { listRecords: records } as never)
+  ctx.provide('settings', { configure: () => () => {}, describe: () => [] } as never)
+  ctx.provide('llm', {
+    listProviders: () => [{ id: 'local', name: 'Local' }], listConfigurableProviders: () => [],
+    listModels: async () => [{ id: 'first' }, { id: 'second' }],
+    resolveModelInfo: async (_provider: string, id: string) => ({ id }),
+  } as never)
+  const live = await liveConfig(ctx, DefaultModel, {
+    provider: 'local', model: 'first', selectionPolicy: 'available', credentiallessProviders: ['local'],
+  })
+  const pending = ctx.agentDefaultModel.resolveSelection()
+  await entered.promise
+  await live.update({ model: 'second' })
+  release.resolve(undefined)
+  expect(await pending).toEqual({ provider: 'local', model: 'second' })
+  expect(records).toHaveBeenCalledTimes(2)
+})
+
+it('preserves inherited availability policy when saving or clearing legacy model-only overrides', async () => {
+  const ctx = new Context()
+  onTestFinished(() => ctx.fiber.dispose())
+  const live = await liveConfig(ctx, DefaultModel, { provider: 'p', model: 'm' })
+  let override: Record<string, unknown> = { provider: 'p', model: 'm', reasoningEffort: 'high' }
+  const inherited = { selectionPolicy: 'available', credentiallessProviders: ['local'], subscriptionCredentials: {} }
+  ctx.provide('configEditor', {
+    edit: async (_entry: unknown,
+      update: (current: Record<string, unknown>, inherited: Record<string, unknown>) => Record<string, unknown>) => {
+      override = update(override, inherited)
+    },
+    configuration: () => [{ entry: live.entry, inherited, override }],
+  } as never)
+  await ctx.agentDefaultModel.saveSelection(undefined)
+  expect(override).toEqual(inherited)
+  await ctx.agentDefaultModel.saveSelection({ provider: 'p', model: 'next' })
+  expect(override).toEqual({ ...inherited, provider: 'p', model: 'next' })
 })

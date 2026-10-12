@@ -1,0 +1,6 @@
+# FI's model selection policy over the source Web scaffold.
+- id: agent-default-model
+  config:
+    selectionPolicy: available
+    provider: !!js undefined
+    model: !!js undefined

@@ -25,6 +25,8 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
+The `preview` template composes base and Web bundles for the browser Worker. Native FI subscription providers require Node TLS and are available in the regular `web` profile.
+
 FI's shipped Web, headless, ACP, and SDK templates add `@fi/runtime-bundle` after upstream base/mode bundles; Web then adds `@fi/authorization-bundle`. Exact retired shipped tuples migrate on load while retaining other manifest fields; custom bundle lists stay untouched. `sdk-minimal` remains a standalone explicit-route profile.
 
 Starting an app with this package is a small, explicit entry point: you give it a config file and it runs the whole boot. This section covers what you can do and what you get; the helper calls behind each outcome are documented in the folded implementation section.

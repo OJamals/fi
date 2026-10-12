@@ -28,9 +28,9 @@ it('keeps settings and expanded plugin dialogs clear of the Windows caption acro
       const settingsMask = settings.locator('..').locator(':scope > [aria-hidden="true"]')
       for (const fullscreen of [false, true, false]) {
         await page.evaluate(value => document.documentElement.toggleAttribute('data-fullscreen', value), fullscreen)
-        const margin = fullscreen ? 24 : 60
-        await expect.poll(async () => (await settings.boundingBox())?.y).toBe(margin)
-        expect((await settings.boundingBox())?.height).toBe(600 - 2 * margin)
+        const inset = fullscreen ? 0 : 40
+        await expect.poll(async () => (await settings.boundingBox())?.y).toBe(inset)
+        expect((await settings.boundingBox())?.height).toBe(600 - inset)
         expect((await settingsMask.boundingBox())?.y).toBe(fullscreen ? 0 : 40)
         expect((await settings.locator('..').boundingBox())?.height).toBe(600)
       }
@@ -86,7 +86,7 @@ it('keeps settings and expanded plugin dialogs clear of the Windows caption acro
         }, platform)
         if (await reopenSidebar.isVisible()) await reopenSidebar.click()
         await openSettings(page, 'zh')
-        await expect.poll(async () => (await settings.boundingBox())?.y).toBe(platform === 'darwin' ? 68 : 24)
+        await expect.poll(async () => (await settings.boundingBox())?.y).toBe(platform === 'darwin' ? 48 : 0)
         expect((await settingsMask.boundingBox())?.y).toBe(0)
         await page.keyboard.press('Escape')
         await settings.waitFor({ state: 'hidden' })

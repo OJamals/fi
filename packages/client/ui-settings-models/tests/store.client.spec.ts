@@ -147,6 +147,15 @@ function api(overrides: {
 }
 
 describe('ModelsSettingsStore', () => {
+  it('surfaces a model-catalog refusal without reading credentials', async () => {
+    const { face, seenRefs } = api()
+    const ctx = { remote: { ...face, session: { modelCatalog: async () => remoteFail('catalog unavailable') } } } as never
+    const mirror = new SettingsDescribeMirror(ctx)
+    const store = new ModelsSettingsStore(ctx, settingsSchema, mirror)
+    await store.load()
+    expect(store.store.getSnapshot()).toMatchObject({ status: 'error', error: 'catalog unavailable' })
+    expect(seenRefs).toEqual([])
+  })
   it.each([undefined, true, false])('keeps optional DeepSeek addable when enabled is %s', async (enabled) => {
     const namespaces = NAMESPACES.map(namespace => namespace.ns === 'llm-deepseek'
       ? { ...namespace,

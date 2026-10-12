@@ -89,6 +89,11 @@ const windowsOnlyCoverageExclusions = process.platform !== 'win32'
     ]
   : []
 
+// Linux execve bindings and their native tests require the Linux ABI.
+const linuxOnlyCoverageExclusions = process.platform === 'linux'
+  ? []
+  : ['packages/subprocess/subprocess-local/src/linux-execve.ts']
+
 // The confinement runner entry executes exclusively as a spawned child
 // process (the sandbox seam's argv-prefix wrapper): its module-level main()
 // would run the confinement in-process if imported, and vitest's v8 coverage
@@ -360,6 +365,7 @@ export default defineConfig({
         'packages/session/session-projection/src/index.ts',
         ...windowsUnsupportedCoveragePackages.map(path => `${path}/src/**/*.ts`),
         ...windowsOnlyCoverageExclusions,
+        ...linuxOnlyCoverageExclusions,
         ...windowsRunnerCoverageExclusions,
         ...pwshCoverageExclusions,
       ],

@@ -29,7 +29,7 @@ Mount this plugin in the browser roster of a deployment branded as fi, then buil
 
 ### Choosing the profile
 
-`DSH_CLIENT_BUILD_PROFILE` selects which brand renders. An `official` build shows the self-lettered fi artwork alone at the sidebar's requested 40px square and shows the same artwork in the conversation hero. Both surfaces follow the shared `body[data-ds-dark-theme]` state: light mode reads `/fi-logo.png`, while dark mode reads the scale-matched transparent `/fi-logo-dark-background.png`. Any other profile leaves the shell fallbacks — the fish marks and the local-build label — in place. The plugin still loads and validates in both cases; only the registration is profile-gated.
+`DSH_CLIENT_BUILD_PROFILE` selects which brand renders. An `official` build shows the self-lettered fi artwork alone at the sidebar's requested 40px square and shows the same artwork in the conversation hero. Both surfaces follow the shared `body[data-ds-dark-theme]` state: light mode reads `fi-logo.png`, while dark mode reads the scale-matched transparent `fi-logo-dark-background.png`, both relative to the document base URL. Any other profile leaves the shell fallbacks — the fish marks and the local-build label — in place. The plugin still loads and validates in both cases; only the registration is profile-gated.
 
 ### Replacing the brand
 

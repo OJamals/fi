@@ -35,6 +35,8 @@ kind: "package-reference"
 
 ### Claude Code、Codex 与 Grok 的实时模型发现
 
+无论成功或失败，模型发现都会取消响应 reader 并释放其锁，包括取消本身失败的情况。
+
 本插件还会回答 `@deepseek-ai/dsh-llm-pi-ai` 面向其三条订阅路由（`anthropic`、`openai-codex`、`xai`）的可选 `llm-pi-ai/live-models` waterfall，因此已登录账户的新模型无需目录更新即可出现在 `listModels`、模型发现与采纳流程中。`liveModelDiscoveryEnabled`（默认 `true`）与 `liveModelDiscoveryCacheTtlMs`（默认 300000，即五分钟；接受 1,000–86,400,000）是本插件上的 `Config` 字段，因为抓取节奏是部署方的选择，不是常量。每个提供方都会以 `subscriptionHeaders` 为聊天请求已构建的同一身份被询问，只是指向该提供方自己的模型列表端点而非推理端点：
 
 | 提供方 | 请求 | 保留内容 |
@@ -77,7 +79,7 @@ node scripts/fi-provider-settings-update.mjs --check
 
 每个插件实例拥有一个稳定 connector。修补后的 pi-ai 缓存按端点、认证请求头、代理 URL 和 connector 标识分区，隔离连接与回退状态。凭据或元数据变化后不能复用原连接。默认 `auto` 与 `websocket-cached` 保留增量上下文复用；显式 `websocket` 发送完整上下文。网络握手失败保留 pi-ai 的已认证 SSE（Server-Sent Events）回退；认证或端点准备无效时，会在任一传输发送前失败。
 
-受维护的 `ws` connector 使用 pi-ai 现有的 HTTP/HTTPS/ALL_PROXY 与 NO_PROXY 解析，包括提供方环境覆盖，并使用受维护的 HTTPS 代理 agent。它禁用重定向与压缩，执行配置的消息大小限制，并保留 SDK 连接超时和请求取消。插件 dispose（资源释放）只清理其 connector 的缓存与回退记录，终止待连接和已打开的 socket，并等待关闭。已发送的 HTTP 请求仍由调用者的请求 signal 管理。
+受维护的 `ws` connector 使用 pi-ai 现有的 HTTP/HTTPS/ALL_PROXY 与 NO_PROXY 解析，包括提供方环境覆盖，并使用受维护的 HTTPS 代理 agent。它禁用重定向与压缩，执行配置的消息大小限制，并保留 SDK 连接超时和请求取消。socket 关闭时同步移除其所有权注册。插件 dispose（资源释放）只清理其 connector 的缓存与回退记录，终止待连接和已打开的 socket，并等待关闭。已发送的 HTTP 请求仍由调用者的请求 signal 管理。
 
 [固定补丁记录](pi-ai-patch.pin.json) 记录 npm 版本、完整性值、原始 dist 文件哈希、补丁哈希与移除条件。补丁不向 pi-ai 添加 Node 导入，并保持未提供 factory 时的构造路径不变。生成的元数据与 vendored updater 仍是 auth2api 的字节稳定投影；发布更新绝不意味着新的指纹捕获。
 

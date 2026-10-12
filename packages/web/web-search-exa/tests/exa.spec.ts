@@ -344,7 +344,7 @@ describe('web-search-exa plugin registration', () => {
     await fiber.dispose()
   })
 
-  it('falls back to $EXA_API_KEY and the default base URL when config omits them', async () => {
+  it.each([true, false])('defaults credentials and endpoint with schema resolution %s', async (schema) => {
     const prev = process.env.EXA_API_KEY
     process.env.EXA_API_KEY = 'env-key'
     try {
@@ -352,7 +352,9 @@ describe('web-search-exa plugin registration', () => {
       vi.stubGlobal('fetch', fetchMock)
       const ctx = new Context()
       await ctx.plugin(WebRuntime, { searchProvider: EXA_PROVIDER_ID })
-      const fiber = await ctx.plugin(exaPlugin, {})
+      const fiber = schema ? await ctx.plugin(exaPlugin, {}) : await ctx.plugin({
+        inject: exaPlugin.inject, apply: (scope: Context) => { exaPlugin.apply(scope, {}) },
+      })
       await ctx.web.search({ query: 'q' })
       const [url] = fetchMock.mock.calls[0]!
       expect(url).toBe('https://api.exa.ai/search')

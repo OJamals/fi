@@ -41,7 +41,11 @@ describe.skipIf(MODE === 'record')('web e2e: first-run model-universal setup', (
   const browserConsole: string[] = []
 
   beforeAll(async () => {
-    scaffold = await launchWebScaffold({ deepSeekMissingCredential: true, welcomeNoticePending: true })
+    scaffold = await launchWebScaffold({
+      deepSeekMissingCredential: true,
+      welcomeNoticePending: true,
+      extraOverlayPath: fileURLToPath(new URL('./fixtures/available-default-model.patch.yml', import.meta.url)),
+    })
     browser = await chromium.launch()
     // The scenario asserts the shipped Chinese copy, so the browser asks for it.
     page = await browser.newPage({ viewport: { width: 1440, height: 960 }, locale: ZH_BROWSER_LOCALE })
@@ -97,8 +101,7 @@ describe.skipIf(MODE === 'record')('web e2e: first-run model-universal setup', (
     await settings.waitFor({ timeout: 10_000 })
     const deepSeekRow = settings.getByText('DeepSeek', { exact: true }).first()
     await deepSeekRow.waitFor({ timeout: 10_000 })
-    // The Models page meets an unconfigured provider with its setup card
-    // already open, so the routed user types the key with no further clicks.
+    await settings.getByRole('button', { name: '编辑 DeepSeek (deepseek-official)' }).click()
     const keyInput = settings.getByRole('textbox', { name: 'API 密钥', exact: true })
     await keyInput.waitFor({ timeout: 10_000 })
 
@@ -209,7 +212,7 @@ describe.skipIf(MODE === 'record')('web e2e: first-run model-universal setup', (
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
 
-  it('configures arbitrary DeepSeek models and prompts after the selected model is removed', async () => {
+  it('configures arbitrary DeepSeek models and selects an available replacement', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-onboarding-model-setup-models'))
     // Opened here rather than inherited: the credential test reloads the page
     // after configuring the key, so nothing carries an open dialog across.
@@ -289,7 +292,8 @@ describe.skipIf(MODE === 'record')('web e2e: first-run model-universal setup', (
     // trigger — on the page; the scaffold boots without one.
     await connectFreshWorkspaceZh(page, scaffold.workspaceCwd, 'model-fallback-e2e', false)
 
-    const modelTrigger = page.getByRole('button', { name: /^选择模型.*deepseek-official\// })
+    await expect.poll(() => scaffold.ctx.agentDefaultModel.currentSelection()?.model).toBe('private-preview')
+    const modelTrigger = page.getByRole('button', { name: /^选择模型.*Private Preview/ })
     await modelTrigger.waitFor({ timeout: 10_000 })
     await modelTrigger.click()
     await page.getByRole('menuitem', { name: /模型/ }).click()

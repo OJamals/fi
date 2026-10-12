@@ -7,6 +7,15 @@ const provider = (maxBytes = 4096) => new BingRssSearchProvider('https://bing.te
 afterEach(() => { vi.unstubAllGlobals() })
 
 describe('Bing RSS search', () => {
+  it('rejects a response with no RSS body', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null)))
+    await expect(provider().search({ query: 'empty' })).rejects.toMatchObject({ code: 'WEB_PROVIDER_ERROR' })
+  })
+
+  it('retains non-abort DOM failures as provider errors', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new DOMException('network failure', 'NetworkError') }))
+    await expect(provider().search({ query: 'offline' })).rejects.toMatchObject({ code: 'WEB_PROVIDER_ERROR' })
+  })
   it('normalizes RSS text and limits sources without a credential', async () => {
     const fetch = vi.fn<typeof globalThis.fetch>(async () => new Response(xml))
     vi.stubGlobal('fetch', fetch)

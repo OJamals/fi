@@ -104,7 +104,7 @@ export interface PiAiProviderProfile {
   baseURL?: string
   /**
    * This route's model catalog. Omission serves the installed catalog for the
-   * route unchanged; an explicit list replaces it, each entry defaulting its
+   * route unchanged; an empty list has the same meaning. A nonempty list replaces it, each entry defaulting its
    * unset fields from the installed model of the same id.
    */
   models?: PiAiModelProfile[]
@@ -217,8 +217,8 @@ export interface ResolvedPiAiProviderProfile
    */
   configuredMaxTokens: ReadonlyMap<string, number>
   /**
-   * Whether this route serves the installed catalog unchanged (no `models`
-   * list of its own; `modelOverrides` may still reshape individual entries).
+   * Whether this route serves the installed catalog (an absent or empty
+   * `models` list; `modelOverrides` may still reshape individual entries).
    * The one condition under which the adapter may add a live-discovered model
    * id beyond the catalog: a curated `models` list is exactly what the
    * deployment configured, and gains nothing it did not list.
@@ -509,7 +509,7 @@ export function resolveProfiles(
       ...rest.headers === undefined ? {} : { headers: { ...rest.headers } },
       ...rest.thinkingBudgets === undefined ? {} : { thinkingBudgets: { ...rest.thinkingBudgets } },
       configuredMaxTokens: catalog?.configuredMaxTokens ?? new Map(),
-      usesInstalledCatalog: source.models === undefined,
+      usesInstalledCatalog: source.models === undefined || source.models.length === 0,
       modelErrors: catalog?.modelErrors ?? new Map(),
       ...piProvider === undefined ? {} : { piProvider },
       ...catalogError === undefined ? {} : { catalogError },

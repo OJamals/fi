@@ -20,13 +20,31 @@ const t: SignInCardInjected['t'] = (key, params) =>
 const KEY = 'llm-pi-ai/anthropic'
 
 /** Render the conversation of one attempt against a recording controller. */
-function mount(attempt: SignInAttempt): { controller: { answer: ReturnType<typeof vi.fn>; dismiss: ReturnType<typeof vi.fn> } } {
-  const controller = { answer: vi.fn(), dismiss: vi.fn() }
+function mount(attempt: SignInAttempt) {
+  const controller = { answer: vi.fn(), dismiss: vi.fn(), cancel: vi.fn() }
   render(<AttemptView attempt={attempt} controller={Object.assign(new SignInStore(new Context()), controller)} t={t} />)
   return { controller }
 }
 
 describe('the running conversation', () => {
+  it('renders a plain notice and allows cancellation', () => {
+    const { controller } = mount({ key: KEY, notice: { message: 'Waiting' }, prompt: null, settled: null })
+    expect(screen.queryByRole('link')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: en.cancel }))
+    expect(controller.cancel).toHaveBeenCalledOnce()
+  })
+
+  it('renders an optionless select prompt without an answer control', () => {
+    const { controller } = mount({ key: KEY, notice: null, prompt: { id: 1, kind: 'select', message: 'No accounts' }, settled: null })
+    expect(screen.getByText('No accounts')).toBeTruthy()
+    expect(controller.answer).not.toHaveBeenCalled()
+  })
+
+  it('ignores an empty text form submission', () => {
+    const { controller } = mount({ key: KEY, notice: null, prompt: { id: 1, kind: 'text', message: 'Code' }, settled: null })
+    fireEvent.submit(screen.getByLabelText('Code').closest('form')!)
+    expect(controller.answer).not.toHaveBeenCalled()
+  })
   it('renders a notice with its page and its device code', () => {
     mount({
       key: KEY,

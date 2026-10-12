@@ -10,6 +10,9 @@ import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import WorkspaceRegistry from '@deepseek-ai/dsh-workspace'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import WorkspaceController from '../src/index.ts'
+import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
+import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
+import { ManagedWorktrees, type ManagedWorktree } from '../src/managed-worktrees.ts'
 import { DEFAULT_WORKSPACE_DIRECTORY } from '../src/default-workspace.ts'
 import { WorkspaceFeed } from '../src/feed.ts'
 import type { WorkspaceFollowFrame } from '../src/types.ts'
@@ -37,6 +40,7 @@ const tempDirs: string[] = []
 afterEach(async () => {
   await Promise.all(roots.splice(0).map(ctx => ctx.fiber.dispose()))
   for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true })
+  vi.restoreAllMocks()
 })
 
 interface Deferred<T> {
@@ -50,7 +54,7 @@ function deferred<T>(): Deferred<T> {
   return { promise, resolve }
 }
 
-async function harness(options: { systemDocuments?: boolean } = {}) {
+async function harness(options: { systemDocuments?: boolean; managed?: boolean } = {}) {
   const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'dsh-workspace-controller-')))
   tempDirs.push(root)
   const ctx = new Context()
@@ -68,7 +72,16 @@ async function harness(options: { systemDocuments?: boolean } = {}) {
     lookups: { configure: () => dispose },
     contexts: { configureHost: () => dispose },
   } as never)
-  const controller = new WorkspaceController(ctx, options.systemDocuments === true ? {} : { documentsDirectory: root })
+  if (options.managed === true) {
+    await ctx.plugin(LocalFileSystem)
+    await ctx.plugin(LocalSubprocessRuntime)
+  }
+  const controller = new WorkspaceController(ctx, {
+    ...options.systemDocuments === true ? {} : { documentsDirectory: root },
+    ...options.managed === true ? { managedWorktrees: {
+      managedWorktreeDirectory: join(root, 'managed'), gitTimeoutMs: 30_000, gitGraceMs: 2_000, maxOutputBytes: 1024 * 1024,
+    } } : {},
+  })
   return { controller, ctx, root, storageDomain }
 }
 
@@ -87,6 +100,59 @@ async function nextFrame(
 }
 
 describe('WorkspaceController commands', () => {
+  it('keeps ordinary workspaces usable when managed worktrees are unavailable', async () => {
+    const { controller, root } = await harness()
+    const { workspace } = await controller.create({ path: stageDir(root, 'ordinary') })
+    await expect(controller.inspectManaged({ workspaceId: workspace.workspaceId })).resolves.toEqual({ kind: 'ordinary' })
+    await expect(controller.createIsolated({ workspaceId: workspace.workspaceId })).rejects.toMatchObject({ code: 'workspace/managed-unavailable' })
+    await expect(controller.removeManaged({ workspaceId: workspace.workspaceId })).rejects.toMatchObject({ code: 'workspace/managed-unavailable' })
+  })
+
+  it('registers, inspects, and removes an idle managed checkout through the Workspace registry', async () => {
+    const { controller, ctx, root } = await harness({ managed: true })
+    const source = await controller.create({ path: stageDir(root, 'source') })
+    const record: ManagedWorktree = {
+      version: 1, source: source.workspace.path, path: stageDir(root, 'checkout'), branch: 'fi/session-test',
+      base: 'a'.repeat(40), state: 'ready',
+    }
+    vi.spyOn(ManagedWorktrees.prototype, 'create').mockResolvedValue(record)
+    const get = vi.spyOn(ManagedWorktrees.prototype, 'get').mockResolvedValue(undefined)
+    const remove = vi.spyOn(ManagedWorktrees.prototype, 'remove').mockResolvedValue(undefined)
+    const created = await controller.createIsolated({ workspaceId: source.workspace.workspaceId })
+    expect(created.workspace.path).toBe(record.path)
+    const request = { workspaceId: created.workspace.workspaceId }
+    await expect(controller.inspectManaged(request)).resolves.toEqual({ kind: 'ordinary' })
+    await expect(controller.removeManaged(request)).rejects.toMatchObject({ code: 'workspace/not-managed' })
+    get.mockResolvedValue(record)
+    await expect(controller.inspectManaged(request)).resolves.toEqual({ kind: 'managed', source: record.source, branch: record.branch })
+    const session = ctx.sessions.create(SessionId('managed-session'), { meta: { cwd: record.path } })
+    await ctx.workspaceRegistry.get(created.workspace.workspaceId)!.attachSession(session.id)
+    const stop = ctx.on('workspace/session-activity', async (_request, next) => [{ kind: 'probe' as const }, ...await next()])
+    await expect(controller.removeManaged(request)).rejects.toMatchObject({ code: 'workspace/worktree-active' })
+    expect(remove).not.toHaveBeenCalled()
+    stop()
+    const rejected = new RemoteError('workspace/worktree-dirty', 'unmerged', { workspaceId: request.workspaceId })
+    remove.mockRejectedValueOnce(rejected).mockRejectedValueOnce(new Error('checkout changed')).mockRejectedValueOnce('locked')
+    await expect(controller.removeManaged(request)).rejects.toBe(rejected)
+    await expect(controller.removeManaged(request)).rejects.toMatchObject({ code: 'workspace/worktree-dirty', message: expect.stringContaining('checkout changed') as string })
+    await expect(controller.removeManaged(request)).rejects.toMatchObject({ code: 'workspace/worktree-dirty', message: expect.stringContaining('locked') as string })
+    await controller.removeManaged(request)
+    expect(ctx.workspaceRegistry.get(created.workspace.workspaceId)).toBeUndefined()
+    await expect(controller.inspectManaged(request)).rejects.toMatchObject({ code: 'workspace/not-found' })
+  })
+
+  it('preserves known creation errors and reports local failures without creating a Workspace', async () => {
+    const { controller, root } = await harness({ managed: true })
+    const source = await controller.create({ path: stageDir(root, 'source') })
+    const request = { workspaceId: source.workspace.workspaceId }
+    const failure = new RemoteError('workspace/isolation-invalid', 'invalid', request)
+    vi.spyOn(ManagedWorktrees.prototype, 'create').mockRejectedValueOnce(failure)
+      .mockRejectedValueOnce(new Error('git failed')).mockRejectedValueOnce('disk full')
+    await expect(controller.createIsolated(request)).rejects.toBe(failure)
+    await expect(controller.createIsolated(request)).rejects.toMatchObject({ code: 'workspace/isolation-invalid', message: expect.stringContaining('git failed') as string })
+    await expect(controller.createIsolated(request)).rejects.toMatchObject({ code: 'workspace/isolation-invalid', message: expect.stringContaining('disk full') as string })
+  })
+
   it('serializes concurrent path adoption and preserves an existing title', async () => {
     const { controller, root } = await harness()
     const path = stageDir(root, 'alpha')

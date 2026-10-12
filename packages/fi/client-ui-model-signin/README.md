@@ -44,7 +44,7 @@ This section is the only sign-in surface. Antigravity and OpenCode Console's **A
 
 Registration goes through `settings.models.footer` and the keyed `settings.models.provider-editor` slot. The native editors use the footer's store for setup and the settings and LLM Remote operations for profile editing and discovery. The section's row set is the package's `OFFERED` whitelist joined to registered Host flows; `listAdoptable` supplies the credential-scope-to-route mapping. The footer keeps selection locally, derives the active provider from an unfinished attempt, and falls back to the first remaining provider after an external refresh removes the selection.
 
-The store holds one attempt at a time and folds each stream frame into it. `applyFrame` is pure over that state: a `withdraw` retires only the question currently on screen, and a settlement clears any question still showing. Each sign-in, adoption, and removal has an operation identity, so a late Remote response cannot alter a newer snapshot. No secret is held in this state — a typed answer goes straight back out over `answer` and the draft is dropped.
+The store holds one attempt at a time and folds each stream frame into it. `applyFrame` is pure over that state: a `withdraw` retires only the question currently on screen, and a settlement clears any question still showing. Each sign-in, adoption, and removal has an operation identity, so a late Remote response cannot alter a newer snapshot. Disposal retires pending operations, including successful grant revocations, before they can publish. No secret is held in this state — a typed answer goes straight back out over `answer` and the draft is dropped.
 
 <a id="further-exploration"></a>
 ## Further Exploration

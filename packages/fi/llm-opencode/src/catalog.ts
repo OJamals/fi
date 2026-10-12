@@ -1,5 +1,5 @@
 /** Authenticated OpenCode v2 catalog projection; remote configuration cannot supply credentials. */
-import type { Api, Model } from '@earendil-works/pi-ai'
+import type { Model } from '@earendil-works/pi-ai'
 import { z } from 'zod'
 import { providerSettingsFor } from '@fi/provider-compat'
 import { consoleJson, consoleUrl } from './protocol.ts'
@@ -23,11 +23,12 @@ const catalogSchema = z.object({
   providers: z.record(z.string(), providerSchema),
   experimental: z.object({ policies: z.array(z.unknown()).optional() }).optional(),
 })
-const protocols: Readonly<Record<string, Api | undefined>> = {
-  '@ai-sdk/anthropic': 'anthropic-messages',
-  '@ai-sdk/openai': 'openai-responses',
-  '@ai-sdk/openai-compatible': 'openai-completions',
-}
+type ConsoleApi = 'anthropic-messages' | 'openai-responses' | 'openai-completions'
+const protocols: ReadonlyMap<string, ConsoleApi> = new Map([
+  ['@ai-sdk/anthropic', 'anthropic-messages'],
+  ['@ai-sdk/openai', 'openai-responses'],
+  ['@ai-sdk/openai-compatible', 'openai-completions'],
+])
 const forbiddenHeaders = new RegExp(
   '^(authorization|proxy-authorization|x-api-key|api-key|cookie|set-cookie|host|content-length|connection|transfer-encoding'
   + '|user-agent|x-org-id|x-opencode-.+|x-session-.+)$', 'i',
@@ -36,7 +37,7 @@ const samplingFields = new Set(['temperature', 'top_p', 'top_k', 'max_tokens', '
 
 /** Frozen advertised model routing, keeping selection identity separate from wire identity. */
 export interface ConsoleModel {
-  model: Model<Api>
+  model: Model<ConsoleApi>
   wireId: string
   headers: Record<string, string>
   body: Record<string, unknown>
@@ -59,7 +60,7 @@ export function projectCatalog(data: unknown, provider: string, config: ConsoleO
       if (entry.disabled || entry.status === 'deprecated'
         || (entry.capabilities?.input !== undefined && !entry.capabilities.input.includes('text'))
         || (entry.capabilities?.output !== undefined && !entry.capabilities.output.includes('text'))) continue
-      const api = protocols[(entry.package ?? source.package ?? '').replace(/^aisdk:/, '')]
+      const api = protocols.get((entry.package ?? source.package ?? '').replace(/^aisdk:/, ''))
       if (api === undefined) continue
       const endpoint = entry.settings?.baseURL ?? source.settings?.baseURL
       if (endpoint === undefined) throw new Error('OpenCode advertised model has no endpoint')

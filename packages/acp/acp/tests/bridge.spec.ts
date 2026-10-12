@@ -97,6 +97,36 @@ describe('automation-only ACP bridge', () => {
     expect(harness.adapter.requests[0]?.messages.at(-1)?.content).toEqual([{ type: 'text', text: 'say hello' }])
   })
 
+  it('requires an available configured default and restores recorded selection without one', async () => {
+    harness = await makeBridgeHarness({
+      config: { provider: undefined, model: undefined }, script: [textResponse('configured')],
+    })
+    const resolveSelection = vi.fn<() => Promise<{ provider: string; model: string } | undefined>>()
+      .mockResolvedValue(undefined)
+    harness.ctx.provide('agentDefaultModel', { resolveSelection } as never)
+    await harness.client.initialize({ protocolVersion: PROTOCOL_VERSION, clientCapabilities: {} })
+    await expect(harness.client.newSession({ cwd: process.cwd(), mcpServers: [] }))
+      .rejects.toThrow('Configure a model in Settings')
+    resolveSelection.mockResolvedValue({ provider: 'mock', model: 'mock' })
+    const created = await harness.client.newSession({ cwd: process.cwd(), mcpServers: [] })
+    await harness.client.prompt({ sessionId: created.sessionId, prompt: [{ type: 'text', text: 'hello' }] })
+    await harness.client.closeSession({ sessionId: created.sessionId })
+    resolveSelection.mockResolvedValue(undefined)
+    await expect(harness.client.resumeSession({ sessionId: created.sessionId, cwd: process.cwd() }))
+      .resolves.toHaveProperty('configOptions')
+  })
+
+  it.each([{ provider: 'mock', model: undefined }, { provider: undefined, model: 'mock' }])(
+    'retains partial deployment selection when the default service is absent: %j', async (config) => {
+      harness = await makeBridgeHarness({ config })
+      await harness.client.initialize({ protocolVersion: PROTOCOL_VERSION, clientCapabilities: {} })
+      const created = await harness.client.newSession({ cwd: process.cwd(), mcpServers: [] })
+      const options = harness.ctx.agents.get(SessionId(created.sessionId))?.options
+      expect(options?.provider).toBe(config.provider)
+      expect(options?.model).toBe(config.model)
+    },
+  )
+
   it('closes one active session without affecting its neighbor', async () => {
     harness = await makeBridgeHarness()
     await harness.client.initialize({ protocolVersion: PROTOCOL_VERSION, clientCapabilities: {} })

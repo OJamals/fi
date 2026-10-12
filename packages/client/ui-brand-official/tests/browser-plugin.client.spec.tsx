@@ -81,7 +81,7 @@ describe('official browser-brand plugin', () => {
 
     const mark = render(<OfficialBrandMark size={34} />)
     const image = mark.getByRole('presentation')
-    expect(image.getAttribute('src')).toContain('/fi-logo.png')
+    expect(image.getAttribute('src')).toBe('fi-logo.png')
     expect(image.getAttribute('class')).toBeTruthy()
     expect(image.getAttribute('width')).toBe('34')
     expect(image.getAttribute('height')).toBe('34')
@@ -94,7 +94,22 @@ describe('official browser-brand plugin', () => {
 
   it('uses the white artwork asset when the shared theme owner marks the body dark', () => {
     expect(brandCss).toMatch(
-      /:global\(body\[data-ds-dark-theme\]\) \.artwork\s*\{[^}]*content:\s*url\('\/fi-logo-dark-background\.png'\)/s,
+      /:global\(body\[data-ds-dark-theme\]\) \.artwork\s*\{[^}]*content:\s*var\(--fi-brand-dark-image\)/s,
     )
+  })
+
+  it('resolves both theme assets under the document mount', () => {
+    const base = document.createElement('base')
+    base.href = 'https://example.test/tools/fi/'
+    document.head.prepend(base)
+    try {
+      const mark = render(<OfficialBrandMark size={34} />)
+      const image = mark.getByRole('presentation') as HTMLImageElement
+      expect(image.src).toBe('https://example.test/tools/fi/fi-logo.png')
+      expect(image.style.getPropertyValue('--fi-brand-dark-image'))
+        .toBe('url("https://example.test/tools/fi/fi-logo-dark-background.png")')
+    } finally {
+      base.remove()
+    }
   })
 })

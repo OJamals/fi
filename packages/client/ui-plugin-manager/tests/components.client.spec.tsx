@@ -437,6 +437,16 @@ describe('PluginManagerPage', () => {
     expect([...document.querySelectorAll('[data-plugin-count]')].map(count => count.textContent)).toEqual(['1', '2'])
   })
 
+  it('keeps unranked optional packages after ranked extensions', () => {
+    renderTab({ packages: [
+      pkg({ name: '@acme/optional', optional: true }),
+      pkg({ name: '@deepseek-ai/dsh-experimental-agent-team-profile', optional: true }),
+    ] })
+    expect(screen.getAllByRole('listitem').map(card => card.getAttribute('data-plugin-package'))).toEqual([
+      '@deepseek-ai/dsh-experimental-agent-team-profile', '@acme/optional',
+    ])
+  })
+
   it.each([false, true])('shows an empty list for built-in bundles with errors and installed=%s', (installed) => {
     renderTab({
       packages: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'].map(name => pkg({

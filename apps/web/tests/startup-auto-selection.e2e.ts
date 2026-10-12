@@ -45,9 +45,8 @@ describe('web e2e: startup auto-selection', () => {
     // The headline text sits in its own span inside the title group; the fish
     // hitbox precedes the group, not the text span.
     const fishHitbox = headline.locator('xpath=../preceding-sibling::span[1]')
-    const fish = fishHitbox.locator('svg')
-    expect(await fish.evaluate(node => getComputedStyle(node).color))
-      .toBe(await headline.evaluate(node => getComputedStyle(node).color))
+    const fish = fishHitbox.locator('img')
+    await expect.poll(() => fish.evaluate(node => node instanceof HTMLImageElement && node.complete && node.naturalWidth > 0)).toBe(true)
     await fishHitbox.hover()
     expect(await fish.evaluate(node => getComputedStyle(node).animationName)).not.toBe('none')
     await page.evaluate(() => {

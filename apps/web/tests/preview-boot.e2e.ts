@@ -53,7 +53,7 @@ const SOURCE_CHOOSER_EXPECTED = fileURLToPath(new URL('./snapshots/preview-boot/
 const SNAPSHOT_MODE = webSnapshotMode()
 
 /** Profile the preview deployment composes; `build:preview` packs the same one. */
-const PROFILE = 'web'
+const PROFILE = 'preview'
 
 /** Stable labels authored by the deterministic VFS example fixture. */
 const SHOWCASE_TITLE = 'WebWorker Preview Showcase'

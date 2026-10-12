@@ -90,6 +90,8 @@ Historical `stat` and `list` revisions require metadata work proportional to the
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
+Session and service flush barriers join a concurrent handle close, wait for its final durable drain, and propagate any close failure.
+
 <details>
 <summary>Implementation internals — click to expand</summary>
 

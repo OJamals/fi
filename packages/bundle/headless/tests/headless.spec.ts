@@ -13,7 +13,7 @@ import type {
   ResumeAgentOptions,
 } from '@deepseek-ai/dsh-agent'
 import AgentDefaultModelConfig from '@deepseek-ai/dsh-agent-default-model'
-import { LlmAttemptId, ToolCallId, createAssistantMessage, createToolResultMessage, type MessageId, type StreamChunk } from '@deepseek-ai/dsh-llm'
+import { LlmAttemptId, ReasoningEffortId, ToolCallId, createAssistantMessage, createToolResultMessage, type MessageId, type StreamChunk } from '@deepseek-ai/dsh-llm'
 import SessionStore from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import type { Session, SessionId, UserMessage } from '@deepseek-ai/dsh-session'
@@ -618,11 +618,15 @@ describe('headless runner', () => {
     await test.ctx.fiber.dispose()
   })
 
-  it('adopts a recorded Session when no fresh-run default is configured', async () => {
+  it.each([undefined, true, false])('adopts a recorded Session without a fresh-run default or overriding recorded reasoning: %s', async (defaulted) => {
+    const config = {
+      provider: 'recorded-provider', model: 'recorded-model',
+      ...defaulted === undefined ? {} : { reasoningEffort: ReasoningEffortId('high') },
+    }
     const test = await bench({
       afterPrompt(session, message, agent) {
         expect(agent.options).toEqual({})
-        expect(session.requestHeader()?.config).toEqual({ provider: 'recorded-provider', model: 'recorded-model' })
+        expect(session.requestHeader()?.config).toEqual(config)
         appendTurn(session, 1, message, 'continued answer', true)
       },
     }, {
@@ -636,7 +640,8 @@ describe('headless runner', () => {
     })
     const session = test.ctx.sessions.create(brandString<SessionId>('session-exact'), { meta: { cwd: process.cwd() } })
     session.append('request/header', {
-      header: { config: { provider: 'recorded-provider', model: 'recorded-model' } }, reason: 'initial',
+      header: { config, ...defaulted === true ? { adapterDefaults: { reasoningEffort: true } } : {} },
+      reason: 'initial',
     })
     try { expect(await test.run()).toMatchObject({ code: 0, out: 'continued answer\n', err: '' }) }
     finally { await test.ctx.fiber.dispose() }
@@ -645,6 +650,26 @@ describe('headless runner', () => {
   it('requires a fresh-run model before creating an Agent', async () => {
     let prompted = false
     const test = await bench({ afterPrompt() { prompted = true } }, { noDefaultModel: true })
+    try {
+      const result = await test.run()
+      expect(result.code).toBe(1)
+      expect(result.err).toContain('Configure a model in FI Settings')
+      expect(prompted).toBe(false)
+    } finally { await test.ctx.fiber.dispose() }
+  })
+
+  it('rejects resuming an unstarted session when no default model is configured', async () => {
+    let prompted = false
+    const test = await bench({ afterPrompt() { prompted = true } }, {
+      noDefaultModel: true,
+      sessionId: 'session-exact',
+      observe: () => Promise.resolve({
+        header: { cwd: process.cwd(), origin: 'user' },
+        events: [],
+        [Symbol.dispose]() {},
+      }),
+    })
+    test.ctx.sessions.create(brandString<SessionId>('session-exact'), { meta: { cwd: process.cwd() } })
     try {
       const result = await test.run()
       expect(result.code).toBe(1)

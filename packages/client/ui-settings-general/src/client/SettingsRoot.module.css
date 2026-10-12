@@ -244,9 +244,11 @@
 
 @media (max-width: 640px) {
   .panel {
+    --settings-top: max(0px, calc(var(--dsh-frame-overlay-top, 20px) - 20px));
     flex-direction: column;
     width: 100vw;
-    height: 100vh;
+    height: calc(100vh - var(--settings-top));
+    margin-top: var(--settings-top);
     max-width: none;
     border-radius: 0;
   }
@@ -287,7 +289,7 @@
 @supports (height: 100dvh) {
   @media (max-width: 640px) {
     .panel {
-      height: 100dvh;
+      height: calc(100dvh - var(--settings-top));
     }
   }
 }

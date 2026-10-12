@@ -90,6 +90,8 @@ kind: "package-reference"
 <a id="understand-the-implementation"></a>
 ## 理解实现
 
+会话与服务的 flush 屏障会等待并发句柄关闭的最终持久化排空，并传播关闭失败。
+
 <details>
 <summary>实现细节——点击展开</summary>
 

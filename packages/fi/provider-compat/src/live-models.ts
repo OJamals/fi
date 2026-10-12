@@ -125,6 +125,7 @@ async function readBoundedJson(response: Response): Promise<unknown> {
     }
   } finally {
     await reader.cancel().catch(() => {})
+    reader.releaseLock()
   }
   return JSON.parse(Buffer.concat(chunks.map(chunk => Buffer.from(chunk))).toString('utf8'))
 }

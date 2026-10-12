@@ -36,6 +36,27 @@ function call(ctx: Context, cwd: string | null = workspaceRoot) {
 }
 
 describe('tool-problems registration', () => {
+  it('applies defaults and rejects invalid bounds for direct plugin callers', async () => {
+    const ctx = await mount()
+    for (const config of [{ maxProblems: 0 }, { maxProblems: 1.5 }, { maxResultChars: 0 }, { maxResultChars: 1.5 }]) {
+      expect(() => { ToolProblems.apply(ctx, config) }).toThrow(/positive safe integer/)
+    }
+    await ctx.fiber.dispose()
+    const direct = new Context()
+    direct.provide('fs', {} as never)
+    await direct.plugin(SystemPrompt)
+    await direct.plugin(ToolRuntime)
+    await direct.plugin(Problems)
+    await direct.plugin({
+      inject: ToolProblems.inject,
+      apply: (scope: Context) => { ToolProblems.apply(scope, {}) },
+    })
+    const tool = direct.tools.get('problems')
+    expect(tool?.isConcurrencySafe?.({})).toBe(true)
+    expect(tool?.presentCall?.({})).toEqual({ card: 'generic', kind: 'read', title: 'Inspect workspace problems' })
+    await direct.fiber.dispose()
+  })
+
   it('registers one parameterless tool and prompt guidance', async () => {
     const ctx = await mount()
 
@@ -54,6 +75,23 @@ describe('tool-problems registration', () => {
 })
 
 describe('tool-problems execution', () => {
+  it('escapes producer text, reports multiple omitted entries, and honors tiny output budgets', () => {
+    const snapshot = {
+      revision: 1,
+      problems: [
+        { source: ProblemSourceId('compiler'), severity: 'error' as const, message: 'bad\nvalue\t\\\r', path: 'a.ts' },
+        { source: ProblemSourceId('compiler'), severity: 'warning' as const, message: 'second' },
+        { source: ProblemSourceId('compiler'), severity: 'info' as const, message: 'third' },
+      ],
+    }
+    expect(ToolProblems.formatProblems(snapshot, 1, 1000)).toBe([
+      'Problems revision 1: 3 total.',
+      'error a.ts [compiler] bad\\nvalue\\t\\\\\\r',
+      '… 2 problems omitted (limit 1).',
+    ].join('\n'))
+    expect(ToolProblems.formatProblems(snapshot, 1, 1)).toBe('…')
+  })
+
   it('renders an empty snapshot without injecting it into every model request', async () => {
     const ctx = await mount()
 

@@ -43,7 +43,7 @@ export class BootPage {
     this.root = div(css.boot)
     this.root.dataset.dshBoot = ''
     this.card = div(css.card)
-    this.brandMark = image(css.brandMark, '/fi-logo.png', 'fi')
+    this.brandMark = image(css.brandMark, 'fi-logo.png', 'fi')
     this.spinner = div(css.spinner)
     this.spinner.dataset.dshBootSpinner = ''
     this.hint = div(css.hint, 'Loading plugins…')

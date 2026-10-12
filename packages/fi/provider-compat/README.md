@@ -35,6 +35,8 @@ Direct subscription HTTP clients first call pi-ai `Models.getAuth(provider)`, re
 
 ### Live model discovery for Claude Code, Codex, and Grok
 
+Discovery cancels its response reader and releases its lock after success or failure, including when cancellation itself fails.
+
 This plugin also answers `@deepseek-ai/dsh-llm-pi-ai`'s optional `llm-pi-ai/live-models` waterfall for its three subscription routes (`anthropic`, `openai-codex`, `xai`), so a signed-in account's new models appear in `listModels`, model discovery, and the adopt flow without a catalog update. `liveModelDiscoveryEnabled` (default `true`) and `liveModelDiscoveryCacheTtlMs` (default 300000, five minutes; 1,000–86,400,000 accepted) are `Config` fields on this plugin, since the fetch cadence is a deployment choice, not a constant. Each provider is interrogated with the same identity `subscriptionHeaders` already builds for a chat request, pointed at that provider's own model-listing endpoint instead of its inference one:
 
 | Provider | Request | Kept |
@@ -77,7 +79,7 @@ The adapter resolves one authoritative OAuth result and freezes its access token
 
 Each plugin instance owns a stable connector. The patched pi-ai cache partitions connections and fallback state by endpoint, authenticated headers, proxy URL, and connector identity. Changed credentials or metadata cannot reuse a prior connection. Default `auto` and `websocket-cached` retain incremental context reuse; explicit `websocket` sends full context. Network handshake failures retain pi-ai's authenticated SSE fallback; invalid authentication or endpoint preparation fails before either transport can dispatch.
 
-The maintained `ws` connector uses pi-ai's existing HTTP/HTTPS/ALL_PROXY and NO_PROXY resolution, including provider environment overrides, and a maintained HTTPS proxy agent. It disables redirects and compression, enforces the configured message bound, and preserves SDK connect timeout and request cancellation. Plugin disposal retires only its connector's cache and fallback entries, terminates pending and open sockets, and awaits closure. Already dispatched HTTP requests remain owned by their caller's request signal.
+The maintained `ws` connector uses pi-ai's existing HTTP/HTTPS/ALL_PROXY and NO_PROXY resolution, including provider environment overrides, and a maintained HTTPS proxy agent. It disables redirects and compression, enforces the configured message bound, and preserves SDK connect timeout and request cancellation. Socket closure removes its ownership registration synchronously. Plugin disposal retires only its connector's cache and fallback entries, terminates pending and open sockets, and awaits closure. Already dispatched HTTP requests remain owned by their caller's request signal.
 
 The [pinned patch record](pi-ai-patch.pin.json) records the npm version, integrity, pristine dist-file hashes, patch hash, and retirement condition. The patch adds no Node imports to pi-ai and leaves its factory-absent constructor path unchanged. The generated metadata and vendored updater remain byte-stable auth2api projections; release updates never imply a new fingerprint capture.
 

@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -145,6 +145,28 @@ afterEach(async () => {
 })
 
 describe('list', () => {
+  it('lists only adoptable credential families, preserving flow order', async () => {
+    const ctx = await harness()
+    registerFlow(ctx, async () => {})
+    for (const scope of ['foreign', 'fi-opencode', 'fi-antigravity']) {
+      ctx.authorization.registerFlow({ key: credentialKey(scope, 'example'), label: scope,
+        methods: [{ id: 'oauth', label: 'Sign in' }], run: async () => {} })
+    }
+    expect(ctx.fiAuthorizationController.listAdoptable()).toEqual([
+      { key: KEY, label: 'Anthropic', routeId: 'anthropic' },
+      { key: 'fi-opencode/example', label: 'fi-opencode', routeId: 'example' },
+      { key: 'fi-antigravity/example', label: 'fi-antigravity', routeId: 'example' },
+    ])
+  })
+
+  it('refuses credential mutations when no store is mounted', async () => {
+    const ctx = new Context()
+    contexts.push(ctx)
+    await ctx.plugin(FiAuthorizationController)
+    await expect(ctx.fiAuthorizationController.revoke(KEY)).rejects.toMatchObject({ code: 'gateway/internal' })
+    await expect(ctx.fiAuthorizationController.adopt(KEY)).rejects.toMatchObject({ code: 'gateway/internal' })
+  })
+
   it('reports a registered flow and whether its record is stored', async () => {
     const ctx = await harness()
     registerFlow(ctx, async () => { await commit(ctx) })
@@ -171,6 +193,52 @@ describe('list', () => {
 })
 
 describe('begin', () => {
+  it('ignores a retired signal after an answer and refuses duplicate attempts or answers', async () => {
+    const ctx = await harness()
+    const retired = new AbortController()
+    registerFlow(ctx, async (session) => {
+      session.notify({ message: 'Waiting' })
+      expect(await session.prompt({ kind: 'text', message: 'Code', placeholder: 'Paste here', signal: retired.signal })).toBe('code')
+      await commit(ctx)
+    })
+    const stream = ctx.fiAuthorizationController.begin({ key: KEY, method: 'oauth' }, new AbortController().signal)
+    expect(() => ctx.fiAuthorizationController.begin({ key: KEY }, new AbortController().signal)).toThrow('already running')
+    const frames: AuthorizationFrameView[] = []
+    for await (const frame of stream) {
+      frames.push(frame)
+      if (frame.kind !== 'prompt') continue
+      expect(() => { ctx.fiAuthorizationController.answer(KEY, frame.id + 1, 'code') }).toThrow('no authorization prompt')
+      ctx.fiAuthorizationController.answer(KEY, frame.id, 'code')
+      retired.abort()
+    }
+    expect(frames[0]).toEqual({ kind: 'notice', message: 'Waiting' })
+    expect(frames[1]).toMatchObject({ prompt: { placeholder: 'Paste here' } })
+    expect(frames.some(frame => frame.kind === 'withdraw')).toBe(false)
+    expect(frames.at(-1)).toMatchObject({ kind: 'settled', status: 'authorized' })
+  })
+
+  it('closes unanswered prompts and ignores notices after an attempt settles', async () => {
+    const ctx = await harness()
+    let lateNotice = () => {}
+    let pending: Promise<unknown> | undefined
+    registerFlow(ctx, async (session) => {
+      pending = session.prompt({ kind: 'text', message: 'Unanswered' }).catch((error: unknown) => error)
+      lateNotice = () => { session.notify({ message: 'Late' }) }
+      await commit(ctx)
+    })
+    const frames = await drain(ctx.fiAuthorizationController.begin({ key: KEY }, new AbortController().signal))
+    await expect(pending).resolves.toMatchObject({ code: 'authorization/withdrawn' })
+    lateNotice()
+    expect(frames.map(frame => frame.kind)).toEqual(['prompt', 'settled'])
+  })
+
+  it('turns a non-Error seam rejection into a terminal failure frame', async () => {
+    const ctx = await harness()
+    vi.spyOn(ctx.authorization, 'begin').mockRejectedValue('seam unavailable')
+    expect(await drain(ctx.fiAuthorizationController.begin({ key: KEY }, new AbortController().signal)))
+      .toEqual([{ kind: 'settled', status: 'failed', message: 'seam unavailable' }])
+  })
+
   it('streams notices and ends with one settled frame', async () => {
     const ctx = await harness()
     registerFlow(ctx, async (session) => {
@@ -401,6 +469,49 @@ describe('revoke', () => {
 })
 
 describe('adopt', () => {
+  it('reports Host unloading after the route commit while retaining the grant', async () => {
+    const ctx = await harness({ settings: true, llm: true })
+    await commit(ctx)
+    const credentialFile = join(ctx.profileContext.home, '.credentials.yaml')
+    const settings = ctx.settings
+    const mutate = settings.mutate.bind(settings)
+    vi.spyOn(settings, 'mutate').mockImplementation(async (...args) => {
+      await mutate(...args)
+      await ctx.fiber.dispose()
+    })
+    await expect(ctx.fiAuthorizationController.adopt(KEY)).rejects.toMatchObject({ code: 'authorization/adopt-blocked' })
+    expect(readFileSync(credentialFile, 'utf8')).toContain('anthropic')
+  })
+
+  it.each(['unregistered', 'read-only', 'read-failed', 'write-failed'] as const)('keeps grants when settings are %s', async (state) => {
+    const ctx = await harness({ settings: true, llm: true })
+    await commit(ctx)
+    if (state === 'unregistered') vi.spyOn(ctx.settings, 'describe').mockReturnValue([])
+    if (state === 'read-only') vi.spyOn(ctx.settings, 'writable', 'get').mockReturnValue(false)
+    if (state === 'read-failed') vi.spyOn(ctx.settings, 'describe').mockImplementation(() => { throw new Error('loading') })
+    const writes = state === 'write-failed' ? vi.spyOn(ctx.settings, 'mutate').mockRejectedValue(new Error('revision conflict')) : undefined
+    await expect(ctx.fiAuthorizationController.adopt(KEY)).rejects.toMatchObject({ code: 'authorization/adopt-blocked' })
+    if (writes !== undefined) expect(writes).toHaveBeenCalledTimes(2)
+    expect((await ctx.credentials.describeRecord(credentialKey('llm-pi-ai', 'anthropic'))).configured).toBe(true)
+  })
+
+  it('creates the route from an empty settings value and reports an absent LLM service', async () => {
+    const ctx = await harness({ settings: true })
+    await commit(ctx)
+    const view = ctx.settings.describe().find(view => view.ns === 'llm-pi-ai')!
+    vi.spyOn(ctx.settings, 'describe').mockReturnValue([{ ...view, value: undefined }])
+    await expect(ctx.fiAuthorizationController.adopt(KEY)).rejects.toMatchObject({ code: 'gateway/internal' })
+  })
+
+  it('skips unknown credential families without touching settings', async () => {
+    const ctx = await harness({ settings: true })
+    const key = credentialKey('foreign', 'example')
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve({ kind: 'grant', payload: {} }))
+    const mutate = vi.spyOn(ctx.settings, 'mutate')
+    await expect(ctx.fiAuthorizationController.adopt(key)).rejects.toMatchObject({ code: 'authorization/adopt-blocked' })
+    expect(mutate).not.toHaveBeenCalled()
+  })
+
   it('reports discovery failure and retains the grant and route for retry', async () => {
     const ctx = await harness({ settings: true, llm: true })
     await commit(ctx)

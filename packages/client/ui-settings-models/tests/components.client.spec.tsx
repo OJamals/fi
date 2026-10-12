@@ -462,6 +462,24 @@ describe('ModelsSection', () => {
     expect(screen.queryByLabelText(en.keyInput)).toBeNull()
   })
 
+  it.each(['openai', 'anthropic'])('lets a namespace override use the shared subscription editor for %s', async (provider) => {
+    const renderSlot = stubRenderSlot()
+    renderSlot.mockImplementation((name, owner, options) => {
+      if (name === 'settings.models.provider-editor') {
+        const renderSubscriptionEditor = owner.renderSubscriptionEditor as (format: 'ids') => ReactNode
+        return renderSubscriptionEditor('ids') ?? null
+      }
+      return options?.fallback ?? null
+    })
+    const scripted = scriptedFace()
+    const original = await scripted.face.llm.listConfigurableProviders()
+    scripted.face.llm.listConfigurableProviders.mockResolvedValue(remoteOk(original.value.map(entry => ({ ...entry, declared: provider === 'openai' }))))
+    await mountFace(scripted, renderSlot)
+    fireEvent.click(screen.getByRole('button', { name: provider === 'anthropic' ? en.add : `Edit ${provider}` }))
+    expect(screen.getByLabelText(en.customDisplayName)).toBeTruthy()
+    expect(screen.queryByLabelText(en.keyInput)).toBeNull()
+  })
+
   it('dispatches the provider-card seat inside the first-run setup card', async () => {
     const { renderSlot } = await mountFirstRun()
     expect(cardSeatCalls(renderSlot)).toContainEqual(['deepseek-official', true, false, 'llm-deepseek'])

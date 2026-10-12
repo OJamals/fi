@@ -32,7 +32,7 @@ Antigravity OAuth adapter and Cloud Code transport for fi. Registers the Antigra
 - Owns the `fi-antigravity` settings namespace: one profile per route, dormant until a profile exists
 - Mounts an `LlmAdapter` serving those routes through the Cloud Code transport (`streamGenerateContent` with the Antigravity envelope); its model-catalog provider name is the lowercase route id `antigravity`
 - Declares the directory entry the Models page's add-provider catalog reads, and answers model discovery for its namespace (live projected catalog when a grant reaches it, static fallback otherwise)
-- Rotates near-expiry access tokens through the credentials seam's serialized `modifyRecord`, so concurrent calls never lose a refresh
+- Rotates near-expiry access tokens through the credentials seam's serialized `modifyRecord`, so concurrent calls never lose a refresh; a grant revoked before the update acquires the record resolves as signed out
 - Resolves the Google OAuth client id and secret through the credentials seam per sign-in and refresh, never as a repository literal; sign-in and refresh fail loud, naming both refs, when neither is configured
 
 <a id="how-it-works"></a>
@@ -40,7 +40,7 @@ Antigravity OAuth adapter and Cloud Code transport for fi. Registers the Antigra
 
 Each route profile accepts `displayName` and a `models` array of model ids. An absent array exposes the complete catalog; an empty array hides every model from the picker. Model discovery always returns the complete catalog, so an editor can restore excluded models. These presentation settings do not restrict explicit model resolution or change the subscription account.
 
-The OAuth flow authenticates with a Google installed-app OAuth client, a loopback redirect on `127.0.0.1:54545`, and five scopes including `cloud-platform` and `cclog`. After exchange it discovers the `cloudaicompanionProject` via `loadCodeAssist`, which becomes the billing project every inference request names.
+The OAuth flow authenticates with a Google installed-app OAuth client, a loopback redirect on `127.0.0.1:54545`, and five scopes including `cloud-platform` and `cclog`. The callback listener settles once with either a code and state or an error, and closes on completion, timeout, or cancellation. After exchange it discovers the `cloudaicompanionProject` via `loadCodeAssist`, which becomes the billing project every inference request names.
 
 ### OAuth client configuration
 
@@ -53,6 +53,8 @@ The transport reads its capture-pinned endpoint, CLI fingerprint version, client
 Subscription consumers call `resolveAntigravityGrant(ctx, signal)` from the package root so token refresh remains serialized by the credential store. Native Gemini consumers import `callAntigravityGeminiNative` from `@fi/llm-antigravity/transport`; `action: "generateContent"` returns collected native Gemini JSON, while `streamGenerateContent` returns native SSE. The same transport exports `callAntigravityImageGenerations` and `callAntigravityImageEdits`, which project OpenAI Images request fields into the native Gemini request and return OpenAI Images JSON without a second SSE parser. The transport preserves candidate metadata such as `groundingMetadata`; a web-search provider owns grounding validation and result projection.
 
 Every upstream fetch rejects redirects. Native request, inline-media, response-total, SSE-line, and SSE-frame ceilings are positive-integer call options; omitted native request, inline-media, and response-total ceilings use the captured 20 MiB protocol/security limit, while fi image projection reuses the deployment's validated attachment policy. Non-success and in-band provider errors expose status-only diagnostics, and cancelling either the operation or returned stream cancels the upstream reader.
+
+Chat request validation rejects invalid tool arguments, tool choices, and response formats before projection. Transport entrypoints reject missing or non-SSE bodies before decoding. Replay resolves durable images before projection; generated image admission returns attachments in input order.
 
 **Runtime invariant:** No companion is published. The flow's per-attempt PKCE verifier and loopback server are created and torn down inside that attempt's own run; only the committed grant persists.
 
@@ -77,7 +79,7 @@ Conversion preserves logical request order. The upstream is stateless per reques
 
 #### What the model sees
 
-Upstream Gemini SSE events become harness reasoning, text, image, tool-call, usage, and finish chunks in native part order; a stream that ends without a finish reason surfaces as an error, never a silently truncated answer. Generated image count and aggregate decoded bytes use the mounted attachment policy, and declared image media types are accepted only after the attachment service decodes and verifies the raster.
+Upstream Gemini SSE events become harness reasoning, text, image, tool-call, usage, and finish chunks in native part order; a stream that ends without a finish reason surfaces as an error, never a silently truncated answer. After a finish reason, `[DONE]` closes the returned chat stream and releases the upstream reader. Generated image count and aggregate decoded bytes use the mounted attachment policy, and declared image media types are accepted only after the attachment service decodes and verifies the raster.
 
 #### Token effect
 

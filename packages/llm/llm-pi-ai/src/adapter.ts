@@ -46,6 +46,7 @@ import {
   LlmAdapter,
   LlmError,
   ReasoningEffortId,
+  userAgent,
 } from '@deepseek-ai/dsh-llm'
 import type {
   GenerateOptions,
@@ -162,7 +163,7 @@ export interface PiAiAdapterOptions {
   /**
    * Resolve live model ids/names a full-catalog OAuth-subscription route
    * currently advertises beyond its installed catalog. Called only for a
-   * route whose profile carries no `models` list and whose resolved auth is
+   * route whose profile carries no nonempty `models` list and whose resolved auth is
    * `OAuth` (checked with pi-ai's own `Models.getAuth`, never a raw
    * credential read); the result augments, never replaces, the installed
    * catalog. Absent means no route on this adapter instance is ever
@@ -630,10 +631,7 @@ export class PiAiAdapter extends LlmAdapter {
     signal: AbortSignal,
   ): Promise<AuthenticatedPiAiRequestTransport | undefined> {
     if (this.config.resolveRequestTransport === undefined) return undefined
-    const harnessUserAgent = attributionHeaders()['user-agent']
-    if (harnessUserAgent === undefined) {
-      throw new LlmError('Harness attribution lacks User-Agent', 'AUTH')
-    }
+    const harnessUserAgent = userAgent()
     const candidate = await this.config.resolveRequestTransport({
       provider: options.provider,
       model: options.model,

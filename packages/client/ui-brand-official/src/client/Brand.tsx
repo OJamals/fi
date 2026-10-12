@@ -1,4 +1,5 @@
 import css from './Brand.module.css'
+import type { CSSProperties } from 'react'
 
 /** Presentation accepted from both sidebar and conversation brand slots. */
 interface OfficialBrandMarkProps {
@@ -9,7 +10,10 @@ interface OfficialBrandMarkProps {
 /** Render the theme-responsive official fi artwork with the presentation requested by its host surface. */
 export function OfficialBrandMark({ size, className }: OfficialBrandMarkProps) {
   const imageClassName = className === undefined ? css.artwork : `${css.artwork} ${className}`
-  return <img src="/fi-logo.png" alt="" width={size} height={size} className={imageClassName} />
+  const style = {
+    '--fi-brand-dark-image': `url("${new URL('fi-logo-dark-background.png', document.baseURI).href}")`,
+  } as CSSProperties
+  return <img src="fi-logo.png" alt="" width={size} height={size} className={imageClassName} style={style} />
 }
 
 /** Suppress redundant text because the official artwork already spells fi. */

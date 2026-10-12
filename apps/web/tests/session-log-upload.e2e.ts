@@ -20,7 +20,7 @@ it.skipIf(webSnapshotMode() === 'record')('persists the upload switch and omits 
   await writeFile(overlay, JSON.stringify([
     { id: 'llm-deepseek', config: { baseURL: server.baseURL, apiKeyEnv: key } },
     { id: 'session-log-deepseek', config: { enabled: true } },
-    { id: 'agent-default-model', config: { provider: 'deepseek-official', model: 'deepseek-v4-flash' } },
+    { id: 'agent-default-model', config: { provider: 'deepseek-official', model: 'deepseek-flash' } },
   ]))
   const scaffold = await launchWebScaffold({ deepSeekMissingCredential: true, extraOverlayPath: overlay })
   onTestFinished(() => scaffold.close())

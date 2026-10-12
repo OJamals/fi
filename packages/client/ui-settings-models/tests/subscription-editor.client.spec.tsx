@@ -7,10 +7,52 @@ import type { SettingsNamespaceView } from '@deepseek-ai/dsh-api-remotes/client'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import { ProviderEditor } from '../src/client/ProviderEditor.tsx'
 import type { ModelsOperations, SettingsWriteOutcome } from '../src/client/operations.ts'
+import type { ModelDiscoveryOutcome } from '../src/client/operations.ts'
 import { en } from '../src/client/locales.ts'
 import { settingsSchema } from './settings-schema.client.ts'
 
 afterEach(cleanup)
+
+it.each([new Error('transport lost'), 'transport lost'])('shows unexpected discovery failures: %s', async (error) => {
+  const { operations } = mount('antigravity')
+  operations.discoverModels.mockRejectedValue(error)
+  fireEvent.click(screen.getByRole('button', { name: en.fetchModels }))
+  await screen.findByText('transport lost')
+})
+
+it.each([new Error('transport lost'), 'transport lost'])('retains a draft after an unexpected save failure: %s', async (error) => {
+  const { operations, onClose } = mount('antigravity')
+  operations.writeSettings.mockRejectedValue(error)
+  fireEvent.change(screen.getByLabelText(en.customDisplayName), { target: { value: 'Draft' } })
+  fireEvent.click(screen.getByRole('button', { name: en.apply }))
+  await screen.findByText('transport lost')
+  expect(onClose).not.toHaveBeenCalled()
+  expect(screen.getByLabelText<HTMLInputElement>(en.customDisplayName).value).toBe('Draft')
+})
+
+it.each([false, true])('ignores late discovery settlement after unmount; rejection=%s', async (reject) => {
+  const { operations, rendered } = mount('antigravity')
+  const pending = Promise.withResolvers<ModelDiscoveryOutcome>()
+  operations.discoverModels.mockReturnValue(pending.promise)
+  fireEvent.click(screen.getByRole('button', { name: en.fetchModels }))
+  rendered.unmount()
+  await act(async () => {
+    if (reject) pending.reject(new Error('late failure'))
+    else pending.resolve({ kind: 'found', models: [] })
+  })
+  expect(screen.queryByText('late failure')).toBeNull()
+})
+
+it('ignores an unexpected save failure after unmount', async () => {
+  const { operations, onClose, rendered } = mount('antigravity')
+  const pending = Promise.withResolvers<SettingsWriteOutcome>()
+  operations.writeSettings.mockReturnValue(pending.promise)
+  fireEvent.change(screen.getByLabelText(en.customDisplayName), { target: { value: 'Draft' } })
+  fireEvent.click(screen.getByRole('button', { name: en.apply }))
+  rendered.unmount()
+  await act(async () => { pending.reject(new Error('late failure')) })
+  expect(onClose).not.toHaveBeenCalled()
+})
 
 function mount(provider: string, models?: JsonValue, readOnly = false) {
   const idsOnly = provider === 'antigravity' || provider === 'opencode-console'

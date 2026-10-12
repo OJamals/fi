@@ -22,6 +22,71 @@ async function mount(config: Record<string, number> = {}): Promise<{ ctx: Contex
 }
 
 describe('Problems', () => {
+  it('orders file diagnostics before workspace diagnostics and codes before uncoded entries', async () => {
+    const { problems } = await mount()
+    const entries: ProblemInput[] = [
+      { severity: 'info', message: 'workspace' },
+      { severity: 'info', message: 'b', path: 'b.ts' },
+      { severity: 'info', message: 'uncoded', path: 'a.ts' },
+      { severity: 'info', message: 'second code', path: 'a.ts', code: 'B' },
+      { severity: 'info', message: 'first code', path: 'a.ts', code: 'A' },
+    ]
+    const snapshot = problems.replace(root, source, entries)
+    expect(snapshot.problems.map(entry => entry.message)).toEqual([
+      'first code', 'second code', 'uncoded', 'b', 'workspace',
+    ])
+    expect(problems.replace(root, source, entries.toReversed())).toEqual(snapshot)
+  })
+
+  it('validates range ends and detaches returned positions', async () => {
+    const { problems } = await mount()
+    for (const end of [{ line: 2, column: 8 }, { line: 3, column: 4 }]) {
+      expect(() => problems.replace(root, source, [problem({
+        range: { start: { line: 3, column: 5 }, end },
+      })])).toThrow(/must not precede/)
+    }
+    expect(() => problems.replace(root, source, [problem({
+      range: { start: { line: 3, column: 5 }, end: { line: 4, column: 0 } },
+    })])).toThrow(/range.end.column/)
+    for (const end of [{ line: 3, column: 5 }, { line: 4, column: 1 }]) {
+      const entry = problem({ range: { start: { line: 3, column: 5 }, end } })
+      const snapshot = problems.replace(root, source, [entry])
+      expect(snapshot.problems[0]?.range?.end).toEqual(end)
+      expect(snapshot.problems[0]?.range?.end).not.toBe(end)
+      expect(problems.replace(root, source, [entry]).revision).toBe(snapshot.revision)
+    }
+  })
+
+  it('rejects empty identifiers, messages, and invalid direct configuration', async () => {
+    const { problems } = await mount()
+    for (const workspace of [' ', '/bad\0path']) {
+      expect(() => problems.inspect(workspace)).toThrow(/workspaceRoot/)
+    }
+    for (const id of [' ', 'bad\nid']) {
+      expect(() => problems.replace(root, ProblemSourceId(id), [])).toThrow(/single-line id/)
+    }
+    expect(() => problems.replace(root, source, [problem({ message: '' })])).toThrow(/message must be non-empty/)
+    for (const value of [0, 1.5]) {
+      expect(() => new Problems(new Context(), { maxProblemsPerSource: value })).toThrow(/positive safe integer/)
+    }
+  })
+
+  it('contains asynchronous listener rejection without losing later notifications', async () => {
+    const { ctx, problems } = await mount()
+    const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => {})
+    const dispose = problems.subscribe(root, async () => { throw new Error('async listener broke') })
+    const seen = vi.fn()
+    problems.subscribe(root, seen)
+    problems.replace(root, source, [problem()])
+    await vi.waitFor(() => { expect(warn).toHaveBeenCalledWith(expect.stringContaining('async listener broke')) })
+    dispose()
+    dispose()
+    problems.replace(root, source, [])
+    expect(seen).toHaveBeenCalledTimes(2)
+    warn.mockRestore()
+    await ctx.fiber.dispose()
+  })
+
   it('atomically replaces one source and returns detached snapshots', async () => {
     const { problems } = await mount()
     const first = problems.replace(root, source, [problem()])

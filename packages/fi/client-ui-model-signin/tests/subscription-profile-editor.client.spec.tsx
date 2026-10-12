@@ -9,7 +9,7 @@ import { en } from '../src/client/locales.ts'
 
 afterEach(cleanup)
 
-function mount(provider: string, profile = {}, pendingRead?: Promise<SettingsNamespaceView>) {
+function mount(provider: string, profile = {}, pendingRead?: Promise<SettingsNamespaceView>, strict = true) {
   const ns = provider === 'antigravity' ? 'fi-antigravity' : 'fi-opencode'
   const view: SettingsNamespaceView = {
     ns, schema: {}, value: { providers: { [provider]: profile } }, user: {},
@@ -22,14 +22,73 @@ function mount(provider: string, profile = {}, pendingRead?: Promise<SettingsNam
     ]),
     write: vi.fn<SubscriptionEditorOperations['write']>().mockResolvedValue(undefined),
   }
-  if (pendingRead !== undefined) operations.read.mockReturnValueOnce(pendingRead)
+  if (pendingRead !== undefined) {
+    if (strict) operations.read.mockReturnValueOnce(pendingRead)
+    else operations.read.mockReturnValue(pendingRead)
+  }
   const onClose = vi.fn()
   const editor = <SubscriptionProfileEditor
     provider={{ provider, displayName: provider, settingsNs: ns, settingsPath: ['providers', provider], active: true }}
     configured readOnly={false} operations={operations} t={key => en[key]} onClose={onClose} />
-  render(pendingRead === undefined ? editor : <StrictMode>{editor}</StrictMode>)
-  return { operations, onClose, ns, view }
+  const rendered = render(pendingRead === undefined || !strict ? editor : <StrictMode>{editor}</StrictMode>)
+  return { operations, onClose, ns, view, rendered }
 }
+
+it.each([new Error('read failed'), 'read failed'])('displays settings read failure: %s', async (error) => {
+  const pending = Promise.withResolvers<SettingsNamespaceView>()
+  mount('antigravity', {}, pending.promise, false)
+  await act(async () => { pending.reject(error) })
+  expect(screen.getByRole('alert').textContent).toBe('read failed')
+})
+
+it.each([null, { providers: null }, { providers: {} }])('accepts missing profile fields from settings: %j', async (value) => {
+  const pending = Promise.withResolvers<SettingsNamespaceView>()
+  const { view, onClose, operations } = mount('antigravity', {}, pending.promise, false)
+  await act(async () => { pending.resolve({ ...view, value }) })
+  fireEvent.click(screen.getByRole('button', { name: en.apply }))
+  await waitFor(() => { expect(onClose).toHaveBeenCalledWith(false) })
+  expect(operations.write).not.toHaveBeenCalled()
+})
+
+it('unsets a cleared name and retains newly selected model ids', async () => {
+  const { operations, ns } = mount('antigravity', { displayName: 'Saved', models: ['first'] })
+  await screen.findByRole('checkbox', { name: 'first' })
+  operations.discover.mockResolvedValue([{ id: 'first' }, { id: 'second' }])
+  fireEvent.click(screen.getByRole('button', { name: en.fetchModels }))
+  await screen.findByRole('checkbox', { name: 'second' })
+  fireEvent.click(screen.getByRole('checkbox', { name: 'second' }))
+  fireEvent.change(screen.getByLabelText(en.displayName), { target: { value: ' ' } })
+  fireEvent.click(screen.getByRole('button', { name: en.apply }))
+  await waitFor(() => { expect(operations.write).toHaveBeenCalledWith(ns, [
+    { op: 'unset', path: ['providers', 'antigravity', 'displayName'] },
+    { op: 'set', path: ['providers', 'antigravity', 'models'], value: ['first', 'second'] },
+  ], 7) })
+})
+
+it('reports an empty discovered catalog and a non-Error failure', async () => {
+  const { operations } = mount('antigravity')
+  await waitFor(() => { expect(screen.getByRole('button', { name: en.apply }).hasAttribute('disabled')).toBe(false) })
+  operations.discover.mockResolvedValueOnce([])
+  fireEvent.click(screen.getByRole('button', { name: en.fetchModels }))
+  await screen.findByText(en.modelsEmpty)
+  operations.discover.mockRejectedValueOnce('offline')
+  fireEvent.click(screen.getByRole('button', { name: en.fetchModels }))
+  await screen.findByText('offline')
+})
+
+it.each([false, true])('ignores discovery after unmount; rejection=%s', async (reject) => {
+  const { operations, rendered } = mount('antigravity')
+  await waitFor(() => { expect(screen.getByRole('button', { name: en.apply }).hasAttribute('disabled')).toBe(false) })
+  const pending = Promise.withResolvers<Awaited<ReturnType<SubscriptionEditorOperations['discover']>>>()
+  operations.discover.mockReturnValue(pending.promise)
+  fireEvent.click(screen.getByRole('button', { name: en.fetchModels }))
+  rendered.unmount()
+  await act(async () => {
+    if (reject) pending.reject(new Error('late failure'))
+    else pending.resolve([])
+  })
+  expect(screen.queryByRole('alert')).toBeNull()
+})
 
 describe.each(['antigravity', 'opencode-console'])('%s profile editor', (provider) => {
   it.each(['resolve', 'reject'] as const)('ignores a stale settings read that later %ss after the effect restarts', async (outcome) => {

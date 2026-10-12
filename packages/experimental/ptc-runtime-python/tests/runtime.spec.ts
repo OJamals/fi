@@ -1060,7 +1060,9 @@ describe('PythonPtcRuntime — programs and bindings', () => {
   }, 15_000)
 
   it('exposes only the platform temp directory from the host environment', async () => {
-    const { runtime } = await setup()
+    // Version-manager shims can export their own PATH before launching Python.
+    const pythonBin = execFileSync(PYABS, ['-c', 'import sys; print(sys.executable)'], { encoding: 'utf8' }).trim()
+    const { runtime } = await setup({ pythonBin })
     const result = await runtime.run(runtime.resolve({
       program: [
         'import os',

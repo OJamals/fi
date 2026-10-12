@@ -83,6 +83,7 @@ export function SubscriptionProfileEditor({ provider, readOnly, onClose, operati
     if (found.length === 0) setError(t('modelsEmpty'))
   }) }
   const save = (): void => { void run(async () => {
+    /* v8 ignore next -- Apply is disabled until the settings read supplies its revision. */
     if (view === undefined) return
     const ops: SettingsPathOpView[] = []
     if (changed.current.name) ops.push(name.trim().length === 0

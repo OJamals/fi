@@ -20,6 +20,7 @@ import { assemble } from './assemble.ts'
 import { closeMockServers, mockServer, textEvents } from './mock-server.ts'
 
 afterEach(async () => {
+  vi.useRealTimers()
   vi.unstubAllEnvs()
   await closeMockServers()
 })
@@ -417,8 +418,13 @@ describe('PiAiAdapter provider routing', () => {
     const server = await mockServer([{ events: textEvents, delayMs: 200 }])
     const ctx = await harness(server.url, { streamIdleTimeoutMs: 20 })
 
-    const result = await assemble(ctx, { model: 'deepseek-flash', messages: [] })
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const assembling = assemble(ctx, { model: 'deepseek-flash', messages: [] })
+    await server.requestReceived
+    await vi.advanceTimersByTimeAsync(21)
+    const result = await assembling
     expect(result.finish).toMatchObject({ kind: 'error', failure: { code: 'TIMEOUT' } })
+    vi.useRealTimers()
     await Promise.race([
       server.responseClosed,
       new Promise<never>((_resolve, reject) => {
@@ -904,7 +910,7 @@ describe('provider profile lifecycle', () => {
   })
 
   it('rejects unsupported or unresolved image input before provider I/O', async () => {
-    const adapter = adapterOf({ openai: {}, deepseek: {} })
+    const adapter = adapterOf({ openai: {}, deepseek: { models: [{ id: 'deepseek-flash', input: ['text'] }] } })
     const drain = async (options: Parameters<PiAiAdapter['stream']>[0]): Promise<void> => {
       for await (const _chunk of adapter.stream(options)) { /* drain */ }
     }

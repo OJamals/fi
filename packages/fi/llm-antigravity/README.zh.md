@@ -32,7 +32,7 @@ Antigravity OAuth 适配器与 Cloud Code 传输，为 fi 提供 Antigravity 登
 - 拥有 `fi-antigravity` 设置命名空间：每条路由一份 profile，无 profile 时保持休眠
 - 挂载一个 `LlmAdapter`，通过 Cloud Code 传输（带有 Antigravity envelope 的 `streamGenerateContent`）为这些路由提供服务；模型目录中的提供方名称为小写路由 id `antigravity`
 - 声明模型页面"添加提供方"目录所读取的目录项，并为其命名空间应答模型发现（授权可达实时目录时使用实时投影目录，否则回退到静态目录）
-- 通过凭据接缝的串行化 `modifyRecord` 轮换临近过期的访问令牌，并发调用不会丢失刷新
+- 通过凭据接缝的串行化 `modifyRecord` 轮换临近过期的访问令牌，并发调用不会丢失刷新；如果授权在更新取得记录前被撤销，则返回未登录状态
 - 每次登录与刷新都通过凭据接缝解析 Google OAuth 客户端 id 与密钥，绝不作为仓库字面量；两者均未配置时，登录与刷新会显式失败并指出这两个引用名
 
 <a id="how-it-works"></a>
@@ -40,7 +40,7 @@ Antigravity OAuth 适配器与 Cloud Code 传输，为 fi 提供 Antigravity 登
 
 每条路由的 profile 接受 `displayName` 与模型 id 数组 `models`。省略数组时显示完整目录；空数组在选择器中隐藏所有模型。模型发现始终返回完整目录，因此编辑器可以恢复排除的模型。这些显示设置不限制显式模型解析，也不更改订阅账户。
 
-OAuth 流程使用一个 Google 已安装应用 OAuth 客户端、回环重定向到 `127.0.0.1:54545`，以及五个 scope（含 `cloud-platform` 与 `cclog`）。交换后通过 `loadCodeAssist` 发现 `cloudaicompanionProject`，它成为每个推理请求所命名的计费项目。
+OAuth 流程使用一个 Google 已安装应用 OAuth 客户端、回环重定向到 `127.0.0.1:54545`，以及五个 scope（含 `cloud-platform` 与 `cclog`）。回调监听器只结束一次，返回代码与 state 或错误，并在完成、超时或取消时关闭。交换后通过 `loadCodeAssist` 发现 `cloudaicompanionProject`，它成为每个推理请求所命名的计费项目。
 
 ### OAuth 客户端配置
 
@@ -53,6 +53,8 @@ OAuth 流程使用一个 Google 已安装应用 OAuth 客户端、回环重定�
 订阅能力消费者从包根调用 `resolveAntigravityGrant(ctx, signal)`，使令牌刷新继续由凭据存储串行处理。原生 Gemini 消费者从 `@fi/llm-antigravity/transport` 导入 `callAntigravityGeminiNative`；`action: "generateContent"` 返回汇总后的原生 Gemini JSON，`streamGenerateContent` 返回原生 SSE。同一传输还导出 `callAntigravityImageGenerations` 与 `callAntigravityImageEdits`，它们将 OpenAI Images 请求字段投影为原生 Gemini 请求，并在不增加第二套 SSE 解析器的情况下返回 OpenAI Images JSON。传输保留 `groundingMetadata` 等候选项元数据；网页搜索提供方负责依据验证与结果投影。
 
 每次上游 fetch 都拒绝重定向。原生请求、内联媒体、响应总量、SSE 行与 SSE 帧上限是正整数调用选项；省略原生请求、内联媒体与响应总量上限时使用捕获所得的 20 MiB 协议/安全上限，fi 图像投影则复用部署中已验证的附件策略。非成功响应和流内提供方错误只暴露状态诊断；取消操作或返回的流都会取消上游读取器。
+
+聊天请求在投影前验证工具参数、工具选择与响应格式。传输入口在解码前拒绝缺失或非 SSE 响应体。回放在投影前解析持久图像；生成图像的接收操作按输入顺序返回附件。
 
 **运行时不变量：** 未发布 invariant companion。流程每次尝试的 PKCE verifier 与回环服务器在该次尝试自身的运行内创建并拆除；只有已提交的授权会持久保留。
 
@@ -77,7 +79,7 @@ OAuth 流程使用一个 Google 已安装应用 OAuth 客户端、回环重定�
 
 #### 模型看到什么
 
-上游 Gemini SSE 事件按原生部件顺序成为 harness 的推理、文本、图像、工具调用、用量与结束块；没有结束原因就终止的流呈现为错误，而不是静默截断的回答。生成图像数量与解码后总字节数使用已挂载附件策略的限制；附件服务只有在解码并验证真实光栅后才接受声明的图像媒体类型。
+上游 Gemini SSE 事件按原生部件顺序成为 harness 的推理、文本、图像、工具调用、用量与结束块；没有结束原因就终止的流呈现为错误，而不是静默截断的回答。收到结束原因后，`[DONE]` 会关闭返回的聊天流并释放上游读取器。生成图像数量与解码后总字节数使用已挂载附件策略的限制；附件服务只有在解码并验证真实光栅后才接受声明的图像媒体类型。
 
 #### Token 影响
 

@@ -70,6 +70,39 @@ function mount(state: Partial<SignInState>): { controller: SectionController; st
 }
 
 describe('the section as a whole', () => {
+  it.each(['already', 'skipped'] as const)('renders an adoption with route=%s and no models', (route) => {
+    mount({ adopted: { key: FOUR_ROWS[0]!.key, route, models: [] } })
+    expect(screen.queryByText(en.footerModelsTitle)).toBeNull()
+  })
+
+  it('opens and closes the adopted model list', () => {
+    mount({ adopted: { key: FOUR_ROWS[0]!.key, route: 'created', models: ['fixture-model'] } })
+    fireEvent.click(screen.getByText(en.footerModelsTitle))
+    expect(screen.getByText('fixture-model')).toBeTruthy()
+    fireEvent.click(screen.getByText(en.footerModelsTitle))
+  })
+
+  it('renders initial, loading, and failed states without a diagnostic', () => {
+    mount({ status: 'idle' })
+    expect(screen.queryByText(en.footerTitle)).toBeNull()
+    cleanup()
+    mount({ status: 'loading' })
+    expect(screen.getByText(en.footerLoading)).toBeTruthy()
+    cleanup()
+    mount({ status: 'failed', error: null })
+    expect(screen.getByRole('alert').textContent).toContain(en.failed)
+  })
+
+  it('keeps an attempt diagnostic when its route disappears', () => {
+    mount({ error: 'offline', attempt: { key: 'removed/provider', notice: null, prompt: null, settled: { status: 'failed' } } })
+    expect(screen.getByRole('alert').textContent).toContain('offline')
+    expect(screen.getByText(t('footerAttempt', { provider: 'removed/provider' }))).toBeTruthy()
+  })
+
+  it('omits setup when the registered flow is not adoptable', () => {
+    mount({ adoptEntries: [] })
+    expect(screen.queryByRole('button', { name: /Add .*provider/ })).toBeNull()
+  })
   it('uses the same provider routes for sign-in and model grouping', () => {
     expect(SUBSCRIPTION_PROVIDER_IDS).toEqual(FOUR_ROWS.map(row => row.provider))
   })

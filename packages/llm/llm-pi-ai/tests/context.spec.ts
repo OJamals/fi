@@ -496,7 +496,7 @@ describe('pi-ai request context conversion', () => {
     const assistantRef = { ...ref, name: 'generated.png', bytes: 3 }
     const assistantReadImageRequest = vi.fn()
     const context = await toPiContext(request([
-      history('assistant', [{ type: 'image', attachment: assistantRef }]),
+      history('assistant', [{ type: 'image', attachment: assistantRef }, { type: 'text', text: 'caption' }]),
     ]), imageContext(projectionStore(assistantReadImageRequest), {
       maxRequestImageBytes: 1,
       resolveImageAccess: () => ({ readonlyPath: '/sandbox/attachments/generated.png' }),
@@ -506,7 +506,7 @@ describe('pi-ai request context conversion', () => {
       content: [{
         type: 'text',
         text: expect.stringContaining(`Image "generated.png" (${assistantRef.attachmentId})`) as string,
-      }],
+      }, { type: 'text', text: 'caption' }],
     }])
     const assistant = context.messages[0] as { role: string; content: { text: string }[] }
     expect(assistant.role).toBe('assistant')

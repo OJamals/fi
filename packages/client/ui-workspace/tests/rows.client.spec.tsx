@@ -722,6 +722,7 @@ describe('workspace browser rows', () => {
     const onOpen = vi.fn()
     const onEntry = vi.fn()
     const rendered = vi.fn()
+    let menuState: MenuOpenState | undefined
     // A stub satisfies the generic render signature only with erased parameter
     // types; it narrows the owner and the occurrence options itself.
     const renderSlot: RowRenderSlot = (name: RowSlotName, owner: object, opts?: object) => {
@@ -732,6 +733,7 @@ describe('workspace browser rows', () => {
       // The stub stands in for the renderer, which binds this occurrence's
       // hookContext into the entries' useMenuOpenState hook.
       const [open, setMenuOpen] = hookContext as MenuOpenState
+      menuState = [open, setMenuOpen]
       return (
         <MenuItemButton onSelect={() => {
           setMenuOpen(false)
@@ -757,7 +759,7 @@ describe('workspace browser rows', () => {
     expect(screen.queryByRole('menuitem')).toBeNull()
     const trigger = screen.getByRole('button', { name: '会话“One”的操作' })
     trigger.focus()
-    fireEvent.click(trigger)
+    act(() => { menuState![1](true) })
     expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual(['Export'])
     expect(rendered).toHaveBeenCalledWith(
       'sidebar.workspaces.session.menu.item', { sessionId: node.id, displayTitle: 'One' }, [true, expect.any(Function)],

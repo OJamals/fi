@@ -30,6 +30,7 @@ afterEach(async () => {
   while (cleanups.length > 0) await cleanups.pop()!()
   await closeMockServers()
   vi.unstubAllEnvs()
+  vi.unstubAllGlobals()
 })
 
 async function home(): Promise<string> {
@@ -56,6 +57,39 @@ async function boot(
 }
 
 describe('login flows in a real composition', () => {
+  it.each([false, true])('announces a saved sign-in with configured routes: %s', async (configured) => {
+    const ctx = await boot(await home(), configured ? { providers: { deepseek: {} } } : {}, { authorization: true })
+    const changed = vi.fn()
+    ctx.on('llm/adapters-updated', changed)
+    const result = await ctx.authorization.begin({
+      key: LlmPiAi.recordKeyFor('deepseek'),
+      method: 'api-key',
+      interaction: { notify: () => {}, prompt: () => Promise.resolve('fixture-api-key') },
+    })
+    expect(result).toEqual({ status: 'authorized' })
+    expect(await ctx.credentials.readRecord(LlmPiAi.recordKeyFor('deepseek'))).toMatchObject({
+      kind: 'api-key', key: 'fixture-api-key',
+    })
+    expect(changed).toHaveBeenCalledTimes(configured ? 1 : 0)
+  })
+
+  it('keeps subscription discovery and requests available without transport plugins', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response('{"error":{"message":"fixture denial"}}', { status: 401 }))
+    vi.stubGlobal('fetch', fetcher)
+    const ctx = await boot(await home(), { providers: { xai: {} } })
+    await ctx.credentials.modifyRecord(LlmPiAi.recordKeyFor('xai'), () => Promise.resolve({
+      kind: 'grant',
+      payload: { type: 'oauth', access: 'header.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.signature', refresh: 'fixture-refresh', expires: Date.now() + 3_600_000 },
+    }))
+    const models = await ctx.llm.listModels('xai')
+    expect(models.map(model => model.id)).toEqual(getBuiltinModels('xai').map(model => model.id))
+    const discovered = await ctx.llm.discoverModels('llm-pi-ai', { provider: 'xai' })
+    expect(discovered.map(model => model.id)).toEqual(models.map(model => model.id))
+    const result = await assemble(ctx, { provider: 'xai', model: 'grok-4.3', messages: [] })
+    expect(result.finish.kind).toBe('error')
+    expect(fetcher).toHaveBeenCalledOnce()
+  })
+
   it('offers a sign-in for a provider no route names, once the seam is mounted', async () => {
     const ctx = await boot(await home(), {}, { authorization: true })
 

@@ -1,5 +1,7 @@
 - button "新建会话"
 - button "收起侧边栏"
+- button "返回"
+- button "前进" [disabled]
 - button "新建会话": 新会话
 - navigation "全局面板":
   - button "插件"

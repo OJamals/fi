@@ -7,11 +7,16 @@ import Loader from '@deepseek-ai/cordis-plugin-loader'
 import LocalAttachmentStore from '@deepseek-ai/dsh-attachment-local'
 import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
-import { ToolCallId } from '@deepseek-ai/dsh-llm'
+import LlmRuntime, { ToolCallId } from '@deepseek-ai/dsh-llm'
+import AgentRegistry from '@deepseek-ai/dsh-agent'
+import AgentLoop from '@deepseek-ai/dsh-agent-loop'
+import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import { credentialStoreFrom } from '@deepseek-ai/dsh-llm-pi-ai'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import * as imageGenerationPlugin from '../src/index.ts'
+import { ImageToolOwner } from '../src/tool.ts'
 
 const dirs: string[] = []
 const contexts: Context[] = []
@@ -53,6 +58,7 @@ async function composition(
   config: imageGenerationPlugin.Config,
   signedIn = true,
   maxMessageImageBytes?: number,
+  maxImageBytes?: number,
 ): Promise<{ ctx: Context; fiber: Awaited<ReturnType<Context['plugin']>>; root: string }> {
   const root = await mkdtemp(join(tmpdir(), 'fi-image-generation-'))
   dirs.push(root)
@@ -64,6 +70,7 @@ async function composition(
   await ctx.plugin(LocalAttachmentStore, {
     dshHome: root,
     ...maxMessageImageBytes === undefined ? {} : { maxMessageImageBytes },
+    ...maxImageBytes === undefined ? {} : { maxImageBytes },
   })
   await ctx.plugin(LocalCredentialProvider, { path: join(root, '.credentials.yaml'), watch: false })
   if (signedIn) {
@@ -126,6 +133,8 @@ function firstResultText(result: { content: readonly unknown[] }): string {
 }
 
 afterEach(async () => {
+  vi.useRealTimers()
+  vi.restoreAllMocks()
   vi.unstubAllGlobals()
   const disposals = await Promise.allSettled(contexts.splice(0).map(ctx => ctx.fiber.dispose()))
   await Promise.all(dirs.splice(0).map(dir => rm(dir, { recursive: true, force: true })))
@@ -134,6 +143,131 @@ afterEach(async () => {
 })
 
 describe('image generation tool composition', () => {
+  it('resolves image references relative to the calling agent working directory', async () => {
+    const { ctx, root } = await composition(config())
+    await ctx.plugin(LlmRuntime)
+    await ctx.plugin(SessionStore)
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(AgentRegistry)
+    await ctx.plugin(AgentLoop, { agents: [] })
+    const agent = await ctx.agentLoop.create(SessionId('image-agent-cwd'), { provider: 'fixture', model: 'fixture' }, { cwd: root })
+    await writeFile(join(root, 'reference.png'), await readFile(FIXTURE_URL))
+    const encoded = await fixtureBase64()
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ data: [{ b64_json: encoded }] })))
+    const resolve = vi.spyOn(ctx.fs, 'resolve')
+    const result = await ctx.tools.execute({ agent, signal: new AbortController().signal,
+      callId: ToolCallId('agent-image-reference'), name: 'image_gen', arguments: { prompt: 'edit', referenced_image_paths: ['reference.png'] } })
+    expect(result.isError).toBe(false)
+    expect(resolve).toHaveBeenCalledWith('reference.png', expect.objectContaining({ cwd: root }))
+  })
+
+  it.each(['per-image', 'aggregate'] as const)('rejects references beyond the %s limit before sending them', async (limit) => {
+    const source = await readFile(FIXTURE_URL)
+    const { ctx, root } = await composition(config(), true,
+      limit === 'aggregate' ? source.byteLength : source.byteLength * 3,
+      limit === 'per-image' ? source.byteLength - 1 : source.byteLength)
+    await writeFile(join(root, 'input.png'), source)
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
+    const result = await ctx.tools.execute({ signal: new AbortController().signal,
+      callId: ToolCallId('image-reference-limit'), name: 'image_gen',
+      arguments: { prompt: 'edit', referenced_image_paths: limit === 'aggregate' ? ['input.png', 'input.png'] : ['input.png'] } })
+    expect(result.error?.info).toMatchObject({ code: 'IMAGE_REFERENCE_INVALID' })
+    expect(firstResultText(result)).toContain(limit === 'aggregate' ? 'aggregate' : 'per-image')
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('rejects a requested provider that has no configured image target', async () => {
+    const { ctx } = await composition({ defaultProvider: 'codex', targets: { codex: { imageModel: 'fixture' } } })
+    const result = await ctx.tools.execute({ signal: new AbortController().signal,
+      callId: ToolCallId('image-missing-target'), name: 'image_gen', arguments: { prompt: 'image', provider: 'grok' } })
+    expect(result.isError).toBe(true)
+    expect(firstResultText(result)).toContain('must be one of ["codex"]')
+  })
+
+  it('retains optional attachment dimensions and accepts WebP output', async () => {
+    const { ctx } = await composition(config())
+    const encoded = 'UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA'
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ data: [{ b64_json: encoded }] })))
+    const save = ctx.attachments.saveImage.bind(ctx.attachments)
+    vi.spyOn(ctx.attachments, 'saveImage').mockImplementation(async (input) => {
+      const { name: _name, ...ref } = await save(input)
+      return { ...ref, originalDimensions: { width: 2, height: 2 } }
+    })
+    const result = await ctx.tools.execute({ signal: new AbortController().signal,
+      callId: ToolCallId('webp-image'), name: 'image_gen', arguments: { prompt: 'image' } })
+    expect(result.isError).toBe(false)
+    expect(imageToolValue(result.value).image).toMatchObject({ mediaType: 'image/webp', originalDimensions: { width: 2, height: 2 } })
+    expect(imageToolValue(result.value).image).not.toHaveProperty('name')
+  })
+
+  it.each([
+    { prompt: '   ' },
+    { prompt: 'edit', referenced_image_paths: [] },
+    { prompt: 'edit', referenced_image_paths: ['   '] },
+    { prompt: 'edit', referenced_image_paths: ['missing.png'] },
+    { prompt: 'edit', referenced_image_paths: ['.'] },
+    { prompt: 'edit', referenced_image_paths: ['invalid.png'] },
+  ])('rejects invalid model arguments or filesystem references %#', async (arguments_) => {
+    const { ctx, root } = await composition(config())
+    await writeFile(join(root, 'invalid.png'), 'not a raster')
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
+    const result = await ctx.tools.execute({ signal: new AbortController().signal,
+      callId: ToolCallId('invalid-image-input'), name: 'image_gen', arguments: arguments_ })
+    expect(result.isError).toBe(true)
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('preserves filesystem read failures', async () => {
+    const { ctx, root } = await composition(config())
+    await writeFile(join(root, 'input.png'), await readFile(FIXTURE_URL))
+    vi.spyOn(ctx.fs, 'readBytes').mockRejectedValue(new Error('read failed'))
+    const result = await ctx.tools.execute({ signal: new AbortController().signal,
+      callId: ToolCallId('failed-image-read'), name: 'image_gen',
+      arguments: { prompt: 'edit', referenced_image_paths: ['input.png'] } })
+    expect(result.isError).toBe(true)
+    expect(firstResultText(result)).toContain('read failed')
+  })
+
+  it('makes owner disposal idempotent and refuses calls from a retained registration', async () => {
+    const { ctx, fiber } = await composition(config())
+    await fiber.dispose()
+    const owner = new ImageToolOwner(ctx, { defaultProvider: 'codex', targets: new Map([['codex', { imageModel: 'fixture' }]]),
+      timeoutMs: 1000, maxOutputBytes: 1000, resolveOAuth: async () => undefined, resolveAntigravityGrant: async () => undefined })
+    owner.register()
+    await owner.dispose()
+    await owner.dispose()
+    const result = await ctx.tools.execute({ signal: new AbortController().signal,
+      callId: ToolCallId('closed-image-owner'), name: 'image_gen', arguments: { prompt: 'image' } })
+    expect(result.error?.info).toMatchObject({ code: 'IMAGE_ABORTED' })
+  })
+
+  it('classifies its own operation timeout after the request settles', async () => {
+    const timed = config()
+    timed.timeoutMs = 100
+    const { ctx } = await composition(timed)
+    vi.useFakeTimers()
+    const reached = Promise.withResolvers<undefined>()
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => { reject(new Error('request aborted')) }, { once: true })
+      reached.resolve(undefined)
+    })))
+    const running = ctx.tools.execute({ signal: new AbortController().signal,
+      callId: ToolCallId('timed-out-image'), name: 'image_gen', arguments: { prompt: 'image' } })
+    await reached.promise
+    await vi.advanceTimersByTimeAsync(100)
+    const result = await running
+    expect(result.error?.info).toMatchObject({ code: 'IMAGE_TIMEOUT' })
+  })
+
+  it('resolves Antigravity grants through the plugin credential store', async () => {
+    const { ctx } = await composition(config('antigravity'), false)
+    const result = await ctx.tools.execute({ signal: new AbortController().signal,
+      callId: ToolCallId('unsigned-antigravity-image'), name: 'image_gen', arguments: { prompt: 'image' } })
+    expect(result.error?.info).toMatchObject({ code: 'IMAGE_SUBSCRIPTION_OAUTH_REQUIRED' })
+  })
+
   it('loads through the real Loader and returns the owner-local durable ImageBlock golden', async () => {
     const encoded = await fixtureBase64()
     const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -432,6 +566,7 @@ describe('image generation tool composition', () => {
   it.each([
     [{ targets: { codex: { imageModel: 'gpt-image-2' } } }, /defaultProvider/],
     [{ defaultProvider: 'codex', targets: {} }, /at least one/],
+    [{ defaultProvider: 'codex', targets: { other: { imageModel: 'unknown' } } }, /unsupported target/],
     [{ defaultProvider: 'grok', targets: { codex: { imageModel: 'gpt-image-2' } } }, /configured target/],
     [{ defaultProvider: 'codex', targets: { codex: { imageModel: '   ' } } }, /imageModel/],
     [{ defaultProvider: 'codex', targets: config().targets, timeoutMs: 0 }, /timeoutMs/],

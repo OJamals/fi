@@ -1,5 +1,7 @@
 - button "New session"
 - button "Collapse sidebar"
+- button "Back"
+- button "Forward" [disabled]
 - button "New session": New Session
 - navigation "Global panels":
   - button "Plugins"

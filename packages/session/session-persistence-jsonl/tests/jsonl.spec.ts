@@ -1382,6 +1382,58 @@ describe('JsonlSessionPersistence: durability and crash semantics', () => {
     await reader.close()
   })
 
+  it.each(['session', 'service'] as const)('joins a concurrent close during the %s flush barrier', async (scope) => {
+    await ctx.plugin(SessionStore)
+    const session = ctx.sessions.create(SessionId(`flush-close-${scope}`), { meta: { cwd: '/work' } })
+    const handle = await ctx.sessionPersistence.create(session.header) as JsonlSessionHandle
+    session.append('turn/start', { turn: 1 })
+    session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
+    const drained = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const releaseClose = Promise.withResolvers<undefined>()
+    const drain = handle.drainLive.bind(handle)
+    vi.spyOn(handle, 'drainLive').mockImplementationOnce(async () => {
+      await drain()
+      drained.resolve(undefined)
+      await release.promise
+    }).mockImplementationOnce(async () => {
+      await releaseClose.promise
+      await drain()
+    })
+    const flushAttempt = vi.spyOn(handle, 'flush')
+    let finished = false
+    const flushing = scope === 'session' ? ctx.sessions.flush(session) : ctx.sessionPersistence.flush()
+    void flushing.then(() => { finished = true }, () => { finished = true })
+    const checked = expect(flushing).resolves.toBe(scope === 'session' ? true : undefined)
+    await drained.promise
+    const closing = handle.close()
+    release.resolve(undefined)
+    try {
+      await vi.waitFor(() => { expect(flushAttempt).toHaveBeenCalledOnce() })
+      expect(finished).toBe(false)
+    } finally { releaseClose.resolve(undefined) }
+    await checked
+    await closing
+    const stored = await readAll(ctx.sessionPersistence, session.id)
+    expect(stored.events.map(event => event.type)).toEqual(['turn/start', 'turn/end'])
+  })
+
+  it.each(['session', 'service'] as const)('preserves a concurrent close failure through the %s flush barrier', async (scope) => {
+    await ctx.plugin(SessionStore)
+    const session = ctx.sessions.create(SessionId(`flush-close-failure-${scope}`))
+    const handle = await ctx.sessionPersistence.create(session.header) as JsonlSessionHandle
+    const failure = new Error('final drain failed')
+    const drain = handle.drainLive.bind(handle)
+    vi.spyOn(handle, 'drainLive').mockImplementationOnce(drain).mockRejectedValueOnce(failure)
+    const flush = handle.flush.bind(handle)
+    vi.spyOn(handle, 'flush').mockImplementationOnce(() => {
+      void handle.close().catch(() => {})
+      return flush()
+    })
+    if (scope === 'session') await expect(ctx.sessions.flush(session)).rejects.toBe(failure)
+    else await expect(ctx.sessionPersistence.flush()).rejects.toMatchObject({ errors: [failure] })
+  })
+
   it('close drains a routed event that arrives while it waits for an in-flight append', async () => {
     const m = meta('late-closer', '/work')
     const handle = await ctx.sessionPersistence.create(m) as JsonlSessionHandle

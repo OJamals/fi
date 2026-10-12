@@ -165,6 +165,9 @@ describe('Client Session contracts', () => {
       kind: 'settle-assistant',
       attemptId: 'attempt-two',
     })
+    const final = assistantSettlement(SessionSeq(4))
+    feed.settleAssistant(LlmAttemptId('attempt-three'), final)
+    expect(feed.getSnapshot().entries).toEqual([opening, settlement, later, final])
   })
 
 })

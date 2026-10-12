@@ -339,12 +339,11 @@ export class SignInStore {
     } catch (error: unknown) {
       const state = this.store.getSnapshot()
       if (controller.signal.aborted) return
-      if (operation !== this.operation || state.attempt === null || state.attempt.key !== key) return
       settlement = { status: 'failed', message: error instanceof Error ? error.message : String(error) }
       this.store.set({
         ...state,
         attempt: {
-          ...state.attempt,
+          ...state.attempt as SignInAttempt,
           prompt: null,
           settled: settlement,
         },
@@ -359,9 +358,8 @@ export class SignInStore {
       }
       if (adopt && settlement?.status === 'authorized') {
         const current = this.store.getSnapshot()
-        if (current.attempt !== null && current.attempt.key === key) {
-          this.store.set({ ...current, attempt: { ...current.attempt, adopting: true } })
-        }
+        // Retirement aborts the stream and changes operation before clearing its attempt.
+        this.store.set({ ...current, attempt: { ...current.attempt as SignInAttempt, adopting: true } })
       }
       await this.load()
       if (operation !== this.operation) return
@@ -371,7 +369,7 @@ export class SignInStore {
       this.store.set({
         ...current,
         busy: false,
-        attempt: current.attempt?.key === key ? { ...current.attempt, adopting: false } : current.attempt,
+        attempt: { ...current.attempt as SignInAttempt, adopting: false },
       })
     }
   }
@@ -485,6 +483,7 @@ export class SignInStore {
     let failure: string | null = null
     try {
       const response = await this.ctx.remote.authorization.revoke(key)
+      if (operation !== this.operation) return
       if (!response.ok) failure = response.error.message
       else this.store.set({ ...this.store.getSnapshot(), adopted: null })
     } catch (error: unknown) {

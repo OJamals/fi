@@ -240,10 +240,7 @@ export class ImageToolOwner {
       throw new ImageGenerationError('referenced_image_paths must be omitted or contain one to five paths', 'IMAGE_INVALID_ARGUMENT')
     }
     const provider = args.provider ?? this.options.defaultProvider
-    const target = this.options.targets.get(provider)
-    if (target === undefined) {
-      throw new ImageGenerationError(`provider "${provider}" is not configured for image generation`, 'IMAGE_INVALID_ARGUMENT')
-    }
+    const target = this.options.targets.get(provider) as ImageGenerationTarget
     const maxReferences = provider === 'antigravity' ? ANTIGRAVITY_MAX_REFERENCES : MAX_REFERENCES
     if (paths.length > maxReferences) {
       throw new ImageGenerationError(

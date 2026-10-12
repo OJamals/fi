@@ -27,6 +27,42 @@ async function drainRequest(adapter: PiAiAdapter, provider: string, model: strin
 }
 
 describe('live model discovery', () => {
+  it('augments an explicit empty models list just like an omitted list', async () => {
+    const resolveLiveModels = vi.fn(() => Promise.resolve([{ id: 'grok-live' }]))
+    const adapter = new PiAiAdapter({
+      profiles: () => resolveProfiles({ xai: { models: [] } }),
+      resolveApiKey: () => Promise.resolve(undefined),
+      auth: memoryAuth({ xai: OAUTH_GRANT }), resolveLiveModels,
+    })
+    expect((await adapter.listModels('xai')).map(model => model.id)).toContain('grok-live')
+    expect(resolveLiveModels).toHaveBeenCalledOnce()
+  })
+
+  it('does not discover live models when stored overrides invalidate every catalog template', async () => {
+    const profiles = resolveProfiles({ xai: {
+      modelOverrides: Object.fromEntries(getBuiltinModels('xai').map(model => [model.id, { contextWindow: 0 }])),
+    } }, 'deferred')
+    const resolveLiveModels = vi.fn(() => Promise.resolve([]))
+    const adapter = new PiAiAdapter({ profiles: () => profiles, resolveApiKey: () => Promise.resolve(undefined),
+      auth: memoryAuth({ xai: OAUTH_GRANT }), resolveLiveModels })
+    await expect(adapter.liveModelIds('xai')).resolves.toEqual([])
+    expect(resolveLiveModels).not.toHaveBeenCalled()
+  })
+
+  it('keeps the installed catalog when credential lookup fails', async () => {
+    const auth = memoryAuth()
+    auth.credentials.read = () => Promise.reject(new Error('credential store unavailable'))
+    const resolveLiveModels = vi.fn(() => Promise.resolve([]))
+    const adapter = new PiAiAdapter({
+      profiles: () => resolveProfiles({ xai: {} }),
+      resolveApiKey: () => Promise.resolve(undefined),
+      auth,
+      resolveLiveModels,
+    })
+    expect((await adapter.listModels('xai')).map(model => model.id)).toEqual(getBuiltinModels('xai').map(model => model.id))
+    expect(resolveLiveModels).not.toHaveBeenCalled()
+  })
+
   it('leaves the installed catalog untouched and never calls the hook for a curated models list', async () => {
     const resolveLiveModels = vi.fn(() => Promise.resolve([{ id: 'grok-9-preview' }]))
     const adapter = new PiAiAdapter({
@@ -78,13 +114,19 @@ describe('live model discovery', () => {
       profiles: () => resolveProfiles({ xai: {} }),
       resolveApiKey: () => Promise.resolve(undefined),
       auth: memoryAuth({ xai: OAUTH_GRANT }),
-      resolveLiveModels: () => Promise.resolve([{ id: 'grok-9-preview', name: 'Grok 9 Preview' }]),
+      resolveLiveModels: () => Promise.resolve([
+        { id: 'grok-9-preview', name: 'Grok 9 Preview' },
+        { id: 'grok-9-preview', name: 'Duplicate' },
+      ]),
     })
 
     const models = await adapter.listModels('xai')
 
     expect(models.map(model => model.id)).toEqual([...installed, 'grok-9-preview'])
     expect(models.find(model => model.id === 'grok-9-preview')?.name).toBe('Grok 9 Preview')
+    expect(await adapter.liveModelIds('xai', new AbortController().signal)).toEqual([
+      { id: 'grok-9-preview', name: 'Grok 9 Preview' },
+    ])
   })
 
   it('does not duplicate a live id the installed catalog already lists', async () => {

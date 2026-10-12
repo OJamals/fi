@@ -273,8 +273,9 @@ describe('Session fork failures', () => {
     await ctx.fiber.dispose()
   })
 
-  it('carries the composed Agent preset into the child metadata', async () => {
+  it.each([true, false])('carries the composed Agent preset into the child metadata with a default model: %s', async (configured) => {
     const ctx = await baseContext()
+    if (!configured) vi.spyOn(ctx.agentDefaultModel, 'resolveSelection').mockResolvedValue(undefined)
     ctx.provide('workspaceRegistry', { list: () => [] } as never)
     const source = completedSession(ctx, 'preset-source', '/workspace')
     const create = vi.spyOn(ctx.agents, 'create').mockImplementation(
@@ -289,6 +290,7 @@ describe('Session fork failures', () => {
     const options = create.mock.calls[0]?.[0]
     if (options === undefined) throw new Error('Agent creation was not attempted')
     expect(options.meta?.agentPreset).toBe('minimal')
+    expect(options.agentOptions).toEqual(configured ? { provider: 'fixture', model: 'fixture-model' } : {})
     await ctx.fiber.dispose()
   })
 })

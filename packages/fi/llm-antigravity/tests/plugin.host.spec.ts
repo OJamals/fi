@@ -9,7 +9,7 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import AuthorizationService from '@deepseek-ai/dsh-authorization'
 import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
@@ -24,7 +24,7 @@ import FiAntigravityService, {
   resolveAntigravityGrant,
 } from '../src/index.ts'
 import { ANTIGRAVITY_STATIC_CATALOG } from '../src/catalog.ts'
-import { liveConfig } from '../../../settings/settings/tests/live-config.ts'
+import { liveConfig, omitsGeneratedPage } from '../../../settings/settings/tests/live-config.ts'
 
 /** Fake OAuth client the tests below inject through the credentials store, never real values. */
 const FAKE_OAUTH_CLIENT_ID = 'test-client-id.apps.example'
@@ -88,11 +88,59 @@ function upstreamText(text: string): Response {
 }
 
 afterEach(async () => {
+  vi.restoreAllMocks()
   vi.unstubAllGlobals()
   for (const dir of dirs.splice(0)) await rm(dir, { recursive: true, force: true })
 })
 
 describe('FiAntigravityService', () => {
+  it('declares its settings policy when mounted outside a Loader entry', async () => {
+    await omitsGeneratedPage(async (ctx) => {
+      onTestFinished(async () => { await ctx.fiber.dispose() })
+      const dir = await mkdtemp(join(tmpdir(), 'fi-agy-settings-'))
+      dirs.push(dir)
+      await ctx.plugin(LocalCredentialProvider, { path: join(dir, 'credentials.yaml'), watch: false })
+      await ctx.plugin(AuthorizationService)
+      await ctx.plugin(LlmRuntime)
+      return ctx.plugin(FiAntigravityService)
+    })
+  })
+
+  it.each([undefined, '', 42])('does not resolve a malformed grant access value %j', async (access) => {
+    const { ctx } = await harness()
+    onTestFinished(async () => { await ctx.fiber.dispose() })
+    await ctx.credentials.modifyRecord(credentialKey('fi-antigravity', 'antigravity'), async () => ({
+      kind: 'grant', payload: access === undefined ? {} : { access },
+    }))
+    await expect(resolveAntigravityGrant(ctx)).resolves.toBeUndefined()
+  })
+
+  it('resolves access without inventing a missing project', async () => {
+    const { ctx } = await harness()
+    onTestFinished(async () => { await ctx.fiber.dispose() })
+    await ctx.credentials.modifyRecord(credentialKey('fi-antigravity', 'antigravity'), async () => ({
+      kind: 'grant', payload: { access: 'access' },
+    }))
+    expect(await resolveAntigravityGrant(ctx)).toEqual({ accessToken: 'access' })
+  })
+  it('does not return a grant revoked while a refresh waits for the record lock', async () => {
+    const { ctx } = await harness()
+    const key = credentialKey('fi-antigravity', 'antigravity')
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve({
+      kind: 'grant', payload: { access: 'expired', refresh: 'refresh', expires: 0 },
+    }))
+    const modify = ctx.credentials.modifyRecord.bind(ctx.credentials)
+    vi.spyOn(ctx.credentials, 'modifyRecord').mockImplementationOnce(async (recordKey, update) => {
+      await ctx.credentials.deleteRecord(recordKey)
+      return modify(recordKey, update)
+    })
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
+    await expect(resolveAntigravityGrant(ctx)).resolves.toBeUndefined()
+    expect(fetch).not.toHaveBeenCalled()
+    await ctx.fiber.dispose()
+  })
+
   it('registers the sign-in flow on the authorization seam', async () => {
     const { ctx } = await harness()
     const entries = ctx.authorization.list()
@@ -125,7 +173,7 @@ describe('FiAntigravityService', () => {
 
   it('answers discovery for its namespace from the static catalog when signed out', async () => {
     const { ctx } = await harness()
-    const models = await ctx.llm.discoverModels('fi-antigravity', { provider: 'antigravity' })
+    const models = await ctx.llm.discoverModels('fi-antigravity', { baseURL: 'https://fixture.invalid' })
     expect(models.length).toBe(ANTIGRAVITY_STATIC_CATALOG.length)
     expect(models.map(model => model.id)).toContain('antigravity-claude-sonnet-4-6')
   })
