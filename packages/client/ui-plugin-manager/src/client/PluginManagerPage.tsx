@@ -1,7 +1,6 @@
 /**
- * Global plugin management: the Official group's cards for the bundles the
- * installation ships switched off and for the official plugins that register
- * their configuration, the Installed group's cards for the profile's bundles,
+ * Global plugin management: grouped cards for official configuration and
+ * optional bundles, the Installed group's cards for the profile's bundles,
  * their row switches, the install dialog with its guide and folded pnpm
  * output, the uninstall confirmation, and the toasts an action's outcome
  * becomes. A bundle's page lists the rows it contributes as the Host runs
@@ -64,6 +63,33 @@ const BUILTIN_PROFILE_BUNDLES = new Set([
   '@deepseek-ai/dsh-acp-app',
   '@deepseek-ai/dsh-sdk-minimal',
 ])
+
+/** Display order on the main and full optional plugin lists; new bundles join the main list. */
+const EXTENSION_BUNDLES = [
+  '@deepseek-ai/dsh-experimental-agent-team-profile',
+  '@deepseek-ai/dsh-experimental-voice-input-bundle',
+  '@deepseek-ai/dsh-experimental-auto-review',
+  '@deepseek-ai/dsh-experimental-inspector-profile',
+]
+const MORE_BUNDLES = [
+  '@deepseek-ai/dsh-experimental-tool-worktree',
+  '@deepseek-ai/dsh-experimental-cot-translation-bundle',
+  '@deepseek-ai/dsh-experimental-terminal-bundle',
+  '@deepseek-ai/dsh-experimental-session-search',
+  '@deepseek-ai/dsh-session-titles-bundle',
+  '@deepseek-ai/dsh-experimental-badge-skill-bundle',
+  '@deepseek-ai/dsh-experimental-ralph-bundle',
+  '@deepseek-ai/dsh-subagent-codex',
+  '@deepseek-ai/dsh-subagent-claude-code',
+]
+
+function orderPackages(packages: readonly PackageView[], order: readonly string[]): PackageView[] {
+  const rank = (name: string): number => {
+    const index = order.indexOf(name)
+    return index < 0 ? order.length : index
+  }
+  return [...packages].sort((a, b) => rank(a.name) - rank(b.name))
+}
 
 /** How long a toast holds: long enough to read a failure that names what broke. */
 function toastHoldMs(text: string): number {
@@ -323,7 +349,7 @@ function CardHead({ title, t, onOpen, icon, tags, description, end }: {
   )
 }
 
-/** First-read placeholders share the Official group's card and text-line layout. */
+/** First-read placeholders share the core configuration group's card and text-line layout. */
 function ListSkeleton({ label }: { readonly label: string }): ReactNode {
   return (
     <section className={css.group} role="status" aria-label={label} data-plugin-loading>
@@ -541,7 +567,7 @@ function RowDetail({ pkg, row, t, resolveText, onBack, renderSlot, form }: {
  * itself; and its rows with their switches and configure controls.
  */
 function PackageDetail({
-  pkg, t, resolveText, busy, rowBusy, configured, configure, renderSlot,
+  pkg, t, resolveText, busy, rowBusy, configured, configure, renderSlot, inMore,
   onBack, onSetEnabled, onUninstall, onSetRowEnabled,
 }: {
   readonly pkg: PackageView
@@ -554,6 +580,7 @@ function PackageDetail({
   readonly configured: boolean
   readonly configure: RowConfigure
   readonly renderSlot: RenderConfig
+  readonly inMore: boolean
   readonly onBack: () => void
   readonly onSetEnabled: (enabled: boolean) => void
   readonly onUninstall: () => void
@@ -565,8 +592,8 @@ function PackageDetail({
   return (
     <div className={css.detail} data-plugin-detail={pkg.name}>
       <DetailTop
-        crumbLabel={t('backToList')}
-        crumbText={t('crumbRoot')}
+        crumbLabel={inMore ? t('backToPackage', { name: t('moreTitle') }) : t('backToList')}
+        crumbText={t(inMore ? 'moreTitle' : 'crumbRoot')}
         onBack={onBack}
         icon={<PackageArtwork key={pkg.meta?.icon} src={pkg.meta?.icon} />}
         actions={(
@@ -1263,7 +1290,7 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
   const view = props.useStore(state => state.view), { setView } = props.actions
   const [activation, setActivation] = useState<string | null>(null)
   useEffect(() => { ensure() }, [ensure])
-  // A package an install just enabled: scroll it into view and mark it for a moment.
+  // Installation highlights visible cards without changing the user's current page.
   const { highlight, clearHighlight } = { highlight: state.highlight, clearHighlight: props.clearHighlight }
   useEffect(() => {
     if (highlight === null) return
@@ -1279,14 +1306,21 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
   // Plugins section's Plugin list tab.
   const listed = state.packages.filter(pkg => !BUILTIN_PROFILE_BUNDLES.has(pkg.name)
     && (pkg.installed || pkg.optional || pkg.error !== undefined))
-  const mine = listed.filter(pkg => pkg.installed || !pkg.optional)
-  const official = listed.filter(pkg => pkg.optional && !pkg.installed)
+  const mine = listed.filter(pkg => !pkg.optional)
+  const official = listed.filter(pkg => pkg.optional)
+  const extensions = orderPackages(official.filter(pkg => !MORE_BUNDLES.includes(pkg.name)), EXTENSION_BUNDLES)
+  const more = [...extensions, ...orderPackages(official.filter(pkg => MORE_BUNDLES.includes(pkg.name)), MORE_BUNDLES)]
   const loaded = state.status === 'ready' || state.status === 'error'
   const refreshing = state.refreshStatus === 'refreshing'
   const openPkg = view.kind === 'package' || view.kind === 'row' ? listed.find(pkg => pkg.name === view.name) : undefined
   const openItem = view.kind === 'item' ? ledger.items.find(item => item.id === view.id) : undefined
   const openRow = view.kind === 'row' && openPkg !== undefined ? openPkg.rows.find(row => row.rowId === view.rowId) : undefined
   const showsCards = openPkg === undefined && openItem === undefined
+  const detailFromMore = (view.kind === 'package' || view.kind === 'row')
+    && (view.from === 'more' || MORE_BUNDLES.includes(view.name))
+  const showsMoreList = showsCards && (view.kind === 'more' || detailFromMore)
+  const showsMainList = showsCards && !showsMoreList
+  const openPkgInMore = openPkg !== undefined && openPkg.optional && detailFromMore
   const activated = listed.find(pkg => pkg.name === activation && pkg.enabled && !state.busy.includes(pkg.name))
   const setRowEnabled = (row: PackageRow, enabled: boolean): void => {
     /* v8 ignore next -- a row without a live entry has its switch disabled */
@@ -1294,7 +1328,7 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
   }
   const configure = (pkg: PackageView): RowConfigure => ({
     has: row => ledger.rows.has(rowConfigKey(pkg.name, row.rowId)),
-    open: (row) => { setView({ kind: 'row', name: pkg.name, rowId: row.rowId }) },
+    open: (row) => { setView({ kind: 'row', name: pkg.name, rowId: row.rowId, ...openPkgInMore ? { from: 'more' } : {} }) },
   })
   const packageCard = (pkg: PackageView): ReactNode => (
     <PackageCard
@@ -1304,33 +1338,34 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
       resolveText={resolveText}
       busy={state.busy.includes(pkg.name)}
       highlighted={state.highlight === pkg.name}
-      onOpen={() => { setActivation(null); setView({ kind: 'package', name: pkg.name }) }}
+      onOpen={() => { setActivation(null); setView({ kind: 'package', name: pkg.name, ...showsMoreList ? { from: 'more' } : {} }) }}
       onSetEnabled={(enabled) => { setActivation(enabled ? pkg.name : null); props.setEnabled(pkg.name, enabled) }}
     />
   )
-  // The Official group: the bundles the installation ships, then the plugins that registered their configuration.
-  const officialCards = [
-    ...official.map(packageCard),
-    ...ledger.items.map(item => (
-      <ItemCard key={`item:${item.id}`} item={item} t={t} renderSlot={renderSlot} onOpen={() => { setView({ kind: 'item', id: item.id }) }} />
-    )),
-  ]
-  // One group of cards under its heading and count; the Official group comes first, and a group with nothing in it takes no room.
-  const renderGroup = (id: 'official' | 'bundles', heading: string, cards: readonly ReactNode[]): ReactNode => cards.length === 0
-    ? null
-    : (
+  const basicCards = ledger.items.map(item => (
+    <ItemCard key={`item:${item.id}`} item={item} t={t} renderSlot={renderSlot} onOpen={() => { setView({ kind: 'item', id: item.id }) }} />
+  ))
+  const renderGroup = (id: 'basic' | 'extensions' | 'bundles', heading: string, cards: readonly ReactNode[]): ReactNode => {
+    const offersMore = id === 'extensions' && more.length > 0
+    if (cards.length === 0 && !offersMore) return null
+    return (
       <section className={css.group} data-plugin-scope="global" data-plugin-group={id}>
         <div className={css.groupHead}>
           <h3 className={css.groupTitle}>{heading}</h3>
-          <span className={css.count} data-plugin-count={cards.length}>{cards.length}</span>
+          {offersMore ? (
+            <Button size="sm" className={css.groupMore} onClick={() => { setView({ kind: 'more' }) }}>
+              {t('moreAction')}<IconChevronRightOutlineRegular size={14} aria-hidden="true" />
+            </Button>
+          ) : null}
         </div>
-        <ul className={css.cards}>{cards}</ul>
+        {cards.length > 0 ? <ul className={css.cards}>{cards}</ul> : null}
       </section>
     )
+  }
 
   return (
     <section className={css.page} data-plugin-panel aria-busy={state.status === 'loading' || refreshing}>
-      {showsCards
+      {showsMainList
         ? (
           <header className={css.pageHead} data-window-drag>
             <div>
@@ -1359,6 +1394,14 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
           </header>
         )
         : null}
+      {showsMoreList ? (
+        <header className={css.moreHead} data-window-drag>
+          <Button size="sm" className={css.moreBack} aria-label={t('backToList')} onClick={() => { setView({ kind: 'list' }) }}>
+            <IconChevronLeftOutlineMedium size={20} aria-hidden="true" />
+          </Button>
+          <h1 className={css.pageTitle}>{t('moreTitle')}</h1>
+        </header>
+      ) : null}
       {showsCards && state.status === 'loading' ? <ListSkeleton label={t('loading')} /> : null}
       {showsCards && state.status === 'unavailable' ? (
         <p className={`${css.status} ${css.statusWithDot}`} role="status">
@@ -1395,7 +1438,7 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
             t={t}
             resolveText={resolveText}
             renderSlot={renderSlot}
-            onBack={() => { setView({ kind: 'package', name: openPkg.name }) }}
+            onBack={() => { setView({ kind: 'package', name: openPkg.name, ...openPkgInMore ? { from: 'more' } : {} }) }}
           />
         )
         : null}
@@ -1410,7 +1453,8 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
             configured={ledger.bundles.has(openPkg.name)}
             configure={configure(openPkg)}
             renderSlot={renderSlot}
-            onBack={() => { setView({ kind: 'list' }) }}
+            inMore={openPkgInMore}
+            onBack={() => { setView({ kind: openPkgInMore ? 'more' : 'list' }) }}
             onSetEnabled={(enabled) => { props.setEnabled(openPkg.name, enabled) }}
             onUninstall={() => { props.uninstall(openPkg.name) }}
             onSetRowEnabled={setRowEnabled}
@@ -1421,13 +1465,22 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
         ? <ItemDetail form={formFor(openItem.id)} item={openItem} t={t} renderSlot={renderSlot} onBack={() => { setView({ kind: 'list' }) }} />
         : null}
       {loaded && showsCards
-        ? officialCards.length === 0 && mine.length === 0 && state.status !== 'error'
+        ? basicCards.length === 0 && official.length === 0 && mine.length === 0 && state.status !== 'error'
           ? <p className={css.empty}>{t('empty')}</p>
           : (
             <>
-              {renderGroup('official', t('officialTitle'), officialCards)}
-              {renderGroup('bundles', t('bundlesTitle'), mine.map(packageCard))}
-              {/* A failed package read trails the groups it left incomplete: right under Official on a
+              {showsMoreList ? (
+                <section className={css.group} data-plugin-scope="global" data-plugin-group="more">
+                  <ul className={css.cards}>{more.map(packageCard)}</ul>
+                </section>
+              ) : (
+                <>
+                  {renderGroup('basic', t('basicTitle'), basicCards)}
+                  {renderGroup('extensions', t('extensionsTitle'), extensions.map(packageCard))}
+                  {renderGroup('bundles', t('bundlesTitle'), mine.map(packageCard))}
+                </>
+              )}
+              {/* A failed package read trails the groups it left incomplete: right under the groups on a
                   first-load failure, and after the kept cards when a refresh fails over stale data. */}
               {state.status === 'error' && !refreshing
                 ? (
@@ -1446,7 +1499,10 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
         ? renderSlot('plugins.bundle.activation', {
           packageName: activated.name,
           onDismiss: () => { setActivation(null) },
-          onOpenDetails: () => { setActivation(null); setView({ kind: 'package', name: activated.name }) },
+          onOpenDetails: () => {
+            setActivation(null)
+            setView({ kind: 'package', name: activated.name, ...showsMoreList ? { from: 'more' } : {} })
+          },
         }, { entryKey: activated.name }) : null}
       <InstallDialog
         install={state.install}

@@ -2882,11 +2882,16 @@ export interface Config {
 
 - `inject`: `sessionTitle` · `llm` · `sessions`
 - `refs`: [`SessionTitleLlmConfig`](../packages/session/session-title-llm/src/index.ts)
-- `source`: [`packages/session/session-title-all-prompts-llm/src/index.ts:15`](../packages/session/session-title-all-prompts-llm/src/index.ts)
+- `source`: [`packages/session/session-title-all-prompts-llm/src/index.ts:28`](../packages/session/session-title-all-prompts-llm/src/index.ts)
 
 ```ts config-catalog
-/** Required LLM policy; this plugin adds no defaults. */
-export type Config = SessionTitleLlmConfig
+/** Required execution controls plus this provider's title-length targets; no defaults. */
+export interface Config extends SessionTitleLlmConfig {
+  /** Target word count for non-CJK titles. */
+  readonly targetWords: number
+  /** Target character count for Chinese, Japanese, or Korean titles. */
+  readonly targetCjkCharacters: number
+}
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-session-title-all-prompts-llm -->
 
@@ -2897,11 +2902,16 @@ export type Config = SessionTitleLlmConfig
 
 - `inject`: `sessionTitle` · `llm` · `sessions`
 - `refs`: [`SessionTitleLlmConfig`](../packages/session/session-title-llm/src/index.ts)
-- `source`: [`packages/session/session-title-first-prompt-llm/src/index.ts:15`](../packages/session/session-title-first-prompt-llm/src/index.ts)
+- `source`: [`packages/session/session-title-first-prompt-llm/src/index.ts:28`](../packages/session/session-title-first-prompt-llm/src/index.ts)
 
 ```ts config-catalog
-/** Required LLM policy; this plugin adds no defaults. */
-export type Config = SessionTitleLlmConfig
+/** Required execution controls plus this provider's title-length targets; no defaults. */
+export interface Config extends SessionTitleLlmConfig {
+  /** Target word count for non-CJK titles. */
+  readonly targetWords: number
+  /** Target character count for Chinese, Japanese, or Korean titles. */
+  readonly targetCjkCharacters: number
+}
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-session-title-first-prompt-llm -->
 
@@ -4474,13 +4484,13 @@ export interface FiAntigravityConfig {
 
 /**
  * The settings section this plugin owns: one profile per Antigravity route.
- * The profile is deliberately thin — the grant, not the profile, picks the
- * account — so the schema carries presentation fields only and the Models
- * page's editor shows nothing to mistype.
+ * The grant picks the account; profiles control naming and model-picker selection.
  */
 interface FiAntigravityProfile {
   /** Name the Models page shows for this route. */
   displayName?: string
+  /** Model-picker allowlist; absent lists the complete catalog, empty hides every model. */
+  models?: string[]
 }
 
 /**
@@ -4504,13 +4514,13 @@ export interface AntigravityOAuthFingerprintPair {
 
 - `inject`: `authorization` · `credentials` · `llm`
 - `refs`: `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/fi/llm-opencode/src/index.ts:18`](../packages/fi/llm-opencode/src/index.ts)
+- `source`: [`packages/fi/llm-opencode/src/index.ts:29`](../packages/fi/llm-opencode/src/index.ts)
 
 ```ts config-catalog
-/** Loader configuration; credentials and discovered models are never user-settings fields. */
+/** Loader configuration; credentials remain exclusively in the credential store. */
 export interface OpenCodeConfig extends ConsoleOptions {
   /** FI route ids activated by user settings; the grant chooses the account and organization. */
-  providers: Volatile<Record<string, Record<string, never>>>
+  providers: Volatile<Record<string, OpenCodeProfile>>
 }
 
 /** Non-secret deployment settings frozen for one authorization or model operation. */
@@ -4531,6 +4541,14 @@ export interface ConsoleOptions {
   defaultContextWindow: number
   /** Output capacity when the authenticated catalog omits it. */
   defaultMaxTokens: number
+}
+
+/** Presentation and model selection for a configured Console route. */
+interface OpenCodeProfile {
+  /** Display label for this configured route. */
+  displayName?: string
+  /** Model ids enabled for this route; omission uses the discovered catalog. */
+  models?: string[]
 }
 ```
 <!-- END GENERATED config-catalog:@fi/llm-opencode -->

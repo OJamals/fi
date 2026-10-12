@@ -38,6 +38,8 @@ Antigravity OAuth 适配器与 Cloud Code 传输，为 fi 提供 Antigravity 登
 <a id="how-it-works"></a>
 ## 工作原理
 
+每条路由的 profile 接受 `displayName` 与模型 id 数组 `models`。省略数组时显示完整目录；空数组在选择器中隐藏所有模型。模型发现始终返回完整目录，因此编辑器可以恢复排除的模型。这些显示设置不限制显式模型解析，也不更改订阅账户。
+
 OAuth 流程使用一个 Google 已安装应用 OAuth 客户端、回环重定向到 `127.0.0.1:54545`，以及五个 scope（含 `cloud-platform` 与 `cclog`）。交换后通过 `loadCodeAssist` 发现 `cloudaicompanionProject`，它成为每个推理请求所命名的计费项目。
 
 ### OAuth 客户端配置

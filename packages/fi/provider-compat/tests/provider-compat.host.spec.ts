@@ -102,10 +102,10 @@ function urlOf(input: RequestInfo | URL): string {
 }
 
 describe('provider compatibility metadata', () => {
-  it('retains all four canonical records, OAuth scopes, release evidence, and capture separation', () => {
+  it('retains all five canonical records, OAuth scopes, release evidence, and capture separation', () => {
     const settings = allProviderSettings()
 
-    expect(Object.keys(settings)).toEqual(['grokCode', 'antigravityCli', 'claudeCode', 'codexCli'])
+    expect(Object.keys(settings)).toEqual(['opencodeConsole', 'grokCode', 'antigravityCli', 'claudeCode', 'codexCli'])
     expect(settings.grokCode.oauthScopes).toContain('grok-cli:access')
     expect(settings.antigravityCli.oauth.scopes).toEqual([
       'https://www.googleapis.com/auth/cloud-platform',
@@ -119,9 +119,9 @@ describe('provider compatibility metadata', () => {
     expect(settings.codexCli.oauth.scopes).toContain('api.connectors.invoke')
     // Release versions advance with the daily metadata refresh; captured fingerprints change only by review.
     expect(settings.claudeCode.latestReleaseVersion).toMatch(/^\d+\.\d+\.\d+$/)
-    expect(settings.claudeCode.fingerprintCapturedVersion).toBe('2.1.269')
+    expect(settings.claudeCode.fingerprintCapturedVersion).toBe('2.1.296')
     expect(settings.antigravityCli.latestReleaseVersion).toMatch(/^\d+\.\d+\.\d+$/)
-    expect(settings.antigravityCli.fingerprintCapturedVersion).toBe('1.2.1')
+    expect(settings.antigravityCli.fingerprintCapturedVersion).toBe('1.3.3')
     expect(settings.claudeCode.fingerprintEvidence.artifact.binarySha256).toMatch(/^[a-f0-9]{64}$/)
     expect(settings.antigravityCli.releaseEvidence.verifiedArtifact.sha256).toMatch(/^[a-f0-9]{64}$/)
   })
@@ -192,7 +192,7 @@ describe('subscription headers', () => {
       'User-Agent': HARNESS_USER_AGENT,
     })
 
-    expect(headers['User-Agent']).toBe('claude-cli/2.1.269 (external, sdk-cli)')
+    expect(headers['User-Agent']).toBe('claude-cli/2.1.296 (external, sdk-cli)')
     expect(headers['X-Claude-Code-Session-Id']).toBe('session-test')
     expect(headers['X-Stainless-Timeout']).toBe('46')
     expect(headers['anthropic-beta']).toContain('claude-code-20250219')
@@ -255,7 +255,7 @@ describe('subscription fetch', () => {
       expect(urlOf(input)).toBe('https://api.anthropic.com/v1/messages?beta=true')
       const headers = headersOf(input, init)
       expect(headers.get('authorization')).toBe('Bearer sk-ant-oat-wire-placeholder')
-      expect(headers.get('user-agent')).toBe('claude-cli/2.1.269 (external, sdk-cli)')
+      expect(headers.get('user-agent')).toBe('claude-cli/2.1.296 (external, sdk-cli)')
       expect(headers.get('x-claude-code-session-id')).toBe('session-test')
       expect(headers.get('x-deepseek-harness-user-agent')).toBe(HARNESS_USER_AGENT)
       return Promise.resolve(new Response('{}'))

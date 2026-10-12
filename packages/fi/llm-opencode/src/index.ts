@@ -9,23 +9,34 @@ import { OpenCodeAdapter } from './adapter.ts'
 import { registerConsoleFlow, resolveConsoleGrant } from './oauth.ts'
 import { consoleUrl } from './protocol.ts'
 import type { ConsoleOptions } from './protocol.ts'
+import { providerSettingsFor } from '@fi/provider-compat'
+
+const metadata = providerSettingsFor('opencodeConsole')
 
 export { OpenCodeAdapter } from './adapter.ts'
 export { OPENCODE_KEY, resolveConsoleGrant } from './oauth.ts'
 export type { ConsoleGrant, ConsoleOptions } from './protocol.ts'
 
-/** Loader configuration; credentials and discovered models are never user-settings fields. */
+/** Presentation and model selection for a configured Console route. */
+interface OpenCodeProfile {
+  /** Display label for this configured route. */
+  displayName?: string
+  /** Model ids enabled for this route; omission uses the discovered catalog. */
+  models?: string[]
+}
+
+/** Loader configuration; credentials remain exclusively in the credential store. */
 export interface OpenCodeConfig extends ConsoleOptions {
   /** FI route ids activated by user settings; the grant chooses the account and organization. */
-  providers: Volatile<Record<string, Record<string, never>>>
+  providers: Volatile<Record<string, OpenCodeProfile>>
 }
 
 /** Positive finite deployment tunables and the source-pinned Console client identity. */
 export const Config = z.object({
-  providers: z.dict(z.object({})).default({}).volatile(),
-  server: z.string().default('https://opencode.ai/console'),
-  clientId: z.string().default('opencode-cli'),
-  userAgent: z.string().default('opencode/latest/2.0.20/cli'),
+  providers: z.dict(z.object({ displayName: z.string(), models: z.union([z.array(z.string())]) })).default({}).volatile(),
+  server: z.string().default(metadata.server),
+  clientId: z.string().default(metadata.oauthClientId),
+  userAgent: z.string().default(`opencode/${metadata.channel}/${metadata.version}/${metadata.client}`),
   requestTimeoutMs: z.number().step(1).min(1).max(2_147_483_647).default(30_000),
   streamIdleTimeoutMs: z.number().step(1).min(1).max(2_147_483_647).default(120_000),
   refreshMarginMs: z.number().step(1).min(0).default(120_000),
@@ -46,7 +57,8 @@ export default class OpenCodeService extends Service {
     registerConsoleFlow(this.ctx, options)
     this.ctx.inject(['settings'], (child) => { child.effect(() => child.settings.configure({ auto: false }, this.ctx.fiber)) })
     const settingsNs = this.ctx.fiber.entry?.options.id ?? 'fi-opencode'
-    const adapter = new OpenCodeAdapter(options, (settings, signal) => resolveConsoleGrant(this.ctx, settings, signal))
+    const adapter = new OpenCodeAdapter(options, (settings, signal) => resolveConsoleGrant(this.ctx, settings, signal),
+      provider => config.providers.get()[provider])
     let registration: AdapterRegistrationHandle | undefined
     const sync = (): void => {
       const routes = Object.keys(config.providers.get())
@@ -56,10 +68,13 @@ export default class OpenCodeService extends Service {
     }
     sync()
     this.ctx.on('loader/volatile-update', sync)
-    this.ctx.llm.registerConfigurableProviders([{
-      provider: 'opencode-console', displayName: 'OpenCode Console', settingsNs, settingsPath: ['providers', 'opencode-console'],
-    }])
-    this.ctx.llm.registerModelDiscovery(settingsNs, async request => (await adapter.listModels(request.provider ?? 'opencode-console'))
+    const directoryEntries = () => [{
+      provider: 'opencode-console', displayName: adapter.providerInfo('opencode-console').name,
+      settingsNs, settingsPath: ['providers', 'opencode-console'],
+    }]
+    const directory = this.ctx.llm.registerConfigurableProviders(directoryEntries())
+    this.ctx.on('loader/volatile-update', () => { directory.replace(directoryEntries()) })
+    this.ctx.llm.registerModelDiscovery(settingsNs, async request => (await adapter.discoverModels(request.provider ?? 'opencode-console'))
       .map(model => ({ id: model.id, name: model.name })))
   }
 }

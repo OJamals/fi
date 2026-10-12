@@ -130,11 +130,13 @@ export function ModelSelect(
   const currentChoice = choices[selectedIndex]
   const reasoning = currentChoice?.model.reasoning
   const effectiveEffort = state.current?.reasoningEffort ?? reasoning?.defaultEffort
-  const effortLabel = reasoning === undefined
-    ? state.retainedEffort
-    : effectiveEffort === undefined
-      ? t('effort.providerDefault')
-      : reasoning.efforts.find(level => level.id === effectiveEffort)?.name ?? effectiveEffort
+  const effortLabel = currentChoice === undefined
+    ? undefined
+    : reasoning === undefined
+      ? state.retainedEffort
+      : effectiveEffort === undefined
+        ? t('effort.providerDefault')
+        : reasoning.efforts.find(level => level.id === effectiveEffort)?.name ?? effectiveEffort
   const effortChoices = useMemo<readonly EffortChoice[]>(() => reasoning === undefined
     ? []
     : [
@@ -266,9 +268,9 @@ export function ModelSelect(
     // With no current selection there is nothing to search past: every
     // provider starts expanded so the pane is browsable immediately.
     // Otherwise every provider starts collapsed, matching a fresh open.
-    setExpandedProviders(state.current === null ? new Set(groups.map(group => group.id)) : new Set())
-    if (state.current === null) paneFocus.current = 'model-search'
-    setPane(state.current === null ? 'model' : 'root')
+    setExpandedProviders(currentChoice === undefined ? new Set(groups.map(group => group.id)) : new Set())
+    if (currentChoice === undefined) paneFocus.current = 'model-search'
+    setPane(currentChoice === undefined ? 'model' : 'root')
     setOpen(true)
     reload()
   }
@@ -331,7 +333,7 @@ export function ModelSelect(
       // Escape backs out of a drilled pane first, then closes. Without a
       // current selection the model pane was entered directly (no root to
       // return to), so Escape closes straight through.
-      if (pane !== 'root' && state.current !== null) back(pane)
+      if (pane !== 'root' && currentChoice !== undefined) back(pane)
       else close(true)
       return
     }
@@ -343,7 +345,7 @@ export function ModelSelect(
     if (event.key === 'Tab') {
       if (event.shiftKey) {
         event.preventDefault()
-        if (pane !== 'root' && state.current !== null) back(pane)
+        if (pane !== 'root' && currentChoice !== undefined) back(pane)
         else close(true)
         return
       }
@@ -427,15 +429,15 @@ export function ModelSelect(
     submit(selection)
   }
 
-  const waiting = state.current === null && state.status === 'loading'
+  const waiting = currentChoice === undefined && state.status === 'loading'
   const modelLabel = waiting
     ? t('trigger.loading')
     : currentChoice?.model.name
-      ?? (state.current === null ? t('trigger.fallback') : `${state.current.provider}/${state.current.model}`)
+      ?? t('trigger.fallback')
   const triggerLabel = effortLabel === undefined ? modelLabel : `${modelLabel} · ${effortLabel}`
   const triggerAria = waiting
     ? t('trigger.loading')
-    : state.current === null
+    : currentChoice === undefined
       ? t('trigger.selectAria')
       : effortLabel === undefined
         ? t('trigger.aria', { model: modelLabel })

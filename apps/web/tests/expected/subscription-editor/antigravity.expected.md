@@ -1,0 +1,107 @@
+- dialog "Settings":
+  - navigation:
+    - text: Settings
+    - button "General"
+    - button "Models"
+    - button "Built-in plugins"
+    - button "Agent presets"
+  - button "Open configuration file"
+  - button "Close"
+  - heading "Models" [level=2]
+  - paragraph: Enter your API keys to use models from the following providers.
+  - list
+  - button "Add model provider"
+  - region "Subscriptions":
+    - region "Sign in with your subscription":
+      - heading "Sign in with your subscription" [level=3]
+      - paragraph: Use an existing subscription without an API key. Sign in once, then add the provider to Models.
+      - text: Subscription provider
+      - combobox "Subscription provider":
+        - option "Anthropic"
+        - option "OpenAI Codex"
+        - option "xAI"
+        - option "Antigravity" [selected]
+        - option "OpenCode Console"
+      - text: Signed in
+      - button "Set up Antigravity provider": Set up provider
+      - button "Sign in to Antigravity again": Sign in again
+      - button "Remove Antigravity sign-in": Remove sign-in
+      - status:
+        - paragraph: "Antigravity is ready: a provider entry was created, and it lists 29 models."
+        - button "Models this provider entry serves 29"
+    - list:
+      - listitem:
+        - text: antigravity
+        - button "Edit antigravity": Edit
+        - button "Delete antigravity": Delete
+        - text: Display name
+        - textbox "Display name":
+          - /placeholder: antigravity
+          - text: My antigravity
+        - button "Fetch models"
+        - button "Use all models" [disabled]
+        - paragraph: All available models appear in the model picker, including new models.
+        - checkbox "Gemini 3.1 Pro Low (antigravity-gemini-3.1-pro-low)" [checked]
+        - text: Gemini 3.1 Pro Low antigravity-gemini-3.1-pro-low
+        - checkbox "Gemini 3.1 Pro High (antigravity-gemini-3.1-pro-high)" [checked]
+        - text: Gemini 3.1 Pro High antigravity-gemini-3.1-pro-high
+        - checkbox "Gemini 3 Pro Low (antigravity-gemini-3-pro-low)" [checked]
+        - text: Gemini 3 Pro Low antigravity-gemini-3-pro-low
+        - checkbox "Gemini 3 Pro High (antigravity-gemini-3-pro-high)" [checked]
+        - text: Gemini 3 Pro High antigravity-gemini-3-pro-high
+        - checkbox "Gemini 3 Flash (antigravity-gemini-3-flash)" [checked]
+        - text: Gemini 3 Flash antigravity-gemini-3-flash
+        - checkbox "Claude Sonnet 4.6 (antigravity-claude-sonnet-4-6)" [checked]
+        - text: Claude Sonnet 4.6 antigravity-claude-sonnet-4-6
+        - checkbox "Claude Sonnet 4.6 Thinking Low (antigravity-claude-sonnet-4-6-thinking-low)" [checked]
+        - text: Claude Sonnet 4.6 Thinking Low antigravity-claude-sonnet-4-6-thinking-low
+        - checkbox "Claude Sonnet 4.6 Thinking Medium (antigravity-claude-sonnet-4-6-thinking-medium)" [checked]
+        - text: Claude Sonnet 4.6 Thinking Medium antigravity-claude-sonnet-4-6-thinking-medium
+        - checkbox "Claude Sonnet 4.6 Thinking High (antigravity-claude-sonnet-4-6-thinking-high)" [checked]
+        - text: Claude Sonnet 4.6 Thinking High antigravity-claude-sonnet-4-6-thinking-high
+        - checkbox "Claude Opus 4.6 Thinking Low (antigravity-claude-opus-4-6-thinking-low)" [checked]
+        - text: Claude Opus 4.6 Thinking Low antigravity-claude-opus-4-6-thinking-low
+        - checkbox "Claude Opus 4.6 Thinking Medium (antigravity-claude-opus-4-6-thinking-medium)" [checked]
+        - text: Claude Opus 4.6 Thinking Medium antigravity-claude-opus-4-6-thinking-medium
+        - checkbox "Claude Opus 4.6 Thinking High (antigravity-claude-opus-4-6-thinking-high)" [checked]
+        - text: Claude Opus 4.6 Thinking High antigravity-claude-opus-4-6-thinking-high
+        - checkbox "Gemini 2.5 Flash (gemini-2.5-flash)" [checked]
+        - text: Gemini 2.5 Flash gemini-2.5-flash
+        - checkbox "Gemini 2.5 Pro (gemini-2.5-pro)" [checked]
+        - text: Gemini 2.5 Pro gemini-2.5-pro
+        - checkbox "Gemini 3.6 Flash High (gemini-3.6-flash-high)" [checked]
+        - text: Gemini 3.6 Flash High gemini-3.6-flash-high
+        - checkbox "Gemini 3.6 Flash Medium (gemini-3.6-flash-medium)" [checked]
+        - text: Gemini 3.6 Flash Medium gemini-3.6-flash-medium
+        - checkbox "Gemini 3.6 Flash Low (gemini-3.6-flash-low)" [checked]
+        - text: Gemini 3.6 Flash Low gemini-3.6-flash-low
+        - checkbox "Gemini 3.7 Flash High (gemini-3.7-flash-high)" [checked]
+        - text: Gemini 3.7 Flash High gemini-3.7-flash-high
+        - checkbox "Gemini 3.7 Flash Medium (gemini-3.7-flash-medium)" [checked]
+        - text: Gemini 3.7 Flash Medium gemini-3.7-flash-medium
+        - checkbox "Gemini 3.7 Flash Low (gemini-3.7-flash-low)" [checked]
+        - text: Gemini 3.7 Flash Low gemini-3.7-flash-low
+        - checkbox "Gemini 3.5 Flash High (gemini-3.5-flash-high)" [checked]
+        - text: Gemini 3.5 Flash High gemini-3.5-flash-high
+        - checkbox "Gemini 3.5 Flash Medium (gemini-3.5-flash-medium)" [checked]
+        - text: Gemini 3.5 Flash Medium gemini-3.5-flash-medium
+        - checkbox "Gemini 3.5 Flash Low (gemini-3.5-flash-low)" [checked]
+        - text: Gemini 3.5 Flash Low gemini-3.5-flash-low
+        - checkbox "Gemini 3.1 Pro High (gemini-3.1-pro-high)" [checked]
+        - text: Gemini 3.1 Pro High gemini-3.1-pro-high
+        - checkbox "Gemini 3.1 Pro Low (gemini-3.1-pro-low)" [checked]
+        - text: Gemini 3.1 Pro Low gemini-3.1-pro-low
+        - checkbox "Claude Sonnet 4.6 (claude-sonnet-4-6)" [checked]
+        - text: Claude Sonnet 4.6 claude-sonnet-4-6
+        - checkbox "Claude Opus 4.6 Thinking (claude-opus-4-6-thinking)" [checked]
+        - text: Claude Opus 4.6 Thinking claude-opus-4-6-thinking
+        - checkbox "GPT OSS 120b Medium (gpt-oss-120b-medium)" [checked]
+        - text: GPT OSS 120b Medium gpt-oss-120b-medium
+        - checkbox "Gemini 3.1 Flash Image (gemini-3.1-flash-image)" [checked]
+        - text: Gemini 3.1 Flash Image gemini-3.1-flash-image
+        - button "Apply"
+        - button "Cancel"
+      - listitem:
+        - text: opencode-console
+        - button "Edit opencode-console": Edit
+        - button "Delete opencode-console": Delete

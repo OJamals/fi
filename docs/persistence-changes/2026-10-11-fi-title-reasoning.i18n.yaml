@@ -1,0 +1,28 @@
+# Bilingual-pair consistency record for 2026-10-11-fi-title-reasoning.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/persistence-changes/2026-10-11-fi-title-reasoning.md
+/:
+  en: 3d5a424ae7d7e46b
+  zh: c22a8e4a62d8cc1a
+/2026-10-11-fi-title-reasoning:
+  en: c0809bc57f745357
+  zh: 982f183d6567e253
+/2026-10-11-fi-title-reasoning/summary:
+  en: 00bdb1a929323013
+  zh: b31998ada9f0c883
+/2026-10-11-fi-title-reasoning/table-of-contents:
+  en: 6cf314a069ceb451
+  zh: 9adff678e9ecab3b
+/2026-10-11-fi-title-reasoning/declaration:
+  en: 6907136f28e48c90
+  zh: 02f8298485f3d8e7
+/2026-10-11-fi-title-reasoning/compatibility:
+  en: c45e7d70b6998554
+  zh: 661057c65a3f82cc
+/2026-10-11-fi-title-reasoning/verification:
+  en: c87d070e23d5dfd7
+  zh: 4e9bf0b9d95a4c29
+/2026-10-11-fi-title-reasoning/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269

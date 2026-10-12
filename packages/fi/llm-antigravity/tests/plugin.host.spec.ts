@@ -105,7 +105,7 @@ describe('FiAntigravityService', () => {
     const { ctx } = await harness()
     const entry = ctx.llm.listConfigurableProviders().find(candidate => candidate.provider === 'antigravity')
     expect(entry).toMatchObject({
-      displayName: 'Antigravity',
+      displayName: 'antigravity',
       settingsNs: 'fi-antigravity',
       settingsPath: ['providers', 'antigravity'],
     })
@@ -128,6 +128,20 @@ describe('FiAntigravityService', () => {
     const models = await ctx.llm.discoverModels('fi-antigravity', { provider: 'antigravity' })
     expect(models.length).toBe(ANTIGRAVITY_STATIC_CATALOG.length)
     expect(models.map(model => model.id)).toContain('antigravity-claude-sonnet-4-6')
+  })
+
+  it('applies route names and picker selections without narrowing discovery', async () => {
+    const { ctx, live } = await harness()
+    const id = ANTIGRAVITY_STATIC_CATALOG[0]!.id
+    await live.update({ providers: { antigravity: { displayName: 'My models', models: [id] } } })
+    expect(ctx.llm.listProviders()).toContainEqual(expect.objectContaining({ id: 'antigravity', name: 'My models' }))
+    expect(ctx.llm.listConfigurableProviders()).toContainEqual(expect.objectContaining({ provider: 'antigravity', displayName: 'My models' }))
+    expect((await ctx.llm.listModels('antigravity')).map(model => model.id)).toEqual([id])
+    expect((await ctx.llm.discoverModels('fi-antigravity', { provider: 'antigravity' })).length).toBeGreaterThan(1)
+    await live.replace({ providers: { antigravity: {} } })
+    expect((await ctx.llm.listModels('antigravity')).length).toBeGreaterThan(1)
+    await live.update({ providers: { antigravity: { models: [] } } })
+    expect(await ctx.llm.listModels('antigravity')).toEqual([])
   })
 
   it('serves a signed-out request as an honest error finish, not a throw', async () => {

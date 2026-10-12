@@ -2,12 +2,10 @@
  * Subscription sign-in plugin, browser half. It adds one OAuth sign-in
  * section to the Models page for the providers whose value is a subscription
  * the user already holds — Claude Pro/Max, ChatGPT Plus/Pro, SuperGrok/X
- * Premium, Antigravity, and OpenCode Console — and replaces the Antigravity route editor with
- * its subscription-aware setup action.
+ * Premium, Antigravity, and OpenCode Console — with native route setup and editing.
  *
  * The subscription section remains the only sign-in surface. The native
- * editor can only adopt an existing grant, so it sends an unsigned user to
- * that section instead of opening another OAuth flow.
+ * editor adopts an existing grant or edits a configured route's name and model selection.
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
@@ -55,7 +53,7 @@ const NS = 'fi.settings.model-signin'
  * uses, because Cordis refuses `ctx.remote.authorization` property access
  * from any fiber that never declared it.
  */
-export const inject = ['slots', 'locale', 'remote']
+export const inject = ['slots', 'locale', 'remote', 'remote.settings', 'remote.llm']
 
 /**
  * Mount the `authorization` Remote namespace, then in a fiber scoped on it
@@ -75,7 +73,7 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
   // group before resolving, so the scoped fiber below starts with
   // `remote.authorization` already live rather than parking.
   const disposeRemote = await ctx.remote.$mount(fiAuthorizationRemote)
-  const scoped = ctx.inject(['slots', 'locale', 'remote.authorization'], (ctx) => {
+  const scoped = ctx.inject(['slots', 'locale', 'remote.authorization', 'remote.settings', 'remote.llm'], (ctx) => {
     ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'fi-model-signin: copy dictionaries')
 
     const controller = new SignInStore(ctx)
@@ -123,10 +121,29 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
     // undeclared slot throws, so the registrations wait for the declarations
     // through slots.inject() — the same contract the Models page's own apply
     // uses for its parent slots. They re-run if the owner remounts.
+    const operations: AntigravityProviderEditorInjected['operations'] = {
+      read: async (ns) => {
+        const response = await ctx.remote.settings.describe()
+        if (!response.ok) throw new Error(response.error.message)
+        const view = response.value.namespaces.find(view => view.ns === ns)
+        if (view === undefined) throw new Error(`Settings namespace unavailable: ${ns}`)
+        return view
+      },
+      discover: async (ns, provider) => {
+        const response = await ctx.remote.llm.discoverModels(ns, { provider })
+        if (!response.ok) throw new Error(response.error.message)
+        return response.value
+      },
+      write: async (ns, ops, revision) => {
+        const response = await ctx.remote.settings.mutate(ns, ops, revision)
+        if (!response.ok) throw new Error(response.error.message)
+      },
+    }
     const injected = (): SignInFooterInjected & AntigravityProviderEditorInjected => ({
       controller,
       hooks: { snapshot: controller.store },
       t,
+      operations,
     })
     void controller.load()
     ctx.slots.inject('settings.models.provider-editor', () => ctx.slots.register({

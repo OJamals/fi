@@ -8,6 +8,7 @@ import type { ProviderEditorOwnerProps } from '@deepseek-ai/dsh-client-ui-settin
 import type { SignInFooterInjected } from './SignInFooter.tsx'
 import type { SignInStore } from './store.ts'
 import styles from './AntigravityProviderEditor.module.css'
+import { SubscriptionProfileEditor, type SubscriptionEditorOperations } from './SubscriptionProfileEditor.tsx'
 
 /** Dependencies injected into the native provider editor. */
 export interface AntigravityProviderEditorInjected {
@@ -17,6 +18,8 @@ export interface AntigravityProviderEditorInjected {
   hooks: { snapshot: SignInStore['store'] }
   /** Subscription sign-in copy. */
   t: SignInFooterInjected['t']
+  /** Revision-checked profile edits and authenticated model discovery. */
+  operations: SubscriptionEditorOperations
 }
 
 /** Props supplied by the Models editor slot. */
@@ -29,6 +32,9 @@ export function AntigravityProviderEditor(props: AntigravityProviderEditorProps)
   const { controller, useSnapshot, t } = props
   /* v8 ignore next -- the Models slot binds this component's inject face. */
   if (controller === undefined || useSnapshot === undefined || t === undefined) return null
+  if (props.configured && props.operations !== undefined) return <SubscriptionProfileEditor
+    key={`${props.provider.settingsNs}/${props.provider.provider}`}
+    {...props} operations={props.operations} t={t} />
   return <Bound {...props} controller={controller} useSnapshot={useSnapshot} t={t} />
 }
 

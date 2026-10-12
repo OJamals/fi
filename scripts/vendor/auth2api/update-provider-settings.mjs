@@ -64,6 +64,7 @@ const CAPTURE_GATED_FIELDS = {
     "oauth",
     "stainless",
     "messageBetas",
+    "modelMessageBetas",
     "haikuMessageBetas",
     "countTokensBetas",
     "haikuCountTokensBetas",
@@ -71,6 +72,7 @@ const CAPTURE_GATED_FIELDS = {
   antigravityCli: [
     "version",
     "fingerprintCapturedVersion",
+    "fingerprintEvidence",
     "client",
     "build",
     "authMethod",

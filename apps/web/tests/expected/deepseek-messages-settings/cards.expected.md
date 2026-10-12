@@ -12,11 +12,12 @@
   - list:
     - listitem:
       - text: DeepSeek
-      - img "API 密钥已配置"
+      - img "API 密钥缺失"
       - button "编辑 DeepSeek (deepseek-official)": 编辑
+      - button "删除 DeepSeek (deepseek-official)": 删除
       - text: DeepSeek deepseek-official API 密钥
       - textbox "API 密钥":
-        - /placeholder: 已配置——输入新值可替换
+        - /placeholder: 输入 API 密钥
       - group:
         - text: 自定义设置 API 地址
         - textbox "API 地址":

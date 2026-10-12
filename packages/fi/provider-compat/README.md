@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@fi/provider-compat` keeps FI's four provider metadata records, captured wire fingerprints, OAuth settings, and release evidence synchronized with auth2api. It applies Codex, Claude Code, and Grok CLI request headers only after pi-ai resolves a stored subscription OAuth grant. Explicit profile keys and ordinary stored or ambient API keys remain on their normal endpoints. Grok subscription inference uses the CLI Responses endpoint; unrelated requests pass through unchanged.
+`@fi/provider-compat` keeps FI's five provider metadata records, captured wire fingerprints, OAuth settings, and release evidence synchronized with auth2api. Antigravity and OpenCode consume their canonical metadata from this package. It applies Codex, Claude Code, and Grok CLI request headers only after pi-ai resolves a stored subscription OAuth grant. Explicit profile keys and ordinary stored or ambient API keys remain on their normal endpoints. Grok subscription inference uses the CLI Responses endpoint; unrelated requests pass through unchanged.
 
 ## Table of Contents
 

@@ -22,11 +22,13 @@ OpenCode Console 订阅登录位于设置 → 模型。授权组合包挂载此�
 
 设备授权显示浏览器 URL 和验证码，不监听回调端口。轮询遵守等待和减速响应、最长一小时的设备授权期限、请求超时以及取消信号。浏览器选择的令牌组织优先于旧版无组织范围令牌的排序回退。刷新在凭据存储的记录锁中运行，保留身份信息，在发现模型前保存轮换令牌和变更的组织。凭据撤销或缺失 SSO 时需要重新连接。
 
-`server`、`clientId` 和 `userAgent` 配置 Console 端点及公开客户端标识。默认值匹配已检查的 OpenCode 2.0.20 版本：`https://opencode.ai/console`、`opencode-cli` 和 `opencode/latest/2.0.20/cli`。`requestTimeoutMs`、`streamIdleTimeoutMs`、`refreshMarginMs`、`defaultContextWindow` 和 `defaultMaxTokens` 配置超时及远端未声明的容量。端点仅允许 HTTPS OpenCode 域名，所有请求拒绝重定向。上游客户端变化时需要重新审查这些标识默认值；仅凭发布元数据不能确认传输兼容性。
+`server`、`clientId` 和 `userAgent` 配置 Console 端点及公开客户端标识。默认值和目录路径来自 [`@fi/provider-compat`](../provider-compat/README.zh.md) 的规范 `opencodeConsole` 记录，其中包含已审查的源码引用。`requestTimeoutMs`、`streamIdleTimeoutMs`、`refreshMarginMs`、`defaultContextWindow` 和 `defaultMaxTokens` 配置超时及远端未声明的容量。端点仅允许 HTTPS OpenCode 域名，所有请求拒绝重定向。仅凭发布元数据不能确认传输兼容性。
+
+路由 profile 接受 `displayName` 和已选 id 数组 `models`。省略数组时显示所有已声明模型；空数组隐藏全部模型。发现始终返回完整的已认证目录。选择仅影响模型选择器，不限制显式解析或已准备调用；授权仍决定账户与组织。提供方默认名称使用小写路由 id。
 
 ## Protocol sources
 
-[OpenCode Console 插件](https://github.com/anomalyco/opencode/tree/v2.0.20) 定义设备和组织范围令牌语义。[模型请求实现](https://github.com/anomalyco/opencode/tree/v2.0.20) 定义客户端和会话标头。Auth2api 的适配器提供 v2 目录映射和协议选择的本地参考。
+规范[提供方元数据](../provider-compat/src/provider-settings.json) 固定 OpenCode Console 插件与模型请求的源码引用，涵盖设备令牌、组织范围和客户端/会话标头。Auth2api 的适配器提供 v2 目录映射和协议选择的本地参考。
 
 已认证的 `/api/v2/config` 提供启用且支持文本输入和输出的模型、端点 URL、协议、线上模型标识和容量。未声明模态元数据的模型使用文本默认值。支持的包使用 Anthropic Messages、OpenAI Responses 或 OpenAI chat completions。包含提供者前缀的选择标识与线上模型标识在持久化重放中保持分离。准备调用时同时固定模型目录项、账户、组织和选项。发现失败不会回退到公开模型或其他账户。
 

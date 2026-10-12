@@ -6,7 +6,7 @@ import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import type { Browser, Page } from 'playwright'
 import { chromium } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { launchWebScaffold, watchConsole, type WebScaffold } from './scaffold.ts'
+import { captureStableAria, compareOrRefreshGolden, launchWebScaffold, watchConsole, webSnapshotMode, type WebScaffold } from './scaffold.ts'
 import { connectFreshWorkspace, openSettings, writeComposerDraft } from './support.ts'
 
 describe('web e2e: OpenCode Console subscription', () => {
@@ -38,12 +38,17 @@ describe('web e2e: OpenCode Console subscription', () => {
       } } }))
     }
     scaffold = await launchWebScaffold({ profile: { packages: [{
+      dir: fileURLToPath(new URL('../../../packages/fi/runtime-bundle', import.meta.url)), enabled: true,
+    }, {
       dir: fileURLToPath(new URL('../../../packages/fi/authorization-bundle', import.meta.url)), enabled: true,
     }] } })
     await scaffold.ctx.credentials.modifyRecord(credentialKey('fi-opencode', 'opencode-console'), async () => ({ kind: 'grant', payload: {
       type: 'oauth', server: 'https://opencode.ai/console', access: 'browser-fixture-access', refresh: 'browser-fixture-refresh',
       expires: Date.now() + 3_600_000, email: 'browser@example.test', accountId: 'browser-fixture-account', orgId: 'browser-fixture-org',
     } }))
+    await scaffold.ctx.credentials.modifyRecord(credentialKey('fi-antigravity', 'antigravity'), async () => ({
+      kind: 'grant', payload: { access: 'browser-fixture-antigravity', expires: Date.now() + 3_600_000 },
+    }))
     browser = await chromium.launch()
     page = await browser.newPage({ viewport: { width: 1440, height: 960 }, locale: 'en-US' })
     tripwire = watchConsole(page)
@@ -89,7 +94,7 @@ describe('web e2e: OpenCode Console subscription', () => {
     const trigger = page.getByRole('button', { name: /Select model/ })
     await trigger.click()
     await page.getByRole('menuitem', { name: /^Model/ }).click()
-    await page.getByRole('menuitem', { name: 'OpenCode Console', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'opencode-console', exact: true }).click()
     await page.getByRole('menuitemradio', { name: 'Friendly', exact: true }).click()
     await expect.poll(() => trigger.getAttribute('title')).toMatch(/^Friendly(?: ·|$)/)
     for (const [type, message] of [
@@ -112,4 +117,40 @@ describe('web e2e: OpenCode Console subscription', () => {
     }
     expect(tripwire.pageErrors).toEqual([])
   }, 30_000)
+
+  it('edits both native subscription routes and fetches their complete catalogs', async () => {
+    await openSettings(page, 'en')
+    const dialog = page.getByRole('dialog', { name: 'Settings' })
+    await dialog.getByRole('button', { name: 'Models', exact: true }).click()
+    const section = dialog.getByRole('region', { name: 'Sign in with your subscription' })
+    await section.getByLabel('Subscription provider').selectOption('fi-antigravity/antigravity')
+    await section.getByRole('button', { name: 'Set up Antigravity provider' }).click()
+    await expect.poll(() => section.innerText()).toContain('Antigravity is ready')
+    for (const provider of ['antigravity', 'opencode-console']) {
+      await dialog.getByRole('button', { name: `Edit ${provider}`, exact: true }).click()
+      await dialog.getByLabel('Display name', { exact: true }).fill(`My ${provider}`)
+      await dialog.getByRole('button', { name: 'Fetch models', exact: true }).click()
+      await dialog.getByRole('checkbox').first().waitFor()
+      await expect.poll(() => dialog.getByRole('button', { name: 'Fetch models', exact: true }).isEnabled()).toBe(true)
+      const expected = fileURLToPath(new URL(`./expected/subscription-editor/${provider}.expected.md`, import.meta.url))
+      await compareOrRefreshGolden(expected, await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd), webSnapshotMode())
+      await dialog.getByRole('checkbox').first().uncheck()
+      await dialog.getByRole('button', { name: 'Apply', exact: true }).click()
+      await dialog.getByRole('button', { name: `Edit My ${provider} (${provider})`, exact: true }).waitFor()
+      const profile = await readFile(join(scaffold.harnessHome, 'profiles', 'scaffold', 'cordis.patch.yml'), 'utf8')
+      expect(profile).toContain(`displayName: My ${provider}`)
+      expect(profile).toContain('models:')
+      await dialog.getByRole('button', { name: `Edit My ${provider} (${provider})`, exact: true }).click()
+      await dialog.getByRole('button', { name: 'Fetch models', exact: true }).click()
+      await dialog.getByRole('checkbox').first().waitFor()
+      await expect.poll(() => dialog.getByRole('button', { name: 'Fetch models', exact: true }).isEnabled()).toBe(true)
+      expect(await dialog.getByRole('checkbox').first().isChecked()).toBe(false)
+      await dialog.getByRole('button', { name: 'Use all models', exact: true }).click()
+      await dialog.getByLabel('Display name', { exact: true }).fill('')
+      await dialog.getByRole('button', { name: 'Apply', exact: true }).click()
+      await dialog.getByRole('button', { name: `Edit ${provider}`, exact: true }).waitFor()
+      expect((await scaffold.ctx.llm.listModels(provider)).length).toBeGreaterThan(0)
+    }
+    expect(tripwire.pageErrors).toEqual([])
+  }, 60_000)
 })

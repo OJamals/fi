@@ -72,12 +72,28 @@ export class OpenCodeAdapter extends LlmAdapter {
    * Bind runtime settings and the canonical grant owner.
    * @param options - current validated deployment options.
    * @param grant - stored grant resolver; refresh remains credential-store owned.
+   * @param profile - current route name and model-picker selection.
    */
-  constructor(private readonly options: () => ConsoleOptions, private readonly grant: ConsoleGrantResolver) { super() }
+  constructor(
+    private readonly options: () => ConsoleOptions,
+    private readonly grant: ConsoleGrantResolver,
+    private readonly profile: (provider: string) => { displayName?: string; models?: readonly string[] } | undefined = () => undefined,
+  ) { super() }
 
-  override providerInfo(provider: string) { return { id: provider, name: 'OpenCode Console' } }
+  override providerInfo(provider: string) { return { id: provider, name: this.profile(provider)?.displayName ?? provider } }
 
   override async listModels(provider: string): Promise<readonly LlmModelInfo[]> {
+    const models = await this.discoverModels(provider)
+    const selected = this.profile(provider)?.models
+    return selected === undefined ? models : models.filter(model => selected.includes(model.id))
+  }
+
+  /**
+   * Discover the full authenticated catalog regardless of model-picker selection.
+   * @param provider - FI route identity.
+   * @returns advertised text models, or an empty list while signed out.
+   */
+  async discoverModels(provider: string): Promise<readonly LlmModelInfo[]> {
     const config = this.options()
     const grant = await this.grant(config)
     if (grant === undefined) return []

@@ -130,7 +130,7 @@ describe('catalog', () => {
       'https://daily-cloudcode-pa.googleapis.com/v1internal:loadCodeAssist?alt=json',
     )
     expect(ANTIGRAVITY_USER_AGENT).toMatch(
-      /^antigravity\/cli\/1\.2\.1 \(aidev_client; os_type=.+; arch=.+; cl=979485360; auth_method=consumer\)$/,
+      /^antigravity\/cli\/1\.3\.3 \(aidev_client; os_type=.+; arch=.+; cl=996823801; auth_method=consumer\)$/,
     )
   })
 

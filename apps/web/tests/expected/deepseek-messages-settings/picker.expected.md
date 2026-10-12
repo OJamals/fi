@@ -1,6 +1,8 @@
-- group "模型与推理等级":
+- dialog "模型与推理等级":
+  - search:
+    - searchbox "搜索模型"
   - menu "模型":
     - group "DeepSeek":
-      - text: DeepSeek
+      - menuitem "DeepSeek" [expanded]
       - menuitemradio "Messages Flash" [checked]
       - menuitemradio "DeepSeek-V4-Pro"

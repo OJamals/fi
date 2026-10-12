@@ -146,7 +146,7 @@ describe('web e2e: plugin manager', () => {
               return {
                 row: rect(row), head: rect(head), icon: rect(head?.children[0]), main: rect(main),
                 titleRow: rect(main?.children[0]), title: rect(main?.children[0]?.firstElementChild),
-                description: rect(main?.children[1]), actions: rect(head?.children[2]),
+                description: rect(main?.children[1]),
               }
             }),
           }
@@ -182,9 +182,9 @@ describe('web e2e: plugin manager', () => {
         await skeleton.waitFor({ state: 'detached' })
         expect(await panel.getAttribute('aria-busy')).toBe('false')
         for (const action of await actions.all()) expect(await action.isDisabled()).toBe(false)
-        const official = panel.locator('[data-plugin-group="official"]')
-        await official.locator('[data-plugin-package]').first().waitFor()
-        const loaded = await measure(official)
+        const basic = panel.locator('[data-plugin-group="basic"]')
+        await basic.locator('[data-plugin-item]').first().waitFor()
+        const loaded = await measure(basic)
         expect(loaded.rows).toHaveLength(4)
         const compare = (name: string, a: typeof loading.pageHeader, b: typeof loaded.pageHeader, axes: readonly (keyof typeof a)[] = ['x', 'y', 'width', 'height']) => {
           for (const axis of axes) {
@@ -195,9 +195,9 @@ describe('web e2e: plugin manager', () => {
         compare('groupHeader', loading.groupHeader, loaded.groupHeader)
         for (const [index, row] of loading.rows.entries()) {
           const real = loaded.rows[index]!
-          for (const part of ['row', 'head', 'icon', 'main', 'titleRow', 'actions'] as const) compare(`row ${index + 1} ${part}`, row[part], real[part])
+          for (const part of ['row', 'head', 'icon'] as const) compare(`row ${index + 1} ${part}`, row[part], real[part])
           // Painted text bars are deliberately shorter than real copy; their line origins and heights align.
-          for (const part of ['title', 'description'] as const) compare(`row ${index + 1} ${part}`, row[part], real[part], ['x', 'y', 'height'])
+          for (const part of ['main', 'titleRow', 'title', 'description'] as const) compare(`row ${index + 1} ${part}`, row[part], real[part], ['x', 'y', 'height'])
         }
         facts.push(`${width}px: 4 rows; page/group headers, rows, icons, text lines and blank action spaces align within 0.1px`)
         expect(consoleWatch.pageErrors).toEqual([])
@@ -433,10 +433,12 @@ describe('web e2e: plugin manager', () => {
     // optional bundles open the Official group, followed by the official plugins that registered their
     // configuration, and its other bundles stay off the page.
     expect(await panel.locator('[data-plugin-group="bundles"] [data-plugin-package]').count()).toBe(2)
-    expect(await panel.locator('[data-plugin-group="official"] [data-plugin-package]').count()).toBe(OPTIONAL_BUNDLES.length)
-    expect(await panel.locator('[data-plugin-group="official"] [data-plugin-item]').count()).toBe(4)
+    expect(await panel.locator('[data-plugin-group="basic"] [data-plugin-item]').count()).toBe(4)
+    await panel.getByRole('button', { name: '更多', exact: true }).click()
+    expect(await panel.locator('[data-plugin-group="more"] [data-plugin-package]').count()).toBe(OPTIONAL_BUNDLES.length)
     expect(await panel.getByText('实验性', { exact: true }).count())
       .toBe(OPTIONAL_BUNDLES.filter(name => name.startsWith('@deepseek-ai/dsh-experimental-')).length)
+    await panel.getByRole('button', { name: '返回插件', exact: true }).click()
     expect(await panel.locator('[data-plugin-package="@deepseek-ai/dsh-experimental-inspector"]').count()).toBe(0)
     expect(await panel.getByRole('switch', { name: '启用 语音输入', exact: true }).getAttribute('aria-checked')).toBe('false')
     // A bundle that is off still shows the rows its patch declares, without switches.
@@ -444,7 +446,7 @@ describe('web e2e: plugin manager', () => {
     await panel.locator('[data-plugin-row]', { hasText: 'fixture-row' }).waitFor({ timeout: 10_000 })
     expect(await panel.getByRole('switch', { name: '启用组件 @fixture/bundle' }).count()).toBe(0)
     await panel.getByRole('button', { name: '卸载 @fixture/bundle' }).waitFor({ timeout: 5_000 })
-    await panel.getByRole('button', { name: '返回插件列表' }).click()
+    await panel.getByRole('button', { name: '返回插件', exact: true }).click()
     await expect.poll(() => panel.getByRole('button', { name: '卸载 @fixture/bundle' }).count(), { timeout: 5_000 }).toBe(0)
 
     const snapshot = await captureStableAria(page, '[data-plugin-panel]', scaffold.workspaceCwd)
@@ -526,12 +528,12 @@ describe('web e2e: plugin manager', () => {
     }
     await panel.getByRole('button', { name: '查看 智能体团队', exact: true }).click()
     await checkImage('[data-plugin-detail]', teamIcon, 'Agent Teams detail')
-    await panel.getByRole('button', { name: '返回插件列表' }).click()
+    await panel.getByRole('button', { name: '返回插件' }).click()
     await panel.getByRole('button', { name: '查看 @fixture/bundle', exact: true }).click()
     await checkImage('[data-plugin-detail]', fixtureIcon, 'Third-party bundle detail')
     await checkImage('[data-plugin-row="fixture-search"]', fixtureIcon, 'Independent search row')
     await compareOrRefreshGolden(join(SNAPSHOT_DIR, 'icons.expected.md'), images.join('\n'), MODE)
-    await panel.getByRole('button', { name: '返回插件列表' }).click()
+    await panel.getByRole('button', { name: '返回插件' }).click()
     expect(tripwire.pageErrors).toEqual([])
   })
 
@@ -560,7 +562,7 @@ describe('web e2e: plugin manager', () => {
       await setLanguage('zh')
       await closeSettings()
     }
-    await panel.getByRole('button', { name: '返回插件列表' }).click()
+    await panel.getByRole('button', { name: '返回插件' }).click()
     expect(tripwire.pageErrors).toEqual([])
   })
 
@@ -643,9 +645,9 @@ describe('web e2e: plugin manager', () => {
         for (const id of ['agent-team', 'tool-agent-team', 'ui-agent-team']) {
           await panel.locator('[data-plugin-row]', { hasText: id }).first().waitFor()
         }
-        await panel.getByRole('button', { name: '返回插件列表' }).click()
+        await panel.getByRole('button', { name: '返回插件' }).click()
       } finally {
-        const back = panel.getByRole('button', { name: '返回插件列表' })
+        const back = panel.getByRole('button', { name: '返回插件' })
         if (await back.count() > 0) await back.click()
         if (await toggle.getAttribute('aria-checked') === 'true') await toggle.click()
         await expect.poll(() => teamRows().filter(entry => entry.fiber?.state === FiberState.ACTIVE).length, { timeout: 20_000 }).toBe(0)
@@ -685,7 +687,7 @@ describe('web e2e: plugin manager', () => {
     } finally {
       if (await toggle.getAttribute('aria-checked') === 'true') await toggle.click()
       await expect.poll(running, { timeout: 20_000 }).toBe(0)
-      await panel.getByRole('button', { name: '返回插件列表' }).click()
+      await panel.getByRole('button', { name: '返回插件', exact: true }).click()
     }
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
@@ -904,7 +906,7 @@ describe('web e2e: plugin manager', () => {
     await expect.poll(() => mounted()?.fiber?.state, { timeout: 20_000 }).not.toBe(2)
     await rowSwitch.click()
     await expect.poll(() => mounted()?.fiber?.state, { timeout: 20_000 }).toBe(2)
-    await panel.getByRole('button', { name: '返回插件列表' }).click()
+    await panel.getByRole('button', { name: '返回插件' }).click()
 
     await toggle.click()
     await expect.poll(() => mounted()?.fiber?.state, { timeout: 20_000 }).not.toBe(2)
@@ -955,7 +957,7 @@ describe('web e2e: startup-applied plugin management', () => {
       await panel.getByRole('button', { name: '查看 @fixture/bundle' }).click()
       await panel.locator('[data-plugin-row]', { hasText: 'fixture-row' }).waitFor({ timeout: 10_000 })
       expect(await panel.getByRole('switch', { name: '启用组件 @fixture/bundle' }).isDisabled()).toBe(true)
-      await panel.getByRole('button', { name: '返回插件列表' }).click()
+      await panel.getByRole('button', { name: '返回插件' }).click()
 
       await toggle.click()
       await expect.poll(bundles).toEqual(SCAFFOLD_BUNDLES)

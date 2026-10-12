@@ -1,6 +1,7 @@
 /** Authenticated OpenCode v2 catalog projection; remote configuration cannot supply credentials. */
 import type { Api, Model } from '@earendil-works/pi-ai'
 import { z } from 'zod'
+import { providerSettingsFor } from '@fi/provider-compat'
 import { consoleJson, consoleUrl } from './protocol.ts'
 import type { ConsoleGrant, ConsoleOptions } from './protocol.ts'
 
@@ -95,7 +96,7 @@ export function projectCatalog(data: unknown, provider: string, config: ConsoleO
 export async function loadCatalog(
   config: ConsoleOptions, grant: ConsoleGrant, provider: string, signal?: AbortSignal,
 ): Promise<ConsoleModel[]> {
-  return projectCatalog(await consoleJson(config, '/api/v2/config', {
+  return projectCatalog(await consoleJson(config, providerSettingsFor('opencodeConsole').catalogPath, {
     headers: { authorization: `Bearer ${grant.access}`, ...grant.orgId === undefined ? {} : { 'x-org-id': grant.orgId } },
     ...signal === undefined ? {} : { signal },
   }), provider, config)

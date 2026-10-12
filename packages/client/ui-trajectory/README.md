@@ -35,11 +35,13 @@ Selection, timeline navigation, folding, and search cover the React-visible wind
 
 Summary and Preview share one ordered attachment list after the message text, preserving repeated references. Each row shows a contained image thumbnail or file-type icon, the recorded filename (a localized numbered label for unnamed images), and recorded size, type, and image dimensions where available. Zero-byte files retain their size, and truncated filenames expose the full name in a tooltip. Images open the existing lightbox. Raw keeps content-block order and unrendered text, with images and files in initially collapsed disclosures containing their complete recorded fields.
 
+Requests remain pending while awaiting output, streaming, or retrying. A request without assistant output has no result link; interrupted output remains inspectable and both the request and assistant record show failure, including when the Step start is outside the loaded history. Retry counts and the last attempt error remain available after recovery; they do not change the current request status. A completed model response does not imply that its tools or turn have finished.
+
 Thinking in the inspector uses compact Markdown at the inspector's fixed 13px size and 20px line height, independent of the content-size setting. Headings add bold weight without increasing size or line height. Assistant output keeps its regular Markdown typography.
 
 ### The timing overview
 
-Historical replies retain TTFT, generation duration, and throughput when their recorded streams contain token timestamps. TTFT measures from the Step start to its first token, including output from an earlier retry attempt; an unloaded Step start or a stream without tokens leaves the corresponding metric unavailable.
+Streaming replies retain their known start time and TTFT. After settlement, token timestamps provide generation duration; throughput also requires recorded usage. Historical replies retain the same recorded timing. TTFT measures from the Step start to its first token, including output from an earlier retry attempt; an unloaded Step start or a stream without tokens leaves the corresponding metric unavailable.
 
 A fixed Overview above the ledger projects real record start/duration timing from left to right; Assistant spans divide recorded TTFT from decoding, and a 500 ms hover reveals exact clock and duration details. Dragging an interval focuses the ledger on every record active at any point in that inclusive range; wheel gestures zoom the time domain; a right-button click clears the selected interval, and a right-button drag pans an already zoomed viewport. The initial view and streaming updates stay at the tail; scrolling upward suspends following so new records do not interrupt inspection of earlier rows.
 

@@ -68,7 +68,7 @@ describe('web e2e: plugin configuration pages', () => {
     while (await panel.getByRole('button', { name: /^返回/ }).count() > 0) {
       await panel.getByRole('button', { name: /^返回/ }).first().click()
     }
-    await panel.getByRole('heading', { name: '官方', exact: true }).waitFor({ timeout: 20_000 })
+    await panel.getByRole('heading', { name: '内置插件配置', exact: true }).waitFor({ timeout: 20_000 })
     return panel
   }
 
@@ -91,8 +91,8 @@ describe('web e2e: plugin configuration pages', () => {
     // agent loop, subagent selection, and the DeepSeek search provider, after
     // the official bundles the installation ships switched off.
     await panel.getByRole('button', { name: '查看 网页搜索', exact: true }).waitFor({ timeout: 20_000 })
-    const official = panel.locator('[data-plugin-group="official"]')
-    expect(await official.locator('[data-plugin-package]').count()).toBe(OPTIONAL_BUNDLES.length)
+    const official = panel.locator('[data-plugin-group="basic"]')
+    expect(await official.locator('[data-plugin-package]').count()).toBe(0)
     expect(await official.locator('[data-plugin-item]').count()).toBe(4)
     for (const title of ['终端', 'Agent 循环', '子智能体', '网页搜索']) {
       expect(await official.getByRole('button', { name: `查看 ${title}`, exact: true }).count()).toBe(1)
@@ -103,6 +103,9 @@ describe('web e2e: plugin configuration pages', () => {
 
     const snapshot = await captureStableAria(page, '[data-plugin-panel]', scaffold.workspaceCwd)
     await compareOrRefreshGolden(OFFICIAL_EXPECTED, snapshot, MODE)
+    await panel.getByRole('button', { name: '更多', exact: true }).click()
+    expect(await panel.locator('[data-plugin-group="more"] [data-plugin-package]').count()).toBe(OPTIONAL_BUNDLES.length)
+    await panel.getByRole('button', { name: '返回插件', exact: true }).click()
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
 
@@ -136,7 +139,7 @@ describe('web e2e: plugin configuration pages', () => {
     await openPage(panel, '子智能体')
     expect(await depth.inputValue()).toBe('1')
     expect(await capacity.inputValue()).toBe('8')
-    await panel.getByRole('button', { name: '返回插件列表', exact: true }).click()
+    await panel.getByRole('button', { name: '返回插件', exact: true }).click()
   })
 
   it('opens field explanations with the keyboard and retains unsaved edits', async () => {
@@ -160,7 +163,7 @@ describe('web e2e: plugin configuration pages', () => {
     await panel.getByRole('button', { name: '子智能体并行数量上限说明', exact: true }).click()
     const capacityRules = panel.getByRole('region', { name: '子智能体并行数量上限说明', exact: true })
     expect(await capacityRules.getByText('同一主 Agent 下，所有递归层级同时存活的子智能体总数，主 Agent 不计入。达到上限时，新的启动请求会被拒绝。', { exact: true }).count()).toBe(1)
-    await panel.getByRole('button', { name: '返回插件列表', exact: true }).click()
+    await panel.getByRole('button', { name: '返回插件', exact: true }).click()
     await openPage(panel, '子智能体')
     expect(await depth.inputValue()).toBe('1')
   })
@@ -241,8 +244,8 @@ describe('web e2e: plugin configuration pages', () => {
     await timeout.waitFor({ timeout: 10_000 })
 
     await timeout.fill('7000')
-    await panel.getByRole('button', { name: '返回插件列表' }).click()
-    await panel.getByRole('heading', { name: '官方', exact: true }).waitFor({ timeout: 10_000 })
+    await panel.getByRole('button', { name: '返回插件' }).click()
+    await panel.getByRole('heading', { name: '内置插件配置', exact: true }).waitFor({ timeout: 10_000 })
     await openPage(panel, '终端')
 
     await expect.poll(() => panel.getByLabel('命令超时（毫秒）').inputValue(), { timeout: 5_000 }).toBe('12000')
@@ -340,7 +343,7 @@ describe('web e2e: plugin configuration pages', () => {
     await bundlePage.waitFor({ timeout: 10_000 })
 
     // An official plugin's page is another subject; the fixture's entries render nothing for it.
-    await panel.getByRole('button', { name: '返回插件列表' }).click()
+    await panel.getByRole('button', { name: '返回插件' }).click()
     await openPage(panel, '终端')
     const itemPage = panel.locator('[data-plugin-item-detail]')
     expect(await itemPage.locator('[data-live-action], [data-live-badge], [data-live-section]').count()).toBe(0)

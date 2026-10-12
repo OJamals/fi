@@ -138,7 +138,10 @@ function prompt(ctx: Context) {
 
 describe('request-level dynamic configuration', () => {
   it('disables and restores the official route through Loader configuration updates', async () => {
-    const { ctx } = await boot(await home(), { enabled: true, models: [{ id: 'retained-model' }] })
+    vi.stubEnv('DEEPSEEK_API_KEY', '')
+    const dir = await home()
+    await writeFile(join(dir, '.credentials.yaml'), 'version: 1\nrefs:\n  DEEPSEEK_API_KEY: test-key\n', { mode: 0o600 })
+    const { ctx } = await boot(dir, { enabled: true, models: [{ id: 'retained-model' }] })
     await configurations.get(ctx)!.update({ enabled: false })
     expect(ctx.llm.listProviders()).toEqual([])
     expect(ctx.llm.listConfigurableProviders()).toMatchObject([{ provider: 'deepseek-official' }])

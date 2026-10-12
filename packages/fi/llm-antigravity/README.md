@@ -38,6 +38,8 @@ Antigravity OAuth adapter and Cloud Code transport for fi. Registers the Antigra
 <a id="how-it-works"></a>
 ## How it works
 
+Each route profile accepts `displayName` and a `models` array of model ids. An absent array exposes the complete catalog; an empty array hides every model from the picker. Model discovery always returns the complete catalog, so an editor can restore excluded models. These presentation settings do not restrict explicit model resolution or change the subscription account.
+
 The OAuth flow authenticates with a Google installed-app OAuth client, a loopback redirect on `127.0.0.1:54545`, and five scopes including `cloud-platform` and `cclog`. After exchange it discovers the `cloudaicompanionProject` via `loadCodeAssist`, which becomes the billing project every inference request names.
 
 ### OAuth client configuration

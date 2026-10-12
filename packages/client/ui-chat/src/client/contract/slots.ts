@@ -1,10 +1,13 @@
 /** Chat-owned Slot declarations and composed component props. */
+import type { RefObject } from 'react'
 import type { MessageId } from '@deepseek-ai/dsh-llm/brand'
 import type { SessionId, SessionSeq } from '@deepseek-ai/dsh-session/types'
+import type { PendingSubmission } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { InboxState } from '@deepseek-ai/dsh-agent/types'
 import type {
   CommandNode, CompactionSummaryNode, ConversationLocationDataStore, ConversationTurnDataMap,
   ConversationGroupData, GroupSnapshot,
-  MessageImageLoader, MessageImagesOwnerProps, RenderMessageImages, TurnLocation,
+  MessageImageLoader, MessageImagesOwnerProps, RenderEntry, RenderMessageImages, TurnLocation,
 } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {
   HostObservable, InjectFace, KeyedSnapshotSelectorHook, PropsLocale, PropsRenderSlots, PropsRuntime,
@@ -15,6 +18,7 @@ import type { MarkdownFileMentions } from '@deepseek-ai/dsh-client-ui-primitives
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { createChatStore } from '../stores.ts'
 import type { ChatPresentationPolicy } from '../presentation-policy.ts'
+import type { FlowMotionRows } from '../chat/flow-motion.ts'
 import type { ToolCallId } from './store.ts'
 import type { ChatConversationViewNode, ChatNode, ChatNodeKind } from './chat-nodes.ts'
 import type {
@@ -142,10 +146,39 @@ export type UseDisclosure = () => {
   readonly toggle: () => void
 }
 
-/** Stable sources bound to one rendered Chat Node. */
+/**
+ * Searchable process hiding bound to the current node render's viewport.
+ * @param hidden - desired hidden state.
+ * @param reveal - browser-find and focus-protection callback.
+ * @returns the stable process-container ref.
+ */
+export type UseGroupAction = (hidden: boolean, reveal: () => void) => RefObject<HTMLDivElement>
+
+/**
+ * Plain header visibility bound to the flow's viewport, including growth on reveal.
+ * @param ref - stable header element.
+ * @param hidden - desired hidden state.
+ */
+export type UseGroupHeaderAction = (ref: RefObject<HTMLElement | null>, hidden: boolean) => void
+
+/** Viewport capability supplied once for each rendered Chat flow. */
+export interface ChatFlowHookContext {
+  readonly motion: FlowMotionRows
+}
+
+/** Flow-wide behavior hooks bound to one viewport, independently of Session identity. */
+export interface ChatFlowInjected {
+  hooks: {
+    groupAction: SlotHookFactory<'conversation.chat.flow', UseGroupAction>
+    groupHeaderAction: SlotHookFactory<'conversation.chat.flow', UseGroupHeaderAction>
+  }
+}
+
+/** Stable sources and capabilities bound to one rendered Chat Node. */
 export interface ChatNodeHookContext {
   readonly turnData: ConversationLocationDataStore<ConversationTurnDataMap> | undefined
   readonly disclosureReset: ObservableSnapshot<number>
+  readonly useGroupAction: UseGroupAction
 }
 
 /** Slot-level Hook factories for keyed Chat renderers. */
@@ -153,6 +186,7 @@ export interface ChatNodeInjected {
   hooks: {
     turnData: SlotHookFactory<'conversation.chat.node', UseChatNodeTurnData>
     disclosure: SlotHookFactory<'conversation.chat.node', UseDisclosure>
+    groupAction: SlotHookFactory<'conversation.chat.node', UseGroupAction>
   }
 }
 
@@ -237,6 +271,8 @@ export interface ChatViewInjected {
   keyedHooks: {
     /** Resolve the stable source for one Chat Node key. */
     chatNode: (key: string) => ChatNodeSource
+    /** Observe assembler-owned bottom membership for one Node. */
+    chatNodeBottom: (key: string) => ObservableSnapshot<boolean>
     /** Resolve the stable Turn-process source for one Chat Node key. */
     chatNodeProcess: (key: string) => ChatNodeProcessSource
     /** Resolve one optional group without subscribing the root View to its data. */
@@ -259,10 +295,30 @@ export interface ChatViewInjected {
   fileMentions: (owner: TurnTailOwnerProps) => MarkdownFileMentions | undefined
 }
 
+/** Existing Session-owned node sources shared by the view and its flow renderer. */
+export type ChatFlowDataInjected = Pick<ChatViewInjected, 'hooks' | 'keyedHooks'>
+
+/** Ordered rows and reconciled local echoes rendered inside one Chat viewport. */
+export interface ChatFlowOwnerProps extends Pick<ChatNodeOwnerProps,
+  'cwd' | 'openSkill' | 'openFile' | 'inspectCall' | 'forkAt' | 'loadImage' | 'fileMentions'> {
+  readonly entries: readonly RenderEntry[]
+  readonly pendingInputs: readonly (PendingSubmission | InboxState['next-step'][number])[]
+  readonly lastInputTurn: number | undefined
+  readonly deferCollapse: boolean
+}
+
+/** Full props of the Chat-owned flow renderer. */
+export type ChatFlowSlotProps =
+  PropsRuntime<'conversation.chat.flow'>
+  & PropsRenderSlots<'conversation.chat.node' | 'conversation.message.images'>
+  & PropsStore<ChatStore>
+  & InjectFace<ChatFlowDataInjected>
+  & PropsLocale<'chat'>
+
 /** Full Chat view props. */
 export type ChatViewSlotProps =
   PropsRuntime<'conversation.view'>
-  & PropsRenderSlots<'conversation.chat.node' | 'conversation.message.images'>
+  & PropsRenderSlots<'conversation.chat.flow'>
   & PropsStore<ChatStore>
   & InjectFace<ChatViewInjected>
   & PropsLocale<'chat'>
@@ -282,6 +338,14 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 
   interface SlotMap {
+    /** Ordered Chat rows and local echoes with viewport-bound visibility hooks. */
+    'conversation.chat.flow': {
+      kind: 'single'
+      scope: 'session'
+      owner: ChatFlowOwnerProps
+      hookContext: ChatFlowHookContext
+      inject: ChatFlowInjected
+    }
     /**
      * Final Chat node renderer, keyed by `ChatNodeKind`. The component receives
      * the typed node, shared Chat actions, and Turn-data hook. Reusing a key

@@ -326,7 +326,7 @@ describe('web e2e: organized model picker and compact subscription control', () 
     await page.screenshot({ path: join(artifactDir, 'subscription-provider-light-desktop.png'), fullPage: true })
     const openRouterRow = dialog.getByRole('button', { name: 'Edit OpenRouter' }).locator('xpath=ancestor::li[1]')
     const anthropicRow = dialog.getByRole('button', { name: 'Edit anthropic' }).locator('xpath=ancestor::li[1]')
-    const antigravityRow = dialog.locator('li[class*="rowCard"]').filter({ hasText: /^Antigravity/ })
+    const antigravityRow = dialog.locator('li[class*="rowCard"]').filter({ hasText: /^antigravity/ })
     await expect.poll(async () => openRouterRow.evaluate((row, signIn) =>
       Boolean(row.compareDocumentPosition(signIn as Element) & Node.DOCUMENT_POSITION_FOLLOWING),
     await subscription.elementHandle())).toBe(true)
@@ -366,7 +366,7 @@ describe('web e2e: organized model picker and compact subscription control', () 
       scrollWidth: element.scrollWidth,
     }))
     expect(subscriptionGeometry.scrollWidth).toBeLessThanOrEqual(subscriptionGeometry.clientWidth)
-    const narrowAntigravityRow = darkDialog.locator('li[class*="rowCard"]').filter({ hasText: /^Antigravity/ })
+    const narrowAntigravityRow = darkDialog.locator('li[class*="rowCard"]').filter({ hasText: /^antigravity/ })
     await narrowAntigravityRow.scrollIntoViewIfNeeded()
     expect(await narrowAntigravityRow.evaluate(row => row.closest('section')?.getAttribute('aria-label')))
       .toBe('Subscriptions')

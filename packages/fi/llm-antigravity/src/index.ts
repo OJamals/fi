@@ -258,13 +258,13 @@ export function registerAntigravityFlow(
 
 /**
  * The settings section this plugin owns: one profile per Antigravity route.
- * The profile is deliberately thin — the grant, not the profile, picks the
- * account — so the schema carries presentation fields only and the Models
- * page's editor shows nothing to mistype.
+ * The grant picks the account; profiles control naming and model-picker selection.
  */
 interface FiAntigravityProfile {
   /** Name the Models page shows for this route. */
   displayName?: string
+  /** Model-picker allowlist; absent lists the complete catalog, empty hides every model. */
+  models?: string[]
 }
 
 /** The plugin Config: profiles keyed by route id, edited live through the profile-backed settings form. */
@@ -297,6 +297,7 @@ export interface FiAntigravityConfig {
 
 const Profile = z.object({
   displayName: z.string(),
+  models: z.union([z.array(z.string())]),
 })
 const FingerprintPair = z.object({
   clientIdSha256: z.string(),
@@ -450,6 +451,7 @@ export class FiAntigravityService extends Service {
     const adapter = new AntigravityAdapter(
       signal => resolveAntigravityGrant(this.ctx, signal, oauthClientRefs(), oauthClientDiscoveryOptions()),
       () => this.ctx.get('attachments'),
+      provider => config.providers.get()[provider],
     )
     let registration: AdapterRegistrationHandle | undefined
     const sync = (): void => {
@@ -468,16 +470,18 @@ export class FiAntigravityService extends Service {
     // The Models page's add-provider catalog draws from these entries, so
     // Antigravity appears there before any route exists — the same way the
     // pi-ai plugin surfaces its whole installed catalog.
-    this.ctx.llm.registerConfigurableProviders([{
+    const directoryEntries = () => [{
       provider: ANTIGRAVITY_PROVIDER_ID,
-      displayName: ANTIGRAVITY_FLOW_LABEL,
+      displayName: adapter.providerInfo(ANTIGRAVITY_PROVIDER_ID).name,
       settingsNs,
       settingsPath: ['providers', ANTIGRAVITY_PROVIDER_ID],
-    }])
+    }]
+    const directory = this.ctx.llm.registerConfigurableProviders(directoryEntries())
+    this.ctx.on('loader/volatile-update', () => { directory.replace(directoryEntries()) })
     // Discovery serves the adopt flow's model enumeration: the live
     // projected catalog when a grant is stored, the static list otherwise.
     this.ctx.llm.registerModelDiscovery(settingsNs, async (request) => {
-      const models = await adapter.listModels(request.provider ?? ANTIGRAVITY_PROVIDER_ID)
+      const models = await adapter.discoverModels(request.provider ?? ANTIGRAVITY_PROVIDER_ID)
       return models.map(model => ({ id: model.id, name: model.name }))
     })
   }

@@ -26,3 +26,39 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.input {
+  padding: 8px 12px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+}
+
+.models {
+  max-height: 240px;
+  overflow: auto;
+  padding: 4px;
+}
+
+.model {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.model small {
+  display: block;
+  color: var(--dsw-alias-label-secondary);
+}

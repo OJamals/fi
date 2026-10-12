@@ -11856,7 +11856,7 @@
       "kind": "event",
       "event": "session/title-llm-request",
       "surface": false,
-      "digest": "ae84c5e493f94acc63cfb70389073ba616ed7ae7aa4fadde048bdcc64d49bb46",
+      "digest": "1cb6437add22641c189dc8391565e6bec6217f3530f632eef999f20767307689",
       "schema": {
         "root": 0,
         "nodes": [
@@ -11908,6 +11908,11 @@
                 "name": "messages",
                 "type": 4,
                 "optional": false
+              },
+              {
+                "name": "reasoningEffort",
+                "type": 10,
+                "optional": true
               },
               {
                 "name": "route",
@@ -22218,6 +22223,11 @@
       "sources": []
     },
     {
+      "digest": "1cb6437add22641c189dc8391565e6bec6217f3530f632eef999f20767307689",
+      "names": [],
+      "sources": []
+    },
+    {
       "digest": "1ccb56061942f5ccb0d30c9e4f2883b9d115ff906560029de637b61d3cde896d",
       "names": [],
       "sources": [
@@ -22336,6 +22346,15 @@
       ],
       "sources": [
         "packages/experimental/agent-team/src/types.ts:137"
+      ]
+    },
+    {
+      "digest": "2167447ef949a25efb1fdceeb7f234e08a2755f390c37959f3829ac878f1abf5",
+      "names": [
+        "packages/session/session-title-llm/src/index.ts#SessionTitleLlmRequestEventData"
+      ],
+      "sources": [
+        "packages/session/session-title-llm/src/index.ts:37"
       ]
     },
     {
@@ -22562,7 +22581,7 @@
         "packages/llm/llm/src/call-config.ts#LlmCallConfigAdapterDefaults"
       ],
       "sources": [
-        "packages/llm/llm/src/call-config.ts:36"
+        "packages/llm/llm/src/call-config.ts:54"
       ]
     },
     {
@@ -23341,7 +23360,7 @@
         "packages/llm/llm/src/call-config.ts#LlmCallConfig"
       ],
       "sources": [
-        "packages/llm/llm/src/call-config.ts:23"
+        "packages/llm/llm/src/call-config.ts:31"
       ]
     },
     {
@@ -24373,11 +24392,6 @@
       "sources": []
     },
     {
-      "digest": "ae84c5e493f94acc63cfb70389073ba616ed7ae7aa4fadde048bdcc64d49bb46",
-      "names": [],
-      "sources": []
-    },
-    {
       "digest": "aec150797b655c5f15ebb7a501454b0c208fbaccec9ace49d7de2171fc02f47d",
       "names": [],
       "sources": []
@@ -25386,15 +25400,6 @@
       "digest": "fe1a7acdeed4d0f5ab483396eaa5b3dc97263b7c10eb4da2f0028cb01728bfc9",
       "names": [],
       "sources": []
-    },
-    {
-      "digest": "fe3cdc6f9050584cea4a6d6998c31334bff7899f5ff1095082a44fdf3b47e996",
-      "names": [
-        "packages/session/session-title-llm/src/index.ts#SessionTitleLlmRequestEventData"
-      ],
-      "sources": [
-        "packages/session/session-title-llm/src/index.ts:34"
-      ]
     },
     {
       "digest": "fe792a6cd430494503837e21e79f91677704ccdd9e870c679aabd7d43ed47ddd",

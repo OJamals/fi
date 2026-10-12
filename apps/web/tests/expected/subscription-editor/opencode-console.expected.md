@@ -1,0 +1,51 @@
+- dialog "Settings":
+  - navigation:
+    - text: Settings
+    - button "General"
+    - button "Models"
+    - button "Built-in plugins"
+    - button "Agent presets"
+  - button "Open configuration file"
+  - button "Close"
+  - heading "Models" [level=2]
+  - paragraph: Enter your API keys to use models from the following providers.
+  - list
+  - button "Add model provider"
+  - region "Subscriptions":
+    - region "Sign in with your subscription":
+      - heading "Sign in with your subscription" [level=3]
+      - paragraph: Use an existing subscription without an API key. Sign in once, then add the provider to Models.
+      - text: Subscription provider
+      - combobox "Subscription provider":
+        - option "Anthropic"
+        - option "OpenAI Codex"
+        - option "xAI"
+        - option "Antigravity" [selected]
+        - option "OpenCode Console"
+      - text: Signed in
+      - button "Set up Antigravity provider": Set up provider
+      - button "Sign in to Antigravity again": Sign in again
+      - button "Remove Antigravity sign-in": Remove sign-in
+      - status:
+        - paragraph: "Antigravity is ready: a provider entry was created, and it lists 29 models."
+        - button "Models this provider entry serves 29"
+    - list:
+      - listitem:
+        - text: antigravity
+        - button "Edit antigravity": Edit
+        - button "Delete antigravity": Delete
+      - listitem:
+        - text: opencode-console
+        - button "Edit opencode-console": Edit
+        - button "Delete opencode-console": Delete
+        - text: Display name
+        - textbox "Display name":
+          - /placeholder: opencode-console
+          - text: My opencode-console
+        - button "Fetch models"
+        - button "Use all models" [disabled]
+        - paragraph: All available models appear in the model picker, including new models.
+        - checkbox "Friendly (friendly)" [checked]
+        - text: Friendly friendly
+        - button "Apply"
+        - button "Cancel"

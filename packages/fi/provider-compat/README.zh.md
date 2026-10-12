@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`@fi/provider-compat` 让 FI 的四份提供方元数据、已捕获的线上指纹、OAuth 设置和发布来源与 auth2api 保持同步。它仅在 pi-ai 解析出已存储的订阅 OAuth 授权后应用 Codex、Claude Code 和 Grok CLI 请求头。显式 profile key、普通已存储 API key 以及环境 API key 仍使用正常端点。Grok 订阅推理使用 CLI Responses 端点；无关请求保持不变。
+`@fi/provider-compat` 让 FI 的五份提供方元数据、已捕获的线上指纹、OAuth 设置和发布来源与 auth2api 保持同步。Antigravity 与 OpenCode 从本包读取规范元数据。它仅在 pi-ai 解析出已存储的订阅 OAuth 授权后应用 Codex、Claude Code 和 Grok CLI 请求头。显式 profile key、普通已存储 API key 以及环境 API key 仍使用正常端点。Grok 订阅推理使用 CLI Responses 端点；无关请求保持不变。
 
 ## 目录
 

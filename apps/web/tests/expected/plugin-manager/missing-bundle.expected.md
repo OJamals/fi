@@ -1,4 +1,4 @@
-- button "返回插件列表": 插件列表
+- button "返回插件": 插件
 - switch "启用 @fixture/missing-bundle" [checked]
 - heading "@fixture/missing-bundle" [level=3]
 - text: 异常

@@ -24,6 +24,7 @@
     "@deepseek-ai/dsh-settings": "workspace:*"
   },
   "dependencies": {
+    "@fi/provider-compat": "workspace:~",
     "@deepseek-ai/dsh-llm-pi-ai": "workspace:*",
     "@deepseek-ai/dsh-timeout": "workspace:*",
     "@deepseek-ai/schemastery": "workspace:~",

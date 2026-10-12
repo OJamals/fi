@@ -314,13 +314,14 @@ export class AntigravityAdapter extends LlmAdapter {
   constructor(
     private readonly grants: AntigravityGrantResolver,
     private readonly resolveAttachments?: () => AttachmentStore | undefined,
+    private readonly profile: (provider: string) => { displayName?: string; models?: readonly string[] } | undefined = () => undefined,
   ) {
     super()
   }
 
   /** @inheritdoc */
   override providerInfo(provider: string): LlmProviderInfo {
-    return { id: provider, name: provider }
+    return { id: provider, name: this.profile(provider)?.displayName ?? provider }
   }
 
   /**
@@ -332,6 +333,17 @@ export class AntigravityAdapter extends LlmAdapter {
    * @returns the models the route can serve, in advertised order.
    */
   override async listModels(provider: string): Promise<readonly LlmModelInfo[]> {
+    const models = await this.discoverModels(provider)
+    const selected = this.profile(provider)?.models
+    return selected === undefined ? models : models.filter(model => selected.includes(model.id))
+  }
+
+  /**
+   * List the complete catalog, including models excluded from the model picker.
+   * @param provider - route identity attached to every result.
+   * @returns live models, or the static catalog when discovery is unavailable.
+   */
+  async discoverModels(provider: string): Promise<readonly LlmModelInfo[]> {
     const grant = await this.grants().catch(() => undefined)
     let ids: readonly string[] = ANTIGRAVITY_STATIC_CATALOG.map(entry => entry.id)
     if (grant !== undefined) {

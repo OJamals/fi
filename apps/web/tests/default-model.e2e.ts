@@ -384,7 +384,7 @@ describe('web e2e: the composer model switch is the default for later sessions',
       [START_ROUTE]: { displayName: 'Origin Gateway', api: 'openai-completions',
         baseURL: 'https://gateway.origin.example/v1', models: [{ id: START_MODEL, name: 'Origin Large' }] },
     } })
-    const seat = page.getByRole('button', { name: new RegExp('^选择模型.*' + ROUTE + '/' + MODEL) })
+    const seat = page.getByRole('button', { name: '请选择模型', exact: true })
     await seat.waitFor()
     expect(await box.isEnabled()).toBe(true)
     await expect.poll(() => scaffold.ctx.agentDefaultModel.resolveSelection()).toEqual({ provider: START_ROUTE, model: START_MODEL })
@@ -395,7 +395,6 @@ describe('web e2e: the composer model switch is the default for later sessions',
       webSnapshotMode(),
     )
     await seat.click()
-    await page.getByRole('menuitem', { name: /^模型/ }).click()
     await page.getByRole('dialog', { name: '模型与推理等级', exact: true })
       .getByRole('searchbox', { name: '搜索模型' }).fill(START_MODEL)
     await page.getByRole('menuitemradio', { name: 'Origin Large', exact: true }).click()

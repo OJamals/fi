@@ -8,6 +8,7 @@ import { EMPTY_CHAT_SNAPSHOT, type MessageImagesProps } from '@deepseek-ai/dsh-c
 import { AssistantMarkdown, type AssistantMarkdownProps } from '@deepseek-ai/dsh-client-ui-chat/src/client/chat/AssistantMarkdown.tsx'
 import { useDisclosure } from '@deepseek-ai/dsh-client-ui-chat/src/client/chat/use-disclosure.ts'
 import { presentationPolicyFor } from '@deepseek-ai/dsh-client-ui-chat/src/client/presentation-policy.ts'
+import { useSearchableHidden } from '@deepseek-ai/dsh-client-ui-chat/src/client/chat/searchable-hidden.ts'
 import { EMPTY_CONVERSATION_SNAPSHOT } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { ImageGallery, MessageImage } from '../src/MessageImage.tsx'
 import type { MessageImageLabels } from '../src/MessageImage.tsx'
@@ -359,6 +360,7 @@ describe('assistant image presentation', () => {
       <AssistantMarkdown
         t={chatT}
         useDisclosure={useDisclosure}
+        useGroupAction={useSearchableHidden}
         usePresentation={selector => selector(presentationPolicyFor('detailed'))}
         blocks={[{ kind: 'image', attachment }]}
         streaming={false}
