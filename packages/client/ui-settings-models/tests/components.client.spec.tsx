@@ -2004,6 +2004,26 @@ describe('apiKeyFailure', () => {
   })
 })
 
+it('finishes an API-key write after its settings save completes on an unmounted editor', async () => {
+  const namespace = wireNamespaces().find(view => view.ns === 'llm-pi-ai')!
+  const ops = operationsWith(scriptedFace().face)
+  const pending = Promise.withResolvers<Awaited<ReturnType<ModelsOperations['writeSettings']>>>()
+  const write = vi.spyOn(ops, 'writeSettings').mockReturnValue(pending.promise)
+  const store = vi.spyOn(ops, 'storeCredential').mockResolvedValue(undefined)
+  const onClose = vi.fn()
+  const view = render(<ProviderEditor provider="openai" displayName="OpenAI" namespace={namespace}
+    settingsPath={['providers', 'openai']} schema={settingsSchema} operations={ops} t={t}
+    readOnly={false} onClose={onClose} />)
+  fireEvent.change(screen.getByLabelText(en.baseUrl), { target: { value: 'https://proxy.example/v1' } })
+  fireEvent.change(screen.getByLabelText(en.keyInput), { target: { value: 'test-key' } })
+  fireEvent.click(screen.getByText(en.apply))
+  expect(write).toHaveBeenCalledOnce()
+  view.unmount()
+  await act(async () => { pending.resolve({ kind: 'written', view: namespace }) })
+  expect(store).toHaveBeenCalledWith('OPENAI_API_KEY', 'test-key')
+  expect(onClose).not.toHaveBeenCalled()
+})
+
 it.each([en, zh])('edits the account model catalog without credential or endpoint fields', async (copy) => {
   const mutate = vi.fn(() => Promise.resolve(remoteOk(accountNamespace())))
   const scripted = scriptedFace({ mutate })

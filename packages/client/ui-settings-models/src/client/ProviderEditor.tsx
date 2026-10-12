@@ -310,17 +310,18 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
         : pathOps(settingsPath, committedOriginal, next)
     if (ops.length > 0) {
       const written = await operations.writeSettings(ns, ops, expectedRevision)
-      if (!active.current) return undefined
       if (written.kind !== 'written') return written.kind === 'conflict' ? t('conflict') : written.message
-      setCommittedOriginal(schema.getPath(written.view.user, settingsPath))
-      setExpectedRevision(written.view.revision)
-      setDraft(next)
+      if (active.current) {
+        setCommittedOriginal(schema.getPath(written.view.user, settingsPath))
+        setExpectedRevision(written.view.revision)
+        setDraft(next)
+      }
     }
     if (keyValue.length > 0) {
       const stored = await operations.storeCredential(keyRef, keyValue)
       if (stored !== undefined) return stored
     }
-    setKeyDraft('')
+    if (active.current) setKeyDraft('')
     return undefined
   }
 
