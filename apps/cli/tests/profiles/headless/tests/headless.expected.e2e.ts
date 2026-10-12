@@ -96,13 +96,15 @@ async function deepseekDefaultsServer(
       requests.push(JSON.parse(body) as JsonObject)
       paths.push(request.url ?? '')
       response.writeHead(200, { 'content-type': 'text/event-stream' })
-      let keepAlives = 3
+      // The response outlasts the 2s idle deadline, while each 500ms comment
+      // leaves room for scheduling between the test and its child process.
+      let keepAlives = 6
       const write = (): void => {
         // One-shot teardown may cancel background title work after the main response.
         if (keepAlives-- > 0
           || (options.waitForTitleRequest === true && !requests.some(request => request.max_tokens === 64))) {
           response.write(': keep-alive\n\n')
-          timer = setTimeout(write, 60)
+          timer = setTimeout(write, 500)
           return
         }
         if (options.piAiCompatibility !== true) {
@@ -123,7 +125,7 @@ async function deepseekDefaultsServer(
           '',
         ].join('\n\n'))
       }
-      let timer = setTimeout(write, 60)
+      let timer = setTimeout(write, 500)
       response.once('close', () => { clearTimeout(timer) })
     })
   })

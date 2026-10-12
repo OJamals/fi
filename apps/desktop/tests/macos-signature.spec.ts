@@ -11,6 +11,7 @@ import {
   resolveMacOSSigningEnvironment,
 } from '../scripts/desktop-release-environment.mjs'
 import { notarizeMacOSDiskImageArtifact } from '../scripts/notarize-macos-disk-images.mjs'
+vi.mock('../lib/types/runtime-tree.js', () => import('../src/runtime-tree.ts'))
 import {
   assertMacOSRuntimeSignatureDetails,
   assertMacOSSignatureDetails,
