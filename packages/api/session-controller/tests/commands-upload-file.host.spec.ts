@@ -13,7 +13,7 @@ import CommandRuntime from '@deepseek-ai/dsh-commands'
 import { createScope } from '@deepseek-ai/dsh-scope'
 import FileUploads from '@deepseek-ai/dsh-client-file-upload'
 import type { FileUploadReceiptId } from '@deepseek-ai/dsh-client-file-upload/types'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import type { ApiSessionAgentController } from '../src/agent.ts'
 import { SessionCommandController } from '../src/commands.ts'
 import type { SessionRequestId } from '../src/types.ts'
@@ -235,7 +235,8 @@ describe('Session file uploads', () => {
   })
 
   it('resolves a cold ordinary Agent and releases the resolver registration', async () => {
-    const { ctx, uploads, agent, disposeAgent } = await uploadHarness()
+    const { ctx, agent, disposeAgent } = await uploadHarness()
+    const uploads = ctx.fileUploads
     await disposeAgent()
     const resolveAgent = vi.fn(async () => {
       await ctx.agents.register(agent)
@@ -264,6 +265,26 @@ describe('Session file uploads', () => {
       sessionId: SESSION,
       data: (async function* (): AsyncIterable<Uint8Array> {})(),
     })).rejects.toMatchObject({ code: 'session/not-found' })
+  })
+
+  it('withdraws a caller-owned resolver before its replacement registers', async () => {
+    const { ctx, agent, disposeAgent } = await uploadHarness()
+    onTestFinished(() => ctx.fiber.dispose())
+    await disposeAgent()
+    const resolve = vi.fn(async () => agent)
+    const owner = ctx.plugin({
+      inject: ['fileUploads'],
+      apply(child: Context) { child.fileUploads.registerAgentResolver(resolve) },
+    })
+    await owner.await()
+    await owner.dispose()
+    await expect(ctx.fileUploads.uploadStream({
+      sessionId: SESSION,
+      data: (async function* (): AsyncIterable<Uint8Array> {})(),
+    })).rejects.toMatchObject({ code: 'session/not-found' })
+    const release = ctx.fileUploads.registerAgentResolver(resolve)
+    release()
+    expect(resolve).not.toHaveBeenCalled()
   })
 
   it('rejects subagent uploads and access outside the receiving Agent scope', async () => {

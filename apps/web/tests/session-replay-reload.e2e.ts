@@ -14,9 +14,14 @@ const UI_EXPECTED = fileURLToPath(new URL('../../../snapshots/web/fresh-round-tr
 
 describe.skipIf(webSnapshotMode() === 'record')('web session replay', () => {
   it.each([{ name: 'Chromium', engine: chromium }, { name: 'WebKit', engine: webkit }])(
-    '$name restores an active stream, a completed turn, and a reopened session', async ({ engine }) => {
+    '$name creates a chat after controller reload and restores its stream and history', async ({ engine }) => {
       const scaffold = await launchWebScaffold({ replayFixture: FIXTURE, compareReplaySession: 'read-only' })
       onTestFinished(() => scaffold.close())
+      const controller = [...scaffold.ctx.loader.entries()].find(row => row.options.id === 'session-controller')!
+      const nativeOpen = scaffold.ctx.sessionController.canOpenWorkspacePath()
+      await controller.update({ config: { nativeOpen: !nativeOpen } })
+      await controller.fiber!.await()
+      await scaffold.ctx.loader.await()
       const release = Promise.withResolvers<undefined>()
       const reached = Promise.withResolvers<string>()
       let paused = false

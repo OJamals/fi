@@ -308,6 +308,7 @@ Host service owning upload storage and Agent-scoped staged receipts.
 ```ts cordis-catalog
 /**
  * Register the ordinary-Session resolver used when a raw upload addresses a cold Session.
+ * The registration belongs to the calling fiber and is removed when it is disposed.
  * @param resolve - resolver that returns the exact live Agent or throws a Remote error.
  * @returns disposer removing this resolver.
  */

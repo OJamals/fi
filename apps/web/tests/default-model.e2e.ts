@@ -402,4 +402,14 @@ describe('web e2e: the composer model switch is the default for later sessions',
     expect(await box.isEnabled()).toBe(true)
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
+
+  it('creates sessions after the controller reloads beside the surviving upload service', async () => {
+    const entry = [...scaffold.ctx.loader.entries()].find(row => row.options.id === 'session-controller')!
+    const nativeOpen = scaffold.ctx.sessionController.canOpenWorkspacePath()
+    await entry.update({ config: { nativeOpen: !nativeOpen } })
+    await entry.fiber!.await()
+    await scaffold.ctx.loader.await()
+    expect(await currentOf(await createSession('default-model-after-controller-reload')))
+      .toEqual({ provider: START_ROUTE, model: START_MODEL })
+  })
 })

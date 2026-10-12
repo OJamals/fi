@@ -1059,7 +1059,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     methods: [
       {
         signature: 'registerAgentResolver(resolve: AgentResolver): () => void',
-        description: 'Register the ordinary-Session resolver used when a raw upload addresses a cold Session.',
+        description: 'Register the ordinary-Session resolver used when a raw upload addresses a cold Session. The registration belongs to the calling fiber and is removed when it is disposed.',
         parameters: [{ name: 'resolve', description: 'resolver that returns the exact live Agent or throws a Remote error.' }],
         returns: 'disposer removing this resolver.',
       },

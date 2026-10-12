@@ -58,7 +58,7 @@ export class FileUploads extends TypertRemoteService {
   static inject = ['agents', 'attachments', 'commands', 'connection']
 
   private readonly stagedFiles = new WeakMap<Session, Map<FileUploadReceiptId, StagedFileUpload>>()
-  private agentResolver: AgentResolver | undefined
+  private agentResolver: { readonly resolve: AgentResolver } | undefined
 
   /** @param ctx - Host context carrying Agent, attachment, command, and Connection services. */
   constructor(ctx: Context) {
@@ -84,15 +84,20 @@ export class FileUploads extends TypertRemoteService {
 
   /**
    * Register the ordinary-Session resolver used when a raw upload addresses a cold Session.
+   * The registration belongs to the calling fiber and is removed when it is disposed.
    * @param resolve - resolver that returns the exact live Agent or throws a Remote error.
    * @returns disposer removing this resolver.
    */
   registerAgentResolver(resolve: AgentResolver): () => void {
     if (this.agentResolver !== undefined) throw new Error('file-upload: Agent resolver is already registered')
-    this.agentResolver = resolve
-    return () => {
-      if (this.agentResolver === resolve) this.agentResolver = undefined
-    }
+    const registration = { resolve }
+    const dispose = this.ctx.effect(() => {
+      this.agentResolver = registration
+      return () => {
+        if (this.agentResolver === registration) this.agentResolver = undefined
+      }
+    }, 'file-upload: Agent resolver')
+    return () => { void dispose() }
   }
 
   /**
@@ -220,7 +225,7 @@ export class FileUploads extends TypertRemoteService {
     if (resolver === undefined) {
       throw new RemoteError('session/not-found', `session "${sessionId}" is not attached`, { sessionId })
     }
-    return resolver(sessionId)
+    return resolver.resolve(sessionId)
   }
 
   private assertAgentScope(agent: Agent): void {
