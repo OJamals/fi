@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.0-rc.2/theme-font-api/guide.md
+/:
+  en: 9656b6c647e7592b
+  zh: f6588f37a6afa63e
+/select-font-roles-in-theme-extensions:
+  en: c3f4819b136b927c
+  zh: 01c0cd4801247494
+/select-font-roles-in-theme-extensions/change:
+  en: bcc644448ef3c216
+  zh: d780491285130fe0
+/select-font-roles-in-theme-extensions/migration:
+  en: 3541bc660ef94637
+  zh: 0c37bbf37a00f50c

@@ -60,9 +60,6 @@
     "326597b335539db945b2e3b7c86638d40849d2077c0a5670d064e45486f4e407": 1,
     "69a4620ccedea854de695bc105dc5028ca85dc34ff0f9f762160207cf029dff6": 1
   },
-  "apps/desktop/tests/update-coordinator.spec.ts": {
-    "187ad4724635a2d845592799c3a2600437c0d2fe17e0d1c3018018d5e8b0b863": 1
-  },
   "apps/desktop/tests/update-dialog.spec.ts": {
     "3226b936a41e00f2cfd8b9563d3bfcc8eaef7cf04996abe74fb981169a07b91b": 1,
     "4000017f1f3dabd4bdf8eb91120cf4ff0dd09bad89d4683151f4785974d204a5": 1
@@ -734,7 +731,7 @@
     "ffb048df32b10bac91f37b55c618701aa0f9d24c5b5504a3d3f953dc8b7cc7fb": 1
   },
   "packages/client/ui-theme/tests/apply.client.spec.ts": {
-    "04984a2ce1486250236e638e0197da0a1a840855ed3975c59130a85358c7e5fe": 2
+    "04984a2ce1486250236e638e0197da0a1a840855ed3975c59130a85358c7e5fe": 1
   },
   "packages/client/ui-theme/tests/theme.client.spec.ts": {
     "6adc289cf963470891b9b4aea9e09db4c98d96d09a245bf41bf679f8f608ba49": 1

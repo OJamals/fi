@@ -572,6 +572,96 @@ describe('web e2e: settings modal and General preferences', () => {
     expect(tripwire.pageErrors).toEqual([])
   }, 90_000)
 
+  it('sets text and code fonts and the code size independently, applies them, and persists across reload', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-settings-font-family'))
+    onTestFinished(async () => {
+      await page.keyboard.press('Escape')
+      await page.getByRole('dialog', { name: '设置', exact: true }).waitFor({ state: 'hidden' })
+    })
+    // Computed font-family lists: body text, code, and the two built-in stacks.
+    const readFonts = async (): Promise<Record<'text' | 'code' | 'textStack' | 'codeStack', string>> => await page.evaluate(() => {
+      const probe = (family: string): string => {
+        const element = document.createElement('code')
+        element.style.fontFamily = family
+        document.body.appendChild(element)
+        const value = getComputedStyle(element).fontFamily
+        element.remove()
+        return value
+      }
+      return {
+        text: getComputedStyle(document.body).fontFamily,
+        code: probe('var(--ds-font-family-code)'),
+        textStack: probe('var(--dsh-font-family-text-default)'),
+        codeStack: probe('var(--dsh-font-family-code-default)'),
+      }
+    })
+    const patchFile = join(scaffold.harnessHome, 'profiles', 'scaffold', 'cordis.patch.yml')
+    const commit = async (name: string, value: string): Promise<void> => {
+      const field = page.getByRole('dialog', { name: '设置' }).getByRole('textbox', { name, exact: true })
+      await field.fill(value)
+      await field.press('Enter')
+    }
+    const defaults = await readFonts()
+    const { textStack, codeStack } = defaults
+    expect(defaults.text.startsWith(textStack)).toBe(true)
+    // The font rows expand from the font-size row and start collapsed on every settings open.
+    const expandFonts = async (): Promise<void> => {
+      const dialog = page.getByRole('dialog', { name: '设置' })
+      await dialog.waitFor({ timeout: 10_000 })
+      const toggle = dialog.getByRole('button', { name: '更多字体设置', exact: true })
+      expect(await toggle.getAttribute('aria-expanded')).toBe('false')
+      expect(await dialog.getByRole('textbox', { name: '代码字体', exact: true }).count()).toBe(0)
+      await toggle.click()
+      await dialog.getByRole('textbox', { name: '代码字体', exact: true }).waitFor()
+    }
+    await openSettings(page, 'zh')
+    await expandFonts()
+    await commit('代码字体', 'Courier New, monospace')
+    await expect.poll(async () => readFile(patchFile, 'utf8'), { timeout: 5_000 }).toContain('codeFontFamily')
+    await expect.poll(readFonts, { timeout: 5_000 }).toEqual({ ...defaults, code: `"Courier New", monospace, ${codeStack}` })
+    // The code size moves the code-block token independently of the content size.
+    const readCodeSize = async (): Promise<string> => await page.evaluate(() => {
+      const element = document.createElement('code')
+      element.style.font = 'var(--dsw-font-markdown-code-block)'
+      document.body.appendChild(element)
+      const size = getComputedStyle(element).fontSize
+      element.remove()
+      return size
+    })
+    expect(await readCodeSize()).toBe('11px')
+    const codeSize = page.getByRole('dialog', { name: '设置' }).getByRole('button', { name: '增大代码字号', exact: true })
+    await codeSize.click()
+    await expect.poll(readCodeSize, { timeout: 5_000 }).toBe('12px')
+    await expect.poll(async () => readFile(patchFile, 'utf8'), { timeout: 5_000 }).toContain('codeFontSize: 12')
+    await commit('正文字体', 'Georgia')
+    await expect.poll(readFonts, { timeout: 5_000 }).toEqual({ ...defaults, text: `Georgia, ${textStack}`, code: `"Courier New", monospace, ${codeStack}` })
+    // The snapshot updates optimistically; reload only after the Host has persisted both lists.
+    await expect.poll(async () => readFile(patchFile, 'utf8'), { timeout: 5_000 }).toContain('Georgia')
+    await page.keyboard.press('Escape')
+
+    const warningStart = tripwire.warnings.length
+    await page.reload({ waitUntil: 'load' })
+    acknowledgeReloadConnectionLoss(tripwire, warningStart)
+    await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
+    expect(await readFonts()).toEqual({ ...defaults, text: `Georgia, ${textStack}`, code: `"Courier New", monospace, ${codeStack}` })
+    expect(await readCodeSize()).toBe('12px')
+
+    // Clearing each field restores the built-in stacks for the specs that follow.
+    await openSettings(page, 'zh')
+    const reloaded = page.getByRole('dialog', { name: '设置' })
+    await expandFonts()
+    expect(await reloaded.getByRole('textbox', { name: '代码字体', exact: true }).inputValue()).toBe('"Courier New", monospace')
+    await commit('正文字体', '')
+    await commit('代码字体', '')
+    await reloaded.getByRole('button', { name: '减小代码字号', exact: true }).click()
+    await expect.poll(readFonts, { timeout: 5_000 }).toEqual(defaults)
+    await expect.poll(readCodeSize, { timeout: 5_000 }).toBe('11px')
+    await expect.poll(async () => readFile(patchFile, 'utf8'), { timeout: 5_000 }).toContain('codeFontSize: 11')
+    await expect.poll(async () => readFile(patchFile, 'utf8'), { timeout: 5_000 }).not.toContain('Courier New')
+    await page.keyboard.press('Escape')
+    expect(tripwire.pageErrors).toEqual([])
+  }, 90_000)
+
   it.each([
     ['compact', '简洁'], ['standard', '标准'], ['verbose', '完全展开'],
   ] as const)('persists the %s work-details mode across reload', async (mode, label) => {

@@ -281,7 +281,7 @@ function bench(options: BenchOptions = {}) {
   contexts.push(ctx)
   const panelInfo = createSnapshotStore<{ activePanelId: MainPanelId | null }>({ activePanelId: null })
   const layout = new LayoutController({
-    selectPanel: vi.fn((id) => { panelInfo.set({ activePanelId: id }) }), retainMainPanels: vi.fn(),
+    selectPanel: vi.fn((id: MainPanelId | null) => { panelInfo.set({ activePanelId: id }) }), retainMainPanels: vi.fn(),
     setSidebar: vi.fn(), toggleSidebar: vi.fn(), setViewportWidth: vi.fn(),
     setRightbar: vi.fn(), openRightbar: vi.fn(), closeRightbar: vi.fn(),
   }, () => true, panelInfo)

@@ -320,7 +320,7 @@ interface ToolOutputMap {
     after: string;
   };
   exit_plan_mode: {
-    approved: true;
+    approved: boolean;
   };
   get_goal: {
     goal: null;
