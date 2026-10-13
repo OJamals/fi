@@ -38,6 +38,8 @@ export const Config = z.object({
   clientId: z.string().default(metadata.oauthClientId),
   userAgent: z.string().default(`opencode/${metadata.channel}/${metadata.version}/${metadata.client}`),
   requestTimeoutMs: z.number().step(1).min(1).max(2_147_483_647).default(30_000),
+  catalogRetryCount: z.number().step(1).min(0).default(1),
+  catalogRetryDelayMs: z.number().step(1).min(1).max(2_147_483_647).default(250),
   streamIdleTimeoutMs: z.number().step(1).min(1).max(2_147_483_647).default(120_000),
   refreshMarginMs: z.number().step(1).min(0).default(120_000),
   defaultContextWindow: z.number().step(1).min(1).default(128_000),

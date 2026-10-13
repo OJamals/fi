@@ -26,6 +26,8 @@ OpenCode Console 订阅登录位于设置 → 模型。授权组合包挂载此�
 
 路由 profile 接受 `displayName` 和已选 id 数组 `models`。省略数组时显示所有已声明模型；空数组隐藏全部模型。发现始终返回完整的已认证目录。选择仅影响模型选择器，不限制显式解析或已准备调用；授权仍决定账户与组织。提供方默认名称使用小写路由 id。
 
+目录读取通过 `catalogRetryCount`（默认 `1`，`0` 禁用重试）和 `catalogRetryDelayMs`（默认 `250`）重试已识别的暂时性网络故障。所有尝试和等待共用一个 `requestTimeoutMs` 截止时间及调用方取消信号。重试耗尽时仅报告网络错误代码和恢复提示。认证、重定向、证书错误、无效目录和令牌交换不会重试。
+
 ## Protocol sources
 
 规范[提供方元数据](../provider-compat/src/provider-settings.json) 固定 OpenCode Console 插件与模型请求的源码引用，涵盖设备令牌、组织范围和客户端/会话标头。Auth2api 的适配器提供 v2 目录映射和协议选择的本地参考。

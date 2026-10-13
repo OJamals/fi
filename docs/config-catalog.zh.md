@@ -4533,6 +4533,10 @@ export interface ConsoleOptions {
   userAgent: string
   /** Maximum duration of a Console request or provider response-header wait, in milliseconds. */
   requestTimeoutMs: number
+  /** Additional attempts after transient catalog network failures. */
+  catalogRetryCount: number
+  /** Delay between catalog attempts, within the shared request deadline. */
+  catalogRetryDelayMs: number
   /** Maximum silence between provider stream events, in milliseconds. */
   streamIdleTimeoutMs: number
   /** Rotate tokens this many milliseconds before their expiration. */

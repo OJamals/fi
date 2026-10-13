@@ -1,11 +1,16 @@
 /** Authenticated OpenCode v2 catalog projection; remote configuration cannot supply credentials. */
 import type { Model } from '@earendil-works/pi-ai'
+import { setTimeout } from 'node:timers/promises'
 import { z } from 'zod'
 import { providerSettingsFor } from '@fi/provider-compat'
 import { consoleJson, consoleUrl } from './protocol.ts'
 import type { ConsoleGrant, ConsoleOptions } from './protocol.ts'
 
 const record = z.record(z.string(), z.unknown())
+const transientFailure = z.object({ cause: z.object({ code: z.enum([
+  'ECONNRESET', 'ECONNREFUSED', 'EAI_AGAIN', 'ETIMEDOUT',
+  'UND_ERR_SOCKET', 'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_BODY_TIMEOUT',
+]) }) })
 const modelSchema = z.object({
   modelID: z.string().min(1).optional(), name: z.string().optional(), package: z.string().optional(),
   settings: z.object({ baseURL: z.string().optional() }).optional(),
@@ -87,7 +92,7 @@ export function projectCatalog(data: unknown, provider: string, config: ConsoleO
 }
 
 /**
- * Discover models using the current authenticated account and organization.
+ * Discover models using the current authenticated account and organization, retrying transient network failures within one deadline.
  * @param config - settings frozen for one operation.
  * @param grant - already refreshed canonical grant.
  * @param provider - FI route id.
@@ -97,8 +102,25 @@ export function projectCatalog(data: unknown, provider: string, config: ConsoleO
 export async function loadCatalog(
   config: ConsoleOptions, grant: ConsoleGrant, provider: string, signal?: AbortSignal,
 ): Promise<ConsoleModel[]> {
-  return projectCatalog(await consoleJson(config, providerSettingsFor('opencodeConsole').catalogPath, {
-    headers: { authorization: `Bearer ${grant.access}`, ...grant.orgId === undefined ? {} : { 'x-org-id': grant.orgId } },
-    ...signal === undefined ? {} : { signal },
-  }), provider, config)
+  const deadline = AbortSignal.any([
+    AbortSignal.timeout(config.requestTimeoutMs),
+    ...signal === undefined ? [] : [signal],
+  ])
+  for (let attempt = 0; ; attempt++) {
+    deadline.throwIfAborted()
+    try {
+      return projectCatalog(await consoleJson(config, providerSettingsFor('opencodeConsole').catalogPath, {
+        headers: { authorization: `Bearer ${grant.access}`, ...grant.orgId === undefined ? {} : { 'x-org-id': grant.orgId } },
+        signal: deadline,
+      }), provider, config)
+    } catch (error) {
+      deadline.throwIfAborted()
+      const failure = transientFailure.safeParse(error)
+      if (!failure.success) throw error
+      if (attempt >= config.catalogRetryCount) {
+        throw new Error(`OpenCode catalog network request failed (${failure.data.cause.code}); check connectivity and retry`)
+      }
+      await setTimeout(config.catalogRetryDelayMs, undefined, { signal: deadline })
+    }
+  }
 }

@@ -1,6 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { setTimeout } from 'node:timers/promises'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import { Context } from '@deepseek-ai/cordis'
@@ -17,15 +18,16 @@ import type { ConsoleGrant, ConsoleOptions } from '../src/protocol.ts'
 import { liveConfig } from '../../../settings/settings/tests/live-config.ts'
 
 const sleeps = vi.hoisted(() => [] as number[])
-vi.mock('node:timers/promises', () => ({ setTimeout: (ms: number, _value: undefined, opts: { signal: AbortSignal }) => {
+vi.mock('node:timers/promises', () => ({ setTimeout: vi.fn((ms: number, _value: undefined, opts: { signal: AbortSignal }) => {
   opts.signal.throwIfAborted()
   sleeps.push(ms)
   return Promise.resolve()
-} }))
+}) }))
 
 const config: ConsoleOptions = {
   server: 'https://opencode.ai/console', clientId: 'opencode-cli', userAgent: 'opencode/latest/2.0.20/cli',
   requestTimeoutMs: 1000, streamIdleTimeoutMs: 1000, refreshMarginMs: 120_000,
+  catalogRetryCount: 1, catalogRetryDelayMs: 250,
   defaultContextWindow: 128_000, defaultMaxTokens: 8192,
 }
 const seed: ConsoleGrant = {
@@ -64,6 +66,97 @@ afterEach(async () => {
   sleeps.length = 0
   for (const ctx of contexts.splice(0)) await ctx.fiber.dispose()
   for (const dir of dirs.splice(0)) await rm(dir, { recursive: true, force: true })
+})
+
+describe('OpenCode catalog network recovery', () => {
+  const networkError = () => new TypeError('fetch failed: private request details', { cause: { code: 'ECONNRESET' } })
+
+  it.each([
+    { catalogRetryCount: -1 }, { catalogRetryCount: 0.5 },
+    { catalogRetryDelayMs: 0 }, { catalogRetryDelayMs: 0.5 }, { catalogRetryDelayMs: 2_147_483_648 },
+  ])('rejects invalid retry configuration %j', async (invalid) => {
+    const ctx = await harness()
+    await expect(liveConfig(ctx, OpenCodeService, { ...config, ...invalid, providers: {} }, 'fi-opencode')).rejects.toThrow()
+  })
+
+  it('retries the same authenticated catalog after a transient network failure', async () => {
+    const requests: Request[] = []
+    script((request) => {
+      requests.push(request)
+      if (requests.length === 1) throw networkError()
+      return json(catalog())
+    })
+    await expect(loadCatalog(config, seed, 'opencode-console')).resolves.toHaveLength(1)
+    expect(requests.map(request => [request.url, request.headers.get('authorization'), request.headers.get('x-org-id')]))
+      .toEqual(Array.from({ length: 2 }, () => ['https://opencode.ai/console/api/v2/config', 'Bearer test-access', 'org-z']))
+    expect(sleeps).toEqual([250])
+  })
+
+  it.each([0, 2])('bounds retries at %i and exposes only a safe network code', async (catalogRetryCount) => {
+    script(() => { throw networkError() })
+    await expect(loadCatalog({ ...config, catalogRetryCount }, seed, 'opencode-console'))
+      .rejects.toThrow(/^OpenCode catalog network request failed \(ECONNRESET\); check connectivity and retry$/)
+    expect(fetch).toHaveBeenCalledTimes(catalogRetryCount + 1)
+    expect(sleeps).toHaveLength(catalogRetryCount)
+  })
+
+  it.each(['auth', 'redirect', 'tls', 'json', 'policy'])('does not retry %s failures', async (kind) => {
+    script(() => {
+      if (kind === 'auth') return json({ error: 'invalid_grant' }, 401)
+      if (kind === 'json') return new Response('{')
+      if (kind === 'policy') return json({ ...catalog(), experimental: { policies: [{}] } })
+      throw new TypeError('fetch failed', { cause: { code: kind === 'tls' ? 'CERT_HAS_EXPIRED' : undefined } })
+    })
+    await expect(loadCatalog(config, seed, 'opencode-console')).rejects.toThrow()
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(sleeps).toEqual([])
+  })
+
+  it('does not retry token exchanges', async () => {
+    script(() => { throw networkError() })
+    await expect(exchangeToken(config, { grant_type: 'refresh_token', refresh_token: 'test-refresh' })).rejects.toThrow('fetch failed')
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(sleeps).toEqual([])
+  })
+
+  it('cancels before the first request', async () => {
+    script(() => json(catalog()))
+    await expect(loadCatalog(config, seed, 'opencode-console', AbortSignal.abort(new Error('cancelled')))).rejects.toThrow('cancelled')
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('stops when cancellation races a network failure', async () => {
+    const controller = new AbortController()
+    script(() => { controller.abort(new Error('cancelled')); throw networkError() })
+    await expect(loadCatalog(config, seed, 'opencode-console', controller.signal)).rejects.toThrow('cancelled')
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(sleeps).toEqual([])
+  })
+
+  it('passes the operation deadline to retry backoff', async () => {
+    const controller = new AbortController()
+    script(() => { throw networkError() })
+    vi.mocked(setTimeout).mockImplementationOnce(async (_ms, _value, options) => {
+      controller.abort(new Error('cancelled during backoff'))
+      options!.signal!.throwIfAborted()
+    })
+    await expect(loadCatalog(config, seed, 'opencode-console', controller.signal)).rejects.toThrow('cancelled during backoff')
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('retains the first deadline across attempts', async () => {
+    const deadline = new AbortController()
+    vi.spyOn(AbortSignal, 'timeout').mockImplementationOnce(() => deadline.signal)
+    let calls = 0
+    script((request) => {
+      if (++calls === 1) throw networkError()
+      deadline.abort(new Error('catalog deadline expired'))
+      expect(request.signal.aborted).toBe(true)
+      return json(catalog())
+    })
+    await expect(loadCatalog(config, seed, 'opencode-console')).rejects.toThrow('catalog deadline expired')
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
 })
 
 describe('OpenCode Console login and refresh', () => {

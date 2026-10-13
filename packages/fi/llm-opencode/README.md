@@ -26,6 +26,8 @@ Device authorization displays a browser URL and code without opening a callback 
 
 Route profiles accept `displayName` and a `models` array of selected ids. An absent array exposes all advertised models; an empty array hides them all. Discovery always returns the complete authenticated catalog. Selection affects the picker, not explicit resolution or prepared calls; the grant still chooses the account and organization. Default provider names use the lowercase route id.
 
+Catalog reads retry recognized transient network failures with `catalogRetryCount` (default `1`, `0` disables retries) and `catalogRetryDelayMs` (default `250`). All attempts and backoff share one `requestTimeoutMs` deadline and caller cancellation. Exhausted retries report only the network code and recovery guidance. Authentication, redirects, certificate errors, invalid catalogs, and token exchanges are not retried.
+
 ## Protocol sources
 
 The canonical [provider metadata](../provider-compat/src/provider-settings.json) pins the OpenCode Console plugin and model-request source references for device tokens, organization scope, and client/session headers. Auth2api's adapter supplies the local reference for v2 catalog projection and protocol selection.

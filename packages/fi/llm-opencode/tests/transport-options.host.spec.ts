@@ -21,6 +21,7 @@ afterEach(() => { captured.options = undefined; vi.restoreAllMocks(); vi.unstubA
 
 it('rejects an altered SDK endpoint path or query before sending credentials', async () => {
   const config: ConsoleOptions = { server: 'https://opencode.ai/console', clientId: 'test-client', userAgent: 'test-agent',
+    catalogRetryCount: 1, catalogRetryDelayMs: 250,
     requestTimeoutMs: 1000, streamIdleTimeoutMs: 1000, refreshMarginMs: 1000, defaultContextWindow: 1000, defaultMaxTokens: 100 }
   const fetch = vi.fn(async () => Response.json({ providers: { opencode: {
     package: '@ai-sdk/openai-compatible', settings: { baseURL: 'https://opencode.ai/zen/v1' }, models: { fixture: {} },
