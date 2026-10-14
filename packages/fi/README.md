@@ -29,6 +29,7 @@ Each package owns one part of subscription access. These private workspace packa
 | [client-ui-model-signin](client-ui-model-signin/README.md) | Models settings sign-in controls |
 | [client-ui-web-search-preferences](client-ui-web-search-preferences/README.md) | Preferred-search settings and credential controls |
 | [llm-antigravity](llm-antigravity/README.md) | Native Antigravity model requests |
+| [llm-ollama](llm-ollama/README.md) | Ollama Cloud device sign-in and signed model requests |
 | [provider-compat](provider-compat/README.md) | Shared provider metadata and OAuth transport compatibility |
 | [tool-image-generation](tool-image-generation/README.md) | Subscription-backed image generation and reference-image editing |
 | [web-search-preferences](web-search-preferences/README.md) | User-selected search routing |

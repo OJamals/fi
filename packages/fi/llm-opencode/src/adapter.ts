@@ -13,6 +13,7 @@ import { loadCatalog } from './catalog.ts'
 import type { ConsoleModel } from './catalog.ts'
 import { consoleUrl } from './protocol.ts'
 import type { ConsoleGrant, ConsoleOptions } from './protocol.ts'
+import { isCompatibilityTool, withCompatibilityTools } from './compatibility.ts'
 
 const apis = {
   'anthropic-messages': anthropicMessagesApi,
@@ -53,11 +54,14 @@ interface PreparedConsole {
 /**
  * Convert a durable session id to OpenCode's native session-header vocabulary.
  * @param seed - session id, or a per-call random seed for direct calls without a session.
- * @returns deterministic native identifier without exposing the original id.
+ * @param epoch - adapter creation timestamp encoded by OpenCode's descending identifier format.
+ * @returns native identifier stable for this adapter's lifetime without exposing the original id.
  */
-function nativeSessionId(seed: string): string {
+function nativeSessionId(seed: string, epoch: number): string {
   const digest = createHash('sha256').update(seed).digest('hex')
-  return `ses_${digest.slice(0, 12)}${digest.slice(12, 26)}`
+  const value = ~(BigInt(epoch) * 0x1000n + 1n)
+  const time = Array.from({ length: 6 }, (_, index) => Number((value >> BigInt(40 - 8 * index)) & 0xffn).toString(16).padStart(2, '0')).join('')
+  return `ses_${time}${digest.slice(0, 14)}`
 }
 
 /** Model metadata shared by resolution and prepared-call dispatch. */
@@ -68,6 +72,7 @@ function modelInfo(entry: ConsoleModel): LlmResolvedModelInfo {
 
 /** OpenCode adapter; only authenticated, advertised text models can be dispatched. */
 export class OpenCodeAdapter extends LlmAdapter {
+  private readonly sessionEpoch = Date.now()
   /**
    * Bind runtime settings and the canonical grant owner.
    * @param options - current validated deployment options.
@@ -133,16 +138,18 @@ export class OpenCodeAdapter extends LlmAdapter {
     const consumer = new AbortController()
     const signal = AbortSignal.any([consumer.signal, ...options.signal === undefined ? [] : [options.signal]])
     using watchdog = idleWatchdog(signal, config.streamIdleTimeoutMs, 'LLM_STREAM_IDLE_TIMEOUT')
-    const sessionId = nativeSessionId(options.sessionId === undefined ? randomBytes(16).toString('hex') : String(options.sessionId))
+    const sessionId = nativeSessionId(options.sessionId === undefined ? randomBytes(16).toString('hex') : String(options.sessionId), this.sessionEpoch)
     const headers = {
       ...entry.headers, 'user-agent': config.userAgent, 'x-opencode-client': 'cli',
       'x-opencode-project': 'global', 'x-opencode-session': sessionId,
       'x-session-affinity': sessionId, 'x-session-id': sessionId,
-      ...grant.orgId === undefined ? {} : { 'x-org-id': grant.orgId },
+      ...grant.orgId === undefined ? {} : { 'x-org-id': grant.orgId, 'x-opencode-org-id': grant.orgId },
       ...entry.model.api === 'anthropic-messages' ? { 'x-api-key': grant.access } : { authorization: `Bearer ${grant.access}` },
     }
     try {
-      const context = toPiContext({ ...options, signal: watchdog.signal })
+      const tools = options.sessionId === undefined ? withCompatibilityTools(options.tools ?? []) : options.tools ?? []
+      const allowed = new Set(tools.filter(tool => !isCompatibilityTool(tool)).map(tool => tool.name))
+      const context = toPiContext({ ...options, tools, signal: watchdog.signal })
       const api = apis[entry.model.api]
       const models = createModels()
       models.setProvider(createProvider({
@@ -169,11 +176,39 @@ export class OpenCodeAdapter extends LlmAdapter {
           }
           const endpoint = entry.model.api === 'anthropic-messages'
             ? `${entry.model.baseUrl}/messages${url.search}` : request.url
-          const response = await fetch(new Request(endpoint, request), { redirect: 'error' })
+          const body = payloadSchema.parse(await request.clone().json())
+          const send = (payload: Record<string, unknown>) => fetch(new Request(endpoint, { ...init, method: request.method,
+            headers: request.headers, signal: request.signal, body: JSON.stringify(payload), redirect: 'error' }))
+          let response = await fetch(new Request(endpoint, request), { redirect: 'error' })
           if (response.status === 403) {
             let data: unknown
             try { data = await response.clone().json() } catch (_invalidErrorBody) { /* The SDK handles non-JSON errors. */ }
             failure = inferenceFailure(data)
+            if (failure?.code === 'POLICY_REJECTED' && entry.model.api !== 'anthropic-messages') {
+              await response.body?.cancel()
+              const responses = entry.model.api === 'openai-responses'
+              const compatible = { ...body, stream: true, store: body.store ?? false,
+                tool_choice: responses ? 'auto' : allowed.size === 0 ? 'none' : {
+                  type: 'allowed_tools', allowed_tools: { mode: 'auto', tools: [...allowed].map(name => ({ type: 'function', function: { name } })) },
+                },
+                ...responses ? {} : { stream_options: { include_usage: true } },
+              }
+              response = await send(compatible)
+              if (!responses && (response.status === 400 || response.status >= 500)) {
+                await response.body?.cancel()
+                response = await send({ ...compatible, tool_choice: 'auto' })
+              }
+              failure = undefined
+              if (response.status === 403) {
+                let retryError: unknown
+                try { retryError = await response.clone().json() } catch (_invalidRetryBody) { /* The SDK handles non-JSON errors. */ }
+                failure = inferenceFailure(retryError)
+              }
+              if (response.ok && !response.headers.get('content-type')?.toLowerCase().includes('text/event-stream')) {
+                await response.body?.cancel()
+                throw new LlmError('OpenCode compatibility transport did not return SSE', 'INVALID_RESPONSE')
+              }
+            }
           }
           return response
         },
@@ -184,6 +219,10 @@ export class OpenCodeAdapter extends LlmAdapter {
           const next = await watchdog.next(iterator)
           if (timeoutOf(watchdog.signal, 'LLM_STREAM_IDLE_TIMEOUT') !== undefined) throw new LlmError('OpenCode stream idle deadline exceeded', 'TIMEOUT')
           if (next.done) return
+          const chunk = next.value
+          const name = chunk.type === 'tool-call-delta' ? chunk.name
+            : chunk.type === 'block-end' && chunk.block.type === 'tool-call' ? chunk.block.name : undefined
+          if (name !== undefined && !allowed.has(name)) throw new LlmError('OpenCode returned an undeclared or disabled tool', 'INVALID_RESPONSE')
           yield failure !== undefined && next.value.type === 'finish' && next.value.reason.kind === 'error'
             ? { ...next.value, reason: { kind: 'error', failure } } : next.value
         }

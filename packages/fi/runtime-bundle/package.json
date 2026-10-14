@@ -18,6 +18,7 @@
   "dependencies": {
     "@fi/llm-antigravity": "workspace:^",
     "@fi/llm-opencode": "workspace:^",
+    "@fi/llm-ollama": "workspace:^",
     "@fi/provider-compat": "workspace:^",
     "@fi/web-search-preferences": "workspace:^"
   },

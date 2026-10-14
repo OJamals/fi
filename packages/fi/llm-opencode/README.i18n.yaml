@@ -18,8 +18,8 @@
   en: 8ed60a8b8d49f3d7
   zh: d0e3f547a10e1c90
 /fi-llm-opencode/protocol-sources:
-  en: f027a2cc3ac44cf2
-  zh: 9c3c8defdc6125b6
+  en: 1572cdcc8d8437b9
+  zh: aef5aefc802509ae
 /fi-llm-opencode/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
@@ -30,14 +30,14 @@
   en: 3e9e43e9dd27fdad
   zh: c66d9002841c2972
 /fi-llm-opencode/model-experience/console-model-request-and-response/token-effect:
-  en: 95b25c3b9490920c
-  zh: a8d9e21611c3460f
+  en: 71dead135d5a3c95
+  zh: d427f528b23ae562
 /fi-llm-opencode/model-experience/console-model-request-and-response/kv-cache-effect:
-  en: 02416b7d8c257a1b
-  zh: 5fde29599ba0099c
+  en: 3841ed7779f5f8cf
+  zh: ea6752ff213ca273
 /fi-llm-opencode/known-limitations-and-deferred-work:
-  en: b79167a98d1cc620
-  zh: 99857e31ec9c7611
+  en: 2bac5c52b265e41c
+  zh: 859be04794390f71
 /fi-llm-opencode/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: 1499f90e25f08424

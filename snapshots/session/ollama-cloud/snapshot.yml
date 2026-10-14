@@ -1,0 +1,8 @@
+version: 1
+scenario: ollama-cloud
+profile: headless
+composition: ollama-cloud
+recording: authored
+header:
+  class: ollama-cloud
+  pin: true

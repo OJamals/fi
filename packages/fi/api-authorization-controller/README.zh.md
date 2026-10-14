@@ -13,7 +13,7 @@ kind: "package-reference"
 
 ## 目录
 
-OpenCode Console 授权使用 `fi-opencode/opencode-console`；其原生适配器管理 `fi-opencode` 设置命名空间及已认证模型发现。登录成功或显式采用后会在该命名空间创建 `providers.opencode-console`。
+OpenCode Console 授权使用 `fi-opencode/opencode-console`；其原生适配器管理 `fi-opencode` 设置命名空间及已认证模型发现。登录成功或显式采用后会在该命名空间创建 `providers.opencode-console`。Ollama Cloud 设备授权使用 `fi-ollama/ollama-cloud`，在 `fi-ollama` 中创建 `providers.ollama-cloud`；采用操作接受规范授权记录，不依赖授权协议。
 
 - [使用本包](#use-this-package)
 - [理解实现](#understand-the-implementation)

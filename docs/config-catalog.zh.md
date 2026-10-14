@@ -4507,6 +4507,50 @@ export interface AntigravityOAuthFingerprintPair {
 ```
 <!-- END GENERATED config-catalog:@fi/llm-antigravity -->
 
+<!-- BEGIN GENERATED config-catalog:@fi/llm-ollama -->
+<a id="fillm-ollama"></a>
+
+## `@fi/llm-ollama`
+
+- `inject`: `authorization` · `credentials` · `llm`
+- `refs`: `Volatile` (`@deepseek-ai/cordis`)
+- `source`: [`packages/fi/llm-ollama/src/index.ts:20`](../packages/fi/llm-ollama/src/index.ts)
+
+```ts config-catalog
+/** Provider routes and non-secret device configuration. */
+export interface OllamaConfig extends OllamaOptions {
+  /** FI route ids and model-picker selections backed by the signed-in account. */
+  providers: Volatile<Record<string, OllamaProfile>>
+}
+
+/** Deployment deadlines and the name displayed by Ollama's device approval page. */
+export interface OllamaOptions {
+  /** Device label shown on Ollama's browser approval page. */
+  deviceName: string
+  /** Maximum milliseconds for one cloud HTTP request. */
+  requestTimeoutMs: number
+  /** Maximum milliseconds allowed for browser approval. */
+  authTimeoutMs: number
+  /** Milliseconds between pending account checks. */
+  pollIntervalMs: number
+  /** Maximum milliseconds without an inference stream event. */
+  streamIdleTimeoutMs: number
+  /** Context capacity when model metadata omits it. */
+  defaultContextWindow: number
+  /** Output token limit when the request does not specify one. */
+  defaultMaxTokens: number
+}
+
+/** FI profile presentation and picker selection. */
+export interface OllamaProfile {
+  /** Display name used for this route in model settings. */
+  displayName?: string
+  /** Selected catalog model ids; omission exposes the complete catalog. */
+  models?: readonly string[]
+}
+```
+<!-- END GENERATED config-catalog:@fi/llm-ollama -->
+
 <!-- BEGIN GENERATED config-catalog:@fi/llm-opencode -->
 <a id="fillm-opencode"></a>
 
@@ -4514,7 +4558,7 @@ export interface AntigravityOAuthFingerprintPair {
 
 - `inject`: `authorization` · `credentials` · `llm`
 - `refs`: `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/fi/llm-opencode/src/index.ts:29`](../packages/fi/llm-opencode/src/index.ts)
+- `source`: [`packages/fi/llm-opencode/src/index.ts:31`](../packages/fi/llm-opencode/src/index.ts)
 
 ```ts config-catalog
 /** Loader configuration; credentials remain exclusively in the credential store. */

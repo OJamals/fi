@@ -29,12 +29,15 @@
       xai: llm-pi-ai/xai
       antigravity: fi-antigravity/antigravity
       opencode-console: fi-opencode/opencode-console
+      ollama-cloud: fi-ollama/ollama-cloud
 
 - insert:
     - id: fi-antigravity
       name: '@fi/llm-antigravity'
     - id: fi-opencode
       name: '@fi/llm-opencode'
+    - id: fi-ollama
+      name: '@fi/llm-ollama'
     - id: fi-provider-compat
       name: '@fi/provider-compat'
     - id: fi-web-search-preferences

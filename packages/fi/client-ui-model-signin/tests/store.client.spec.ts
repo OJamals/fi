@@ -18,6 +18,11 @@ function entry(overrides: Partial<AuthorizationEntryView> & { key: string }): Au
 const FRESH: SignInAttempt = { key: 'llm-pi-ai/anthropic', notice: null, prompt: null, settled: null }
 
 describe('selectOfferedRows', () => {
+  it('offers Ollama native device approval without offering API-key methods', () => {
+    const rows = selectOfferedRows([entry({ key: 'fi-ollama/ollama-cloud', label: 'Ollama Cloud',
+      methods: [{ id: 'device', label: 'Sign in with Ollama Cloud' }, { id: 'api-key', label: 'API key' }] })])
+    expect(rows).toEqual([expect.objectContaining({ provider: 'ollama-cloud', methods: [{ id: 'device', label: 'Sign in with Ollama Cloud' }] })])
+  })
   it('offers OpenCode Console from its native authorization scope', () => {
     expect(selectOfferedRows([entry({ key: 'fi-opencode/opencode-console', label: 'OpenCode Console' })]))
       .toEqual([expect.objectContaining({ provider: 'opencode-console', key: 'fi-opencode/opencode-console', label: 'OpenCode Console' })])

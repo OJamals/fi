@@ -4,13 +4,13 @@
 #   pnpm run verify-translation-pairing --write packages/fi/client-ui-model-signin/README.md
 /:
   en: 398b2246afdade4c
-  zh: 352f44aded078a1b
+  zh: bedae733cdc4919f
 /fi-client-ui-model-signin:
   en: 7cc2aee883e0cbd8
   zh: 8231ac4260163868
 /fi-client-ui-model-signin/summary:
-  en: 3198dd40b9bfa9bc
-  zh: 0697662d6de17d11
+  en: 0905b02bc833be51
+  zh: bdad1eb23cb838c1
 /fi-client-ui-model-signin/table-of-contents:
   en: d152484eb41ac6b4
   zh: 09388d293f9be9cb
@@ -18,11 +18,11 @@
   en: 270055346177ee94
   zh: 85661ba77b980f1a
 /fi-client-ui-model-signin/use-this-package/what-the-user-sees:
-  en: a5af714bd8d017d1
-  zh: a1c8f5b692546080
+  en: 0a8fe045be421b0d
+  zh: 9539f9c2affc5baf
 /fi-client-ui-model-signin/use-this-package/offering-another-provider:
-  en: 4ae53813662bc623
-  zh: 073fcadf7294383d
+  en: d44693062f500fa2
+  zh: 2a718cd9d1235f4c
 /fi-client-ui-model-signin/understand-the-implementation:
   en: 5d28a0664c365626
   zh: 14ef99b937294130

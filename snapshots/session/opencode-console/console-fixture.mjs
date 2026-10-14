@@ -7,7 +7,7 @@ export const inject = ['credentials']
 /** Seed a non-secret grant and admit only the two scripted OpenCode endpoints. */
 export async function apply(ctx) {
   const error = process.env.DSH_OPENCODE_FIXTURE_ERROR
-  if (error !== undefined && error !== 'FreeTierError' && error !== 'SsoRequired') throw new Error('unknown OpenCode fixture failure')
+  if (error !== undefined && !['FreeTierError', 'FreeTierRecovery', 'SsoRequired'].includes(error)) throw new Error('unknown OpenCode fixture failure')
   await ctx.credentials.modifyRecord('fi-opencode/opencode-console', async () => ({
     kind: 'grant', payload: {
       type: 'oauth', server: 'https://opencode.ai/console', access: 'snapshot-access', refresh: 'snapshot-refresh',
@@ -32,6 +32,9 @@ export async function apply(ctx) {
       if (request.method !== 'POST' || request.url !== '/zen/v1/chat/completions') {
         response.writeHead(404); response.end(); return
       }
+      if (request.headers['x-opencode-org-id'] !== 'snapshot-org') {
+        response.writeHead(403); response.end(); return
+      }
       let text = ''
       request.setEncoding('utf8')
       request.on('data', chunk => { text += chunk })
@@ -40,9 +43,16 @@ export async function apply(ctx) {
         if (body.model !== 'wire-model' || body.stream !== true || !/^ses_[0-9a-f]{12}[A-Za-z0-9]{14}$/.test(request.headers['x-opencode-session'] ?? '')) {
           response.writeHead(400); response.end(); return
         }
-        if (error !== undefined) {
+        if (error === 'FreeTierRecovery') {
+          for (const name of ['read', 'shell']) {
+            if (!body.tools?.some(tool => tool.function.name === name)) {
+              response.writeHead(400); response.end(); return
+            }
+          }
+        }
+        if (error !== undefined && !(error === 'FreeTierRecovery' && body.tool_choice !== undefined)) {
           response.writeHead(403, { 'content-type': 'application/json' })
-          response.end(JSON.stringify({ error: { type: error, message: 'failure-diagnostic-must-not-leak' } }))
+          response.end(JSON.stringify({ error: { type: error === 'FreeTierRecovery' ? 'FreeTierError' : error, message: 'failure-diagnostic-must-not-leak' } }))
           return
         }
         response.writeHead(200, { 'content-type': 'text/event-stream' })

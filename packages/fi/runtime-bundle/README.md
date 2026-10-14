@@ -32,7 +32,7 @@ Search defaults to Auto: use the current model's linked native search when suppo
 
 Session feedback uploads are disabled through `session-telemetry-otel.mode: DISABLED`, so feedback cannot send Session logs to the upstream collector. The GUI layer also disables product analytics and Desktop product telemetry. A deployment deliberately enabling telemetry owns its endpoint and sharing policy.
 
-The layer mounts native Antigravity and OpenCode Console adapters and [provider compatibility](../provider-compat/README.md). It adds no model-visible tool schema to headless, ACP, or SDK compositions.
+The layer mounts native Antigravity, OpenCode Console, and [Ollama Cloud](../llm-ollama/README.md) adapters and [provider compatibility](../provider-compat/README.md). Each adapter owns its model-visible request behavior.
 
 ## Understand the implementation
 

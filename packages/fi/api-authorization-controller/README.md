@@ -13,7 +13,7 @@ English | [中文](README.zh.md)
 
 ## Table of Contents
 
-OpenCode Console grants use `fi-opencode/opencode-console`; their native adapter owns the `fi-opencode` settings namespace and authenticated model discovery. Successful login and explicit adoption create `providers.opencode-console` there.
+OpenCode Console grants use `fi-opencode/opencode-console`; their native adapter owns the `fi-opencode` settings namespace and authenticated model discovery. Successful login and explicit adoption create `providers.opencode-console` there. Ollama Cloud device grants use `fi-ollama/ollama-cloud` and create `providers.ollama-cloud` in `fi-ollama`; adoption accepts the canonical grant regardless of authorization protocol.
 
 - [Use this package](#use-this-package)
 - [Understand the implementation](#understand-the-implementation)

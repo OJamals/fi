@@ -33,7 +33,7 @@ DeepSeek 账户服务和账户模型路由被禁用。其 API-key 提供方仍�
 
 通过 `session-telemetry-otel.mode: DISABLED` 禁用 Session 反馈上传，反馈不会将 Session 日志发送至上游收集端。GUI 层还禁用产品分析和 Desktop 产品遥测。主动启用遥测的部署负责其端点和共享策略。
 
-本层挂载原生 Antigravity、OpenCode Console 适配器和[提供方兼容处理](../provider-compat/README.zh.md)。它不为 headless、ACP 或 SDK 组合添加模型可见工具 schema。
+本层挂载原生 Antigravity、OpenCode Console 和 [Ollama Cloud](../llm-ollama/README.zh.md) 适配器和[提供方兼容处理](../provider-compat/README.zh.md)。各适配器负责其模型可见请求行为。
 
 <a id="understand-the-implementation"></a>
 ## 理解实现

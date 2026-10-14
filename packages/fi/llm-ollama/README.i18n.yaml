@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/fi/llm-ollama/README.md
+/:
+  en: f6c8425f971575fd
+  zh: 96e83fa3eb30badb
+/fi-llm-ollama:
+  en: 50a2dc76627ea714
+  zh: fc5856b5111ca1e1
+/fi-llm-ollama/summary:
+  en: 2120a525f1ee8c6f
+  zh: 89eba015c098dcf5
+/fi-llm-ollama/table-of-contents:
+  en: b7e2f55197654055
+  zh: d0dd062d6c570784
+/fi-llm-ollama/authorization-and-configuration:
+  en: d419d9d1a8c3437d
+  zh: 4c6ea5995334ce83
+/fi-llm-ollama/protocol-sources:
+  en: 8f7324c35fc3c980
+  zh: d594547d62f3d62d
+/fi-llm-ollama/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/fi-llm-ollama/model-experience/cloud-model-request-and-response:
+  en: 5e5d6953cad7101d
+  zh: 086fa14ecf4b39ff
+/fi-llm-ollama/model-experience/cloud-model-request-and-response/what-the-model-sees:
+  en: 751d6f2e18e68d9d
+  zh: 7ce194868ca6ef78
+/fi-llm-ollama/model-experience/cloud-model-request-and-response/token-effect:
+  en: 559ce39d7182b47d
+  zh: e1ab523198670180
+/fi-llm-ollama/model-experience/cloud-model-request-and-response/kv-cache-effect:
+  en: ba13e06a8fdc8fea
+  zh: e3364abe5e6b2133
+/fi-llm-ollama/known-limitations-and-deferred-work:
+  en: 6a1e11fb47513be2
+  zh: ca92332c30728e23
+/fi-llm-ollama/known-limitations-and-deferred-work/dev-note:
+  en: 0a1253c6f7b5e8b9
+  zh: 9f56528562c7c914

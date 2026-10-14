@@ -27,6 +27,7 @@
     "@fi/provider-compat": "workspace:~",
     "@deepseek-ai/dsh-llm-pi-ai": "workspace:*",
     "@deepseek-ai/dsh-timeout": "workspace:*",
+    "@deepseek-ai/dsh-system-prompt": "workspace:*",
     "@deepseek-ai/schemastery": "workspace:~",
     "@earendil-works/pi-ai": "0.87.1",
     "zod": "^4.4.3"

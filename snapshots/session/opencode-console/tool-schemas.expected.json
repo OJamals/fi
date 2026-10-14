@@ -612,6 +612,15 @@
           "content"
         ]
       }
+    },
+    {
+      "name": "shell",
+      "description": "Reserved transport compatibility function. Disabled; must never be called.",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
     }
   ],
   "changes": []

@@ -61,6 +61,7 @@ const ROUTE_NAMESPACE_BY_SCOPE = {
   'llm-pi-ai': 'llm-pi-ai',
   'fi-antigravity': 'fi-antigravity',
   'fi-opencode': 'fi-opencode',
+  'fi-ollama': 'fi-ollama',
 } as const
 
 /**

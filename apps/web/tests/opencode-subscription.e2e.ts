@@ -109,7 +109,7 @@ describe('web e2e: OpenCode Console subscription', () => {
       await composer.press('Enter')
       await settled
       await page.getByText(message, { exact: true }).waitFor({ timeout: 10_000 })
-      expect(inferenceCalls).toBe(before + 1)
+      expect(inferenceCalls).toBe(before + (type === 'FreeTierError' ? 2 : 1))
       const content = await page.content()
       expect(content).not.toContain('API key is invalid')
       expect(content).not.toContain('failure-diagnostic-must-not-leak')

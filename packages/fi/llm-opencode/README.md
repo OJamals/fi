@@ -34,7 +34,7 @@ The canonical [provider metadata](../provider-compat/src/provider-settings.json)
 
 Authenticated `/api/v2/config` supplies enabled models supporting text input and output, endpoint URLs, protocol, wire identifiers, and capacity. Models omitting modality metadata use text defaults. Supported packages use Anthropic Messages, OpenAI Responses, or OpenAI chat completions. A provider-qualified selection id remains distinct from the wire model id in durable replay. Prepared calls freeze the catalog entry, account, organization, and options together. Discovery errors do not fall back to public models or another account.
 
-Inference `403 FreeTierError` reports `POLICY_REJECTED` with instructions to select another Console model or use the official OpenCode client. Structured `403 SsoRequired` reports `SSO_REQUIRED` with reconnect instructions. These failures preserve safe recovery messages without echoing provider response fields or treating them as invalid API keys; ordinary authentication and unrecognized responses retain shared SDK error handling.
+OpenAI-compatible inference retries `403 FreeTierError` with auth2api-compatible streaming and tool selection. Chat backends rejecting restricted selection with HTTP 400 or 5xx get one `auto` attempt; local validation still rejects undeclared or disabled tools. Persistent free-tier rejection reports `POLICY_REJECTED`. Structured `403 SsoRequired` reports `SSO_REQUIRED` with reconnect instructions; other errors retain shared SDK handling.
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -47,17 +47,17 @@ The model receives FI's recorded system prompt, conversation, and actual tool de
 
 #### Token effect
 
-Provider responses supply token counts and cache usage; absent advertised capacities use the configured defaults. Input conversion preserves the recorded text and tool declarations without transport-only schemas.
+Provider responses supply token counts and cache usage; absent advertised capacities use the configured defaults. OpenCode prompt assembly adds missing `read` and `shell` compatibility declarations before the request header is logged. Existing same-name tools retain their definitions. Added declarations consume input tokens and cannot execute; direct adapter calls without a Session receive the same declarations during conversion.
 
 #### KV Cache effect
 
-Replay preserves ordered conversation blocks and supported native signatures. The session routing headers remain stable for a durable session and are model-hidden metadata.
+Replay preserves ordered conversation blocks and supported native signatures. Session routing headers encode OpenCode's descending timestamp and remain stable for a durable session during the adapter's lifetime. They are model-hidden metadata.
 
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- This adapter serves text input/output. Images, native search, provider-specific reasoning controls, and remote MCP/policy installation are not offered. The upstream free-tier lane may reject requests with `FreeTierError`; this adapter preserves the recorded tool declarations instead of appending hidden compatibility tools. Free-tier quotas and Console balance remain provider-owned.
+- This adapter serves text input/output. Images, native search, provider-specific reasoning controls, and remote MCP/policy installation are not offered. Free-tier quotas, model availability, and Console balance remain provider-owned; catalog visibility alone does not establish inference availability.
 
 **Runtime invariant:** No companion is published. The credential store owns grant serialization; each prepared call retains one immutable catalog/credential generation without an independent registration mirror.
 

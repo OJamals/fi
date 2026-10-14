@@ -1,8 +1,8 @@
 /**
- * Subscription sign-in plugin, browser half. It adds one OAuth sign-in
+ * Subscription sign-in plugin, browser half. It adds one account sign-in
  * section to the Models page for the providers whose value is a subscription
  * the user already holds — Claude Pro/Max, ChatGPT Plus/Pro, SuperGrok/X
- * Premium, Antigravity, and OpenCode Console — with native route setup and editing.
+ * Premium, Antigravity, OpenCode Console, and Ollama Cloud — with native route setup and editing.
  *
  * The subscription section remains the only sign-in surface. The native
  * editor adopts an existing grant or edits a configured route's name and model selection.
@@ -80,7 +80,7 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
         const unsubscribe = controller.store.subscribe(syncRoutes)
         syncRoutes()
         return () => { unsubscribe(); disposeRoutes() }
-      }, 'fi-model-signin: offered OAuth routes in Models settings')
+      }, 'fi-model-signin: offered subscription routes in Models settings')
     })
 
     // A grant committed anywhere — this card, a second tab, a CLI login —
@@ -141,6 +141,11 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
     ctx.slots.inject('settings.models.provider-editor', () => ctx.slots.register({
       name: 'settings.models.provider-editor',
       key: 'fi-opencode',
+      inject: injected,
+    }, AntigravityProviderEditor))
+    ctx.slots.inject('settings.models.provider-editor', () => ctx.slots.register({
+      name: 'settings.models.provider-editor',
+      key: 'fi-ollama',
       inject: injected,
     }, AntigravityProviderEditor))
     ctx.slots.inject('settings.models.footer', () => ctx.slots.register({

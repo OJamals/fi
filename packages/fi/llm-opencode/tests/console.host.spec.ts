@@ -16,6 +16,7 @@ import { loadCatalog, projectCatalog } from '../src/catalog.ts'
 import { consoleJson, consoleUrl, exchangeToken } from '../src/protocol.ts'
 import type { ConsoleGrant, ConsoleOptions } from '../src/protocol.ts'
 import { liveConfig } from '../../../settings/settings/tests/live-config.ts'
+import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 
 const sleeps = vi.hoisted(() => [] as number[])
 vi.mock('node:timers/promises', () => ({ setTimeout: vi.fn((ms: number, _value: undefined, opts: { signal: AbortSignal }) => {
@@ -324,6 +325,38 @@ describe('OpenCode Console login and refresh', () => {
 })
 
 describe('OpenCode model routing', () => {
+  it('logs compatibility declarations only for active OpenCode routes and preserves real tools', async () => {
+    const ctx = await harness()
+    await ctx.plugin(SystemPrompt)
+    await liveConfig(ctx, OpenCodeService, { providers: { 'opencode-console': {} } }, 'fi-opencode')
+    let provider: string | undefined
+    ctx.systemPrompt.variable('provider', () => provider)
+    const realRead = { name: 'read', description: 'Read a file', parameters: { type: 'object', properties: {} } }
+    ctx.systemPrompt.tools(() => ({ schemas: [realRead] }))
+    expect((await ctx.systemPrompt.assemble()).tools).toEqual([realRead])
+    provider = 'other'
+    expect((await ctx.systemPrompt.assemble()).tools).toEqual([realRead])
+    provider = 'opencode-console'
+    const tools = (await ctx.systemPrompt.assemble()).tools
+    expect(tools).toEqual([realRead, expect.objectContaining({ name: 'shell' })])
+  })
+
+  it('restricts free-tier recovery to executable tools and rejects a non-streaming success', async () => {
+    let requests = 0
+    script(async (request) => {
+      if (request.method === 'GET') return json(catalog())
+      if (++requests === 1) return json({ error: { type: 'FreeTierError' } }, 403)
+      const body = z.record(z.string(), z.unknown()).parse(await request.json())
+      expect(body['tool_choice']).toEqual({ type: 'allowed_tools', allowed_tools: { mode: 'auto', tools: [{ type: 'function', function: { name: 'get_status' } }] } })
+      return json({ message: 'not SSE' })
+    })
+    const adapter = new OpenCodeAdapter(() => config, async () => seed)
+    const chunks = []
+    for await (const chunk of adapter.stream({ provider: 'opencode-console', model: 'friendly', messages: [],
+      tools: [{ name: 'get_status', description: 'Read status', parameters: {} }] })) chunks.push(chunk)
+    expect(chunks.at(-1)).toMatchObject({ type: 'finish', reason: { kind: 'error' } })
+    expect(requests).toBe(2)
+  })
   it('reports an idle timeout after the SDK settles the cancelled request', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     const reached = Promise.withResolvers<undefined>()
@@ -489,9 +522,13 @@ describe('OpenCode model routing', () => {
     script(async (request) => {
       if (request.method === 'GET') return json(catalog())
       expect(request.url).toBe('https://opencode.ai/zen/v1/chat/completions')
+      expect(request.headers.get('x-opencode-org-id')).toBe(seed.orgId)
       expect(request.headers.get('authorization')).toBe(`Bearer ${seed.access}`)
       expect(request.headers.get('x-org-id')).toBe(seed.orgId)
       expect(request.headers.get('x-opencode-session')).toMatch(/^ses_[0-9a-f]{12}[A-Za-z0-9]{14}$/)
+      const nativeId = request.headers.get('x-opencode-session')!
+      const encodedTime = Number(BigInt.asUintN(48, ~BigInt(`0x${nativeId.slice(4, 16)}`)) >> 12n)
+      expect(Math.abs(encodedTime - Date.now() % 2 ** 36)).toBeLessThan(1000)
       bodies.push(await request.json())
       return new Response('data: {"id":"r","choices":[{"index":0,"delta":{"content":"Hello"},"finish_reason":null}]}\n\ndata: {"id":"r","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":5,"completion_tokens":1}}\n\ndata: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } })
     })
@@ -531,7 +568,7 @@ describe('OpenCode model routing', () => {
         const finish = chunks.at(-1)
         expect(finish).toMatchObject({ type: 'finish', reason: { kind: 'error', failure: { code, ...message === undefined ? {} : { message, status } } } })
         if (message !== undefined) expect(JSON.stringify(finish)).not.toContain('should-not-leak')
-        expect(requests).toBe(1)
+        expect(requests).toBe(code === 'POLICY_REJECTED' && packageName !== '@ai-sdk/anthropic' ? 2 : 1)
       }
     },
   )
@@ -556,7 +593,7 @@ describe('OpenCode model routing', () => {
       const body = z.object({
         model: z.string(), tools: z.array(z.object({ function: z.object({ name: z.string() }) })), messages: z.array(z.unknown()),
       }).parse(await request.json())
-      expect(body.tools.map((tool: { function: { name: string } }) => tool.function.name)).toEqual(['lookup'])
+      expect(body.tools.map((tool: { function: { name: string } }) => tool.function.name)).toEqual(['lookup', 'read', 'shell'])
       calls++
       if (calls === 1) return new Response('data: {"id":"r1","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call-1","type":"function","function":{"name":"lookup","arguments":"{\\"key\\":\\"a\\"}"}}]},"finish_reason":null}]}\n\ndata: {"id":"r1","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}\n\ndata: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } })
       expect(body.model).toBe('wire-model')
@@ -579,6 +616,35 @@ describe('OpenCode model routing', () => {
     expect(second.message({ provider: options.provider, model: options.model }).content).toEqual([{ type: 'text', text: 'Done' }])
     expect(second.replayState).toMatchObject({ response: { provider: 'opencode-console', model: 'friendly' } })
     expect(calls).toBe(2)
+  })
+
+  it.each([undefined, 400, 503])('recovers free-tier chat with restricted selection and bounded auto fallback (%s)', async (fallback) => {
+    const adapter = new OpenCodeAdapter(() => config, async () => seed)
+    const bodies: Record<string, unknown>[] = []
+    script(async (request) => {
+      if (request.method === 'GET') return json(catalog())
+      bodies.push(z.record(z.string(), z.unknown()).parse(await request.json()))
+      if (bodies.length === 1) return json({ error: { type: 'FreeTierError' } }, 403)
+      if (bodies.length === 2 && fallback !== undefined) return json({ error: 'selection unavailable' }, fallback)
+      return new Response('data: {"id":"r","choices":[{"index":0,"delta":{"content":"OK"},"finish_reason":null}]}\n\ndata: {"id":"r","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } })
+    })
+    const chunks = []
+    for await (const chunk of adapter.stream({ provider: 'opencode-console', model: 'friendly', messages: [] })) chunks.push(chunk)
+    expect(chunks.at(-1)).toMatchObject({ type: 'finish', reason: { kind: 'stop' } })
+    expect(bodies).toHaveLength(fallback === undefined ? 2 : 3)
+    expect(bodies[1]).toMatchObject({ stream: true, store: false, tool_choice: 'none' })
+    if (fallback !== undefined) expect(bodies[2]?.tool_choice).toBe('auto')
+  })
+
+  it.each(['shell', 'unadvertised'])('rejects a disabled or undeclared tool before accepting its result: %s', async (name) => {
+    const adapter = new OpenCodeAdapter(() => config, async () => seed)
+    script(request => request.method === 'GET' ? json(catalog()) : new Response(
+      `data: ${JSON.stringify({ id: 'r', choices: [{ index: 0, delta: { tool_calls: [{ index: 0, id: 'call-1', type: 'function', function: { name, arguments: '{}' } }] }, finish_reason: null }] })}\n\ndata: {"id":"r","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}\n\ndata: [DONE]\n\n`,
+      { headers: { 'content-type': 'text/event-stream' } },
+    ))
+    await expect(async () => {
+      for await (const _chunk of adapter.stream({ provider: 'opencode-console', model: 'friendly', messages: [] })) { /* drain */ }
+    }).rejects.toThrow('undeclared or disabled tool')
   })
 
   it('aborts the SDK request when the stream consumer stops early', async () => {
@@ -613,8 +679,11 @@ describe('OpenCode model routing', () => {
 
   it.each(['@ai-sdk/anthropic', '@ai-sdk/openai'])('streams %s without sending Console credentials to another host', async (packageName) => {
     const adapter = new OpenCodeAdapter(() => config, () => Promise.resolve(seed))
+    let requests = 0
     script(async (request) => {
       if (request.method === 'GET') return json(catalog(packageName))
+      requests++
+      if (packageName === '@ai-sdk/openai' && requests === 1) return json({ error: { type: 'FreeTierError' } }, 403)
       expect(z.object({ model: z.string() }).parse(await request.json()).model).toBe('wire-model')
       if (packageName === '@ai-sdk/anthropic') {
         expect(new URL(request.url).pathname).toBe('/zen/v1/messages')

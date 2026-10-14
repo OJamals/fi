@@ -29,6 +29,7 @@ kind: "package-group"
 | [client-ui-model-signin](client-ui-model-signin/README.zh.md) | 模型设置中的登录控件 |
 | [client-ui-web-search-preferences](client-ui-web-search-preferences/README.zh.md) | 首选搜索设置与凭据控件 |
 | [llm-antigravity](llm-antigravity/README.zh.md) | 原生 Antigravity 模型请求 |
+| [llm-ollama](llm-ollama/README.zh.md) | Ollama Cloud 设备登录和签名模型请求 |
 | [provider-compat](provider-compat/README.zh.md) | 共享提供方元数据与 OAuth 传输兼容处理 |
 | [tool-image-generation](tool-image-generation/README.zh.md) | 基于订阅的图片生成与参考图片编辑 |
 | [web-search-preferences](web-search-preferences/README.zh.md) | 用户选择的搜索路由 |

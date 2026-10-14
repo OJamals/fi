@@ -10,6 +10,8 @@ import { registerConsoleFlow, resolveConsoleGrant } from './oauth.ts'
 import { consoleUrl } from './protocol.ts'
 import type { ConsoleOptions } from './protocol.ts'
 import { providerSettingsFor } from '@fi/provider-compat'
+import type {} from '@deepseek-ai/dsh-system-prompt'
+import { withCompatibilityTools } from './compatibility.ts'
 
 const metadata = providerSettingsFor('opencodeConsole')
 
@@ -61,6 +63,12 @@ export default class OpenCodeService extends Service {
     const settingsNs = this.ctx.fiber.entry?.options.id ?? 'fi-opencode'
     const adapter = new OpenCodeAdapter(options, (settings, signal) => resolveConsoleGrant(this.ctx, settings, signal),
       provider => config.providers.get()[provider])
+    this.ctx.on('system-prompt/assemble', async (_assembly, _context, next) => {
+      const assembly = await next()
+      const provider = assembly.variables.provider
+      if (provider === undefined || !Object.hasOwn(config.providers.get(), provider)) return assembly
+      return { ...assembly, tools: withCompatibilityTools(assembly.tools) }
+    })
     let registration: AdapterRegistrationHandle | undefined
     const sync = (): void => {
       const routes = Object.keys(config.providers.get())

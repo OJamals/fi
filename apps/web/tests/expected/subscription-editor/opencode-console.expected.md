@@ -22,6 +22,7 @@
         - option "xAI"
         - option "Antigravity" [selected]
         - option "OpenCode Console"
+        - option "Ollama Cloud"
       - text: Signed in
       - button "Set up Antigravity provider": Set up provider
       - button "Sign in to Antigravity again": Sign in again

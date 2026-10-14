@@ -221,6 +221,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@fi/client-ui-model-signin` | no | Subscription sign-in card for the Models page: OAuth login for Claude Pro/Max and ChatGPT Plus/Pro through the authorization seam |
 | `@fi/client-ui-web-search-preferences` | no | Browser settings card for FI preferred web-search routing and credentials |
 | `@fi/llm-antigravity` | yes | Antigravity OAuth adapter and Cloud Code transport for fi |
+| `@fi/llm-ollama` | yes | Ollama Cloud subscription device authorization and model transport for FI |
 | `@fi/llm-opencode` | yes | OpenCode Console subscription authorization and model transport for fi |
 | `@fi/provider-compat` | yes | Canonical provider metadata and subscription-only HTTP and WebSocket transport compatibility for FI |
 | `@fi/tool-image-generation` | yes | Opt-in Codex, Grok, and Antigravity image generation and editing through stored subscription OAuth |

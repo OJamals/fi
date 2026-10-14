@@ -12,6 +12,7 @@
     { "path": "../../llm/llm" },
     { "path": "../../llm/llm-pi-ai" },
     { "path": "../../settings/settings" },
+    { "path": "../../core/system-prompt" },
     { "path": "../../util/timeout" }
   ]
 }

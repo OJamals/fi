@@ -1,0 +1,14 @@
+- id: llm-deepseek
+  disabled: true
+- id: plugin-package-inventory-deepseek
+  disabled: true
+- id: session-title-llm
+  disabled: true
+- insert:
+    - id: ollama-cloud-fixture
+      name: './cloud-fixture.mjs'
+- id: fi-ollama
+  name: '@fi/llm-ollama'
+  config:
+    providers:
+      ollama-cloud: {}

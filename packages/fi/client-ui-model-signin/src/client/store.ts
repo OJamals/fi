@@ -30,8 +30,8 @@ const PI_AI_SCOPE = 'llm-pi-ai'
  * them here would bury the subscription logins this card exists for
  * behind a wall of rows the Models page already handles as API-key fields.
  * These are the ones whose value is a subscription the user already pays
- * for and cannot otherwise reach: an OAuth grant, not a key they could type.
- * Antigravity and OpenCode use their adapter families' own scopes; one
+ * for through an OAuth grant or browser-approved device identity.
+ * Native FI adapters use their own credential scopes; one
  * section renders every subscription sign-in, so no provider gets a second
  * section of its own.
  *
@@ -40,11 +40,11 @@ const PI_AI_SCOPE = 'llm-pi-ai'
  * appear — the join below keeps this list advisory, never authoritative.
  */
 export const SUBSCRIPTION_PROVIDER_IDS = [
-  'anthropic', 'openai-codex', 'xai', 'antigravity', 'opencode-console',
+  'anthropic', 'openai-codex', 'xai', 'antigravity', 'opencode-console', 'ollama-cloud',
 ] as const
 
 const OFFERED = SUBSCRIPTION_PROVIDER_IDS.map(provider =>
-  `${provider === 'opencode-console' ? 'fi-opencode' : provider === 'antigravity' ? 'fi-antigravity' : PI_AI_SCOPE}/${provider}`)
+  `${provider === 'ollama-cloud' ? 'fi-ollama' : provider === 'opencode-console' ? 'fi-opencode' : provider === 'antigravity' ? 'fi-antigravity' : PI_AI_SCOPE}/${provider}`)
 
 /** One question the running attempt is waiting on. */
 export interface SignInPrompt {
@@ -134,11 +134,8 @@ export function selectOfferedRows(entries: readonly AuthorizationEntryView[]): S
   for (const key of OFFERED) {
     const entry = byKey.get(key)
     if (entry === undefined) continue
-    // An offered flow with no OAuth method is not what this card is for: the
-    // Models page already collects an API key for it as an ordinary field,
-    // and showing a second way to type the same key would be two doors to one
-    // room. Codex is oauth-only; Anthropic offers both and keeps the OAuth.
-    const methods = entry.methods.filter(method => method.id === 'oauth')
+    // API-key entry remains on the Models page. Ollama uses native device approval.
+    const methods = entry.methods.filter(method => method.id === 'oauth' || (key === 'fi-ollama/ollama-cloud' && method.id === 'device'))
     if (methods.length === 0) continue
     rows.push({
       key: entry.key,
@@ -280,7 +277,7 @@ export class SignInStore {
   }
 
   /**
-   * The footer surface's whole flow: run the OAuth sign-in for a provider
+   * The footer surface's whole flow: run the offered sign-in for a provider
    * (device code, paste, whatever the flow asks), then if it settles
    * `authorized` chain the adopt on the stored grant. The attempt's own
    * `authorized` settlement is what decides the second call is legal — this
@@ -289,12 +286,13 @@ export class SignInStore {
    * @param key - the credential record to authorize and adopt.
    */
   async signInAndAdopt(key: string): Promise<void> {
-    await this.drive(key, 'oauth', true)
+    const method = this.store.getSnapshot().rows.find(row => row.key === key)?.methods[0]?.id ?? 'oauth'
+    await this.drive(key, method, true)
   }
 
   /**
    * Run one attempt to completion: set the attempt on the snapshot, consume
-   * its frames, then adopts a successful OAuth grant when requested. The
+   * its frames, then adopts a successful authorization grant when requested. The
    * operation number owns the complete chain, including the refresh and
    * adoption, so a dismissed or superseded attempt cannot publish afterward.
    * @param key - the credential record to authorize.

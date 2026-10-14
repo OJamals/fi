@@ -53,7 +53,7 @@ it('mounts editors, refreshes offered routes, forwards operations, and releases 
   const footer = slots.entries('settings.models.footer')[0]!
   const injected = footer.inject!() as Record<string, unknown> & AntigravityProviderEditorInjected
   await vi.waitFor(() => { expect(registerRoutes).toHaveBeenCalledWith(['antigravity']) })
-  expect(slots.entries('settings.models.provider-editor')).toHaveLength(2)
+  expect(slots.entries('settings.models.provider-editor')).toHaveLength(3)
   expect(registerGroups).toHaveBeenCalledOnce()
   await expect(injected.operations.read('fi-antigravity')).resolves.toBe(view)
   await expect(injected.operations.read('missing')).rejects.toThrow('Settings namespace unavailable: missing')

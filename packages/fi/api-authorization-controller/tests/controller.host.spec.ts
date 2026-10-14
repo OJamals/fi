@@ -148,7 +148,7 @@ describe('list', () => {
   it('lists only adoptable credential families, preserving flow order', async () => {
     const ctx = await harness()
     registerFlow(ctx, async () => {})
-    for (const scope of ['foreign', 'fi-opencode', 'fi-antigravity']) {
+    for (const scope of ['foreign', 'fi-opencode', 'fi-antigravity', 'fi-ollama']) {
       ctx.authorization.registerFlow({ key: credentialKey(scope, 'example'), label: scope,
         methods: [{ id: 'oauth', label: 'Sign in' }], run: async () => {} })
     }
@@ -156,6 +156,7 @@ describe('list', () => {
       { key: KEY, label: 'Anthropic', routeId: 'anthropic' },
       { key: 'fi-opencode/example', label: 'fi-opencode', routeId: 'example' },
       { key: 'fi-antigravity/example', label: 'fi-antigravity', routeId: 'example' },
+      { key: 'fi-ollama/example', label: 'fi-ollama', routeId: 'example' },
     ])
   })
 

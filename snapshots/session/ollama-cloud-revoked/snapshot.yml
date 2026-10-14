@@ -1,0 +1,9 @@
+version: 1
+scenario: ollama-cloud-revoked
+profile: headless
+composition: ollama-cloud
+recording: authored
+header:
+  class: ollama-cloud
+environment:
+  DSH_OLLAMA_FIXTURE_REVOKED: '1'

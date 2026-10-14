@@ -58,6 +58,21 @@ function scriptedCtx(script: Script) {
 }
 
 describe('footer store', () => {
+  it('uses the offered Ollama device method before adopting the signed-in route', async () => {
+    const key = 'fi-ollama/ollama-cloud'
+    const { ctx, remote } = scriptedCtx({
+      list: [{ key, label: 'Ollama Cloud', methods: [{ id: 'device', label: 'Sign in' }], stored: false, inFlight: false }],
+      adoptEntries: [{ key, label: 'Ollama Cloud', routeId: 'ollama-cloud' }],
+      frames: [{ kind: 'settled', status: 'authorized', route: 'created' }],
+      adoptResult: { route: 'created', models: ['test-model'] },
+    })
+    const store = new SignInStore(ctx)
+    await store.load()
+    await store.signInAndAdopt(key)
+    expect(remote.authorization.begin).toHaveBeenCalledWith({ key, method: 'device' }, expect.any(AbortSignal))
+    expect(store.store.getSnapshot().adopted).toEqual({ key, route: 'created', models: ['test-model'] })
+    store.dispose()
+  })
   it('keeps the last adoption directory when its refresh is refused', async () => {
     const { ctx, remote } = scriptedCtx({ list: [], adoptEntries: [], frames: [], adoptResult: { route: 'already', models: [] } })
     remote.authorization.listAdoptable.mockResolvedValueOnce({ ok: false, error: new RemoteError('gateway/internal', 'offline', {}) })
