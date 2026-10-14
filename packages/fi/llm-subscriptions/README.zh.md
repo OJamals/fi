@@ -52,6 +52,8 @@ Cursor 在启动原生运行时序列化已记录的历史，随后在同一流�
 <a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与后续工作
 
+缺少 Google OAuth 客户端配置只会阻止 Google 授权和令牌刷新；其他订阅提供方仍然可用。
+
 - 仅暴露文本输入和函数工具。不支持推理强度和停止序列覆盖；Cursor 还拒绝协议无法表达的采样控制。目录存在不保证配额或资格。Copilot 仅列出 chat-completions 模型。Cursor 按顺序暴露原生工具调用；重启或过期后不能继续待处理的结果。仅限 Cline 产品界面的模型仍不能被外部客户端使用。Google 可能以 `UNSUPPORTED_CLIENT` 拒绝消费者账户；仅有 Cloud 项目并不提供 Code Assist 许可，配额接口可能返回 `SUBSCRIPTION_REQUIRED`。免费层注册省略配置的项目元数据。受支持的 Cursor 浏览器流程不提供刷新。
 
 **运行时不变量：** 不发布 companion。凭据存储串行处理自身变更，准备后的请求保留其账户，不维护独立身份镜像。

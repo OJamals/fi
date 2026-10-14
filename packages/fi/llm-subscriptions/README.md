@@ -48,6 +48,8 @@ Conversation order follows pi-ai replay conversion. Cline inference sends the du
 
 ## Known Limitations and Deferred Work
 
+Missing Google OAuth client configuration blocks only Google authorization and token refresh. Other subscription providers remain available.
+
 - Only text input and function tools are exposed. Reasoning-effort and stop overrides are unsupported; Cursor also rejects sampling controls its protocol cannot represent. Catalog presence does not guarantee quota or entitlement. Copilot lists chat-completions models only. Cursor exposes native tool calls serially; pending results cannot resume after restart or expiry. Cline models restricted to Cline product surfaces remain unavailable to external clients. Google may reject consumer accounts with `UNSUPPORTED_CLIENT`; a Cloud project alone does not supply a Code Assist license, and quota can return `SUBSCRIPTION_REQUIRED`. Free-tier onboarding omits configured project metadata. Cursor refresh is not exposed by the supported browser flow.
 
 **Runtime invariant:** No companion is published. Credentials serialize their own mutations, and prepared requests retain their captured account without an independently maintained identity mirror.

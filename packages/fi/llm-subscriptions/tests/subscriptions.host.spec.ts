@@ -151,9 +151,11 @@ afterEach(async () => {
   for (const dir of dirs.splice(0)) await rm(dir, { recursive: true, force: true })
 })
 
-it('exposes native flows and adopts routes through Loader without coupling discovery to selection', async () => {
+it('exposes native flows and adopts Cline through Loader without Google client configuration', async () => {
   const ctx = await harness()
-  const live = await liveConfig(ctx, SubscriptionService, { ...options, providers: {} }, 'fi-subscriptions')
+  const live = await liveConfig(ctx, SubscriptionService, {
+    ...options, geminiClientId: '', geminiClientSecret: '', providers: {},
+  }, 'fi-subscriptions')
   expect(ctx.authorization.list().map(row => row.key)).toEqual(
     ['cursor', 'kiro', 'cline', 'gemini-cli'].map(id => `fi-subscriptions/${id}`),
   )

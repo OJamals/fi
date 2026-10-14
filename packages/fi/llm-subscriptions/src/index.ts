@@ -50,8 +50,6 @@ export default class SubscriptionService extends Service {
     kiroRegion({ region: config.kiroRegion })
     if (config.geminiProjectId && !/^[a-z][a-z0-9-]{4,61}[a-z0-9]$/.test(config.geminiProjectId))
       throw new Error('Invalid geminiProjectId')
-    if (!config.geminiClientId || !config.geminiClientSecret)
-      throw new Error('Google OAuth client identity is required')
     const options = (): SubscriptionOptions => ({ ...config })
     registerFlows(this.ctx, options)
     this.ctx.inject(['settings'], (child) => {
