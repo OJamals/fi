@@ -1,0 +1,4 @@
+# A saved provider section must not hide native subscription flows on upgrade.
+- id: llm-pi-ai
+  config:
+    providers: {}

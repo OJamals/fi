@@ -2,6 +2,11 @@
 
 /** English product copy. */
 export const en = {
+  exaOAuth: 'Exa (OAuth)',
+  parallelOAuth: 'Parallel (OAuth)',
+  tavilyOAuth: 'Tavily (OAuth)',
+  firecrawlOAuth: 'Firecrawl (OAuth)',
+  oauthHint: 'Sign in below, then save to use this account for web search. API-key search remains available as a separate engine choice.',
   title: 'Preferred web search',
   description: 'Choose the engine used by the next web search.',
   provider: 'Search engine',
@@ -32,7 +37,7 @@ export const en = {
   antigravity: 'Antigravity',
   claude: 'Claude',
   subscriptionModel: 'Search model ID',
-  subscriptionHint: 'Uses the linked subscription for the current chat, or another linked account. Leave the model blank for automatic selection. Sign in from Models first.',
+  subscriptionHint: 'Sign in below or reuse a linked account, then save to use it for search. Leave the model blank for automatic selection. Accounts are shared with Models.',
   readOnly: 'Settings are read-only in this connection.',
   unavailable: 'Preferred-search settings are unavailable.',
   discard: 'Discard',
@@ -46,6 +51,11 @@ export type PreferredSearchLocaleKey = keyof typeof en
 
 /** Simplified Chinese product copy. */
 export const zh: Record<PreferredSearchLocaleKey, string> = {
+  exaOAuth: 'Exa（OAuth）',
+  parallelOAuth: 'Parallel（OAuth）',
+  tavilyOAuth: 'Tavily（OAuth）',
+  firecrawlOAuth: 'Firecrawl（OAuth）',
+  oauthHint: '在下方登录，然后保存以使用此账户进行网页搜索。仍可单独选择使用 API 密钥的搜索引擎。',
   title: '首选网页搜索',
   description: '选择下一次网页搜索使用的引擎。',
   provider: '搜索引擎',
@@ -76,7 +86,7 @@ export const zh: Record<PreferredSearchLocaleKey, string> = {
   antigravity: 'Antigravity',
   claude: 'Claude',
   subscriptionModel: '搜索模型 ID',
-  subscriptionHint: '使用当前聊天的已关联订阅，或其他已关联账户。将模型留空以自动选择。请先在“模型”中登录。',
+  subscriptionHint: '在下方登录或使用已关联账户，然后保存以用于搜索。将模型留空以自动选择。账户与“模型”共享。',
   readOnly: '此连接中的设置为只读。',
   unavailable: '首选搜索设置不可用。',
   discard: '放弃',

@@ -4558,7 +4558,7 @@ export interface OllamaProfile {
 
 - `inject`: `authorization` · `credentials` · `llm`
 - `refs`: `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/fi/llm-opencode/src/index.ts:31`](../packages/fi/llm-opencode/src/index.ts)
+- `source`: [`packages/fi/llm-opencode/src/index.ts:32`](../packages/fi/llm-opencode/src/index.ts)
 
 ```ts config-catalog
 /** Loader configuration; credentials remain exclusively in the credential store. */
@@ -4600,6 +4600,60 @@ interface OpenCodeProfile {
 }
 ```
 <!-- END GENERATED config-catalog:@fi/llm-opencode -->
+
+<!-- BEGIN GENERATED config-catalog:@fi/llm-subscriptions -->
+<a id="fillm-subscriptions"></a>
+
+## `@fi/llm-subscriptions`
+
+- `inject`: `authorization` · `credentials` · `llm`
+- `refs`: `Volatile` (`@deepseek-ai/cordis`)
+- `source`: [`packages/fi/llm-subscriptions/src/index.ts:15`](../packages/fi/llm-subscriptions/src/index.ts)
+
+```ts config-catalog
+/** Deployment settings and canonical provider selections. */
+export interface SubscriptionConfig extends SubscriptionOptions {
+  /** Provider ids and Models picker selections. */
+  providers: Volatile<Record<string, SubscriptionProfile>>
+}
+
+/** Non-secret deployment settings for authorization, catalogs, and inference. */
+export interface SubscriptionOptions {
+  /** Maximum milliseconds for catalog and non-streaming HTTP operations. */
+  requestTimeoutMs: number
+  /** Maximum idle milliseconds between streamed events. */
+  streamIdleTimeoutMs: number
+  /** Maximum milliseconds for browser or device authorization. */
+  authTimeoutMs: number
+  /** Delay in milliseconds between authorization or onboarding polls. */
+  pollIntervalMs: number
+  /** Refresh access tokens this many milliseconds before expiry. */
+  refreshMarginMs: number
+  /** Context capacity when the provider catalog omits it. */
+  defaultContextWindow: number
+  /** Default output token cap. */
+  defaultMaxTokens: number
+  /** AWS region for Kiro device authorization and inference. */
+  kiroRegion: string
+  /** Optional entitled Google Cloud project id. */
+  geminiProjectId: string
+  /** Public installed-app Google OAuth client id. */
+  geminiClientId: string
+  /** Public installed-app Google OAuth client secret. */
+  geminiClientSecret: string
+  /** Loopback port for the state-checked Google OAuth callback. */
+  geminiCallbackPort: number
+}
+
+/** FI profile presentation and picker selection. */
+export interface SubscriptionProfile {
+  /** Display name used for this route in model settings. */
+  displayName?: string
+  /** Selected catalog model ids; omission exposes the complete catalog. */
+  models?: readonly string[]
+}
+```
+<!-- END GENERATED config-catalog:@fi/llm-subscriptions -->
 
 <!-- BEGIN GENERATED config-catalog:@fi/provider-compat -->
 <a id="fiprovider-compat"></a>
@@ -4671,11 +4725,17 @@ export interface ImageGenerationTarget {
 
 - `inject`: `web`
 - `refs`: [`PerplexityRecency`](../packages/web/web-search-perplexity/src/index.ts) · [`SubscriptionSearchFamily`](../packages/fi/web-search-subscription/src/index.ts) · `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/fi/web-search-preferences/src/types.ts:175`](../packages/fi/web-search-preferences/src/types.ts)
+- `source`: [`packages/fi/web-search-preferences/src/types.ts:187`](../packages/fi/web-search-preferences/src/types.ts)
 
 ```ts config-catalog
 /** Plugin Config: every field is volatile, so the profile-backed settings form edits it live. */
 export interface Config {
+  /** Browser authorization deadline. */
+  oauthAuthTimeoutMs: Volatile<number>
+  /** OAuth discovery, refresh, and MCP request deadline. */
+  oauthRequestTimeoutMs: Volatile<number>
+  /** Maximum OAuth/MCP response bytes. */
+  oauthMaxResponseBytes: Volatile<number>
   /** Provider used by the next search operation. */
   provider: Volatile<PreferredSearchProviderId>
   /** Keyless Bing RSS endpoint base. */
@@ -4750,6 +4810,7 @@ export interface Config {
 
 /** Upstream and FI-owned provider ids selectable by the preference router. */
 export type PreferredSearchProviderId =
+  | SearchOAuthId
   | 'auto'
   | 'bing-rss'
   | 'deepseek-official'
@@ -4763,6 +4824,9 @@ export type PreferredSearchProviderId =
 
 /** Parallel Search API quality and latency preset. */
 export type ParallelSearchMode = 'turbo' | 'fast' | 'basic' | 'advanced'
+
+/** Search routes whose credentials are OAuth grants. */
+export type SearchOAuthId = keyof typeof searchOAuthProviders
 ```
 <!-- END GENERATED config-catalog:@fi/web-search-preferences -->
 

@@ -618,7 +618,14 @@
       "description": "Reserved transport compatibility function. Disabled; must never be called.",
       "parameters": {
         "type": "object",
-        "properties": {},
+        "properties": {
+          "command": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "command"
+        ],
         "additionalProperties": false
       }
     }

@@ -1,0 +1,18 @@
+- id: llm-deepseek
+  disabled: true
+- id: llm-pi-ai
+  config:
+    providers: {}
+- id: plugin-package-inventory-deepseek
+  disabled: true
+- id: session-title-llm
+  disabled: true
+- insert:
+    - id: cline-subscription-fixture
+      name: './cline-fixture.mjs'
+- id: fi-subscriptions
+  name: '@fi/llm-subscriptions'
+  config:
+    defaultContextWindow: 128000
+    providers:
+      cline: {}

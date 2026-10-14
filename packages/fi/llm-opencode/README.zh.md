@@ -22,7 +22,7 @@ OpenCode Console 订阅登录位于设置 → 模型。授权组合包挂载此�
 
 设备授权显示浏览器 URL 和验证码，不监听回调端口。轮询遵守等待和减速响应、最长一小时的设备授权期限、请求超时以及取消信号。浏览器选择的令牌组织优先于旧版无组织范围令牌的排序回退。刷新在凭据存储的记录锁中运行，保留身份信息，在发现模型前保存轮换令牌和变更的组织。凭据撤销或缺失 SSO 时需要重新连接。
 
-`server`、`clientId` 和 `userAgent` 配置 Console 端点及公开客户端标识。默认值和目录路径来自 [`@fi/provider-compat`](../provider-compat/README.zh.md) 的规范 `opencodeConsole` 记录，其中包含已审查的源码引用。`requestTimeoutMs`、`streamIdleTimeoutMs`、`refreshMarginMs`、`defaultContextWindow` 和 `defaultMaxTokens` 配置超时及远端未声明的容量。端点仅允许 HTTPS OpenCode 域名，所有请求拒绝重定向。仅凭发布元数据不能确认传输兼容性。
+`server`、`clientId` 和 `userAgent` 配置 Console 端点及公开客户端标识。端点、OAuth 和目录默认值来自 [`@fi/provider-compat`](../provider-compat/README.zh.md) 的规范 `opencodeConsole` 记录。默认 User-Agent 来自[已验证的客户端抓包](src/client-capture.json)，独立于发布元数据；更新它必须重新抓包并验证实时推理。`requestTimeoutMs`、`streamIdleTimeoutMs`、`refreshMarginMs`、`defaultContextWindow` 和 `defaultMaxTokens` 配置超时及远端未声明的容量。端点仅允许 HTTPS OpenCode 域名，所有请求拒绝重定向。
 
 路由 profile 接受 `displayName` 和已选 id 数组 `models`。省略数组时显示所有已声明模型；空数组隐藏全部模型。发现始终返回完整的已认证目录。选择仅影响模型选择器，不限制显式解析或已准备调用；授权仍决定账户与组织。提供方默认名称使用小写路由 id。
 
@@ -47,7 +47,7 @@ OpenAI 兼容推理收到 `403 FreeTierError` 时，使用与 auth2api 兼容的
 
 #### Token 影响
 
-提供者响应提供令牌数量及缓存用量；远端未声明容量时使用配置默认值。OpenCode 提示组装在记录请求头之前补充缺失的 `read` 和 `shell` 兼容声明。已有同名工具保留原定义。新增声明消耗输入令牌且不能执行；不带 Session 的直接适配器调用在转换时获得相同声明。
+提供者响应提供令牌数量及缓存用量；远端未声明容量时使用配置默认值。OpenCode 提示组装在记录请求头之前补充缺失的 `read` 和 `shell` 兼容声明。其 schema 分别要求字符串类型的 `path` 和 `command` 字段；空 schema 无法通过 Console 免费层校验。已有同名工具保留原定义。新增声明消耗输入令牌且不能执行；不带 Session 的直接适配器调用在转换时获得相同声明。
 
 #### KV Cache 影响
 

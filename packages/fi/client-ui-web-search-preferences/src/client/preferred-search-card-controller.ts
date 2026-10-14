@@ -28,6 +28,7 @@ type DirectSearchProvider = keyof typeof DIRECT_PROVIDER_CREDENTIALS
 
 /** Search engines available in FI's stable preferred-search router. */
 export type PreferredSearchProvider = DirectSearchProvider | 'subscription-native' | 'bing-rss' | 'auto'
+  | 'exa-oauth' | 'parallel-oauth' | 'tavily-oauth' | 'firecrawl-oauth'
 
 /** Subscription-backed search families. */
 export type SubscriptionProvider = 'auto' | 'codex' | 'grok' | 'antigravity' | 'claude'
@@ -108,6 +109,7 @@ export function credentialRefFor(
   provider: PreferredSearchProvider = settings.provider,
 ): string | undefined {
   if (provider === 'auto' || provider === 'subscription-native' || provider === 'bing-rss') return undefined
+  if (provider === 'exa-oauth' || provider === 'parallel-oauth' || provider === 'tavily-oauth' || provider === 'firecrawl-oauth') return undefined
   const [setting, fallback] = DIRECT_PROVIDER_CREDENTIALS[provider]
   return nonBlank(settings[setting]) ?? fallback
 }
@@ -236,7 +238,7 @@ export class PreferredSearchCardController {
       || this.draft.subscriptionModel !== undefined
     const credentialKnown = credentialRef === undefined
       || (this.credential.ref === credentialRef && this.credential.checked)
-    const invalid = provider === 'auto' || provider === 'subscription-native' || provider === 'bing-rss'
+    const invalid = credentialRef === undefined
       ? false
       : !credentialKnown || (!this.credential.configured && apiKey.trim().length === 0)
     return {

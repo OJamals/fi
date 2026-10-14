@@ -8,6 +8,12 @@
 
 /** English strings (the key-set source of truth for this pair). */
 export const en = {
+  searchVendorTitle: 'Search account',
+  searchVendorHint: 'Browser sign-in connects this vendor’s search service. Credentials stay in Fi’s credential store.',
+  searchSignInTitle: 'Search with your subscription',
+  searchSignInHint: 'Link an account here. Choose Subscription search and save to use it regardless of the chat model. Automatic search follows the chat model.',
+  searchSignInUnavailable: 'No sign-in flow is available for this search provider.',
+  searchSignInAction: 'Sign in',
   subscriptionHint: 'Or sign in with your subscription',
   stateSignedIn: 'Signed in',
   stateSignedOut: 'Not signed in',
@@ -25,7 +31,7 @@ export const en = {
   cancelled: 'Sign-in cancelled.',
   failed: 'Sign-in failed.',
   footerTitle: 'Sign in with your subscription',
-  footerHint: 'Use an existing subscription without an API key. Sign in once, then add the provider to Models.',
+  footerHint: 'Connect an existing subscription, then add its models. Each provider offers its supported sign-in method.',
   footerProvider: 'Subscription provider',
   footerAttempt: 'Sign-in with {provider}',
   footerLoading: 'Loading subscription sign-ins…',
@@ -54,6 +60,12 @@ export const en = {
 
 /** Chinese strings; the parity spec requires this key set to match `en` exactly. */
 export const zh: Record<keyof typeof en, string> = {
+  searchVendorTitle: '搜索账户',
+  searchVendorHint: '通过浏览器登录连接此提供方的搜索服务。凭据保存在 Fi 的凭据存储中。',
+  searchSignInTitle: '使用订阅搜索',
+  searchSignInHint: '在此关联账户。选择“订阅搜索”并保存，即可独立于聊天模型使用该账户。自动搜索会跟随聊天模型。',
+  searchSignInUnavailable: '此搜索提供方没有可用的登录流程。',
+  searchSignInAction: '登录',
   subscriptionHint: '或使用你的订阅登录',
   stateSignedIn: '已登录',
   stateSignedOut: '未登录',
@@ -71,7 +83,7 @@ export const zh: Record<keyof typeof en, string> = {
   cancelled: '登录已取消。',
   failed: '登录失败。',
   footerTitle: '使用您的订阅登录',
-  footerHint: '无需 API 密钥即可使用已有订阅。登录一次后，将该提供方添加到模型页面。',
+  footerHint: '连接已有订阅，然后添加其模型。每个提供方均提供其支持的登录方式。',
   footerProvider: '订阅提供方',
   footerAttempt: '正在使用 {provider} 登录',
   footerLoading: '正在加载订阅登录方式…',

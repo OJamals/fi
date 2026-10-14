@@ -41,10 +41,15 @@ const PI_AI_SCOPE = 'llm-pi-ai'
  */
 export const SUBSCRIPTION_PROVIDER_IDS = [
   'anthropic', 'openai-codex', 'xai', 'antigravity', 'opencode-console', 'ollama-cloud',
+  'copilot', 'cursor', 'kiro', 'cline', 'gemini-cli',
 ] as const
 
-const OFFERED = SUBSCRIPTION_PROVIDER_IDS.map(provider =>
-  `${provider === 'ollama-cloud' ? 'fi-ollama' : provider === 'opencode-console' ? 'fi-opencode' : provider === 'antigravity' ? 'fi-antigravity' : PI_AI_SCOPE}/${provider}`)
+const NATIVE_SCOPES: Readonly<Record<string, string>> = {
+  'ollama-cloud': 'fi-ollama', 'opencode-console': 'fi-opencode', antigravity: 'fi-antigravity',
+  cursor: 'fi-subscriptions', kiro: 'fi-subscriptions', cline: 'fi-subscriptions', 'gemini-cli': 'fi-subscriptions',
+}
+const OFFERED = SUBSCRIPTION_PROVIDER_IDS.map(provider => provider === 'copilot'
+  ? 'llm-pi-ai/github-copilot' : `${NATIVE_SCOPES[provider] ?? PI_AI_SCOPE}/${provider}`)
 
 /** One question the running attempt is waiting on. */
 export interface SignInPrompt {
@@ -126,20 +131,23 @@ const INITIAL: SignInState = {
 /**
  * Select and order the offered flows out of everything the Host registered.
  * @param entries - every registered flow.
+ * @param offered - credential keys offered by this surface.
  * @returns the offered rows, in {@link OFFERED} order, skipping absent flows.
  */
-export function selectOfferedRows(entries: readonly AuthorizationEntryView[]): SignInRow[] {
+export function selectOfferedRows(entries: readonly AuthorizationEntryView[], offered: readonly string[] = OFFERED): SignInRow[] {
   const byKey = new Map(entries.map(entry => [entry.key, entry]))
   const rows: SignInRow[] = []
-  for (const key of OFFERED) {
+  for (const key of offered) {
     const entry = byKey.get(key)
     if (entry === undefined) continue
-    // API-key entry remains on the Models page. Ollama uses native device approval.
-    const methods = entry.methods.filter(method => method.id === 'oauth' || (key === 'fi-ollama/ollama-cloud' && method.id === 'device'))
+    // Cline account keys and Ollama device approval belong to their subscription flows.
+    const methods = entry.methods.filter(method => method.id === 'oauth'
+      || (key === 'fi-ollama/ollama-cloud' && method.id === 'device')
+      || (key === 'fi-subscriptions/cline' && method.id === 'api-key'))
     if (methods.length === 0) continue
     rows.push({
       key: entry.key,
-      provider: entry.key.slice(entry.key.indexOf('/') + 1),
+      provider: entry.key === 'llm-pi-ai/github-copilot' ? 'copilot' : entry.key.slice(entry.key.indexOf('/') + 1),
       label: entry.label,
       methods: methods.map(method => ({ id: method.id, label: method.label })),
       stored: entry.stored,
@@ -214,8 +222,11 @@ export class SignInStore {
   /** Every user operation owns a number that retires its later publications. */
   private operation = 0
 
-  /** @param ctx - the page plugin's context, whose `remote.authorization` namespace carries the flows. */
-  constructor(private readonly ctx: ClientContext) {}
+  /**
+   * @param ctx - page context supplying authorization RPC.
+   * @param offered - credential keys this surface offers.
+   */
+  constructor(private readonly ctx: ClientContext, private readonly offered: readonly string[] = OFFERED) {}
 
   /**
    * Refresh the offered rows from the Host.
@@ -243,7 +254,7 @@ export class SignInStore {
       // authorization seam registered.
       const adoptResponse = await this.ctx.remote.authorization.listAdoptable()
       if (generation !== this.generation) return
-      const rows = selectOfferedRows(response.value)
+      const rows = selectOfferedRows(response.value, this.offered)
       const state = this.store.getSnapshot()
       const adopted = state.adopted !== null && rows.some(row => row.key === state.adopted?.key && row.stored)
         ? state.adopted

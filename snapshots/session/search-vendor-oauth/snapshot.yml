@@ -1,0 +1,12 @@
+version: 1
+scenario: search-vendor-oauth
+profile: headless
+composition: search-vendor-oauth
+recording: authored
+header:
+  class: search-vendor-oauth
+  pin: true
+  systemPromptSource: text-turn
+  toolSchemasSource: text-turn
+replay:
+  override: true

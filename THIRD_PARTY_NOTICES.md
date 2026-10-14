@@ -92,6 +92,7 @@ External packages installed for runtime use or distributed inside the prebuilt b
 | [`fast-xml-validator`](https://github.com/NaturalIntelligence/fast-xml-validator) | MIT |
 | [`fflate`](https://github.com/101arrowz/fflate) | MIT |
 | [`got`](https://github.com/sindresorhus/got) | MIT |
+| [`gpt-tokenizer`](https://github.com/niieani/gpt-tokenizer) | MIT |
 | [`https-proxy-agent`](https://github.com/TooTallNate/proxy-agents) | MIT |
 | [`immer`](https://github.com/immerjs/immer) | MIT |
 | [`ipaddr.js`](https://github.com/whitequark/ipaddr.js) | MIT |

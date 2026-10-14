@@ -38,7 +38,7 @@ class MemoryLlm extends Service {
   }
 
   async discoverModels(settingsNs: string, request: { provider: string }): Promise<{ id: string; name: string }[]> {
-    const models = settingsNs === 'fi-antigravity'
+    const models = settingsNs === 'fi-subscriptions' ? ['gpt-4.1'] : settingsNs === 'fi-antigravity'
       ? ['antigravity-claude-sonnet-4-6', 'antigravity-gemini-3.1-pro-high']
       : settingsNs === 'llm-pi-ai'
         ? request.provider === 'anthropic'
@@ -76,6 +76,7 @@ async function harness(options?: { settings?: boolean; llm?: boolean; doc?: Reco
       { id: 'settings', name: 'cordis:settings' },
       { id: 'llm-pi-ai', name: 'cordis:route', config: options.doc?.['llm-pi-ai'] ?? {} },
       { id: 'fi-antigravity', name: 'cordis:route', config: options.doc?.['fi-antigravity'] ?? {} },
+      { id: 'fi-subscriptions', name: 'cordis:route', config: options.doc?.['fi-subscriptions'] ?? {} },
     )
   }
   if (options?.llm === true) entries.push({ id: 'llm', name: 'cordis:llm' })
@@ -145,6 +146,16 @@ afterEach(async () => {
 })
 
 describe('list', () => {
+  it('adopts Copilot OAuth into the native live catalog route', async () => {
+    const ctx = await harness({ settings: true, llm: true })
+    const key = credentialKey('llm-pi-ai', 'github-copilot')
+    ctx.authorization.registerFlow({ key, label: 'GitHub Copilot', methods: [{ id: 'oauth', label: 'Sign in' }], run: async () => {} })
+    await ctx.credentials.modifyRecord(key, async () => ({ kind: 'grant', payload: { type: 'oauth', access: 'fixture' } }))
+    expect(await ctx.fiAuthorizationController.adopt(key)).toEqual({ route: 'created', models: ['gpt-4.1'] })
+    expect(routedProviders(ctx, 'fi-subscriptions')).toHaveProperty('copilot')
+    expect(routedProviders(ctx)).not.toHaveProperty('github-copilot')
+  })
+
   it('lists only adoptable credential families, preserving flow order', async () => {
     const ctx = await harness()
     registerFlow(ctx, async () => {})

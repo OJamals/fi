@@ -1,0 +1,8 @@
+version: 1
+scenario: cline-subscription
+profile: headless
+composition: cline-subscription
+recording: authored
+header:
+  class: cline-subscription
+  pin: true

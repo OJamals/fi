@@ -30,6 +30,11 @@
       antigravity: fi-antigravity/antigravity
       opencode-console: fi-opencode/opencode-console
       ollama-cloud: fi-ollama/ollama-cloud
+      copilot: llm-pi-ai/github-copilot
+      cursor: fi-subscriptions/cursor
+      kiro: fi-subscriptions/kiro
+      cline: fi-subscriptions/cline
+      gemini-cli: fi-subscriptions/gemini-cli
 
 - insert:
     - id: fi-antigravity
@@ -38,6 +43,8 @@
       name: '@fi/llm-opencode'
     - id: fi-ollama
       name: '@fi/llm-ollama'
+    - id: fi-subscriptions
+      name: '@fi/llm-subscriptions'
     - id: fi-provider-compat
       name: '@fi/provider-compat'
     - id: fi-web-search-preferences

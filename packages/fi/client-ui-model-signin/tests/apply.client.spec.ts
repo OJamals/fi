@@ -26,6 +26,7 @@ it('mounts editors, refreshes offered routes, forwards operations, and releases 
   slots.register({ name: 'root', children: {
     'settings.models.footer': { kind: 'list', scope: 'root' },
     'settings.models.provider-editor': { kind: 'keyed', scope: 'root' },
+    'fi.search.sign-in': { kind: 'single', scope: 'root' },
   } } as never, () => null)
   ctx.provide('locale', new LocaleRuntime(ctx))
   const disposeRoutes = vi.fn()
@@ -53,7 +54,8 @@ it('mounts editors, refreshes offered routes, forwards operations, and releases 
   const footer = slots.entries('settings.models.footer')[0]!
   const injected = footer.inject!() as Record<string, unknown> & AntigravityProviderEditorInjected
   await vi.waitFor(() => { expect(registerRoutes).toHaveBeenCalledWith(['antigravity']) })
-  expect(slots.entries('settings.models.provider-editor')).toHaveLength(3)
+  expect(slots.entries('settings.models.provider-editor')).toHaveLength(4)
+  expect(slots.entries('fi.search.sign-in')).toHaveLength(1)
   expect(registerGroups).toHaveBeenCalledOnce()
   await expect(injected.operations.read('fi-antigravity')).resolves.toBe(view)
   await expect(injected.operations.read('missing')).rejects.toThrow('Settings namespace unavailable: missing')
@@ -67,7 +69,7 @@ it('mounts editors, refreshes offered routes, forwards operations, and releases 
   await expect(injected.operations.discover('fi-antigravity', 'antigravity')).rejects.toThrow('offline')
   await expect(injected.operations.write('fi-antigravity', [], 1)).rejects.toThrow('offline')
   ctx.emit('connection/reset')
-  await vi.waitFor(() => { expect(list).toHaveBeenCalledTimes(2) })
+  await vi.waitFor(() => { expect(list).toHaveBeenCalledTimes(4) })
   await injected.controller.load()
   expect(registerRoutes).toHaveBeenCalledTimes(1)
   list.mockResolvedValue({ ok: true, value: [{ ...row, key: 'llm-pi-ai/xai' }] })
@@ -75,6 +77,7 @@ it('mounts editors, refreshes offered routes, forwards operations, and releases 
   expect(registerRoutes).toHaveBeenLastCalledWith(['xai'])
   await dispose()
   expect(slots.entries('settings.models.footer')).toEqual([])
+  expect(slots.entries('fi.search.sign-in')).toEqual([])
   expect(disposeRoutes).toHaveBeenCalledTimes(2)
   await ctx.fiber.dispose()
   expect(disposeGroups).toHaveBeenCalledOnce()

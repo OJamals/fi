@@ -33,11 +33,15 @@ kind: "package-reference"
 
 已登录的提供方显示“重新登录”，以替换过期 refresh token，并显示“移除登录”，以撤销已存储的授权而不触碰其 settings 条目。选择器只改变可见提供方；它不会启动认证或改变推理选择。未完成的本地认证或采用会禁用选择器。实时登录对话会显示其提供方名称，而完成的采用会选中其提供方并显示该结果。区块监听 `credentials/record-updated` 与 `credentials/reference-updated`，因此任何地方删除授权都会重新提供登录。它为列表显示加载和失败状态以及重试，检查每个一元 Remote 回复，并保留被拒操作的诊断。开始操作会清除先前的采用横幅，而操作标识会阻止已关闭或被替代的登录发布迟到的采用结果。
 
-该区块是唯一的登录界面。Antigravity、OpenCode Console 与 Ollama Cloud 的「添加提供方」编辑器采用已存储的授权；没有授权时引导用户回到此区块。已配置的订阅路由共用 Models 页面的名称与模型编辑器。「获取模型」打开可搜索目录；「添加所选」更新草稿，「应用」依据打开时的设置修订号写入已编辑字段。「恢复默认模型」移除选择覆盖。原生路由保留 ID 数组，pi-ai 保留模型元数据与高级设置。发现失败与写入冲突保留草稿。取消丢弃未保存编辑；保存期间操作栏被锁定。不提供共享渲染器的旧版 Models 槽位所有者继续使用原生编辑器回退。
+Antigravity、OpenCode Console 与 Ollama Cloud 的「添加提供方」编辑器采用已存储的授权；没有授权时引导用户回到此区块。已配置的订阅路由共用 Models 页面的名称与模型编辑器。「获取模型」打开可搜索目录；「添加所选」更新草稿，「应用」依据打开时的设置修订号写入已编辑字段。「恢复默认模型」移除选择覆盖。原生路由保留 ID 数组，pi-ai 保留模型元数据与高级设置。发现失败与写入冲突保留草稿。取消丢弃未保存编辑；保存期间操作栏被锁定。不提供共享渲染器的旧版 Models 槽位所有者继续使用原生编辑器回退。
+
+`fi.search.sign-in` 插槽为搜索设置提供独立的状态存储，并复用授权对话。它提供 Exa、Parallel、Tavily 和 Firecrawl 的 OAuth 授权，以及四个原生订阅搜索系列。搜索提供方授权不会进入 Models 列表。登录、重新认证、取消、重试和移除搜索授权均在搜索卡片内完成；保存搜索偏好仍是独立操作。
 
 ### 增加另一个提供方
 
-`src/client/store.ts` 中的 `SUBSCRIPTION_PROVIDER_IDS` 负责路由 id 与顺序；`OFFERED` 由此生成凭据键。Host 未注册的提供方会被跳过。连接后的可用行通过 `ctx.modelSettingsSubscriptions` 注册，因此 Models 页面只分组可用订阅路由；流程消失时，其行会回到主列表。挂载通用模型选择器时，本插件向其 `ctx.modelSubscriptions` 服务注册静态 id，把可用订阅模型分组放在带标签的底部分区，而不更改选择或认证。此区块提供 `oauth` 方式及 Ollama Cloud 的原生 `device` 方式；Models 页面另行收集 API 密钥。
+`src/client/store.ts` 中的 `SUBSCRIPTION_PROVIDER_IDS` 负责路由 id 与顺序；`OFFERED` 由此生成凭据键。Host 未注册的提供方会被跳过。连接后的可用行通过 `ctx.modelSettingsSubscriptions` 注册，因此 Models 页面只分组可用订阅路由；流程消失时，其行会回到主列表。挂载通用模型选择器时，本插件向其 `ctx.modelSubscriptions` 服务注册静态 id，把可用订阅模型分组放在带标签的底部分区，而不更改选择或认证。此区块提供 `oauth` 方式及 Ollama Cloud 的原生 `device` 方式；Cline 还提供账户密钥方式；其他 API 密钥由 Models 页面另行收集。
+
+选择器还提供 GitHub Copilot、Cursor、Kiro、Cline Free/Pass 和 Gemini Code Assist。Cline 专属账户密钥流程与 OAuth、设备批准并列提供；通用 API 密钥提供方仍由 Models 页面管理。五个原生路由使用 `fi-subscriptions` 编辑器及仅 ID 的模型选择。
 
 <a id="understand-the-implementation"></a>
 ## 理解实现

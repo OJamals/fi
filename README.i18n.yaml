@@ -3,20 +3,29 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write README.md
 /fi:
-  en: 8d974930ac740f2f
-  zh: 6b45a9ec8a55f184
+  en: 1a0d8a647b627ed3
+  zh: afa32610b8648b62
+/fi/dsh-foundation-fi-additions:
+  en: 3d5782efb416aeea
+  zh: 49fa0a4097241a27
+/fi/connect-your-models:
+  en: eaeca48efa36838e
+  zh: 8d1a8689f5731d48
+/fi/research-and-create:
+  en: ac3fec2ccbdc62e9
+  zh: efff90707fdbf677
 /fi/run-from-source:
-  en: 33e061ccb6875c23
-  zh: e8cbf5ba8edb781c
+  en: 1b09b97c7e6fc390
+  zh: 31afdb74a7f1c2c9
 /fi/updates:
   en: 64680f2efb0f6d74
   zh: a6c1e2395ac0f54d
 /fi/project-status:
-  en: e7e0669b24189e69
-  zh: 255d9e908957c9af
+  en: 8068bbd82fad0588
+  zh: 93e9b00399a95364
 /fi/development:
-  en: 423fa95b15916ffd
-  zh: 76ac536ba031c9be
+  en: 10410b625b050cb9
+  zh: f58732efbcfb5a59
 /fi/license:
   en: e05fec219f9a227b
   zh: 5be4be75960d450e

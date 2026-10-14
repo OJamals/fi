@@ -22,7 +22,7 @@ OpenCode Console subscription login appears in Settings → Models. The authoriz
 
 Device authorization displays a browser URL and code without opening a callback port. Polling obeys pending/slow-down responses, a maximum one-hour device lifetime, request deadlines, and cancellation. The browser-selected token organization takes precedence over the sorted organization fallback for older unscoped tokens. Refresh runs under the credential store's record lock, preserves identity, and persists rotated tokens and any changed organization before discovery. Revoked grants and missing SSO require reconnecting.
 
-`server`, `clientId`, and `userAgent` configure the Console endpoint and public client identity. Defaults and the catalog path come from the canonical `opencodeConsole` record in [`@fi/provider-compat`](../provider-compat/README.md), including its reviewed source references. `requestTimeoutMs`, `streamIdleTimeoutMs`, `refreshMarginMs`, `defaultContextWindow`, and `defaultMaxTokens` configure deadlines and missing advertised capacity. Endpoints accept only HTTPS OpenCode domains; all requests reject redirects. Release metadata alone does not confirm transport compatibility.
+`server`, `clientId`, and `userAgent` configure the Console endpoint and public client identity. Endpoint, OAuth, and catalog defaults come from the canonical `opencodeConsole` record in [`@fi/provider-compat`](../provider-compat/README.md). The default User-Agent comes from the [verified client capture](src/client-capture.json), independently of release metadata; advancing it requires a new capture and live inference validation. `requestTimeoutMs`, `streamIdleTimeoutMs`, `refreshMarginMs`, `defaultContextWindow`, and `defaultMaxTokens` configure deadlines and missing advertised capacity. Endpoints accept only HTTPS OpenCode domains; all requests reject redirects.
 
 Route profiles accept `displayName` and a `models` array of selected ids. An absent array exposes all advertised models; an empty array hides them all. Discovery always returns the complete authenticated catalog. Selection affects the picker, not explicit resolution or prepared calls; the grant still chooses the account and organization. Default provider names use the lowercase route id.
 
@@ -47,7 +47,7 @@ The model receives FI's recorded system prompt, conversation, and actual tool de
 
 #### Token effect
 
-Provider responses supply token counts and cache usage; absent advertised capacities use the configured defaults. OpenCode prompt assembly adds missing `read` and `shell` compatibility declarations before the request header is logged. Existing same-name tools retain their definitions. Added declarations consume input tokens and cannot execute; direct adapter calls without a Session receive the same declarations during conversion.
+Provider responses supply token counts and cache usage; absent advertised capacities use the configured defaults. OpenCode prompt assembly adds missing `read` and `shell` compatibility declarations before the request header is logged. Their schemas require string `path` and `command` fields respectively; empty schemas fail Console free-tier validation. Existing same-name tools retain their definitions. Added declarations consume input tokens and cannot execute; direct adapter calls without a Session receive the same declarations during conversion.
 
 #### KV Cache effect
 

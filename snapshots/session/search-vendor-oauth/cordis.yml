@@ -1,0 +1,11 @@
+- id: web
+  name: '@deepseek-ai/dsh-web'
+  config:
+    searchProvider: fi-preferred-search
+    fetchProvider: http
+- id: web-search-deepseek
+  disabled: true
+- id: fi-web-search-preferences
+  name: '@fi/web-search-preferences'
+  config:
+    provider: exa-oauth

@@ -44,8 +44,9 @@ export async function apply(ctx) {
           response.writeHead(400); response.end(); return
         }
         if (error === 'FreeTierRecovery') {
-          for (const name of ['read', 'shell']) {
-            if (!body.tools?.some(tool => tool.function.name === name)) {
+          for (const [name, field] of [['read', 'file_path'], ['shell', 'command']]) {
+            const tool = body.tools?.find(tool => tool.function.name === name)?.function
+            if (tool?.parameters?.properties?.[field]?.type !== 'string' || !tool.parameters.required?.includes(field)) {
               response.writeHead(400); response.end(); return
             }
           }

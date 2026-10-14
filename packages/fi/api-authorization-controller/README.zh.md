@@ -27,6 +27,8 @@ OpenCode Console 授权使用 `fi-opencode/opencode-console`；其原生适配�
 <a id="use-this-package"></a>
 ## 使用本包
 
+Cursor、Kiro、Cline Free/Pass 与 Gemini Code Assist 授权使用 `fi-subscriptions/<provider>`，并在 `fi-subscriptions` 中创建规范路由。GitHub Copilot 使用 `llm-pi-ai/github-copilot` 进行 OAuth，然后在 `fi-subscriptions` 中采用路由。
+
 在已挂载 `@deepseek-ai/dsh-authorization` 的 composition 中挂载它——[`@fi/authorization-bundle`](../authorization-bundle/README.zh.md) 会同时完成两者。随后浏览器插件在自己的 `inject` 中声明 `remote.authorization`，并驱动这四个方法。
 
 ### 列出可登录的对象

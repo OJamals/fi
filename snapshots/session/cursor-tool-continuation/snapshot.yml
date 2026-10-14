@@ -1,0 +1,8 @@
+version: 1
+scenario: cursor-tool-continuation
+profile: headless
+composition: cursor-tool-continuation
+recording: authored
+header:
+  class: cursor-tool-continuation
+  pin: true

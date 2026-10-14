@@ -104,6 +104,7 @@
     "tests/onboarding-model-setup.e2e.ts",
     "tests/opencode-subscription.e2e.ts",
     "tests/ollama-subscription.e2e.ts",
+    "tests/native-subscriptions.e2e.ts",
     "tests/onboarding-usable-provider.e2e.ts",
     "tests/remote-welcome.e2e.ts",
     "tests/public-mount.e2e.ts",

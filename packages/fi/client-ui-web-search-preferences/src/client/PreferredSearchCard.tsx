@@ -1,7 +1,7 @@
 /** Preferred-search card contributed to the Plugins page's official-plugin slot. */
 
 import { Tag } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { InjectFace, PropsLocale, PropsRuntime, PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
 import type {
   PreferredSearchCardFace,
@@ -14,6 +14,10 @@ const PROVIDER_OPTIONS = [
   ['auto', 'providerAuto'],
   ['bing-rss', 'bing'],
   ['subscription-native', 'subscription'],
+  ['exa-oauth', 'exaOAuth'],
+  ['parallel-oauth', 'parallelOAuth'],
+  ['tavily-oauth', 'tavilyOAuth'],
+  ['firecrawl-oauth', 'firecrawlOAuth'],
   ['deepseek-official', 'deepseek'],
   ['exa', 'exa'],
   ['perplexity', 'perplexity'],
@@ -36,6 +40,7 @@ export type PreferredSearchCardProps =
   PropsRuntime<'plugins.item'>
   & PropsLocale<'fi.settings.web-search-preferences'>
   & InjectFace<PreferredSearchCardFace>
+  & PropsRenderSlots<'fi.search.sign-in'>
 
 /**
  * Render the card's one-liner, or provider selection, direct-provider
@@ -46,6 +51,7 @@ export type PreferredSearchCardProps =
 export function PreferredSearchCard(props: PreferredSearchCardProps) {
   if (props.view === 'summary') return props.t('description')
   const state = props.usePreferredSearchCard(snapshot => snapshot)
+  const oauthProvider = state.provider === 'exa-oauth' || state.provider === 'parallel-oauth' || state.provider === 'tavily-oauth' || state.provider === 'firecrawl-oauth' ? state.provider : undefined
   if (!state.available && !state.failed) return null
   const unavailable = !state.available
   const settingsDisabled = unavailable || !state.writable || state.saving
@@ -110,6 +116,8 @@ export function PreferredSearchCard(props: PreferredSearchCardProps) {
           </label>
           <p className={css.hint}>{props.t('subscriptionHint')}</p>
         </div>
+      ) : oauthProvider !== undefined ? (
+        <p className={css.hint}>{props.t('oauthHint')}</p>
       ) : (
         <div className={css.group}>
           <div className={css.fieldHead}>
@@ -135,6 +143,9 @@ export function PreferredSearchCard(props: PreferredSearchCardProps) {
           ) : null}
         </div>
       )}
+      {state.provider === 'auto' || state.provider === 'subscription-native' || oauthProvider !== undefined
+        ? props.renderSlot('fi.search.sign-in', { provider: oauthProvider ?? (state.provider === 'auto' ? 'auto' : state.subscriptionProvider) })
+        : null}
       <div className={css.footer}>
         {state.failed ? <p role="status" className={css.error}>{props.t('saveFailed')}</p> : null}
         <button type="button" className={css.secondary} disabled={!state.dirty || state.saving} onClick={props.discard}>

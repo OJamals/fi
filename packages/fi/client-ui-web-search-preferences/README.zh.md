@@ -29,7 +29,9 @@ kind: "package-reference"
 
 用户可以选择自动路由、免费的 Bing 搜索、DeepSeek 官方搜索、Exa、Perplexity、Parallel、Tavily、Serper、Brave Search 或订阅搜索。API 提供方密钥通过密码控件添加、替换或移除。没有已配置密钥的 API 提供方不能启用。凭据写入会在提供方变更提交前完成，因此被拒绝的写入不会改变活动路由。当 Settings 为只读且 Credentials 报告活动引用可写时，仍可仅保存凭据。
 
-默认“自动（跟随聊天模型）”：已关联订阅的聊天使用其原生搜索和精确模型；其他聊天使用免费的 Bing RSS 搜索。自动和 Bing 选项没有凭据或模型字段。显式订阅搜索提供“自动（已关联的订阅）”系列选择和可选模型覆盖值；用户先从“模型”登录。此卡片不会启动 OAuth，也不会改变对话模型路由。
+默认“自动（跟随聊天模型）”：已关联订阅的聊天使用其原生搜索和精确模型；其他聊天使用免费的 Bing RSS 搜索。显式订阅搜索提供“自动（已关联的订阅）”系列选择和可选模型覆盖值。`fi.search.sign-in` 子插槽嵌入 `@fi/client-ui-model-signin` 提供的账户控件；订阅账户仍与“模型”共享。
+
+Exa、Parallel、Tavily 和 Firecrawl 提供独立的 **OAuth** 引擎选项。选择一个，在浏览器授权页面登录，然后保存引擎选择。API 密钥选项仍然独立可用。登录不会自动启用搜索引擎。Perplexity、DeepSeek、Serper 和 Brave 保留 API 密钥设置；Bing 无需身份验证。
 
 <a id="understand-the-implementation"></a>
 ## 理解实现

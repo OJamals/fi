@@ -34,6 +34,10 @@ export { credentialRefFor, PreferredSearchCard, PreferredSearchCardController }
 export type { PreferredSearchLocaleKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
+  interface SlotMap {
+    /** OAuth account controls for the selected native search family; absent adapters render nothing. */
+    'fi.search.sign-in': { kind: 'single'; scope: 'root'; owner: { provider: SubscriptionProvider | 'exa-oauth' | 'parallel-oauth' | 'tavily-oauth' | 'firecrawl-oauth' } }
+  }
   interface LocaleNamespaceMap {
     /** Preferred web-search card copy. */
     'fi.settings.web-search-preferences': PreferredSearchLocaleKey
@@ -67,6 +71,7 @@ export function apply(ctx: ClientContext): void {
     order: 50,
     label: () => t('title'),
     locale: NS,
+    children: { 'fi.search.sign-in': { kind: 'single', scope: 'root' } },
     inject: () => controller.inject(),
   }, PreferredSearchCard))), 'fi-web-search-preferences: card')
 }

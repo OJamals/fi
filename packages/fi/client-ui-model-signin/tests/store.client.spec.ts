@@ -18,6 +18,11 @@ function entry(overrides: Partial<AuthorizationEntryView> & { key: string }): Au
 const FRESH: SignInAttempt = { key: 'llm-pi-ai/anthropic', notice: null, prompt: null, settled: null }
 
 describe('selectOfferedRows', () => {
+  it('offers Copilot and native subscriptions, allowing account-key entry only for Cline', () => {
+    const entries = ['cursor', 'kiro', 'gemini-cli'].map(id => entry({ key: `fi-subscriptions/${id}` }))
+    entries.push(entry({ key: 'llm-pi-ai/github-copilot' }), entry({ key: 'fi-subscriptions/cline', methods: [{ id: 'api-key', label: 'Connect Cline account' }] }), entry({ key: 'llm-pi-ai/groq', methods: [{ id: 'api-key', label: 'Key' }] }))
+    expect(selectOfferedRows(entries).map(row => row.provider)).toEqual(['copilot', 'cursor', 'kiro', 'cline', 'gemini-cli'])
+  })
   it('offers Ollama native device approval without offering API-key methods', () => {
     const rows = selectOfferedRows([entry({ key: 'fi-ollama/ollama-cloud', label: 'Ollama Cloud',
       methods: [{ id: 'device', label: 'Sign in with Ollama Cloud' }, { id: 'api-key', label: 'API key' }] })])

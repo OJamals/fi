@@ -40,7 +40,11 @@ FI authorization bundle 提供此覆盖层。同级的[浏览器设置包](../cl
 
 默认 `auto` 在每次搜索时跟随发起聊天的模型。Codex、Grok、Antigravity 或 Claude 路由具有匹配的已存储 OAuth 授权时，采用该订阅的原生搜索和精确聊天模型。其他模型、API-key 记录及没有发起聊天的调用使用 Bing 的免密钥 RSS 搜索。Bing 无需登录、API 密钥或订阅。显式选择的引擎覆盖此路由；请求发送后，搜索失败不会切换提供方。选择不会启动 OAuth 或更改聊天模型。
 
-显式订阅搜索支持可选系列和模型覆盖值。没有覆盖值时，优先采用当前聊天的已关联订阅，再按 Codex、Grok、Antigravity、Claude 顺序选择首个具有模型的已关联系列。模型选择依次使用匹配的聊天模型、实时提供方目录、内置订阅目录。缺少授权时在发送前失败。其他引擎使用 API 密钥；不提供 Exa、Perplexity 或 Parallel MCP OAuth。
+显式订阅搜索支持可选系列和模型覆盖值。没有覆盖值时，优先采用当前聊天的已关联订阅，再按 Codex、Grok、Antigravity、Claude 顺序选择首个具有模型的已关联系列。模型选择依次使用匹配的聊天模型、实时提供方目录、内置订阅目录。缺少授权时在发送前失败。
+
+`exa-oauth`、`parallel-oauth`、`tavily-oauth` 和 `firecrawl-oauth` 使用各提供方的官方远程 MCP 搜索工具。授权服务注册 `fi-search/<route>` 授权，支持动态客户端注册、PKCE、校验 state 的回环回调，以及通过 Credentials 串行刷新。令牌仅用于对应 MCP 资源；现有 API 密钥路由保持独立。维护中的 MCP 客户端在进程内运行。每次搜索结束时关闭连接，包括失败情况。浏览器授权需要访问 Host 的回环地址；远程 Host 需要本地转发。`oauthAuthTimeoutMs`、`oauthRequestTimeoutMs` 和 `oauthMaxResponseBytes` 分别限制授权、请求和响应字节数（默认值：600000 毫秒、30000 毫秒、4194304 字节）。
+
+OAuth 资源遵循官方 [Exa](https://github.com/exa-labs/exa-mcp-server#authentication)、[Parallel](https://parallel.ai/blog/free-web-search-mcp)、[Tavily](https://github.com/tavily-ai/tavily-mcp#remote-mcp-server-oauth-flow) 和 [Firecrawl](https://github.com/firecrawl/firecrawl-mcp-server) 集成。[Perplexity](https://github.com/perplexityai/modelcontextprotocol#remote-mcp-server) 记录了 API 密钥身份验证并保留该设置。
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|

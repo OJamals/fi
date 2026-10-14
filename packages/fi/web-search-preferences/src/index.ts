@@ -4,6 +4,8 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-agent'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
+import { createOAuthSearchProvider } from './oauth-provider.ts'
+import { registerSearchOAuth, type SearchOAuthLimits } from './search-oauth.ts'
 import type {} from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-settings'
 import { WebError } from '@deepseek-ai/dsh-web'
@@ -128,6 +130,11 @@ export async function resolveSelectedProvider(
   signal: AbortSignal,
 ): Promise<ResolvedSearchProvider> {
   switch (config.provider) {
+    case 'exa-oauth':
+    case 'parallel-oauth':
+    case 'tavily-oauth':
+    case 'firecrawl-oauth':
+      return createOAuthSearchProvider(ctx, config.provider, oauthLimits(config))
     case 'auto': {
       const target = await resolveCurrentSubscriptionTarget(ctx, signal)
       return resolveSelectedProvider(ctx, target === undefined
@@ -265,6 +272,9 @@ function assertNever(value: never): never {
  * @param config - live preferred-search Config, edited through the profile-backed settings form.
  */
 export function apply(ctx: Context, config: Config): void {
+  ctx.inject(['authorization', 'credentials'], (child) => {
+    registerSearchOAuth(child, () => oauthLimits(snapshotConfig(config)))
+  })
   // The preferred-search card renders this entry's form; the automatic page would duplicate it.
   ctx.inject(['settings'], (child) => { child.effect(() => child.settings.configure({ auto: false }, ctx.fiber)) })
   const preferred = new PreferredSearchProvider({
@@ -273,4 +283,12 @@ export function apply(ctx: Context, config: Config): void {
   })
   ctx.web.registerSearchProvider(preferred)
   ctx.effect(() => async () => { await preferred.dispose() }, `${name}:active-searches`)
+}
+
+function oauthLimits(config: PreferredSearchSettings): SearchOAuthLimits {
+  return {
+    authTimeoutMs: config.oauthAuthTimeoutMs ?? 600_000,
+    requestTimeoutMs: config.oauthRequestTimeoutMs ?? 30_000,
+    maxResponseBytes: config.oauthMaxResponseBytes ?? 4_194_304,
+  }
 }

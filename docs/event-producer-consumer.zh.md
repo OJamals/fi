@@ -106,7 +106,7 @@
 | `internal/service` | - | [`agent-preset-registry`](../packages/preset/agent-preset-registry), `gateway` |
 | `internal/status` | - | [`agent`](../packages/core/agent), `inspector`, [`web`](../packages/web/web) |
 | `internal/update` | - | [`app-boot`](../packages/boot/app-boot) |
-| `loader/volatile-update` | - | `llm-antigravity`, [`llm-deepseek`](../packages/llm/llm-deepseek), `llm-ollama`, `llm-opencode`, [`llm-pi-ai`](../packages/llm/llm-pi-ai), `product-analytics`, `speech-to-text` |
+| `loader/volatile-update` | - | `llm-antigravity`, [`llm-deepseek`](../packages/llm/llm-deepseek), `llm-ollama`, `llm-opencode`, [`llm-pi-ai`](../packages/llm/llm-pi-ai), `llm-subscriptions`, `product-analytics`, `speech-to-text` |
 | `slots/changed` | `ui-renderer` (`emit`) | - |
 <!-- END GENERATED event-producer-consumer:undeclared -->
 

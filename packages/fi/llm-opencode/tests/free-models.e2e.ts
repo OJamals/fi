@@ -7,6 +7,7 @@ import { OpenCodeAdapter } from '../src/adapter.ts'
 import { providerSettingsFor } from '@fi/provider-compat'
 import type { ConsoleOptions } from '../src/protocol.ts'
 import { consoleJson } from '../src/protocol.ts'
+import clientCapture from '../src/client-capture.json' with { type: 'json' }
 
 const tokenFile = process.env.OPENCODE_LIVE_TOKEN_FILE
 
@@ -15,7 +16,7 @@ it.skipIf(tokenFile === undefined)('generates text through Fi for every advertis
     opencode_org_id: z.string().optional() }).parse(JSON.parse(await readFile(tokenFile!, 'utf8')))
   const metadata = providerSettingsFor('opencodeConsole')
   const config: ConsoleOptions = { server: metadata.server, clientId: metadata.oauthClientId,
-    userAgent: `opencode/${metadata.channel}/${metadata.version}/${metadata.client}`,
+    userAgent: clientCapture.userAgent,
     requestTimeoutMs: 30_000, streamIdleTimeoutMs: 120_000, refreshMarginMs: 120_000,
     catalogRetryCount: 1, catalogRetryDelayMs: 250, defaultContextWindow: 128_000, defaultMaxTokens: 8192 }
   const grant = { type: 'oauth' as const, server: config.server, access: token.access_token,
@@ -72,7 +73,7 @@ it.skipIf(tokenFile === undefined)('generates text through Fi for every advertis
       if (chunk.type === 'text-delta') answer += chunk.text
       if (chunk.type === 'finish') toolFinish = chunk.reason
     }
-    console.log(JSON.stringify({ model, tool: call.name, answer }))
+    console.log(JSON.stringify({ model, tool: call.name, answer, finish: toolFinish }))
     expect(answer, model).toContain('READY_739')
     expect(toolFinish, model).toEqual({ kind: 'stop' })
   }

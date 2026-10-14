@@ -19,6 +19,7 @@ import {
 } from '@deepseek-ai/dsh-web-search-perplexity'
 import type { Volatile } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+import type { SearchOAuthId } from './search-oauth.ts'
 import { BING_DEFAULT_BASE_URL, BING_DEFAULT_MAX_RESPONSE_BYTES } from './bing-provider.ts'
 import {
   DEFAULT_MAX_OUTPUT_TOKENS,
@@ -44,6 +45,7 @@ const BRAVE_API_KEY_ENV = 'BRAVE_SEARCH_API_KEY'
 
 /** Upstream and FI-owned provider ids selectable by the preference router. */
 export type PreferredSearchProviderId =
+  | SearchOAuthId
   | 'auto'
   | 'bing-rss'
   | 'deepseek-official'
@@ -57,6 +59,12 @@ export type PreferredSearchProviderId =
 
 /** One operation's snapshot of the provider preference and provider-specific options. */
 export interface PreferredSearchSettings {
+  /** Browser authorization deadline. */
+  oauthAuthTimeoutMs?: number
+  /** OAuth discovery, refresh, and MCP request deadline. */
+  oauthRequestTimeoutMs?: number
+  /** Maximum OAuth/MCP response bytes. */
+  oauthMaxResponseBytes?: number
   /** Provider used by the next search operation. */
   provider: PreferredSearchProviderId
   /** Keyless Bing RSS endpoint base. */
@@ -130,7 +138,11 @@ export interface PreferredSearchSettings {
 }
 
 const PreferredConfig = z.object({
+  oauthAuthTimeoutMs: z.number().step(1).min(1).max(2_147_483_647).default(600_000).volatile(),
+  oauthRequestTimeoutMs: z.number().step(1).min(1).max(2_147_483_647).default(30_000).volatile(),
+  oauthMaxResponseBytes: z.number().step(1).min(1).default(4_194_304).volatile(),
   provider: z.union([
+    'exa-oauth', 'parallel-oauth', 'tavily-oauth', 'firecrawl-oauth',
     'auto',
     'bing-rss',
     DEEPSEEK_PROVIDER_ID,
@@ -173,6 +185,12 @@ const PreferredConfig = z.object({
 
 /** Plugin Config: every field is volatile, so the profile-backed settings form edits it live. */
 export interface Config {
+  /** Browser authorization deadline. */
+  oauthAuthTimeoutMs: Volatile<number>
+  /** OAuth discovery, refresh, and MCP request deadline. */
+  oauthRequestTimeoutMs: Volatile<number>
+  /** Maximum OAuth/MCP response bytes. */
+  oauthMaxResponseBytes: Volatile<number>
   /** Provider used by the next search operation. */
   provider: Volatile<PreferredSearchProviderId>
   /** Keyless Bing RSS endpoint base. */
@@ -261,6 +279,9 @@ export const Config = z.object({ ...DeepSeekConfigSchema.dict, ...PreferredConfi
  */
 export function snapshotConfig(config: Config): PreferredSearchSettings {
   const snapshot: PreferredSearchSettings = { provider: config.provider.get() }
+  snapshot.oauthAuthTimeoutMs = config.oauthAuthTimeoutMs.get()
+  snapshot.oauthRequestTimeoutMs = config.oauthRequestTimeoutMs.get()
+  snapshot.oauthMaxResponseBytes = config.oauthMaxResponseBytes.get()
   const set = <K extends Exclude<keyof PreferredSearchSettings, 'provider'>>(
     key: K,
     value: PreferredSearchSettings[K] | undefined,

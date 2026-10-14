@@ -1,7 +1,7 @@
 {
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": { "rootDir": "src", "outDir": "lib/types" },
-  "include": ["src"],
+  "include": ["src", "src/client-capture.json"],
   "references": [
     { "path": "../provider-compat" },
     { "path": "../../../vendor/cordis" },

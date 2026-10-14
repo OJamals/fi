@@ -36,6 +36,11 @@ const FOUR_ROWS = [
   row({ key: 'fi-antigravity/antigravity', provider: 'antigravity', label: 'Antigravity' }),
   row({ key: 'fi-opencode/opencode-console', provider: 'opencode-console', label: 'OpenCode Console' }),
   row({ key: 'fi-ollama/ollama-cloud', provider: 'ollama-cloud', label: 'Ollama Cloud', methods: [{ id: 'device', label: 'Sign in with Ollama Cloud' }] }),
+  row({ key: 'llm-pi-ai/github-copilot', provider: 'copilot', label: 'GitHub Copilot' }),
+  row({ key: 'fi-subscriptions/cursor', provider: 'cursor', label: 'Cursor' }),
+  row({ key: 'fi-subscriptions/kiro', provider: 'kiro', label: 'Kiro' }),
+  row({ key: 'fi-subscriptions/cline', provider: 'cline', label: 'Cline Free / Pass', methods: [{ id: 'api-key', label: 'Connect Cline account' }] }),
+  row({ key: 'fi-subscriptions/gemini-cli', provider: 'gemini-cli', label: 'Gemini Code Assist' }),
 ]
 
 const FOUR_ADOPTABLE = FOUR_ROWS.map(r => ({ key: r.key, label: r.label, routeId: r.provider }))
@@ -120,7 +125,7 @@ describe('the section as a whole', () => {
     expect((selector as HTMLSelectElement).value).toBe('llm-pi-ai/anthropic')
     expect(selector.hasAttribute('data-fi-subscription-provider-select')).toBe(true)
     expect(selector.getAttribute('name')).toBe('fi-subscription-provider')
-    expect(screen.getAllByRole('option')).toHaveLength(6)
+    expect(screen.getAllByRole('option')).toHaveLength(11)
     expect(screen.getByText(en.stateSignedOut)).toBeTruthy()
     expect(document.querySelectorAll('section').length).toBe(1)
   })

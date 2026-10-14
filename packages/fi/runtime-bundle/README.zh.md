@@ -11,6 +11,8 @@ kind: "package-bundle"
 
 FI 私有运行时层在 `@deepseek-ai/dsh-base` 后挂载订阅适配器、提供方兼容处理和首选搜索。Web、Desktop、headless、ACP 和完整 SDK profile 包含它。GUI profile 另行挂载 [authorization-bundle](../authorization-bundle/README.zh.md)，由该层负责图片工具组合。
 
+本层还为 Cursor、Kiro、Cline Free/Pass 与 Gemini Code Assist 挂载[原生订阅](../llm-subscriptions/README.zh.md)。GitHub Copilot 保留 pi-ai OAuth 并使用原生订阅聊天路由。
+
 ## 目录
 
 - [使用本包](#use-this-package)

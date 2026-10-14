@@ -18,6 +18,8 @@ Antigravity OAuth 适配器与 Cloud Code 传输，为 fi 提供 Antigravity 登
 - [已知限制与延期工作](#known-limitations-and-deferred-work)
 - [开发备注](#dev-note)
 
+`callCodeAssistChat` 向原生 Code Assist 订阅适配器提供共享 Gemini 消息与 SSE 编解码器。它使用固定 Code Assist 端点、真实 FI 客户端头及明确的合格项目，不添加 Antigravity 请求身份。
+
 <a id="summary"></a>
 ## 概述
 

@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/fi/llm-subscriptions/README.md
+/:
+  en: ebf1ef13eac3e707
+  zh: 21945cb1ea8562ad
+/fi-llm-subscriptions:
+  en: 1d9c1528ca787e6d
+  zh: 61fba3760506c5e6
+/fi-llm-subscriptions/summary:
+  en: 86cbef92f42df8ee
+  zh: e484fc7e123e9334
+/fi-llm-subscriptions/table-of-contents:
+  en: b7e2f55197654055
+  zh: d0dd062d6c570784
+/fi-llm-subscriptions/authorization-and-configuration:
+  en: bcb91a2c51cf2582
+  zh: 72e839733025088a
+/fi-llm-subscriptions/protocol-sources:
+  en: 1bc83ee1d71bc075
+  zh: 3065fd484f3d8da8
+/fi-llm-subscriptions/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/fi-llm-subscriptions/model-experience/subscription-requests:
+  en: 2835eef9a46c9bf8
+  zh: abad818cdd067b7e
+/fi-llm-subscriptions/model-experience/subscription-requests/what-the-model-sees:
+  en: c07e4697cdecb60b
+  zh: 2b4e97fc405e5b2e
+/fi-llm-subscriptions/model-experience/subscription-requests/token-effect:
+  en: 1e008aecdce76df2
+  zh: e26d654d213492f2
+/fi-llm-subscriptions/model-experience/subscription-requests/kv-cache-effect:
+  en: f44954ffc8103c2a
+  zh: 7f610dffecede78d
+/fi-llm-subscriptions/known-limitations-and-deferred-work:
+  en: 8a7985cb1ee9ab93
+  zh: bf5ec7b7da3941df
+/fi-llm-subscriptions/known-limitations-and-deferred-work/dev-note:
+  en: 0a1253c6f7b5e8b9
+  zh: 9f56528562c7c914

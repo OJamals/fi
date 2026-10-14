@@ -501,7 +501,7 @@ describe('OpenCode model routing', () => {
     await ctx.credentials.modifyRecord(OPENCODE_KEY, async () => ({ kind: 'grant', payload: seed }))
     script((request) => {
       expect(request.headers.get('x-org-id')).toBe(seed.orgId)
-      expect(request.headers.get('user-agent')).toBe('opencode/latest/2.0.26/cli')
+      expect(request.headers.get('user-agent')).toBe('opencode/latest/2.0.20/cli')
       return json(catalog())
     })
     expect(await ctx.llm.discoverModels('fi-opencode', { provider: 'opencode-console' })).toEqual([{ id: 'friendly', name: 'Friendly' }])
@@ -633,6 +633,14 @@ describe('OpenCode model routing', () => {
     expect(chunks.at(-1)).toMatchObject({ type: 'finish', reason: { kind: 'stop' } })
     expect(bodies).toHaveLength(fallback === undefined ? 2 : 3)
     expect(bodies[1]).toMatchObject({ stream: true, store: false, tool_choice: 'none' })
+    expect(bodies[1]?.tools).toMatchObject([
+      { function: { name: 'read', parameters: {
+        type: 'object', properties: { path: { type: 'string' } }, required: ['path'], additionalProperties: false,
+      } } },
+      { function: { name: 'shell', parameters: {
+        type: 'object', properties: { command: { type: 'string' } }, required: ['command'], additionalProperties: false,
+      } } },
+    ])
     if (fallback !== undefined) expect(bodies[2]?.tool_choice).toBe('auto')
   })
 

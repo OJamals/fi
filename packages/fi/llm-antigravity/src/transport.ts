@@ -2340,3 +2340,35 @@ export async function callAntigravityChat(
     },
   )
 }
+
+/**
+ * Translate a Code Assist request using the shared Gemini message and SSE codec.
+ * @param input - OpenAI-compatible request data.
+ * @param accessToken - Google access token.
+ * @param projectId - entitled Code Assist project.
+ * @param signal - caller cancellation and deadline.
+ * @returns OpenAI-compatible response from the fixed Code Assist endpoint.
+ */
+export async function callCodeAssistChat(input: unknown, accessToken: string, projectId: string, signal?: AbortSignal): Promise<Response> {
+  const body = parseOpenAIRequest(input)
+  const model = stringValue(body.model)
+  if (!/^gemini-[A-Za-z0-9._-]+$/.test(model) || !projectId) throw new Error('Invalid Code Assist model or project')
+  const request = transformOpenAIToAntigravity(body, projectId).request
+  const wireBody = JSON.stringify({ model, project: projectId, request })
+  if (Buffer.byteLength(wireBody) >= MAX_CLOUD_CODE_REQUEST_BYTES) throw new Error('Code Assist request exceeds byte limit')
+  const upstream = await fetch('https://cloudcode-pa.googleapis.com/v1internal:streamGenerateContent?alt=sse', {
+    method: 'POST', redirect: 'error', signal,
+    headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json', 'user-agent': 'fi-code-assist/0.2.0' }, body: wireBody,
+  })
+  if (!upstream.ok) {
+    await upstream.body?.cancel()
+    return Response.json({ error: { message: `Code Assist upstream answered ${upstream.status}`, type: 'upstream_error' } }, { status: upstream.status })
+  }
+  if (!upstream.body || !isEventStream(upstream)) {
+    await upstream.body?.cancel()
+    throw new Error('Code Assist returned no SSE stream')
+  }
+  const requestId = `chatcmpl-codeassist-${randomUUID()}`
+  if (!body.stream) return aggregateResponse(upstream, model, requestId, undefined, signal)
+  return new Response(streamAsOpenAI(upstream.body, model, requestId, undefined), { headers: { 'content-type': 'text/event-stream' } })
+}

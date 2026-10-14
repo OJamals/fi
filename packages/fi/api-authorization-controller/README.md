@@ -27,6 +27,8 @@ OpenCode Console grants use `fi-opencode/opencode-console`; their native adapter
 <a id="use-this-package"></a>
 ## Use this package
 
+Cursor, Kiro, Cline Free/Pass, and Gemini Code Assist grants use `fi-subscriptions/<provider>` and create their canonical routes in `fi-subscriptions`. GitHub Copilot uses `llm-pi-ai/github-copilot` for OAuth, then adopts its route into `fi-subscriptions`.
+
 Mount it in a composition that already mounts `@deepseek-ai/dsh-authorization` — [`@fi/authorization-bundle`](../authorization-bundle/README.md) does both. A browser plugin then declares `remote.authorization` in its own `inject` and drives the four methods.
 
 ### List what can be signed into

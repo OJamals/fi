@@ -223,6 +223,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@fi/llm-antigravity` | yes | Antigravity OAuth adapter and Cloud Code transport for fi |
 | `@fi/llm-ollama` | yes | Ollama Cloud subscription device authorization and model transport for FI |
 | `@fi/llm-opencode` | yes | OpenCode Console subscription authorization and model transport for fi |
+| `@fi/llm-subscriptions` | yes | Native subscription authorization and inference for Cursor, Kiro, Cline, and Google Code Assist |
 | `@fi/provider-compat` | yes | Canonical provider metadata and subscription-only HTTP and WebSocket transport compatibility for FI |
 | `@fi/tool-image-generation` | yes | Opt-in Codex, Grok, and Antigravity image generation and editing through stored subscription OAuth |
 | `@fi/web-search-preferences` | yes | FI-owned preferred web-search routing over free, API-key, and subscription providers |

@@ -62,7 +62,19 @@ const ROUTE_NAMESPACE_BY_SCOPE = {
   'fi-antigravity': 'fi-antigravity',
   'fi-opencode': 'fi-opencode',
   'fi-ollama': 'fi-ollama',
+  'fi-subscriptions': 'fi-subscriptions',
 } as const
+
+/** Copilot keeps pi-ai's OAuth grant while using the native live chat catalog. */
+function routeNamespace(key: string): string | undefined {
+  if (key === 'llm-pi-ai/github-copilot') return 'fi-subscriptions'
+  return (ROUTE_NAMESPACE_BY_SCOPE as Record<string, string | undefined>)[key.slice(0, key.indexOf('/'))]
+}
+
+/** Native Copilot routing shares the existing pi-ai OAuth record. */
+function routeId(key: string): string {
+  return key === 'llm-pi-ai/github-copilot' ? 'copilot' : key.slice(key.indexOf('/') + 1)
+}
 
 /**
  * Bound on a pending answer's size. A method id, an option id, or a pasted
@@ -434,12 +446,12 @@ export class FiAuthorizationController extends TypertRemoteService {
   @Remote
   listAdoptable(): AuthorizationAdoptEntry[] {
     return this.seam().list().flatMap((entry) => {
-      const ns = (ROUTE_NAMESPACE_BY_SCOPE as Record<string, string | undefined>)[entry.key.slice(0, entry.key.indexOf('/'))]
+      const ns = routeNamespace(entry.key)
       if (ns === undefined) return []
       return [{
         key: entry.key,
         label: entry.label,
-        routeId: entry.key.slice(entry.key.indexOf('/') + 1),
+        routeId: routeId(entry.key),
       }]
     })
   }
@@ -512,13 +524,13 @@ export class FiAuthorizationController extends TypertRemoteService {
       )
     }
     // A non-skipped route belongs to one of the immutable scope mappings.
-    const settingsNs = (ROUTE_NAMESPACE_BY_SCOPE as Record<string, string>)[parsed.key.slice(0, parsed.key.indexOf('/'))] as string
+    const settingsNs = routeNamespace(parsed.key) as string
     const llm = this.ctx.get('llm')
     if (llm === undefined) throw new RemoteError('gateway/internal', 'llm service is absent: cannot enumerate models', {})
 
     let discovered: Awaited<ReturnType<typeof llm.discoverModels>>
     try {
-      discovered = await llm.discoverModels(settingsNs, { provider: parsed.key.slice(parsed.key.indexOf('/') + 1) })
+      discovered = await llm.discoverModels(settingsNs, { provider: routeId(parsed.key) })
     } catch (_discoveryFailure) {
       // Upstream errors can contain account details; the stored grant and route remain retryable.
       throw new RemoteError(
@@ -544,10 +556,9 @@ export class FiAuthorizationController extends TypertRemoteService {
    * @returns what became of the route.
    */
   private async ensureRoute(key: CredentialKey): Promise<'created' | 'already' | 'skipped'> {
-    const slash = key.indexOf('/')
-    const ns = (ROUTE_NAMESPACE_BY_SCOPE as Record<string, string | undefined>)[key.slice(0, slash)]
+    const ns = routeNamespace(key)
     if (ns === undefined) return 'skipped'
-    const id = key.slice(slash + 1)
+    const id = routeId(key)
     const settings = this.ctx.get('settings')
     if (settings === undefined) return 'skipped'
     const read = (): { providers: Record<string, unknown>; revision: number } | undefined => {

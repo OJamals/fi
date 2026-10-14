@@ -3,10 +3,10 @@ import type { ToolSchema } from '@deepseek-ai/dsh-llm'
 
 const description = 'Reserved transport compatibility function. Disabled; must never be called.'
 
-/** Reserved declarations matching auth2api's OpenCode compatibility request. */
-export const compatibilityTools: readonly ToolSchema[] = ['read', 'shell'].map(name => ({
+/** Disabled declarations retain the native required fields accepted by Console inference. */
+export const compatibilityTools: readonly ToolSchema[] = ([['read', 'path'], ['shell', 'command']] as const).map(([name, field]) => ({
   name, description,
-  parameters: { type: 'object', properties: {}, additionalProperties: false },
+  parameters: { type: 'object', properties: { [field]: { type: 'string' } }, required: [field], additionalProperties: false },
 }))
 
 /**

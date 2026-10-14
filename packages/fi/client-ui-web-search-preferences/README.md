@@ -29,7 +29,9 @@ Load this package beside [`@fi/web-search-preferences`](../web-search-preference
 
 Users select automatic routing, free Bing search, DeepSeek official, Exa, Perplexity, Parallel, Tavily, Serper, Brave Search, or subscription search. API-provider keys are added, replaced, or removed through password controls. An API provider with no configured key cannot be activated. Credential writes finish before a provider change is committed, so a refused write leaves the active route unchanged. A credential-only save remains available when Settings is read-only and Credentials reports the active reference as writable.
 
-**Automatic (follow chat model)** is the default: a linked subscription chat uses its native search and exact model; other chats use free Bing RSS search. Automatic and Bing choices have no credential or model fields. Explicit subscription search offers **Automatic (linked subscription)** family selection and an optional model override; users sign in from Models first. This card never starts OAuth or changes the conversation model route.
+**Automatic (follow chat model)** is the default: a linked subscription chat uses its native search and exact model; other chats use free Bing RSS search. Explicit subscription search offers **Automatic (linked subscription)** family selection and an optional model override. The `fi.search.sign-in` child slot embeds account controls supplied by `@fi/client-ui-model-signin`; subscription accounts remain shared with Models.
+
+Exa, Parallel, Tavily, and Firecrawl have separate **OAuth** engine choices. Select one, sign in through its browser consent page, then save the engine selection. API-key choices remain available independently. Sign-in does not activate a search engine automatically. Perplexity, DeepSeek, Serper, and Brave retain API-key setup; Bing needs no authentication.
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation

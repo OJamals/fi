@@ -35,6 +35,7 @@ function mount(overrides: Partial<PreferredSearchCardState> = {}) {
     ...overrides,
   })
   const actions = {
+    renderSlot: vi.fn(() => null),
     editProvider: vi.fn(),
     editSubscriptionProvider: vi.fn(),
     editSubscriptionModel: vi.fn(),
@@ -54,6 +55,13 @@ function mount(overrides: Partial<PreferredSearchCardState> = {}) {
 }
 
 describe('preferred-search settings card', () => {
+  it.each(['exa-oauth', 'parallel-oauth', 'tavily-oauth', 'firecrawl-oauth'] as const)('offers account setup without an API-key field for %s', (provider) => {
+    const actions = mount({ provider, dirty: true })
+    expect(screen.queryByLabelText(en.apiKey)).toBeNull()
+    expect(actions.renderSlot).toHaveBeenCalledWith('fi.search.sign-in', { provider })
+    fireEvent.click(screen.getByRole('button', { name: en.save }))
+    expect(actions.save).toHaveBeenCalledOnce()
+  })
   it('hides an unavailable card until a failure needs explanation', () => {
     mount({ available: false })
     expect(document.body.textContent).toBe('')
@@ -119,6 +127,7 @@ describe('preferred-search settings card', () => {
       'auto',
       'bing-rss',
       'subscription-native',
+      'exa-oauth', 'parallel-oauth', 'tavily-oauth', 'firecrawl-oauth',
       'deepseek-official',
       'exa',
       'perplexity',

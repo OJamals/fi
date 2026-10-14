@@ -18,6 +18,8 @@ Antigravity OAuth adapter and Cloud Code transport for fi. Registers the Antigra
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
 - [Dev Note](#dev-note)
 
+`callCodeAssistChat` exposes the shared Gemini message and SSE codec to the native Code Assist subscription adapter. It uses the fixed Code Assist endpoint, truthful FI headers, and an explicit entitled project, without adding the Antigravity request identity.
+
 <a id="summary"></a>
 ## Summary
 

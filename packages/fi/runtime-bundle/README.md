@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 The private FI runtime layer mounts subscription adapters, provider compatibility, and preferred search after `@deepseek-ai/dsh-base`. Web, Desktop, headless, ACP, and full SDK profiles include it. GUI profiles additionally mount [authorization-bundle](../authorization-bundle/README.md), which owns the image tool composition.
 
+The layer also mounts [native subscriptions](../llm-subscriptions/README.md) for Cursor, Kiro, Cline Free/Pass, and Gemini Code Assist. GitHub Copilot keeps pi-ai OAuth and uses the native subscription chat route.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)

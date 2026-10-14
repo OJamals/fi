@@ -4,8 +4,8 @@
  * the user already holds — Claude Pro/Max, ChatGPT Plus/Pro, SuperGrok/X
  * Premium, Antigravity, OpenCode Console, and Ollama Cloud — with native route setup and editing.
  *
- * The subscription section remains the only sign-in surface. The native
- * editor adopts an existing grant or edits a configured route's name and model selection.
+ * The search settings child slot reuses the authorization conversation with
+ * search-specific grants. Native model editors adopt an existing grant or edit a route.
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
@@ -18,6 +18,8 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 // Type-only: pulls the ctx.remote merge into this program.
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
+import type {} from '@fi/client-ui-web-search-preferences/client'
+import { SearchSignIn, SEARCH_SIGNIN_KEYS } from './SearchSignIn.tsx'
 import { SignInFooter } from './SignInFooter.tsx'
 import type { SignInFooterInjected } from './SignInFooter.tsx'
 import { AntigravityProviderEditor } from './AntigravityProviderEditor.tsx'
@@ -64,6 +66,7 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
     ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'fi-model-signin: copy dictionaries')
 
     const controller = new SignInStore(ctx)
+    const searchController = new SignInStore(ctx, SEARCH_SIGNIN_KEYS)
     const t = ctx.locale.bind(NS) as SignInFooterInjected['t']
 
     ctx.inject(['modelSettingsSubscriptions'], (scope) => {
@@ -87,7 +90,7 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
     // moves the stored state these rows render, and the credential seam
     // announces exactly that. The card's own attempts refresh themselves.
     ctx.effect(() => {
-      const refresh = (): void => { void controller.load() }
+      const refresh = (): void => { void controller.load(); void searchController.load() }
       const disposers = [
         ctx.remote.$on('credentials/reference-updated', refresh),
         // Grants are records, not references: a revoke — this surface's own,
@@ -99,6 +102,7 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
       ]
       return () => {
         controller.dispose()
+        searchController.dispose()
         for (const dispose of disposers) dispose()
       }
     }, 'fi-model-signin: pushed invalidations')
@@ -133,6 +137,11 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
       operations,
     })
     void controller.load()
+    void searchController.load()
+    ctx.slots.inject('fi.search.sign-in', () => ctx.slots.register({
+      name: 'fi.search.sign-in',
+      inject: () => ({ controller: searchController, hooks: { snapshot: searchController.store }, t }),
+    }, SearchSignIn))
     ctx.slots.inject('settings.models.provider-editor', () => ctx.slots.register({
       name: 'settings.models.provider-editor',
       key: 'fi-antigravity',
@@ -146,6 +155,11 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
     ctx.slots.inject('settings.models.provider-editor', () => ctx.slots.register({
       name: 'settings.models.provider-editor',
       key: 'fi-ollama',
+      inject: injected,
+    }, AntigravityProviderEditor))
+    ctx.slots.inject('settings.models.provider-editor', () => ctx.slots.register({
+      name: 'settings.models.provider-editor',
+      key: 'fi-subscriptions',
       inject: injected,
     }, AntigravityProviderEditor))
     ctx.slots.inject('settings.models.footer', () => ctx.slots.register({
