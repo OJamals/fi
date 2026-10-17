@@ -1,9 +1,10 @@
 /** Sign final native runtime files before the enclosing Desktop application is signed. */
 
 import { createHash } from 'node:crypto'
-import { closeSync, openSync, readSync } from 'node:fs'
-import { join } from 'node:path'
-import { inventoryDesktopRuntime } from '../src/runtime-tree.ts'
+import { execFileSync } from 'node:child_process'
+import { chmodSync, closeSync, copyFileSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, renameSync, rmSync, statSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { primaryRuntimeFiles } from '../../../packages/skill/tool-workspace-dependencies/src/index.ts'
 import type { MacOSSigningEnvironment } from './desktop-release-environment.mjs'
 import { cachedMacOSSignature, pruneMacOSSignatureCache } from './macos-signature-cache.ts'
 import { macOSCachePolicy } from './macos-cache-policy.ts'
@@ -25,8 +26,68 @@ function magic(path: string): string {
 }
 
 /**
+ * Retain only the selected macOS slice before native signing and payload hashing.
+ * @param root - Build-owned runtime directory.
+ * @param arch - Desktop target architecture.
+ * @returns Number of universal binaries replaced with a single slice.
+ */
+export async function thinMacOSRuntime(root: string, arch: 'arm64' | 'x64'): Promise<number> {
+  if (process.platform !== 'darwin') throw new Error('desktop runtime: macOS thinning requires a macOS build host')
+  const target = arch === 'x64' ? 'x86_64' : 'arm64'
+  let count = 0
+  for (const path of await primaryRuntimeFiles(root)) {
+    const file = join(root, path)
+    if (!MACH_O_MAGICS.has(magic(file))) continue
+    const architectures = execFileSync('/usr/bin/lipo', ['-archs', file], { encoding: 'utf8' }).trim().split(/\s+/u)
+    if (!architectures.includes(target)) throw new Error(`desktop runtime: ${path} has no ${target} slice`)
+    if (architectures.length === 1) continue
+    const staging = mkdtempSync(join(dirname(file), '.thin-'))
+    try {
+      const output = join(staging, 'binary')
+      execFileSync('/usr/bin/lipo', [file, '-thin', target, '-output', output])
+      if (execFileSync('/usr/bin/lipo', ['-archs', output], { encoding: 'utf8' }).trim() !== target) {
+        throw new Error(`desktop runtime: thinning did not produce ${target}: ${path}`)
+      }
+      chmodSync(output, statSync(file).mode & 0o777)
+      renameSync(output, file)
+      count++
+    } finally { rmSync(staging, { recursive: true, force: true }) }
+  }
+  return count
+}
+
+/**
+ * Remove native debug information before signing, retaining originals outside the payload.
+ * @param root - Build-owned runtime directory with validated internal file aliases.
+ * @param originals - Build-owned directory for binaries retaining their debug information.
+ * @returns Bytes removed before final signatures are applied.
+ */
+export async function stripMacOSRuntimeDebug(root: string, originals: string): Promise<number> {
+  if (process.platform !== 'darwin') throw new Error('desktop runtime: stripping requires a macOS build host')
+  let saved = 0
+  for (const path of await primaryRuntimeFiles(root)) {
+    const file = join(root, path)
+    if (!MACH_O_MAGICS.has(magic(file))) continue
+    const staging = mkdtempSync(join(dirname(file), '.strip-'))
+    try {
+      const output = join(staging, 'binary')
+      execFileSync('/usr/bin/strip', ['-S', '-o', output, file], { stdio: 'pipe' })
+      const before = readFileSync(file), after = readFileSync(output)
+      if (after.length >= before.length) continue
+      const original = join(originals, path)
+      mkdirSync(dirname(original), { recursive: true })
+      copyFileSync(file, original)
+      chmodSync(output, statSync(file).mode & 0o777)
+      renameSync(output, file)
+      saved += before.length - after.length
+    } finally { rmSync(staging, { recursive: true, force: true }) }
+  }
+  return saved
+}
+
+/**
  * Sign and verify every materialized Mach-O file, awaiting all signers on failure.
- * @param root - Self-contained production runtime without symlinks.
+ * @param root - Self-contained production runtime with validated internal file aliases.
  * @param appId - Release application identifier.
  * @param expected - Required signing identity.
  * @param arch - Target runtime architecture, independent of the signing host.
@@ -36,7 +97,7 @@ function magic(path: string): string {
 export async function signMacOSRuntime(
   root: string, appId: string, expected: MacOSSigningEnvironment, arch: 'arm64' | 'x64', cacheDirectory?: string,
 ): Promise<number> {
-  const files = inventoryDesktopRuntime(root).map(file => file.path).filter(path => MACH_O_MAGICS.has(magic(join(root, path))))
+  const files = (await primaryRuntimeFiles(root)).filter(path => MACH_O_MAGICS.has(magic(join(root, path))))
   const policy = cacheDirectory === undefined ? undefined : macOSCachePolicy(process.env.DSH_DESKTOP_MACOS_SIGNING_PROBE ?? '')
   let hits = 0
   let misses = 0
@@ -80,12 +141,12 @@ export async function signMacOSRuntime(
  * carries no Team ID, so hardened runtime's library validation would reject a `dlopen` between two ad-hoc-
  * signed files even though both are validly signed. Ad-hoc signing needs no keychain and no network
  * timestamp, so there is no signature cache to consult or populate.
- * @param root - Self-contained production runtime without symlinks.
+ * @param root - Self-contained production runtime with validated internal file aliases.
  * @param appId - Release application identifier.
  * @returns Number of ad-hoc-signed native files.
  */
 export async function signMacOSRuntimeAdHoc(root: string, appId: string): Promise<number> {
-  const files = inventoryDesktopRuntime(root).map(file => file.path).filter(path => MACH_O_MAGICS.has(magic(join(root, path))))
+  const files = (await primaryRuntimeFiles(root)).filter(path => MACH_O_MAGICS.has(magic(join(root, path))))
   let next = 0
   const workers = Array.from({ length: Math.min(4, files.length) }, async () => {
     for (;;) {

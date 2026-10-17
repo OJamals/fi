@@ -7,12 +7,21 @@ const origins = { DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://test.exampl
   DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN: 'https://prod.example.com' }
 const auth = { DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: JSON.stringify({ allowedAuthOrigins: ['https://login.example.com'] }) }
 
+it('uses GitHub updates without a separate mandatory policy service when production leaves it unconfigured', () => {
+  expect(resolveDesktopPolicyEnvironment({ DSH_DESKTOP_AUTO_UPDATE_ENV: 'production' })).toBeUndefined()
+  expect(() => resolveDesktopPolicyEnvironment({ DSH_DESKTOP_AUTO_UPDATE_ENV: 'production',
+    DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: '{}' })).toThrow('HTTPS origin')
+  expect(() => resolveDesktopPolicyEnvironment({ DSH_DESKTOP_AUTO_UPDATE_ENV: 'production',
+    DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN: '' })).toThrow('HTTPS origin')
+})
+
 it.each(['test', 'production'] as const)('selects the %s policy and authentication together', (deployment) => {
   const policy = resolveDesktopPolicyEnvironment({ ...origins, ...(deployment === 'test' ? auth : {}), DSH_DESKTOP_AUTO_UPDATE_ENV: deployment })
   const origin = deployment === 'test' ? origins.DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN : origins.DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN
   expect(policy).toEqual({ origin, allowedPageOrigins: [origin],
     ...(deployment === 'test' ? { allowedAuthOrigins: ['https://login.example.com'] } : {}),
     authentication: deployment === 'test' ? 'feishu-test' : 'anonymous' })
+  if (policy === undefined) throw new Error('configured policy must be present')
   expect(resolveDesktopPolicyConfig(policy)).toMatchObject(policy)
 })
 

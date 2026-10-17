@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.0-rc.2/context-breakdown-metering/guide.md
+/:
+  en: ae1246403f1b98a4
+  zh: b093e5b8fca4bb7c
+/meter-custom-context-replacements:
+  en: a0940d9bafbcc1f2
+  zh: 7c55591a932bad17
+/meter-custom-context-replacements/change:
+  en: f3c9f4a0cf328255
+  zh: 044761cd0eeb4c67
+/meter-custom-context-replacements/migration:
+  en: 76144b0231dbf96b
+  zh: 91c97491b189fd72

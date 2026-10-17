@@ -28,6 +28,13 @@ async function fixture(version = '1.2.3', targets = ['mac-arm64.zip', 'mac-x64.z
 }
 
 describe('GitHub Desktop update feeds', () => {
+  it('publishes v1 feeds for the explicitly unsigned Windows installer and Linux AppImage', async () => {
+    const f = await fixture('1.0.0', ['win-x64-unsigned.exe', 'linux-x64.AppImage'])
+    expect(await prepareGitHubReleaseFeeds(f.release, f.directory, f.output))
+      .toEqual({ version: '1.0.0', filenames: ['latest.yml', 'latest-linux.yml'] })
+    expect(await readFile(join(f.output, 'latest.yml'), 'utf8')).toContain('fi-1.0.0-win-x64-unsigned.exe')
+    expect(await readFile(join(f.output, 'latest-linux.yml'), 'utf8')).toContain('fi-1.0.0-linux-x64.AppImage')
+  })
   it('stages a published release through the workflow script without running its payloads', async () => {
     const f = await fixture()
     const releasePath = join(f.directory, 'release.json')
@@ -82,7 +89,7 @@ describe('GitHub Desktop update feeds', () => {
     await expect(stat(f.output)).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
-  it.each(['wrong hash', 'truncated payload', 'unfinished upload', 'duplicate asset', 'unsafe filename', 'unsigned payload'])
+  it.each(['wrong hash', 'truncated payload', 'unfinished upload', 'duplicate asset', 'unsafe filename', 'unsupported payload'])
   ('rejects %s before emitting any platform metadata', async (failure) => {
     const f = await fixture()
     const last = f.release.assets.at(-1)!
@@ -91,7 +98,7 @@ describe('GitHub Desktop update feeds', () => {
     if (failure === 'unfinished upload') last.state = 'open'
     if (failure === 'duplicate asset') f.release.assets.push(last)
     if (failure === 'unsafe filename') last.name = '../payload.exe'
-    if (failure === 'unsigned payload') f.release.assets = [{ ...last, name: 'fi-1.2.3-win-x64-unsigned.exe' }]
+    if (failure === 'unsupported payload') f.release.assets = [{ ...last, name: 'fi-1.2.3-win-arm64.exe' }]
     await expect(prepareGitHubReleaseFeeds(f.release, f.directory, f.output)).rejects.toThrow(/GitHub update feed/u)
     await expect(stat(f.output)).rejects.toMatchObject({ code: 'ENOENT' })
   })

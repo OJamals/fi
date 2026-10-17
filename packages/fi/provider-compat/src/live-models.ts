@@ -16,7 +16,7 @@
  * @module @fi/provider-compat/live-models
  */
 
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import type { PiAiLiveModel, PiAiLiveModelsContext } from '@deepseek-ai/dsh-llm-pi-ai'
 import type { SubscriptionProvider } from './headers.ts'
 import { subscriptionHeaders } from './headers.ts'
@@ -145,18 +145,24 @@ async function fetchAnthropicLiveModels(
     const headers = subscriptionHeaders('anthropic', ANTHROPIC_HEADER_MODEL, randomUUID(), 10_000, {
       Authorization: `Bearer ${apiKey}`,
     })
-    const response = await fetch('https://api.anthropic.com/v1/models?limit=1000', {
-      method: 'GET',
-      headers,
-      signal: boundedSignal(signal, 10_000),
-    })
-    if (!response.ok) return null
-    const body = await readBoundedJson(response) as { data?: unknown }
-    if (!Array.isArray(body.data)) return null
+    const deadline = boundedSignal(signal, 10_000)
+    const url = new URL('https://api.anthropic.com/v1/models?limit=1000')
+    const cursors = new Set<string>()
     const ids = new Set<string>()
-    for (const entry of body.data) {
-      const id = (entry as { id?: unknown } | null)?.id
-      if (typeof id === 'string' && id.startsWith('claude-')) ids.add(id)
+    for (;;) {
+      deadline.throwIfAborted()
+      const response = await fetch(url.href, { method: 'GET', headers, signal: deadline })
+      if (!response.ok) return null
+      const body = await readBoundedJson(response) as { data?: unknown; has_more?: unknown; last_id?: unknown }
+      if (!Array.isArray(body.data)) return null
+      for (const entry of body.data) {
+        const id = (entry as { id?: unknown } | null)?.id
+        if (typeof id === 'string' && id.startsWith('claude-')) ids.add(id)
+      }
+      if (body.has_more !== true) break
+      if (typeof body.last_id !== 'string' || !body.last_id || cursors.has(body.last_id)) return null
+      cursors.add(body.last_id)
+      url.searchParams.set('after_id', body.last_id)
     }
     return [...ids].map(id => ({ id }))
   } catch {
@@ -199,7 +205,7 @@ async function fetchCodexLiveModels(
 ): Promise<readonly PiAiLiveModel[]> {
   const settings = providerSettingsFor('codexCli')
   const url = `${settings.baseUrl.replace(/\/+$/, '')}${settings.modelsPath}?client_version=${encodeURIComponent(settings.version)}`
-  const result = await cache.get('openai-codex', async (stale) => {
+  const result = await cache.get(credentialCacheKey(apiKey), async (stale) => {
     try {
       const headers: Record<string, string> = {
         ...subscriptionHeaders('openai-codex', CODEX_HEADER_MODEL, randomUUID(), 10_000, {
@@ -275,6 +281,11 @@ export function createLiveModelCaches(ttlMs: number): LiveModelCaches {
   }
 }
 
+/** Partition catalogs and ETags by credential without retaining raw access tokens as keys. */
+function credentialCacheKey(apiKey: string): string {
+  return createHash('sha256').update(apiKey).digest('hex')
+}
+
 /**
  * Fetch (through its account's cache) the live model ids/names one
  * subscription route currently advertises. Called only for a route
@@ -290,10 +301,11 @@ export async function fetchLiveModels(
   caches: LiveModelCaches,
 ): Promise<readonly PiAiLiveModel[]> {
   if (request.provider === 'anthropic') {
-    const models = await caches.anthropic.get('anthropic', () => fetchAnthropicLiveModels(request.apiKey, request.signal))
+    const models = await caches.anthropic.get(credentialCacheKey(request.apiKey),
+      () => fetchAnthropicLiveModels(request.apiKey, request.signal))
     return models ?? []
   }
   if (request.provider === 'openai-codex') return fetchCodexLiveModels(request.apiKey, caches.codex, request.signal)
-  const models = await caches.grok.get('xai', () => fetchGrokLiveModels(request.apiKey, request.signal))
+  const models = await caches.grok.get(credentialCacheKey(request.apiKey), () => fetchGrokLiveModels(request.apiKey, request.signal))
   return models ?? []
 }

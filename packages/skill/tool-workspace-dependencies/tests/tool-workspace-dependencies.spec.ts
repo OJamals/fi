@@ -323,6 +323,44 @@ it('retries a failed tool preparation and renders its call presentation', async 
   } finally { await ctx.fiber.dispose() }
 })
 
+it('retains the previous release when copying an update fails', async () => {
+  const { source, root, manifest } = await fixture()
+  await installPrimaryRuntime(source, root)
+  await writeFile(join(source, 'runtime.json'), JSON.stringify({ ...manifest, desktopVersion: '2.0.0' }))
+  vi.mocked(fs.cp).mockRejectedValueOnce(new Error('copy failed'))
+  await expect(installPrimaryRuntime(source, root)).rejects.toThrow('copy failed')
+  expect((await readPrimaryRuntime(root)).desktopVersion).toBe('1.0.0')
+})
+
+it('retains a failed rollback for recovery by the next installation', async () => {
+  const { source, root, manifest } = await fixture()
+  await installPrimaryRuntime(source, root)
+  await writeFile(join(source, 'runtime.json'), JSON.stringify({ ...manifest, desktopVersion: '2.0.0' }))
+  const actual = await vi.importActual<typeof fs>('node:fs/promises')
+  vi.mocked(fs.rename).mockImplementationOnce(actual.rename)
+    .mockRejectedValueOnce(new Error('publication failed'))
+    .mockRejectedValueOnce(new Error('rollback failed'))
+  await expect(installPrimaryRuntime(source, root)).rejects.toThrow('rollback failed')
+  expect((await readPrimaryRuntime(`${root}.previous`)).desktopVersion).toBe('1.0.0')
+  await writeFile(join(source, 'runtime.json'), JSON.stringify(manifest))
+  await installPrimaryRuntime(source, root)
+  expect(await readPrimaryRuntime(root)).toEqual(manifest)
+})
+
+it('restores the damaged cache and user additions when repair publication fails', async () => {
+  const { source, root, directory } = await fixture()
+  const installed = await installPrimaryRuntime(source, root)
+  await writeFile(join(installed.pythonPackages, 'user-added.py'), 'user data')
+  await writeFile(join(root, 'runtime.json'), '{malformed')
+  const actual = await vi.importActual<typeof fs>('node:fs/promises')
+  vi.mocked(fs.rename).mockImplementationOnce(actual.rename).mockRejectedValueOnce(new Error('repair publication failed'))
+  await expect(installPrimaryRuntime(source, root, { repairInvalidEntries: true })).rejects.toThrow('repair publication failed')
+  expect(await readFile(join(root, 'runtime.json'), 'utf8')).toBe('{malformed')
+  expect(await readFile(join(installed.pythonPackages, 'user-added.py'), 'utf8')).toBe('user data')
+  expect((await fs.readdir(dirname(root))).filter(name => name.includes('.recovery-'))).toEqual([])
+  expect(await fs.readdir(directory)).toContain('home')
+})
+
 it.each([false, true])('disposal waits for pending filesystem preparation (failure: %s)', async (failure) => {
   const { source, root } = await fixture()
   const actual = await vi.importActual<typeof fs>('node:fs/promises')

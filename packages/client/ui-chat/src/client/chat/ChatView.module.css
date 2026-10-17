@@ -186,30 +186,38 @@
   overflow: hidden;
 }
 
-.runningWhaleAnimated {
-  display: none;
-  position: absolute;
-  inset: 0;
+@keyframes fi-running-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
 }
 
-.runningWhaleStill {
-  display: initial;
+@keyframes fi-running-dot-lift {
+  0%, 12% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.2, 0.65, 0.35, 1);
+  }
+  38% {
+    transform: translateY(-2px);
+    animation-timing-function: cubic-bezier(0.65, 0, 0.8, 0.35);
+  }
+  62% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.2, 0.65, 0.35, 1);
+  }
+  74% {
+    transform: translateY(-0.65px);
+    animation-timing-function: cubic-bezier(0.65, 0, 0.8, 0.35);
+  }
+  86%, 100% { transform: translateY(0); }
 }
 
-@supports (mask-mode: alpha) and (mask-image: url('')) {
-  @media (prefers-reduced-motion: no-preference) and (forced-colors: none) {
-    .runningWhaleAnimated {
-      display: block;
-      background: currentColor;
-      mask: url('./running-whale@2x.png') center / 100% 100% no-repeat;
-      mask-mode: alpha;
-      /* Keep animated-mask repaints on an icon-sized composited layer. */
-      will-change: transform;
-    }
+@media (prefers-reduced-motion: no-preference) and (forced-colors: none) {
+  .runningIcon {
+    animation: fi-running-pulse 1.5s ease-in-out infinite;
+  }
 
-    .runningWhaleStill {
-      display: none;
-    }
+  .runningFiDot {
+    animation: fi-running-dot-lift 1.5s ease-in-out infinite;
   }
 }
 

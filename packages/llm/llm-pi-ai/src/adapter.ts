@@ -396,7 +396,7 @@ export class PiAiAdapter extends LlmAdapter {
   /**
    * Live-discovered models beyond the installed catalog for one route within
    * one snapshot, cloned from their closest catalog template. Empty for a
-   * route with no live-models hook, no `piProvider`, a curated `models` list,
+   * route with no live-models hook, no `piProvider`, a curated `models` list outside discovery,
    * or auth that does not resolve to a stored OAuth subscription grant — the
    * one case {@link PiAiAdapterOptions.resolveLiveModels} may be called for.
    * Failures from the hook itself are swallowed: a live listing that cannot
@@ -407,10 +407,11 @@ export class PiAiAdapter extends LlmAdapter {
     snapshot: PiAiSnapshot,
     provider: string,
     signal?: AbortSignal,
+    includeUnselected = false,
   ): Promise<readonly Model<Api>[]> {
     if (this.config.resolveLiveModels === undefined) return []
     const profile = snapshot.profiles.get(provider)
-    if (profile?.piProvider === undefined || !profile.usesInstalledCatalog) return []
+    if (profile?.piProvider === undefined || (!includeUnselected && !profile.usesInstalledCatalog)) return []
     const templates = snapshot.models.getModels(provider)
     if (templates.length === 0) return []
     if (snapshot.models.getProvider(provider)?.auth.oauth?.isSubscription !== true) return []
@@ -436,14 +437,14 @@ export class PiAiAdapter extends LlmAdapter {
   /**
    * Live model ids/names this route currently advertises beyond its installed
    * catalog, for the discovery module's "fetch available models" action. A
-   * thin public wrapper over {@link liveModelsFor}, so discovery and request-path
-   * resolution share one gating and caching path rather than two.
+   * Discovery includes unselected models; picker and request resolution retain
+   * the configured model selection.
    * @param provider - the configured route to check.
    * @param signal - cancellation for the underlying live-listing call.
    * @returns live-only model ids and names; empty when none apply.
    */
   async liveModelIds(provider: string, signal?: AbortSignal): Promise<readonly PiAiLiveModel[]> {
-    const live = await this.liveModelsFor(this.current(), provider, signal)
+    const live = await this.liveModelsFor(this.current(), provider, signal, true)
     return live.map(model => ({ id: model.id, name: model.name }))
   }
 

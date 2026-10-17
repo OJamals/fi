@@ -28,6 +28,8 @@ import { installWindowsDirectoryInstaller } from './windows-directory-installer.
 import { preserveWindowsRuntimeSignature, signWindowsCode } from './windows-runtime-signature.mjs'
 import { prepareWindowsAsarUnpack, verifyWindowsAsarUnpack } from './windows-asar-unpack.mjs'
 import { recordPackagingEvent } from './packaging-run.mjs'
+import { installMacOSApplication } from './install-macos-application.mjs'
+import { archiveMacOSPrimaryRuntime } from './archive-primary-runtime.mjs'
 import {
   resolveMacOSAppUpdateFeed,
   verifyMacOSAppUpdateConfig,
@@ -90,7 +92,8 @@ export function createElectronBuilderConfig(
   if (windowsSigner !== undefined) {
     installWindowsNsisBootstrapSigner({ sign: windowsSigner })
   }
-  const update = unsigned ? undefined : resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
+  const unsignedProductionWindows = unsigned && packagesWindows && env.DSH_DESKTOP_AUTO_UPDATE_ENV === 'production'
+  const update = unsigned && !unsignedProductionWindows ? undefined : resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
   if (preparedRuntime !== undefined) buildPaths.dsh = preparedRuntime
   // electron-builder merges extraMetadata into the packaged manifest, so a build version here reaches
   // the artifact names, the update feed, and the installed app.getVersion() the updater compares against.
@@ -136,13 +139,17 @@ export function createElectronBuilderConfig(
       'lib/preload-welcome.cjs',
       'renderer/**/*',
       'package.json',
+      // Production dependencies collected by electron-builder bypass prepare-dsh's file policy.
+      '!node_modules/**/*.{js,mjs,cjs,ts,mts,cts,css}.map',
+      '!node_modules/**/*.d.{ts,mts,cts}',
+      '!node_modules/**/*.tsbuildinfo',
       { from: buildPaths.dsh, to: 'dsh', filter: ['**/*'] },
       // electron-builder excludes a source directory's root node_modules.
       { from: join(buildPaths.dsh, 'node_modules'), to: 'dsh/node_modules', filter: ['**/*'] },
     ],
     asarUnpack: unpack,
     extraResources: [
-      { from: buildPaths.runtime, to: 'runtime' },
+      { from: buildPaths.runtime, to: 'runtime', filter: ['**/*', '!cli{,/**/*}', '!pnpm{,/**/*}'] },
       { from: fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)), to: 'icon.png' },
       // Windows tray bitmaps; macOS keeps the Dock and ships no menu bar icon.
       ...(packagesWindows ? [{ from: fileURLToPath(new URL('../resources/tray-windows.ico', import.meta.url)), to: 'tray.ico' }] : []),
@@ -189,6 +196,7 @@ export function createElectronBuilderConfig(
     afterPack: async context => {
       const { verifyDesktopRuntime } = await import('../lib/types/runtime-tree.js')
       const resourcesDir = context.packager.getResourcesDir(context.appOutDir)
+      if (resolvedPlatform === 'darwin') await archiveMacOSPrimaryRuntime(join(resourcesDir, 'runtime', 'primary-runtime'))
       if (resolvedPlatform === 'darwin' && update !== undefined) {
         await writeMacOSAppUpdateConfig(resourcesDir, resolveMacOSAppUpdateFeed(context.packager.config.publish),
           context.packager.appInfo.updaterCacheDirName)
@@ -217,9 +225,10 @@ export function createElectronBuilderConfig(
       }
       if (unsigned) {
         await adHocSignMacOSApplication(appPath)
-        return
+      } else {
+        verifyMacOSSignatureAfterSign(context, macOSSigning ?? resolveMacOSSigningEnvironment(env))
       }
-      verifyMacOSSignatureAfterSign(context, macOSSigning ?? resolveMacOSSigningEnvironment(env))
+      await installMacOSApplication(appPath, appPath)
     },
     artifactBuildCompleted: artifact => {
       if (!artifact.file.endsWith('.dmg') || unsigned) return
@@ -230,6 +239,7 @@ export function createElectronBuilderConfig(
       )
     },
     win: {
+      verifyUpdateCodeSignature: !unsignedProductionWindows,
       icon: fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)),
       forceCodeSigning: !unsigned,
       signtoolOptions: {
@@ -240,6 +250,7 @@ export function createElectronBuilderConfig(
       target: ['nsis'],
     },
     linux: {
+      executableName: 'fi',
       category: 'Development',
       target: ['AppImage'],
     },

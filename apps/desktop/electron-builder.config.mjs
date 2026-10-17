@@ -23,7 +23,10 @@ export function createElectronBuilderConfig(
   const base = createSharedElectronBuilderConfig(env, hostPlatform, hostArch, preparedRuntime, preparedRuntimeVersion)
   const resolvedPlatform = env.DSH_DESKTOP_TARGET_PLATFORM ?? hostPlatform
   const resolvedArch = env.DSH_DESKTOP_TARGET_ARCH ?? hostArch
-  const update = env.DSH_DESKTOP_UNSIGNED === '1' ? undefined : resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
+  const unsignedProductionWindows = env.DSH_DESKTOP_UNSIGNED === '1' && resolvedPlatform === 'win32'
+    && env.DSH_DESKTOP_AUTO_UPDATE_ENV === 'production'
+  const update = env.DSH_DESKTOP_UNSIGNED === '1' && !unsignedProductionWindows
+    ? undefined : resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
   const version = preparedRuntimeVersion ?? base.extraMetadata.version ?? desktopPackage.version
   return {
     ...base,

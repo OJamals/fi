@@ -1,12 +1,32 @@
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { zipSync } from 'fflate'
 import { expect, it } from 'vitest'
-import { downloadPrimaryRuntimeAsset, prepareOfficeSkillAssets, primaryRuntimePayloadDigest, smokePrimaryRuntime, unpackPrimaryRuntimeWheel } from './prepare.ts'
+import { downloadPrimaryRuntimeAsset, prepareOfficeSkillAssets, preparePrimaryRuntimePnpm, primaryRuntimePayloadDigest, smokePrimaryRuntime, unpackPrimaryRuntimeWheel } from './prepare.ts'
 import lock from './lock.json' with { type: 'json' }
+
+it.each([
+  ['mac-arm64', 'darwin-arm64'], ['mac-x64', 'darwin-x64'], ['win-x64', 'win32-x64-msvc'],
+  ['linux-x64', 'linux-x64-gnu'], ['linux-arm64', 'linux-arm64-gnu'],
+] as const)('copies the %s pnpm binding and preserves its loader', async (target, binding) => {
+  const root = await mkdtemp(join(tmpdir(), 'pnpm-target-'))
+  try {
+    const source = join(root, 'source'), destination = join(root, 'output')
+    const scope = 'dist/node_modules/@reflink'
+    for (const name of ['reflink', ...['darwin-arm64', 'darwin-x64', 'win32-x64-msvc', 'win32-arm64-msvc', 'linux-x64-gnu', 'linux-arm64-gnu'].map(value => `reflink-${value}`)]) {
+      await mkdir(join(source, scope, name), { recursive: true })
+      await writeFile(join(source, scope, name, 'payload'), name)
+    }
+    await writeFile(join(source, 'dist/pnpm.mjs'), 'package manager')
+    await preparePrimaryRuntimePnpm(source, destination, target)
+    expect((await readdir(join(destination, scope))).sort()).toEqual(['reflink', `reflink-${binding}`])
+    expect(await readFile(join(destination, 'dist/pnpm.mjs'), 'utf8')).toBe('package manager')
+    expect(await readFile(join(destination, scope, `reflink-${binding}`, 'payload'), 'utf8')).toBe(`reflink-${binding}`)
+  } finally { await rm(root, { recursive: true, force: true }) }
+})
 
 it('covers every SDK wheel target with the shared interpreter lock', () => {
   const platforms = JSON.parse(readFileSync(new URL('../../python/sdk-runtime/platforms.json', import.meta.url), 'utf8')) as Record<string, unknown>

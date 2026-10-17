@@ -435,7 +435,7 @@ const ANTIGRAVITY_MODELS = [
 ] as const
 
 // Capture-derived AGY projection from Antigravity upstream catalog keys to the
-// identifiers printed by `agy models`. Unknown catalog keys stay private.
+// identifiers printed by `agy models`. Newly advertised agent models retain their upstream ids.
 const CATALOG_TEXT_MODEL_PROJECTION: Record<string, string> = {
   'gemini-3.6-flash-high': 'gemini-3.6-flash-high',
   'gemini-3.6-flash-medium': 'gemini-3.6-flash-medium',
@@ -1362,8 +1362,8 @@ function selectableTextModelIds(
     ) {
       return []
     }
-    const advertised = CATALOG_TEXT_MODEL_PROJECTION[model]
-    return advertised ? [advertised] : []
+    if (!model || /\s/.test(model) || wireRecord(models[model])?.disabled === true) return []
+    return [CATALOG_TEXT_MODEL_PROJECTION[model] ?? model]
   })
   return [...new Set(projected)]
 }
@@ -1410,7 +1410,8 @@ async function fetchAvailableModels(
       imageModelIds: imageGenerationModelIds.filter(
         (model): model is string =>
           typeof model === 'string' &&
-          Object.prototype.hasOwnProperty.call(models, model),
+          Object.prototype.hasOwnProperty.call(models, model) &&
+          wireRecord(models[model])?.disabled !== true,
       ),
     }
   } catch (err: unknown) {

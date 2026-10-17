@@ -4102,12 +4102,12 @@ export interface Config {
 ## `@deepseek-ai/dsh-tool-workspace-dependencies`
 
 - `inject`: `tools`
-- `source`: [`packages/skill/tool-workspace-dependencies/src/index.ts:15`](../packages/skill/tool-workspace-dependencies/src/index.ts)
+- `source`: [`packages/skill/tool-workspace-dependencies/src/index.ts:22`](../packages/skill/tool-workspace-dependencies/src/index.ts)
 
 ```ts config-catalog
 /** Payload location and optional installation directory. */
 export interface Config {
-  /** Payload directory carrying `runtime.json` and `dependencies/`. */
+  /** Payload directory carrying `runtime.json` and dependencies or a macOS archive descriptor. */
   readonly source: string
   /**
    * Installation directory under the Harness home. When set, the payload is copied there on the
@@ -4115,6 +4115,8 @@ export interface Config {
    * which suits read-only carriers such as container image layers.
    */
   readonly root?: string
+  /** Maximum time to wait for another local process to finish installation, in milliseconds. */
+  readonly installLockWaitMs?: number
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-tool-workspace-dependencies -->

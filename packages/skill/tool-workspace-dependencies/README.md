@@ -37,10 +37,21 @@ Mount the plugin beside the tool registry with the payload directory. Configurat
 
 | Field | Default | Meaning |
 |---|---|---|
-| `source` | required | Absolute payload directory carrying `runtime.json` and `dependencies/`. |
-| `root` | unset | Absolute installation directory under the Harness home. Set: the payload is copied there on the first call and reused while `runtime.json` is unchanged. Unset: the payload is validated and used in place; nothing is copied. |
+| `source` | required | Absolute payload directory carrying `runtime.json` and either `dependencies/` or a macOS archive carrier. |
+| `root` | unset | Absolute installation directory under the Harness home. Set: the payload is copied or extracted there on the first call and reused while `runtime.json` is unchanged. Unset: directory payloads are validated and used in place; archives require an installation root. |
+| `installLockWaitMs` | `120000` | Maximum wait for another local process to finish installing the same runtime. |
 
 ### Payload layout
+
+Payload copies preserve relative file aliases, including Python executable aliases, through staging and installation. Before copying, aliases must resolve to existing regular files inside the payload; absolute, escaping, dangling, and directory links are rejected. The source must remain immutable during validation and copying.
+
+macOS archive carriers contain `runtime.json`, `payload.tar.xz`, and `archive.json` with exactly `version: 1`, `file: "payload.tar.xz"`, and a lowercase SHA-256 `sha256`. The archive contains `runtime.json` and `dependencies/`; installation verifies its digest, rejects escaping paths, duplicate entries, special files, hard links, and aliases that do not resolve to internal files before extraction, then compares the extracted manifest with the carrier metadata. Extraction uses the system `/usr/bin/tar` and requires no network access. Installed runtime paths and user-added packages remain unchanged when the normalized manifest matches.
+
+Installation serializes callers across local processes. An interrupted swap restores `<root>.previous` when the destination is missing; preparation failures leave the old runtime intact. A failed final rename restores the previous tree, and a failed restoration retains it for the next attempt. A lock whose recorded process has exited can be recovered; shared directories across machines or PID namespaces are unsupported.
+
+On macOS, installation copies prepared files with `/usr/bin/ditto --hfsCompression --nopreserveHFSCompression` before publication; failed compression uses the validated uncompressed copy. Existing healthy caches remain untouched by default. Maintenance callers may request `compressExistingCache: true` only after stopping every process that can read or modify that cache; the installer lock does not lock pip, pnpm, or user scripts. This one-time migration retains user-added files, permissions, and symlinks without following their targets. Compression failure reuses the healthy cache, and publication failure restores it. The private copy receives `.macos-compression-v1` only after copying succeeds; subsequent calls reuse it. Compression changes storage allocation, not file bytes, and requires no network access; savings depend on filesystem support and file contents. Other platforms retain ordinary copies.
+
+Desktop calls `installPrimaryRuntime` with `repairInvalidEntries: true` to repair malformed cache metadata and missing or invalid declared entries before startup. Repair validates a fresh payload before moving the entire damaged cache, including user-added files, into `<root>.recovery-<random>/runtime`; the recovery directory remains after successful publication for manual recovery of those files. Publication failure restores the damaged cache. Other callers reject invalid cached metadata or entries unless they explicitly enable this option.
 
 `runtime.json` records `desktopVersion`, `platform` (`win32`, `darwin`, or `linux`), `arch`, optional `payloadDigest`, top-level `python`, optional `node`/`pnpm` versions, and the complete `pythonPackages` distribution-version map. A pnpm entry requires Node.js. Python libraries, including numpy and pandas, appear only in `pythonPackages`. Entries live under `dependencies/`: `python/bin/python3` (`python/python.exe` on Windows) with `site-packages` beneath it, and, when declared, `node/bin/node` with `node/node_modules` and `pnpm/bin/pnpm.mjs`. A manifest whose platform or architecture differs from the running process is rejected.
 

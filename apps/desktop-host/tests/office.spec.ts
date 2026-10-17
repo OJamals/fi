@@ -11,8 +11,9 @@ import SkillRegistry from '@deepseek-ai/dsh-skill'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import { expect, it } from 'vitest'
 import * as desktopOffice from '../src/office.ts'
+import { archiveMacOSPrimaryRuntime } from '../../desktop/scripts/archive-primary-runtime.mjs'
 
-it('loads Desktop Office CLI paths and removes them on disposal', async () => {
+it.each(process.platform === 'darwin' ? [false, true] : [false])('loads Desktop Office CLI paths and removes them on disposal (archived=%s)', async (archived) => {
   const root = await mkdtemp(join(tmpdir(), 'desktop-office-'))
   const ctx = new Context()
   try {
@@ -20,7 +21,17 @@ it('loads Desktop Office CLI paths and removes them on disposal', async () => {
     await cp(new URL('../../../packages/skill/skill-office/assets/', import.meta.url), assets, { recursive: true })
     const nodeDirectory = join(root, 'runtime', 'primary-runtime', 'dependencies', 'node', 'bin')
     await mkdir(nodeDirectory, { recursive: true })
-    await cp(process.execPath, join(nodeDirectory, process.platform === 'win32' ? 'node.exe' : 'node'))
+    await writeFile(join(nodeDirectory, process.platform === 'win32' ? 'node.exe' : 'node'), 'fixture executable', { mode: 0o755 })
+    if (archived) {
+      const source = join(root, 'runtime', 'primary-runtime')
+      await mkdir(join(source, 'dependencies/python/bin'), { recursive: true })
+      await writeFile(join(source, 'dependencies/python/bin/python3'), 'fixture executable', { mode: 0o755 })
+      await mkdir(join(source, 'dependencies/python/lib/python3.12/site-packages'), { recursive: true })
+      await mkdir(join(source, 'dependencies/node/node_modules'), { recursive: true })
+      await writeFile(join(source, 'runtime.json'), JSON.stringify({ desktopVersion: 'test', platform: process.platform,
+        arch: process.arch, python: '3.12.0', node: '24.0.0', pythonPackages: {} }))
+      await archiveMacOSPrimaryRuntime(source)
+    }
     ctx.baseUrl = pathToFileURL(root).href + '/'
     await ctx.plugin(Loader)
     ctx.loader.builtins.include = Include
@@ -50,7 +61,8 @@ it('loads Desktop Office CLI paths and removes them on disposal', async () => {
     expect((await ctx.skills.list()).map(skill => skill.name)).toEqual(['office-docx', 'office-pptx', 'office-xlsx'])
     expect((await ctx.skills.get('office-pptx'))?.resourceBase).toEqual({ kind: 'directory', path: join(assets, 'office-pptx') })
     expect((await ctx.skills.get('office-pptx'))?.content).toContain('libreofficeKit')
-    expect((await ctx.skills.get('office-pptx'))?.content).toContain(JSON.stringify(nodeDirectory).slice(1, -1))
+    expect((await ctx.skills.get('office-pptx'))?.content).toContain(JSON.stringify(archived
+      ? join(root, 'installed', 'dependencies', 'node', 'bin') : nodeDirectory).slice(1, -1))
     expect(ctx.tools.schemas().map(tool => tool.name)).toEqual(['load_workspace_dependencies'])
     const entry = [...ctx.loader.entries()].find(entry => entry.options.name === 'office')
     expect(entry).toBeDefined()

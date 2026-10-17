@@ -11,7 +11,7 @@ export const DESKTOP_RELEASE_REPOSITORY: {
 export type DesktopAutoUpdateEnvironment = 'test' | 'production'
 
 /** Directory name of one supported Desktop release target. */
-export type DesktopAutoUpdateTarget = 'mac-arm64' | 'mac-x64' | 'win-x64'
+export type DesktopAutoUpdateTarget = 'mac-arm64' | 'mac-x64' | 'win-x64' | 'linux-x64'
 
 /** Generic test-feed publication configuration. */
 export interface DesktopTestAutoUpdateConfig {

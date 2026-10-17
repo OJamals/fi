@@ -305,6 +305,7 @@ describe('ThemeRuntime', () => {
 
   it('context dispose releases the scope subscription', async () => {
     const { ctx, host } = make()
+    await ctx.plugin({ name: 'theme-test-ready', apply() {} })
     expect(host.listenerCount()).toBe(1)
     await ctx.fiber.dispose()
     expect(host.listenerCount()).toBe(0)
@@ -353,6 +354,7 @@ describe('ThemeRuntime', () => {
     it('context dispose releases the media listener', async () => {
       const media = stubMedia(false)
       const { ctx } = make()
+      await ctx.plugin({ name: 'theme-test-ready', apply() {} })
       expect(media.listenerCount()).toBe(1)
       await ctx.fiber.dispose()
       expect(media.listenerCount()).toBe(0)

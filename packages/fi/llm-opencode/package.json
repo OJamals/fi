@@ -1,6 +1,6 @@
 {
   "name": "@fi/llm-opencode",
-  "version": "0.2.0-rc.2",
+  "version": "1.0.0",
   "private": true,
   "description": "OpenCode Console subscription authorization and model transport for fi",
   "type": "module",

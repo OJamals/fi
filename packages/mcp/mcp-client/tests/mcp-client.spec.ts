@@ -10,7 +10,7 @@ import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import type { PostToolDecision } from '@deepseek-ai/dsh-tools'
-import { publicToolName, syncTools, type ToolBridgeOptions } from '@deepseek-ai/dsh-mcp-client/src/tools.ts'
+import { createMcpToolDefinition, publicToolName, syncTools, type ToolBridgeOptions } from '@deepseek-ai/dsh-mcp-client/src/tools.ts'
 import { createTransport } from '@deepseek-ai/dsh-mcp-client/src/transport.ts'
 import type { Config } from '@deepseek-ai/dsh-mcp-client'
 
@@ -70,8 +70,13 @@ const IMAGE_LIMITS: ImageAttachmentLimits = {
 
 /** Attachment fake that records exact decoded batches while using the real batch contract. */
 class RecordingAttachmentStore extends AttachmentStore {
-  readonly imageLimits = IMAGE_LIMITS
+  readonly imageLimits: ImageAttachmentLimits
   readonly saved: SaveImageAttachment[] = []
+
+  constructor(ctx: Context, limits: Partial<ImageAttachmentLimits> = {}) {
+    super(ctx)
+    this.imageLimits = { ...IMAGE_LIMITS, ...limits }
+  }
 
   validateImage(_input: SaveImageAttachment): Promise<void> {
     return Promise.resolve()
@@ -111,9 +116,11 @@ class ImageCatalogAdapter extends LlmAdapter {
   }
 }
 
-async function mountRichRegistry(): Promise<{ ctx: Context; attachments: RecordingAttachmentStore }> {
+async function mountRichRegistry(
+  limits: Partial<ImageAttachmentLimits> = {},
+): Promise<{ ctx: Context; attachments: RecordingAttachmentStore }> {
   const ctx = await mountRegistry()
-  await ctx.plugin(RecordingAttachmentStore)
+  await ctx.plugin(RecordingAttachmentStore, limits)
   await ctx.plugin(LlmRuntime)
   ctx.llm.registerAdapter(['visual'], new ImageCatalogAdapter())
   return { ctx, attachments: ctx.attachments as RecordingAttachmentStore }
@@ -483,6 +490,40 @@ describe('tool execution', () => {
     expect(result.value).toEqual({ content: blocks })
   })
 
+  it('decodes a 4 MiB canonical base64 payload for attachment admission', async () => {
+    // The recording store isolates base64 decoding; the attachment provider owns raster validation.
+    const bytes = Buffer.alloc(4 * 1024 * 1024, 0x41)
+    const rich = await mountRichRegistry({ maxImageBytes: bytes.length, maxMessageImageBytes: bytes.length })
+    try {
+      const blocks = [
+        { type: 'text', text: 'Captured window.' },
+        { type: 'image', mimeType: 'image/png', data: bytes.toString('base64') },
+      ] satisfies JsonValue[]
+      rich.ctx.effect(() => rich.ctx.tools.register(createMcpToolDefinition(rich.ctx, {
+        name: 'large_image', rawName: 'large_image', description: 'Return a generated image payload.',
+        inputSchema: { type: 'object' }, call: async () => ({ content: blocks }),
+      })))
+      const result = await rich.ctx.tools.execute({
+        signal: testToolSignal, callId: ToolCallId('large-image'),
+        name: 'large_image', arguments: {}, agent: agentOn() as never,
+      })
+
+      expect(result.isError).toBe(false)
+      expect(rich.attachments.saved).toHaveLength(1)
+      expect(Buffer.from(rich.attachments.saved[0]!.data).equals(bytes)).toBe(true)
+      expect(result.content).toMatchObject([
+        { type: 'text', text: 'Captured window.' },
+        { type: 'image', attachment: {
+          mediaType: 'image/png', bytes: bytes.length,
+        } },
+      ])
+      if (result.isError) throw new Error('expected a canonical image result')
+      expect(result.value).toEqual({ content: blocks })
+    } finally {
+      await rich.ctx.fiber.dispose()
+    }
+  })
+
   it('rejects a malformed image batch before storing any member', async () => {
     const rich = await mountRichRegistry()
     const blocks = [
@@ -511,12 +552,12 @@ describe('tool execution', () => {
 
   it('rejects unsupported media and base64 aliases as one atomic batch', async () => {
     const rich = await mountRichRegistry()
+    const invalidBase64 = ['AB==', 'AQ']
     const client = createMockClient(
       [{ name: 'img', inputSchema: { type: 'object' } }],
       { content: [
         { type: 'image', mimeType: 'image/tiff', data: 'AQ==' },
-        { type: 'image', mimeType: 'image/png', data: 'AB==' },
-        { type: 'image', mimeType: 'image/png', data: 'AQ' },
+        ...invalidBase64.map(data => ({ type: 'image', mimeType: 'image/png', data })),
       ] },
     )
 
@@ -530,11 +571,30 @@ describe('tool execution', () => {
     })
 
     expect(rich.attachments.saved).toEqual([])
-    expect(result.content).toHaveLength(3)
+    expect(result.content).toHaveLength(1 + invalidBase64.length)
     expect(textAt(result.content, 0)).toContain('not PNG, JPEG, WebP, or GIF')
-    expect(textAt(result.content, 1)).toContain('not canonical base64')
-    expect(textAt(result.content, 2)).toContain('not canonical base64')
+    for (let index = 0; index < invalidBase64.length; index++) {
+      expect(textAt(result.content, index + 1)).toContain('not canonical base64')
+    }
   })
+
+  it.each(['AQ=', 'AQ===', 'AQ==AA==', 'AQ==\n', 'A Q==', '_w==', '-w==', 'A?Q=='])(
+    'rejects malformed base64 %j before storing an image', async (data) => {
+      const rich = await mountRichRegistry()
+      const client = createMockClient(
+        [{ name: 'img', inputSchema: { type: 'object' } }],
+        { content: [{ type: 'image', mimeType: 'image/png', data }] },
+      )
+      await syncTools(client as never, rich.ctx, defaultOpts, new Map())
+      const result = await rich.ctx.tools.execute({
+        signal: testToolSignal, callId: ToolCallId('malformed-image'),
+        name: 'mcp__srv__img', arguments: {}, agent: agentOn() as never,
+      })
+      expect(rich.attachments.saved).toEqual([])
+      // The installed MCP schema rejects some encodings before canonical decoding.
+      expect(textAt(result.content)).toMatch(/Invalid Base64 string|not canonical base64/)
+    },
+  )
 
   it('does not admit images for a route without declared image input', async () => {
     const rich = await mountRichRegistry()

@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-tool-workspace-dependencies",
   "description": "The load_workspace_dependencies tool: absolute paths into a bundled Python, Node.js, and pnpm payload",
-  "version": "0.2.0-rc.2",
+  "version": "1.0.0",
   "publishConfig": {
     "access": "public"
   },
@@ -39,6 +39,8 @@
     "@deepseek-ai/dsh-system-prompt": "workspace:*"
   },
   "dependencies": {
-    "@deepseek-ai/schemastery": "workspace:~"
+    "@deepseek-ai/schemastery": "workspace:~",
+    "@deepseek-ai/dsh-atomic-write": "workspace:*",
+    "tar": "^7.5.0"
   }
 }

@@ -1,7 +1,7 @@
 {
   "name": "@fi/runtime-bundle",
   "description": "FI provider, model, search, and feedback defaults shared by supported applications",
-  "version": "0.2.0-rc.2",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "main": "lib/index.js",

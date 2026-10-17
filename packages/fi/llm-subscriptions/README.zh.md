@@ -27,6 +27,8 @@ Copilot 凭据保留在 `llm-pi-ai/github-copilot`。其他凭据分别存储于
 
 `requestTimeoutMs`、`streamIdleTimeoutMs`、`authTimeoutMs`、`pollIntervalMs` 和 `refreshMarginMs` 控制截止时间与刷新。目录未提供容量时，`defaultContextWindow` 和 `defaultMaxTokens` 提供保守默认值。准备后的调用固定使用同一账户及配置版本。认证端点拒绝重定向。移除登录只删除 FI 本地凭据；提供方撤销需单独完成。
 
+Kiro 发现会在同一次 `requestTimeoutMs` 截止时间内遍历所有 `nextToken` 页面，保持账户和 profile 不变，并去除重复模型 ID。无效页面或重复令牌会使发现失败，而不会返回不完整目录。
+
 <a id="protocol-sources"></a>
 ## 协议来源
 
@@ -43,7 +45,7 @@ Copilot 凭据保留在 `llm-pi-ai/github-copilot`。其他凭据分别存储于
 
 #### Token 影响
 
-Cursor 在启动原生运行时序列化已记录的历史，随后在同一流中以原生 MCP 结果发送工具输出。它使用本地 BPE 预算限制文本、推理和完整工具调用；它不是提供方的计费 tokenizer。其他传输转发输出限制。提供方返回用量时予以保留。
+Cursor 在启动原生运行时序列化已记录的历史，随后在同一流中以原生 MCP 结果发送工具输出。它使用本地 BPE 预算限制文本、推理和完整工具调用；它不是提供方的计费 tokenizer。离线 `o200k_base` tokenizer 与其 MIT 许可证一起打包为私有延迟加载模块；无限额调用和其他提供方不会加载它。其他传输转发输出限制。提供方返回用量时予以保留。
 
 #### KV Cache 影响
 

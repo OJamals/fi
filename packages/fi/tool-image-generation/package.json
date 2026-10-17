@@ -1,7 +1,7 @@
 {
   "name": "@fi/tool-image-generation",
   "description": "Opt-in Codex, Grok, and Antigravity image generation and editing through stored subscription OAuth",
-  "version": "0.2.0-rc.2",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "main": "lib/index.js",

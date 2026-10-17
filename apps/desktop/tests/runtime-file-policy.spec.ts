@@ -13,6 +13,7 @@ it('omits development artifacts while preserving executable modules, assets and 
   const source = join(root, 'source')
   const output = join(root, 'output')
   const removed = [
+    '@deepseek-ai/dsh/lib/bin.js', '@deepseek-ai/dsh-desktop-host/lib/cli.js',
     'example/index.d.ts', 'example/index.d.mts', 'example/index.d.cts',
     'example/index.js.map', 'example/index.mjs.map', 'example/index.cjs.map',
     'example/style.css.map', 'example/index.d.ts.map', 'example/index.d.mts.map',
@@ -27,11 +28,15 @@ it('omits development artifacts while preserving executable modules, assets and 
     'node-pty/prebuilds/win32-x64/conpty.pdb',
     '@koromix/koffi-win32-x64/win32_x64/koffi.lib',
     '@mixmark-io/domino/test/entities.html',
+    '@mixmark-io/domino/.yarn/plugins/plugin.cjs', 'zod/src/v4/classic/tests/schema.test.ts',
+    'gaxios/build/cjs/test/request.js', 'gaxios/build/esm/test/request.js', 'fast-uri/test/uri.js',
     '@deepseek-ai/libreoffice-kit-wasm/assets/soffice.data',
     '@deepseek-ai/libreoffice-kit-darwin-arm64/bin/libreoffice-kit',
     '.modules.yaml', '.pnpm-workspace-state-v1.json', '.bin/tool', '.pnpm/cache',
   ]
   const retained = [
+    '@deepseek-ai/dsh/lib/profile-boot.js', '@deepseek-ai/dsh/lib/shared-chunk.js',
+    '@deepseek-ai/dsh-desktop-host/lib/index.js',
     'example/index.js', 'example/index.cjs', 'example/index.mjs', 'example/worker.js',
     'example/source.ts', 'example/src/entry.ts', 'example/test/runtime-fixture.json',
     'example/locale.json', 'example/data.map', 'example/module.wasm',
@@ -45,6 +50,8 @@ it('omits development artifacts while preserving executable modules, assets and 
     'node-pty/third_party/conpty/win10-x64/OpenConsole.exe',
     '@koromix/koffi-win32-x64/win32_x64/koffi.node',
     '@mixmark-io/domino/lib/HTMLParser.js', '@mixmark-io/domino/lib/EntityParser.js',
+    'zod/src/index.ts', 'zod/src/v4/core/api.ts', 'gaxios/build/esm/src/index.js',
+    'gaxios/build/cjs/src/index.js', 'fast-uri/index.js',
     '@img/sharp-win32-x64/lib/libvips-42.dll',
     '@deepseek-ai/libreoffice-kit-win32-x64/bin/libreoffice-kit.exe',
     '@deepseek-ai/libreoffice-kit-win32-x64/sources/core-source.json',
@@ -83,6 +90,20 @@ it('retains native prebuilds for the selected macOS architecture', () => {
   expect(desktopRuntimeFileExclusion('node-pty/prebuilds/darwin-arm64/pty.node', mac, 'darwin-arm64')).toBeUndefined()
   expect(desktopRuntimeFileExclusion('node-pty/prebuilds/darwin-x64/pty.node', mac, 'darwin-arm64')).toBeDefined()
   expect(desktopRuntimeFileExclusion('node-pty/prebuilds/win32-x64/conpty.node', mac, 'darwin-arm64')).toBeDefined()
+})
+
+it.each(['darwin', 'linux'] as const)('omits Windows console binaries from %s while retaining Windows payloads', (platform) => {
+  for (const entry of [
+    'third_party/conpty',
+    'third_party/conpty/1.25.260303002/win10-arm64/OpenConsole.exe',
+    'third_party/conpty/1.25.260303002/win10-x64/conpty.dll',
+  ]) {
+    const path = `outer/node_modules/node-pty/${entry}`
+    expect(desktopRuntimeFileExclusion(path, { platform, arch: 'arm64' }, `${platform}-arm64`)).toBeDefined()
+    expect(desktopRuntimeFileExclusion(path, windows, 'win32-x64')).toBeUndefined()
+  }
+  expect(desktopRuntimeFileExclusion('node-pty/LICENSE', { platform, arch: 'arm64' }, `${platform}-arm64`)).toBeUndefined()
+  expect(desktopRuntimeFileExclusion('node-pty/third_party/other/runtime', { platform, arch: 'arm64' }, `${platform}-arm64`)).toBeUndefined()
 })
 
 it.each([

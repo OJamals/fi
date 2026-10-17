@@ -1,6 +1,6 @@
 {
   "name": "@fi/llm-antigravity",
-  "version": "0.2.0-rc.2",
+  "version": "1.0.0",
   "private": true,
   "description": "Antigravity OAuth adapter and Cloud Code transport for fi",
   "type": "module",

@@ -24,11 +24,7 @@ fi 没有原生 DeepSeek 账号登录，并在自身的 bundle 层（`packages/f
 
 ## 终端命令
 
-应用菜单中的**管理 dsh 命令…**位于**检查更新…**下方，显示当前命令，并提供安装、修复和移除操作。命令复用 Desktop 已安装的运行时和普通 [dsh CLI](../cli/README.zh.md)，Desktop 应用关闭后也可以使用。安装后打开新终端，运行 `dsh --version`。
-
-macOS 安装会创建 `/usr/local/bin/dsh`；目录权限需要时，系统会请求管理员认证，不会修改 shell 启动文件。Windows 管理对话框将命令注册到当前用户的 PATH。切换已有命令前会要求确认；修复当前已选中的 Desktop 命令不会重复要求切换确认。macOS 链接会保留并恢复被替换的启动器；Windows 会保留其他 PATH 条目，包括注册前就已存在的条目。若其他命令的 PATH 优先级更高，对话框会显示其位置。移动应用后，macOS 使用“修复”，Windows 从新位置使用“安装”。“移除”不会改动无关安装。
-
-命令注册是安装 Desktop 后的可选操作。卸载 Desktop 前，请通过**管理 dsh 命令… → 移除**删除其 CLI 注册；应用卸载程序不会移除该注册。更新或卸载 Desktop 前请结束 CLI 命令。CLI 运行时版本随已安装的 Desktop 版本变化。Desktop 插件命令与运行时限制见[内置命令运行时](#bundled-command-runtime)。
+fi Desktop 不再提供终端命令或命令管理菜单。终端工作流使用独立 [CLI](../cli/README.zh.md)，Desktop 插件通过应用中的插件页面管理。升级旧安装前，请使用**管理 dsh 命令… → 移除**取消注册命令。Desktop 不会删除 CLI 或 Desktop 用户数据。
 
 ## 关闭窗口与退出
 
@@ -87,17 +83,17 @@ Node 准备内置解释器和 Python 库，无需系统 Python 或 pip。[下载
 
 [FI 数据 home 决策](../../.agents/notes/implemented/architecture/2026-09-15-fi-desktop-data-home.zh.md) 规定默认 Harness home 与显式 `DSH_HOME` 覆盖。
 
-## 内置命令运行时
-
-安装后的 `resources/runtime/cli/bin/dsh` shell 脚本（Windows 为 `dsh.cmd`）使用 Desktop 的 Electron 可执行文件和内置 pnpm 运行普通 CLI 分派入口。Desktop 关闭时也可使用，并保留 [Electron 运行时限制](../../.agents/notes/implemented/architecture/2026-09-11-desktop-electron-node-runtime.zh.md)。普通 profile、配置和插件命令与 npm dsh 使用相同实现；该命令不会打开 Desktop。
-
-管理 Desktop 插件前，先启动一次 Desktop 以初始化其 profile，再完全退出应用。为安装后的命令设置 `DSH_HOME`，使其与 Desktop 启动时解析的 Harness home 相同，然后运行 `dsh plugin --profile desktop add <package>`、`list` 或 `remove <package>`。默认 home 为 `<Electron userData>/harness`；不设置覆盖时，终端命令使用 CLI 的普通 home。重新打开 Desktop 后使用更改。包操作保留共享的 profile 写锁和兼容性检查。内置命令拒绝未初始化的 Desktop profile，不会在其位置创建普通 CLI profile。
-
-更新或卸载 Desktop 前请结束 CLI 命令；安装程序不与运行中的命令协调。CLI 不提供 Office 创作 skill 的资源路径。Desktop 现有 Office 设置与 Web 附件转换保留各自的资源配置。`prepare:runtime` 复制启动脚本，无需编译原生 CLI 启动器。
-
 ## 安装归属
 
-默认情况下，Electron 使用 `<Electron userData>/harness` 作为 Harness home。在 macOS 上，该路径为 `~/Library/Application Support/fi/harness`；其他平台使用 Electron 的 `userData` 目录。CLI dsh 继续使用自己的默认 home。Desktop 的新 home 中没有 CLI 的会话历史、设置、凭据、插件或存储；两个 home 都不会被移动或删除。启动 FI 前设置非空 `DSH_HOME` 可选择已有 home。Electron 与 Host 接收同一个解析后的 home，Electron 拥有 `$DSH_HOME/profiles/desktop`。其 `dependencies` 包含 pnpm 安装的包；`dsh.profile.bundles` 依次以 `@deepseek-ai/dsh-base`、`@deepseek-ai/dsh-web-app`、`@fi/runtime-bundle` 和 `@fi/authorization-bundle` 开头，后接已启用插件。签名应用从 `resources/app.asar/dsh` 提供 dsh、私有 Desktop Host、私有 FI bundle 及其生产依赖。打包应用选择 runtime profile 解析，不创建包链接；开发 profile 使用文件系统链接。宿主与插件在同一个 Electron Node 模式进程中执行；Desktop 不启用 `--preserve-symlinks`。npm 安装的 CLI 不能启动或修改此 profile。设置 `DSH_HOME` 指向 Desktop home 后，Desktop 内置命令可在应用退出后管理其插件。
+Desktop 包操作与创作工具共用主运行时的 pnpm 分发，不再打包第二份 pnpm。离线安装保留 Python 可执行文件的相对链接别名。macOS 准备阶段在签名前仅保留通用原生二进制中的目标架构；每个原生二进制都必须包含该架构。所有解释器、Python 库、Office 和语音运行时仍随应用提供。
+
+macOS 主运行时准备阶段在签名前使用 `strip -S` 移除原生调试信息，并将原始二进制保留在目标构建目录的 `debug-originals/primary-runtime` 下。运行时导出和本地符号保持不变。Desktop 打包时排除 Domino 构建工具及 Zod、gaxios 和 fast-uri 测试夹具，保留其运行时源码导出和许可证。
+
+macOS 包将已签名的主运行时保存为 `runtime/primary-runtime/payload.tar.xz`，其 SHA-256 记录在 `runtime.json` 旁的 `archive.json` 中。Desktop 在插件管理需要 pnpm 之前，将完整运行时准备到 Harness 主目录的 `dsh-runtimes/dsh-primary-runtime`；工作区工具复用该安装。准备过程无需网络访问，在解压前验证归档条目，并在替换旧运行时前暂存更新。应用包保持只读。非 Windows 包排除 node-pty 仅供 Windows 使用的 ConPTY 二进制文件；Windows 包保留这些文件。
+
+签名完成后，macOS 打包流程使用透明文件系统压缩复制应用，并在替换构建产物前验证副本签名。本地安装或替换时，先退出 fi，再运行 `node apps/desktop/scripts/install-macos-application.mjs source.app /Applications/fi.app`；源应用签名无效时保留原有应用。压缩只改变实际磁盘占用，不改变逻辑文件大小，且目标文件系统必须支持压缩。归档解压和自动更新可能展开文件；重新运行此安装器可恢复压缩。应用启动时不会改写自身安装目录。
+
+默认情况下，Electron 使用 `<Electron userData>/harness` 作为 Harness home。在 macOS 上，该路径为 `~/Library/Application Support/fi/harness`；其他平台使用 Electron 的 `userData` 目录。CLI dsh 继续使用自己的默认 home。Desktop 的新 home 中没有 CLI 的会话历史、设置、凭据、插件或存储；两个 home 都不会被移动或删除。启动 FI 前设置非空 `DSH_HOME` 可选择已有 home。Electron 与 Host 接收同一个解析后的 home，Electron 拥有 `$DSH_HOME/profiles/desktop`。其 `dependencies` 包含 pnpm 安装的包；`dsh.profile.bundles` 依次以 `@deepseek-ai/dsh-base`、`@deepseek-ai/dsh-web-app`、`@fi/runtime-bundle` 和 `@fi/authorization-bundle` 开头，后接已启用插件。签名应用从 `resources/app.asar/dsh` 提供 dsh、私有 Desktop Host、私有 FI bundle 及其生产依赖。打包应用选择 runtime profile 解析，不创建包链接；开发 profile 使用文件系统链接。宿主与插件在同一个 Electron Node 模式进程中执行；Desktop 不启用 `--preserve-symlinks`。npm 安装的 CLI 不能启动或修改此 profile。
 
 应用 preload 只向 `dsh-app://app` 文档暴露启动就绪、致命启动失败上报、原生目录选择、用于 composer 路径引用的 `__DSH_HOST_PATHS__` 桥接和租约范围内的 Browser 桥接。同一个 preload 通过 `dshDesktop.deviceInfo()` 转发主进程采集的机器描述，按 `name=value` 字段以 `; ` 分隔：`platform`、`os`、`app_arch`（应用二进制实际运行的架构，模拟运行时与硬件架构不同）、`cpu` 和 `memory_gib`（物理内存总量，GiB，保留一位小数）。取值不可用时省略对应字段。该描述不包含主机名、用户名或序列号。产品页面还获得 Desktop 标记、更新展示数据和打开原生确认的操作，不能选择安装产物或授权安装。插件管理使用 Web 应用经过认证的 HTTP API；Electron 在 `dsh-app://shell/` 本地提供更新弹窗文档和资源，不依赖 Host 就绪。Electron 不提供插件管理 IPC 或独立管理页面。任何渲染进程都不会获得文件系统访问、原始 Electron IPC、shell 或任意 pnpm 参数。
 
@@ -222,7 +218,7 @@ pnpm run package:desktop:mac:x64
 pnpm run package:desktop:win:x64
 ```
 
-macOS arm64 命令要求 Apple Silicon。macOS x64 命令可以在 Intel macOS 或带 Rosetta 的 Apple Silicon 上运行。Windows x64 命令要求 Windows x64。Linux 不是受支持的 Desktop 发布目标。
+macOS arm64 命令要求 Apple Silicon。macOS x64 命令可以在 Intel macOS 或带 Rosetta 的 Apple Silicon 上运行。Windows x64 命令要求 Windows x64。Linux x64 打包要求 Linux x64 主机，先将 `.env.linux.example` 复制为 `.env.linux`，再运行 `pnpm run package:desktop:linux:x64`。
 
 每个目标都在 `apps/desktop/.desktop-build/targets/<target>/` 下持有自己的打包输入、已准备运行时、包集合、dsh 依赖树、pnpm 准备状态、未打包应用、更新元数据和最终产物。Electron 归档缓存继续由 `.desktop-build/downloads` 共享，因为每个归档文件名都包含版本、平台和架构，并且在解包前经过验证。目标构建绝不读取其他目标的可变准备状态。
 
@@ -230,9 +226,9 @@ macOS arm64 命令要求 Apple Silicon。macOS x64 命令可以在 Intel macOS �
 
 ### 运行时文件筛选
 
-Desktop 在本地打包工作区包，并通过目标捆绑的 Node 和 pnpm 安装外部依赖。[Desktop 文件策略](scripts/runtime-file-policy.ts)随后在签名和完整性封装前过滤不可变的 `resources/app.asar/dsh/node_modules` 副本。它排除 TypeScript 声明、已识别的 JavaScript/CSS/TypeScript source map、TypeScript 构建缓存、Domino 测试目录、选定的原生编译器输出和其他平台的 node-pty 预构建文件。它保留运行时 JavaScript、原生模块及其 DLL/EXE 辅助文件、WASM、未知资源、许可证和 notices。依赖清单在完整性封装前经过 electron-builder 的元数据清理，确保归档保持已记录的字节。该策略不修改 npm tarball、捆绑的包管理器或用户安装的插件文件。
+Desktop 在本地打包工作区包，并通过目标捆绑的 Node 和 pnpm 安装外部依赖。[Desktop 文件策略](scripts/runtime-file-policy.ts)随后在签名和完整性封装前过滤不可变的 `resources/app.asar/dsh/node_modules` 副本。它排除 TypeScript 声明、已识别的 JavaScript/CSS/TypeScript source map、TypeScript 构建缓存、Domino 测试目录、选定的原生编译器输出和其他平台的 node-pty 预构建文件。Electron-builder 还会从单独收集的 `resources/app.asar/node_modules` 依赖中排除声明、已识别的 source map 和 TypeScript 构建缓存。两个副本都保留运行时 JavaScript、原生模块及其 DLL/EXE 辅助文件、WASM、未知资源、许可证和 notices。依赖清单在完整性封装前经过 electron-builder 的元数据清理，确保归档保持已记录的字节。该策略不修改 npm tarball、捆绑的包管理器或用户安装的插件文件。
 
-[Office 转换提供方](../../packages/document/office-to-pdf/README.zh.md)携带目标已声明的原生引擎；kit 未声明匹配原生目标时携带 WASM 引擎。准备阶段在打包前拒绝缺少目标引擎的情况。完整 Office 依赖（CLI、JavaScript 库和选定引擎的可执行文件、数据、许可证及 notices）解包到 `resources/app.asar.unpacked/dsh/node_modules/` 下。Desktop Host 将引擎清单解析到这些物理目录，并向加载的技能提供独立 Node 和解包后 CLI 的绝对路径。Node 位于 `resources/runtime/primary-runtime/dependencies/node/bin/`；CLI 位于解包后的 `@deepseek-ai/libreoffice-kit/lib/cli.js`。macOS 上的原生辅助程序获得 [LibreOffice UNO 桥](https://github.com/LibreOffice/core/blob/master/sysui/desktop/macosx/hardened_runtime.xcent.in)所需的 JIT entitlement。
+[Office 转换提供方](../../packages/document/office-to-pdf/README.zh.md)携带目标已声明的原生引擎；kit 未声明匹配原生目标时携带 WASM 引擎。准备阶段在打包前拒绝缺少目标引擎的情况。完整 Office 依赖（CLI、JavaScript 库和选定引擎的可执行文件、数据、许可证及 notices）解包到 `resources/app.asar.unpacked/dsh/node_modules/` 下。Desktop Host 将引擎清单解析到这些物理目录，并向加载的技能提供独立 Node 和解包后 CLI 的绝对路径。归档载体的 Node 来自解压后的主运行时，其他载体使用包内目录；CLI 位于解包后的 `@deepseek-ai/libreoffice-kit/lib/cli.js`。macOS 上的原生辅助程序获得 [LibreOffice UNO 桥](https://github.com/LibreOffice/core/blob/master/sysui/desktop/macosx/hardened_runtime.xcent.in)所需的 JIT entitlement。
 
 打包应用运行编译后的 JavaScript 和预生成的 Typert 元数据，不编译 TypeScript 插件。源码级调试导航和编辑器声明仍可从开发包中获取。[复制规则测试](tests/runtime-file-policy.spec.ts)覆盖排除项和保留资源；[产物 smoke](tests/fixtures/runtime-payload-smoke.mjs) 在 Host smoke 和最终清单验证之前，使用 Electron RunAsNode 执行。产物 smoke 解析搜索工具使用的 ripgrep 可执行文件，并验证文本搜索和文件枚举。Windows 签名构建在依赖签名后运行这些检查；其他构建在 `prepare:dsh` 中运行。[Host smoke](scripts/smoke-runtime.ts) 使用捆绑的 Python 创建 DOCX、XLSX 和 PPTX 输入，通过真实 Office 提供方逐一转换并检查 PDF 输出。每个组装后的应用（包括目录包和 Windows 未签名构建）都会针对 ASAR 重复产物和 Host 检查。归档完整性检查将归档内完整描述符与准备结果比对，并核对归档和解包目录中的文件内容与清单、归档内文件记录的执行标志，以及解包文件的物理权限。转换失败会在写入发布记录前终止打包；macOS DMG/ZIP 构建在公证前执行这些检查。
 
@@ -314,7 +310,7 @@ Mac 打包从 `.env.macos` 读取三个调优字段：
 
 Apple 工具使用 macOS 当前活动网络服务的 HTTP/HTTPS 代理。配置公证代理后，打包会检查代理可达性、保存该服务的设置，在两条产物任务期间启用代理，并在两条任务均结束后恢复原设置。对于原本关闭、服务器为空且端口为零的代理，恢复时仅关闭代理；临时服务器和端口可能保留，但不生效。仅生成目录的打包会在签名目录构建完成后的 App 公证期间启用代理。这会临时影响其他应用，并要求修改系统代理的权限；必须先禁用 PAC、自动发现、SOCKS 及需要认证的代理配置。打包和恢复在读取恢复记录或修改代理前获取同一个用户级 POSIX 文件锁；进程退出会释放锁的持有权，锁文件保留。该锁在首次使用时才加载 `@deepseek-ai/node-addon-system/flock`，而不是在脚本启动时加载，因此 `check:package` 和打包入口在未构建 `native/system` 的 checkout 上也能加载；加锁时若宿主 addon 二进制或入口的 JavaScript 缺失，加载器会先运行 `pnpm run build:native-system` 和 `pnpm --dir native/system run build:ts` 再加锁，因此恢复命令在这样的 checkout 上同样可用。这会阻止不同 checkout 的代理事务重叠；其他用户及网络设置工具不得同时修改这些设置。SIGINT/SIGTERM 会等待活动任务结束后恢复。强制终止或恢复失败后，先停止残留公证进程，再运行 `pnpm --dir apps/desktop run restore:mac-proxy`；保存的记录会保留到恢复成功。配置检查仅验证 URL 语法，不修改系统设置或连接代理。
 
-### 未签名 Windows 测试安装包
+### 未签名 Windows 安装包
 
 在 Windows x64 上，使用完整的未签名打包命令进行本地安装测试：
 
@@ -410,6 +406,10 @@ macOS 打包在组装 App 时、代码签名前写入 `Contents/Resources/app-up
 未压缩产物包含 Electron、物化后的 dsh 生产依赖树、pnpm，以及壳应用。安装包大小与文件系统占用不同；发布验收需要测量两者，以及 profile 插件存储和首次启动耗时。此布局用更多应用内文件换取消除用户机器上的核心包安装过程。
 
 ## 更新
+
+生产 GitHub release 在同时省略 `DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN` 和 `DSH_DESKTOP_MANDATORY_UPDATE_CONFIG` 时不使用独立强制更新服务。已配置的服务仍要求有效设置；测试部署仍要求策略配置。
+
+显式未签名的 Windows 生产打包保留 `-unsigned.exe` 后缀，并嵌入 GitHub updater；发布者签名验证关闭，SHA-512 校验仍启用。未签名测试构建不包含更新来源。Linux 提供 AppImage 和 `latest-linux.yml`。手动[发布构建工作流](../../.github/workflows/fi-desktop-build.yml)在原生主机构建 Windows 和 Linux，并保存制品，供显式发布。
 
 Windows 下载完成后的更新确认说明应用会在安装期间关闭、完成后自动打开，并提示期间不要重复启动。安装器携带 `--updated` 重启应用时，壳会在启动时将主窗口前置并聚焦一次，不启用永久置顶。普通启动和其他平台不执行此前置步骤。
 

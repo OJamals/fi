@@ -6,11 +6,11 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } f
 import { cp } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import extractZip from 'extract-zip'
 import { x as extractTar } from 'tar'
-import { parsePrimaryRuntime, workspaceDependencyPaths, type PrimaryRuntimeManifest } from '../../packages/skill/tool-workspace-dependencies/src/index.ts'
+import { copyPrimaryRuntime, parsePrimaryRuntime, workspaceDependencyPaths, type PrimaryRuntimeManifest } from '../../packages/skill/tool-workspace-dependencies/src/index.ts'
 import lock from './lock.json' with { type: 'json' }
 
 /**
@@ -54,7 +54,7 @@ export function primaryRuntimePayloadDigest(
   // Identity preserves key order within the selected target, wheel records and distribution map, plus wheel-entry order.
   // Bump format when extraction or assembly changes payload bytes without changing locked inputs.
   return createHash('sha256').update(JSON.stringify({
-    format: 4, target, pythonVersion, pythonRelease, nodeVersion: pnpmVersion === undefined ? undefined : nodeVersion,
+    format: 5, target, pythonVersion, pythonRelease, nodeVersion: pnpmVersion === undefined ? undefined : nodeVersion,
     artifact: runtimeLock.targets[target], wheels, pythonPackages, pnpm: pnpmVersion,
   })).digest('hex')
 }
@@ -90,6 +90,25 @@ export async function prepareOfficeSkillAssets(source: string, destination: stri
 
 /** A locked interpreter and wheel target. */
 export type PrimaryRuntimeTarget = keyof typeof lock.targets
+
+/**
+ * Copy pnpm with the optional reflink binding for the payload target.
+ * @param source - Installed pnpm distribution directory.
+ * @param destination - Bundled pnpm directory.
+ * @param target - Locked interpreter target, independent of the build host.
+ * @returns Resolves after copying the loader, package manager and matching native binding.
+ */
+export async function preparePrimaryRuntimePnpm(source: string, destination: string, target: PrimaryRuntimeTarget): Promise<void> {
+  const binding = target.startsWith('mac-') ? `darwin-${target.slice(4)}`
+    : target === 'win-x64' ? 'win32-x64-msvc' : `${target}-gnu`
+  await cp(source, destination, {
+    recursive: true, dereference: true,
+    filter: (path) => {
+      const match = /^dist\/node_modules\/@reflink\/reflink-([^/]+)(?:\/|$)/u.exec(relative(source, path).replaceAll('\\', '/'))
+      return match === null || match[1] === binding
+    },
+  })
+}
 
 /** Build-only inputs shared by Desktop and SDK carriers. */
 export interface PreparePrimaryRuntimeOptions {
@@ -139,7 +158,7 @@ export async function preparePrimaryRuntime(options: PreparePrimaryRuntimeOption
       const require = createRequire(import.meta.url)
       const pnpmManifest = require.resolve('pnpm')
       pnpmVersion = (JSON.parse(readFileSync(pnpmManifest, 'utf8')) as { version: string }).version
-      await cp(dirname(pnpmManifest), join(dependencies, 'pnpm'), { recursive: true, dereference: true })
+      await preparePrimaryRuntimePnpm(dirname(pnpmManifest), join(dependencies, 'pnpm'), target)
     }
     await extractTar({ file: await pythonArchive(target, paths.downloads), cwd: dependencies })
     const manifest: PrimaryRuntimeManifest = {
@@ -158,7 +177,7 @@ export async function preparePrimaryRuntime(options: PreparePrimaryRuntimeOption
     writeFileSync(join(output, 'runtime.json'), `${JSON.stringify(manifest, undefined, 2)}\n`)
     const destination = join(paths.runtime, 'primary-runtime')
     rmSync(destination, { recursive: true, force: true })
-    await cp(output, destination, { recursive: true, dereference: true })
+    await copyPrimaryRuntime(output, destination)
   } finally {
     rmSync(staging, { recursive: true, force: true })
   }

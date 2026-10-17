@@ -303,13 +303,29 @@ it('keeps model discovery available without a project grant', async () => {
   expect(fetcher).not.toHaveBeenCalled()
 })
 
-it.each([null, {}, { models: [] }, { models: { unknown: {} }, defaultAgentModelId: 'unknown', agentModelSorts: [null, {}, { groups: [null, {}, { modelIds: ['missing', 42] }] }] }])('falls back or filters malformed catalog %j', async (body) => {
+it.each([null, {}, { models: [] }, { models: { unknown: {} }, agentModelSorts: [null, {}, { groups: [null, {}, { modelIds: ['missing', 42] }] }] }])('falls back or filters malformed catalog %j', async (body) => {
   vi.spyOn(console, 'error').mockImplementation(() => {})
   vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue(Response.json(body)))
   const models = await listAntigravityModels(account)
   expect(models.length).toBeGreaterThan(0)
   expect(models.map(model => model.id)).not.toContain('unknown')
   expect(models.map(model => model.id)).not.toContain('missing')
+})
+
+it('exposes newly advertised agent models without exposing unlisted internal catalog keys', async () => {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue(Response.json({
+    models: { 'claude-sonnet-5-5-high': {}, 'gemini-3.8-flash-high': {}, internal: {}, 'bad id': {}, disabled: { disabled: true } },
+    defaultAgentModelId: 'claude-sonnet-5-5-high',
+    agentModelSorts: [{ groups: [{ modelIds: ['gemini-3.8-flash-high', 'claude-sonnet-5-5-high', 'missing', 'bad id', 'disabled'] }] }],
+    imageGenerationModelIds: ['disabled'],
+  })))
+  const models = (await listAntigravityModels(account)).map(model => model.id)
+  expect(models.filter(id => /5-5|3\.8|internal|missing|bad id|disabled/.test(id))).toMatchInlineSnapshot(`
+    [
+      "claude-sonnet-5-5-high",
+      "gemini-3.8-flash-high",
+    ]
+  `)
 })
 
 it.each([401, 403, 500])('handles catalog HTTP %s without exposing upstream content', async (status) => {

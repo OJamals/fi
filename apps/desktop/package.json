@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-desktop",
   "description": "Electron desktop shell for a bundled dsh runtime and external plugins",
-  "version": "0.2.0-rc.2",
+  "version": "1.0.0",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -31,6 +31,7 @@
     "package:mac:arm64:dir": "tsx scripts/package-target.ts mac-arm64 --dir",
     "package:mac:x64": "tsx scripts/package-target.ts mac-x64",
     "package:mac:x64:dir": "tsx scripts/package-target.ts mac-x64 --dir",
+    "package:linux:x64": "tsx scripts/package-target.ts linux-x64",
     "package:win:x64": "tsx scripts/package-target.ts win-x64",
     "package:win:x64:unsigned": "tsx scripts/package-target.ts win-x64 --unsigned",
     "package:win:x64:dir": "tsx scripts/package-target.ts win-x64 --dir",
@@ -49,6 +50,7 @@
     "@deepseek-ai/cordis": "workspace:~"
   },
   "devDependencies": {
+    "@deepseek-ai/dsh-tool-workspace-dependencies": "workspace:*",
     "@deepseek-ai/dsh-app-boot": "workspace:*",
     "@deepseek-ai/dsh-client-ui-settings-general": "workspace:*",
     "@deepseek-ai/dsh-client-ui-sidebar-browser": "workspace:*",

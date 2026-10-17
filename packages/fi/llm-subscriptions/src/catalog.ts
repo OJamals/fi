@@ -36,16 +36,27 @@ export async function catalog(
   if (grant.provider === 'kiro') {
     const query = new URLSearchParams({ origin: 'AI_EDITOR' })
     if (grant.subscriptionAuth?.profileArn) query.set('profileArn', grant.subscriptionAuth.profileArn)
-    const data = z
-      .object({ models: z.array(z.object({ modelId: z.string().min(1).regex(/^\S+$/) })) })
-      .parse(
+    const deadline = AbortSignal.any([AbortSignal.timeout(config.requestTimeoutMs), ...signal ? [signal] : []])
+    const ids = new Set<string>()
+    const cursors = new Set<string>()
+    for (;;) {
+      deadline.throwIfAborted()
+      const data = z.object({
+        models: z.array(z.object({ modelId: z.string().min(1).regex(/^\S+$/) })),
+        nextToken: z.string().nullish(),
+      }).parse(
         await json(
           `https://q.${kiroRegion(grant.subscriptionAuth)}.amazonaws.com/ListAvailableModels?${query}`,
           config,
-          { headers: kiroHeaders(grant), signal: signal ?? null },
+          { headers: kiroHeaders(grant), signal: deadline },
         ),
       )
-    return [...new Set(data.models.map(model => model.modelId))]
+      for (const model of data.models) ids.add(model.modelId)
+      if (!data.nextToken) return [...ids]
+      if (cursors.has(data.nextToken)) throw new Error('Kiro model catalog repeated a pagination token')
+      cursors.add(data.nextToken)
+      query.set('nextToken', data.nextToken)
+    }
   }
   if (grant.provider === 'cline') {
     const row = z.object({ id: z.string() })

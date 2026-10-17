@@ -28,6 +28,8 @@ Antigravity OAuth 适配器与 Cloud Code 传输，为 fi 提供 Antigravity 登
 <a id="what-it-does"></a>
 ## 功能
 
+实时发现包含账户默认模型或代理模型分组中列出、存在于目录且已启用的所有代理模型，包括新发布的 ID。已有请求别名继续受支持；禁用模型与未列出的内部目录键仍然隐藏。
+
 - 在 `ctx.authorization` 上注册 `fi-antigravity/antigravity` 流程
 - 运行 Google PKCE OAuth 流程（浏览器 → 回环回调 → 令牌交换 → 项目发现）
 - 将授权存储在 fi 的凭据存储中，键为 `fi-antigravity/antigravity`

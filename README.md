@@ -6,7 +6,7 @@ English | [中文](README.zh.md)
 
 **Your models. Your workspace.**
 
-fi is a prerelease coding agent application built on [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) and [Cordis](https://github.com/cordiverse/cordis). Use it to work on local projects, connect model subscriptions or API providers, research with your chosen search engine, and generate images alongside code. It runs in a native desktop shell or a browser connected to the local runtime.
+fi is a coding agent application built on [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) and [Cordis](https://github.com/cordiverse/cordis). Use it to work on local projects, connect model subscriptions or API providers, research with your chosen search engine, and generate images alongside code. It runs in a native desktop shell or a browser connected to the local runtime.
 
 ![fi feature overview: connect model providers, research, create images, and build on DeepSeek Harness and Cordis](docs/assets/fi/feature-overview.png)
 
@@ -50,6 +50,10 @@ The `image_gen` tool generates an image from a prompt or edits readable workspac
 
 Local source-build screenshot with fresh state; no provider account or inference request is shown.
 
+![fi walkthrough: workspace, appearance, model connections, plugins, and search](https://github.com/OJamals/fi/blob/fi-readme-assets/2026-10-14/fi-walkthrough.gif?raw=true)
+
+[Watch or download the MP4 walkthrough](https://github.com/OJamals/fi/raw/refs/heads/fi-readme-assets/2026-10-14/fi-walkthrough.mp4). This 23-second storyboard uses six screenshots from one local source-build session captured on October 14, 2026. It demonstrates interface controls, not live model responses or response times.
+
 <a id="run"></a>
 
 ## Run from source
@@ -65,17 +69,17 @@ pnpm run dev:desktop
 
 For the browser app, run `pnpm run dev:web`. Configure a model before sending your first message. The fi CLI and Web use `~/.fi` by default; the `dsh` command and `DSH_*` settings remain the runtime's configuration interface.
 
-Use `pnpm run build:official` for an official Web build. Desktop packaging targets include macOS and Windows; packaging, signing, and release commands are documented in [`apps/desktop`](apps/desktop/README.md).
+Use `pnpm run build:official` for an official Web build. Desktop packaging targets include macOS, Windows, and Linux x64; packaging, signing, and release commands are documented in [`apps/desktop`](apps/desktop/README.md).
 
 ## Updates
 
-Production desktop builds read signed update metadata from published [fi GitHub Releases](https://github.com/OJamals/fi/releases). Preview builds follow preview prereleases; stable builds follow stable releases. Draft releases are ignored.
+Production desktop builds read update metadata from published [fi GitHub Releases](https://github.com/OJamals/fi/releases). Preview builds follow preview prereleases; stable builds follow stable releases. Draft releases are ignored.
 
 ## Project status
 
-This README describes source capabilities. The source package version is `0.2.0-rc.2`; desktop releases have their own versions and may contain fewer features. Choose an available build and read its notes in [fi Releases](https://github.com/OJamals/fi/releases). Local unsigned builds are not signed or notarized release artifacts.
+This README describes source capabilities. The source package version is `1.0.0`; desktop releases have their own versions and may contain fewer features. Choose an available build and read its notes in [fi Releases](https://github.com/OJamals/fi/releases). Local unsigned builds are not signed or notarized release artifacts.
 
-fi is prerelease software. Expect breaking changes. Read [SAFETY.md](SAFETY.md) before use. DeepSeek AI originally developed DeepSeek Harness; fi preserves that attribution and the underlying DSH package and CLI names.
+Release availability and platform signing status are documented in each release. Read [SAFETY.md](SAFETY.md) before use. DeepSeek AI originally developed DeepSeek Harness; fi preserves that attribution and the underlying DSH package and CLI names.
 
 ## Development
 

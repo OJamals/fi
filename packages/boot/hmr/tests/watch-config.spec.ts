@@ -10,6 +10,7 @@ import { watchConfig } from '../src/watch-config.ts'
 import Hmr from '../src/index.ts'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Timer from '@deepseek-ai/cordis-plugin-timer'
+import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { FSWatcher, type ChokidarOptions } from 'chokidar'
 
@@ -78,6 +79,35 @@ async function eventually(test: () => boolean, message: string, budget: number):
 describe('HMR exact config paths', () => {
   afterEach(() => {
     for (const root of hmrRoots.splice(0)) rmSync(root, { recursive: true, force: true })
+  })
+
+  it.each([false, true])('excludes sibling files while observing config replacement (missing parents: %s)', { timeout: 20_000 }, async (missingParents) => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'dsh-hmr-config-scope-')))
+    onTestFinished(() => { rmSync(dir, { recursive: true, force: true }) })
+    const filename = join(dir, ...(missingParents ? ['later', 'nested'] : []), 'package.json')
+    writeFileSync(join(dir, 'package.json.lock'), 'held')
+    mkdirSync(join(dir, 'unrelated'))
+    writeFileSync(join(dir, 'unrelated', 'config.yml'), 'ignored')
+    if (!missingParents) writeFileSync(filename, 'initial')
+    const ctx = new Context()
+    onTestFinished(() => ctx.fiber.dispose())
+    let watcher!: FSWatcher
+    const previousFactory = configWatch.create
+    onTestFinished(() => { configWatch.create = previousFactory })
+    configWatch.create = (options) => {
+      watcher = new FSWatcher(options)
+      return watcher.add(dir)
+    }
+    const observed: string[] = []
+    await watchConfig(ctx, filename, {}, () => { observed.push(readFileSync(filename, 'utf8')) })
+    expect(watcher.getWatched()[dir]).not.toContain('package.json.lock')
+    expect(watcher.getWatched()[dir]).not.toContain('unrelated')
+    ensureNativeWatchLive(dir)
+    await writeFileAtomic(filename, 'created', { mode: 0o600 })
+    await vi.waitFor(() => { expect(observed).toContain('created') }, { timeout: 8_000 })
+    await writeFileAtomic(filename, 'replaced', { mode: 0o600 })
+    await vi.waitFor(() => { expect(observed).toContain('replaced') }, { timeout: 8_000 })
+    expect(watcher.getWatched()[dir]).not.toContain('package.json.lock')
   })
 
   it.each(['relative', 'absolute'])('observes %s module roots through a filesystem alias', { timeout: 30_000 }, async (rootKind) => {

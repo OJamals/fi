@@ -119,7 +119,8 @@ export async function prepareGitHubReleaseFeeds(
   const channel = desktopUpdateChannel(release.version)
   const groups = [
     { filename: `${channel}-mac.yml`, names: ['mac-x64.zip', 'mac-arm64.zip'] },
-    { filename: `${channel}.yml`, names: ['win-x64.exe'] },
+    { filename: `${channel}.yml`, names: ['win-x64.exe', 'win-x64-unsigned.exe'] },
+    { filename: `${channel}-linux.yml`, names: ['linux-x64.AppImage'] },
   ]
   const outputs: { filename: string; contents: string }[] = []
   for (const group of groups) {

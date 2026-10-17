@@ -37,10 +37,21 @@ kind: "package-reference"
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `source` | 必填 | 含 `runtime.json` 与 `dependencies/` 的 payload 绝对目录。 |
-| `root` | 未设置 | Harness home 下的绝对安装目录。设置时首次调用把 payload 复制过去，`runtime.json` 不变则复用；未设置时校验后原地使用，不复制。 |
+| `source` | 必填 | 含 `runtime.json`，以及 `dependencies/` 或 macOS 归档载体的 payload 绝对目录。 |
+| `root` | 未设置 | Harness home 下的绝对安装目录。设置时首次调用把 payload 复制或解压过去，`runtime.json` 不变则复用；未设置时目录载荷经校验后原地使用，归档必须指定安装目录。 |
+| `installLockWaitMs` | `120000` | 等待另一本地进程完成同一运行时安装的最长毫秒数。 |
 
 ### payload 布局
+
+载荷复制在暂存与安装过程中保留相对文件别名，包括 Python 可执行文件别名。复制前，别名必须解析到载荷内部已有的普通文件；绝对链接、越界链接、悬空链接和目录链接均被拒绝。验证和复制期间，源目录必须保持不变。
+
+macOS 归档载体包含 `runtime.json`、`payload.tar.xz` 和 `archive.json`；描述符仅包含 `version: 1`、`file: "payload.tar.xz"` 及小写 SHA-256 字段 `sha256`。归档包含 `runtime.json` 和 `dependencies/`；安装先校验摘要，在解压前拒绝越界路径、重复条目、特殊文件、硬链接及不能解析到内部文件的别名，再比较解压后的清单与载体元数据。解压使用系统 `/usr/bin/tar`，不需要网络。归一化清单相同时，已安装的运行时路径和用户添加的包保持不变。
+
+安装在本地进程之间串行执行。目录交换中断且目标缺失时，会恢复 `<root>.previous`；准备失败不会改变旧运行时。最终重命名失败时恢复旧目录；恢复失败时保留旧目录供下次重试。锁中记录的进程退出后可回收锁；不支持跨机器或 PID 命名空间共享安装目录。
+
+macOS 安装在发布前使用 `/usr/bin/ditto --hfsCompression --nopreserveHFSCompression` 复制已准备的文件；压缩失败时使用经过校验的未压缩副本。默认不改动现有正常缓存。维护调用者只有在停止所有可读取或修改该缓存的进程后，才能设置 `compressExistingCache: true`；安装锁不会锁定 pip、pnpm 或用户脚本。一次性迁移保留用户添加的文件、权限和符号链接，不跟随链接目标。压缩失败时复用正常缓存，发布失败时恢复原缓存。只有复制成功后，私有副本才写入 `.macos-compression-v1`；后续调用直接复用。压缩仅改变存储分配，不改变文件字节，也不需要网络；节省量取决于文件系统支持和文件内容。其他平台仍使用普通复制。
+
+Desktop 调用 `installPrimaryRuntime` 时设置 `repairInvalidEntries: true`，在启动前修复格式错误的缓存元数据及缺失或无效的声明条目。修复先校验新载荷，再将整个损坏缓存（包括用户添加的文件）移入 `<root>.recovery-<random>/runtime`；发布成功后仍保留恢复目录，便于手动恢复这些文件。发布失败时恢复损坏缓存。其他调用者默认拒绝无效的缓存元数据或条目，除非显式启用此选项。
 
 `runtime.json` 记录 `desktopVersion`、`platform`（`win32`、`darwin` 或 `linux`）、`arch`、可选的 `payloadDigest`、顶层 `python` 与可选的 `node`/`pnpm` 版本，以及完整的 `pythonPackages` 分发包版本表。声明 pnpm 时必须同时声明 Node.js。numpy、pandas 等 Python 库只出现在 `pythonPackages` 中。条目位于 `dependencies/`：`python/bin/python3`（Windows 为 `python/python.exe`）及其下的 `site-packages`；声明了才有的 `node/bin/node`、`node/node_modules` 与 `pnpm/bin/pnpm.mjs`。平台或架构与当前进程不符的清单被拒绝。
 

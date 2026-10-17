@@ -61,9 +61,6 @@ const IMAGE_MEDIA_TYPES: readonly ImageMediaType[] = [
   'image/gif',
 ]
 
-/** Canonical RFC 4648 base64, excluding whitespace and URL-safe aliases. */
-const CANONICAL_BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/
-
 /**
  * Derive the model-facing public name for one MCP tool.
  *
@@ -332,9 +329,6 @@ function isImageMediaType(value: string): value is ImageMediaType {
 function decodeImage(block: ImageContent): SaveImageAttachment {
   if (!isImageMediaType(block.mimeType)) {
     throw new Error('the declared media type is not PNG, JPEG, WebP, or GIF')
-  }
-  if (!CANONICAL_BASE64.test(block.data)) {
-    throw new Error('the image data is not canonical base64')
   }
   const data = Buffer.from(block.data, 'base64')
   if (data.toString('base64') !== block.data) {

@@ -21,9 +21,12 @@ const requireRuntime = createRequire(join(root, 'package.json'))
 const scratch = mkdtempSync(join(tmpdir(), 'dsh-runtime-payload-'))
 
 /** Run a package script with only the shipped node launcher available on PATH. */
-function checkPnpm() {
+async function checkPnpm() {
   const bin = join(resourcesRuntime, 'bin')
-  const pnpm = join(resourcesRuntime, 'pnpm', 'bin', 'pnpm.mjs')
+  const { installPrimaryRuntime } = await import(pathToFileURL(requireRuntime.resolve('@deepseek-ai/dsh-tool-workspace-dependencies')).href)
+  const dependencies = await installPrimaryRuntime(join(resourcesRuntime, 'primary-runtime'), join(scratch, 'primary-runtime'))
+  const pnpm = dependencies.pnpm
+  assert.ok(pnpm)
   writeFileSync(join(scratch, 'package.json'), JSON.stringify({
     name: 'desktop-node-script-smoke', private: true, scripts: { check: 'node check.cjs' },
   }))
@@ -157,7 +160,7 @@ function checkHtml() {
 try {
   const builtin = requireRuntime('node-addon-require-builtin')
   assert.equal(typeof builtin.requireBuiltin('internal/modules/esm/loader').getOrInitializeCascadedLoader, 'function')
-  checkPnpm()
+  await checkPnpm()
   checkKoffi()
   await checkSharp()
   checkHtml()

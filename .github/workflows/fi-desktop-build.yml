@@ -1,0 +1,63 @@
+name: FI Desktop release builds
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    if: github.repository == 'OJamals/fi'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            target: win-x64
+            script: package:desktop:win:x64:unsigned
+            output: unsigned-artifacts
+            envfile: .env.windows
+          - runner: ubuntu-24.04
+            target: linux-x64
+            script: package:desktop:linux:x64
+            output: artifacts
+            envfile: .env.linux
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Install Linux runtime libraries
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-0 libnss3 libasound2t64 libgbm1 libfuse2t64
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Configure GitHub release feed
+        shell: bash
+        run: |
+          printf 'DSH_DESKTOP_APP_ID=com.fi.app\nDSH_DESKTOP_AUTO_UPDATE_ENV=production\n' > apps/desktop/${{ matrix.envfile }}
+      - name: Package and smoke test
+        run: pnpm run ${{ matrix.script }}
+      - name: Preserve packaging diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostics-${{ matrix.target }}
+          path: apps/desktop/.desktop-build/packaging-runs/
+          retention-days: 7
+      - name: Upload installers and update metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: fi-${{ matrix.target }}
+          if-no-files-found: error
+          compression-level: 0
+          path: |
+            apps/desktop/.desktop-build/targets/${{ matrix.target }}/${{ matrix.output }}/*.exe
+            apps/desktop/.desktop-build/targets/${{ matrix.target }}/${{ matrix.output }}/*.AppImage
+            apps/desktop/.desktop-build/targets/${{ matrix.target }}/${{ matrix.output }}/*.yml
+            apps/desktop/.desktop-build/targets/${{ matrix.target }}/${{ matrix.output }}/*.blockmap

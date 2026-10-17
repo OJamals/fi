@@ -9,5 +9,7 @@ export default defineConfig({
   target: 'es2024',
   fixedExtension: false,
   dts: false,
-  clean: false,
+  clean: ['lib/*.js'],
+  deps: { alwaysBundle: [/^gpt-tokenizer(?:\/|$)/u] },
+  copy: [{ from: 'node_modules/gpt-tokenizer/LICENSE', to: 'lib/licenses/gpt-tokenizer' }],
 })

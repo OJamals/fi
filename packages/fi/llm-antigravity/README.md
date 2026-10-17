@@ -28,6 +28,8 @@ Antigravity OAuth adapter and Cloud Code transport for fi. Registers the Antigra
 <a id="what-it-does"></a>
 ## What it does
 
+Live discovery includes every enabled agent model named by the account's default model or agent model groups and present in its catalog, including newly released ids. Existing request aliases remain supported; disabled models and unlisted internal catalog keys remain hidden.
+
 - Registers the `fi-antigravity/antigravity` flow on `ctx.authorization`
 - Runs the Google PKCE OAuth dance (browser → loopback callback → token exchange → project discovery)
 - Stores the grant in fi's credential store under `fi-antigravity/antigravity`

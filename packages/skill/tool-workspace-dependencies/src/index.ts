@@ -1,10 +1,17 @@
 /** Model-facing query for a bundled Python, Node.js, and pnpm payload, in place or installed under the Harness home. */
 
-import { cp, lstat, mkdir, mkdtemp, readFile, rename, rm, stat } from 'node:fs/promises'
-import { dirname, isAbsolute, join } from 'node:path'
+import { lstat, mkdir, mkdtemp, readFile, realpath, rename, rm, stat } from 'node:fs/promises'
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { defineTool } from '@deepseek-ai/dsh-tools'
+import { withFileLock } from '@deepseek-ai/dsh-atomic-write'
+import { copyPrimaryRuntime } from './payload-files.ts'
+import { extractPrimaryRuntimeArchive, readPrimaryRuntimeArchive } from './payload-archive.ts'
+import { copyCompressedRuntime, runtimeCompressionComplete } from './payload-compression.ts'
+
+export { copyPrimaryRuntime, primaryRuntimeFiles } from './payload-files.ts'
+export { readPrimaryRuntimeArchive, type PrimaryRuntimeArchive } from './payload-archive.ts'
 
 /** Cordis plugin identity. */
 export const name = 'tool-workspace-dependencies'
@@ -13,7 +20,7 @@ export const inject = ['tools']
 
 /** Payload location and optional installation directory. */
 export interface Config {
-  /** Payload directory carrying `runtime.json` and `dependencies/`. */
+  /** Payload directory carrying `runtime.json` and dependencies or a macOS archive descriptor. */
   readonly source: string
   /**
    * Installation directory under the Harness home. When set, the payload is copied there on the
@@ -21,12 +28,15 @@ export interface Config {
    * which suits read-only carriers such as container image layers.
    */
   readonly root?: string
+  /** Maximum time to wait for another local process to finish installation, in milliseconds. */
+  readonly installLockWaitMs?: number
 }
 
 /** Require a named payload source before the Loader activates the tool. */
 export const Config: z<Config> = z.object({
   source: z.string().min(1).required(),
   root: z.string().min(1),
+  installLockWaitMs: z.number().min(1).default(120_000),
 })
 
 /** Canonical build metadata, independent of user-installed packages; legacy files are normalized on read. */
@@ -190,46 +200,105 @@ async function compatibleManifest(source: string): Promise<PrimaryRuntimeManifes
  * @returns Paths into the payload itself.
  */
 export async function resolvePrimaryRuntime(source: string): Promise<WorkspaceDependencies> {
+  if (await readPrimaryRuntimeArchive(source)) throw new Error('primary runtime: archive carrier requires an installation root')
   const paths = workspaceDependencyPaths(source, await compatibleManifest(source))
   await validatePayloadEntries(paths)
   return paths
 }
 
 /**
- * Install the application-owned payload locally, retaining a complete previous tree on copy failure.
+ * Install an immutable directory or macOS archive, retaining the previous tree on preparation failure.
+ * New macOS caches use filesystem compression when available. Existing healthy caches migrate only
+ * when the caller requests it after stopping every process that can modify the cache.
  * @param source - Payload carried by the current installation.
  * @param root - Fixed primary runtime directory under the Harness home.
+ * @param options - Lock wait, opt-in repair retaining damaged caches, and quiescent-cache compression migration.
  * @returns Paths into the installed payload; no PATH or package-manager configuration is changed.
  */
-export async function installPrimaryRuntime(source: string, root: string): Promise<WorkspaceDependencies> {
+export async function installPrimaryRuntime(
+  source: string, root: string, options?: {
+    readonly lockWaitMs?: number
+    readonly repairInvalidEntries?: boolean
+    /** Migrate an existing healthy cache only after every reader and writer has stopped; the installer lock does not lock pip or pnpm. */
+    readonly compressExistingCache?: boolean
+  },
+): Promise<WorkspaceDependencies> {
   const manifest = await compatibleManifest(source)
+  const archive = await readPrimaryRuntimeArchive(source)
+  root = resolve(root)
   await mkdir(dirname(root), { recursive: true })
-  const previous = `${root}.previous`
-  const previousExists = await exists(previous)
-  const rootExists = await exists(root)
-  if (!rootExists && previousExists) await rename(previous, root)
-  if (await exists(join(root, 'runtime.json')) && JSON.stringify(await readPrimaryRuntime(root)) === JSON.stringify(manifest)) {
-    const paths = workspaceDependencyPaths(root, manifest)
-    await validatePayloadEntries(paths)
-    return paths
-  }
-  const staging = await mkdtemp(join(dirname(root), '.primary-runtime-'))
-  try {
-    await cp(source, staging, { recursive: true, dereference: true })
-    const paths = workspaceDependencyPaths(staging, manifest)
-    await validatePayloadEntries(paths)
-    await rm(previous, { recursive: true, force: true })
-    const replacing = await exists(root)
-    if (replacing) await rename(root, previous)
-    try { await rename(staging, root) } catch (error) {
-      if (replacing) await rename(previous, root)
+  root = join(await realpath(dirname(root)), basename(root))
+  return withFileLock(root, async () => {
+    const previous = `${root}.previous`
+    const previousExists = await exists(previous)
+    const rootExists = await exists(root)
+    if (!rootExists && previousExists) await rename(previous, root)
+    let repairing = false
+    let reusable = false
+    try {
+      if (await exists(join(root, 'runtime.json'))) {
+        if (JSON.stringify(await readPrimaryRuntime(root)) === JSON.stringify(manifest)) {
+          const paths = workspaceDependencyPaths(root, manifest)
+          await validatePayloadEntries(paths)
+          reusable = true
+        }
+      } else repairing = options?.repairInvalidEntries === true && await exists(root)
+    } catch (error) {
+      if (!options?.repairInvalidEntries) throw error
+      repairing = true
+    }
+    if (reusable && (!options?.compressExistingCache || await runtimeCompressionComplete(root))) {
+      await rm(previous, { recursive: true, force: true })
+      return workspaceDependencyPaths(root, manifest)
+    }
+    let staging: string
+    try { staging = await mkdtemp(join(dirname(root), '.primary-runtime-')) } catch (error) {
+      if (reusable) return workspaceDependencyPaths(root, manifest)
       throw error
     }
-    await rm(previous, { recursive: true, force: true })
-  } finally {
-    await rm(staging, { recursive: true, force: true })
-  }
-  return workspaceDependencyPaths(root, manifest)
+    try {
+      let prepared = join(staging, 'runtime')
+      if (reusable) {
+        try { await copyCompressedRuntime(root, prepared) } catch (_error) {
+          // Optional compression must not prevent use of a healthy offline cache.
+          return workspaceDependencyPaths(root, manifest)
+        }
+      }
+      else {
+        await mkdir(prepared)
+        if (archive) await extractPrimaryRuntimeArchive(source, prepared, archive)
+        else await copyPrimaryRuntime(source, prepared)
+        if (process.platform === 'darwin') {
+          const compressed = join(staging, 'compressed')
+          try {
+            await copyCompressedRuntime(prepared, compressed)
+            prepared = compressed
+          } catch (_error) {
+            // The validated raw staging copy remains usable when compression is unavailable.
+          }
+        }
+      }
+      if (JSON.stringify(await readPrimaryRuntime(prepared)) !== JSON.stringify(manifest)) {
+        throw new Error('primary runtime: extracted manifest does not match carrier metadata')
+      }
+      const paths = workspaceDependencyPaths(prepared, manifest)
+      await validatePayloadEntries(paths)
+      await rm(previous, { recursive: true, force: true })
+      const replacing = await exists(root)
+      const recovery = repairing ? await mkdtemp(`${root}.recovery-`) : undefined
+      const backup = recovery ? join(recovery, 'runtime') : previous
+      if (replacing) await rename(root, backup)
+      try { await rename(prepared, root) } catch (error) {
+        if (replacing) await rename(backup, root)
+        if (recovery) await rm(recovery, { recursive: true, force: true })
+        throw error
+      }
+      if (!recovery) await rm(previous, { recursive: true, force: true })
+    } finally {
+      await rm(staging, { recursive: true, force: true })
+    }
+    return workspaceDependencyPaths(root, manifest)
+  }, { waitMs: options?.lockWaitMs ?? 120_000 })
 }
 
 /**
@@ -265,7 +334,8 @@ export function apply(ctx: Context, config: Config): void {
       render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, undefined, 2) }],
     },
     execute: () => {
-      preparation ??= (config.root === undefined ? resolvePrimaryRuntime(config.source) : installPrimaryRuntime(config.source, config.root))
+      preparation ??= (config.root === undefined ? resolvePrimaryRuntime(config.source)
+        : installPrimaryRuntime(config.source, config.root, { lockWaitMs: config.installLockWaitMs ?? 120_000 }))
         .catch((error: unknown) => {
           preparation = undefined
           throw error

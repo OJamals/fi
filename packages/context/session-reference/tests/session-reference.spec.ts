@@ -705,6 +705,25 @@ describe('session reference discovery and preparation', () => {
     readTitles.mockRestore()
   })
 
+  it('uses live titles after listing and refreshes them on the next query', async () => {
+    const ctx = await harness()
+    const target = ctx.sessions.create(SessionId('target'))
+    const live = ctx.sessions.create(SessionId('live'))
+    withProjectionCache(ctx, { live: 'Stale checkpoint' })
+    const list = vi.spyOn(ctx.sessionQuery, 'listSessions').mockImplementationOnce(async () => {
+      live.append('session/title', { title: 'Renamed during listing', messageSeqs: [], source: { kind: 'user' } })
+      return [{ header: live.header, live: false, persisted: true }]
+    })
+
+    await expect(ctx.sessionReferenceResolver.listCandidates(fakeAgent(target), 'renamed'))
+      .resolves.toEqual([expect.objectContaining({ sessionId: live.id, label: 'Renamed during listing' })])
+    list.mockRestore()
+    live.append('session/title', { title: 'Changed after listing', messageSeqs: [], source: { kind: 'user' } })
+    await expect(ctx.sessionReferenceResolver.listCandidates(fakeAgent(target), 'changed'))
+      .resolves.toEqual([expect.objectContaining({ sessionId: live.id, label: 'Changed after listing' })])
+    await expect(ctx.sessionReferenceResolver.listCandidates(fakeAgent(target), 'renamed')).resolves.toEqual([])
+  })
+
   it('labels a cold session from its checkpoint and reads no log', async () => {
     const ctx = await harness()
     const target = ctx.sessions.create(SessionId('target'), { meta: { cwd: '/same' } })

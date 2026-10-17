@@ -276,7 +276,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'setFontSize(role: FontRole, px: number): void',
-        description: 'Change one role\'s font size — the only font-size write entry. Accepted values are written through the settings scope and emit `theme/change`.',
+        description: 'Change one role\'s font size. Accepted values are written through the settings scope and emit `theme/change`.',
         parameters: [{ name: 'role', description: 'font role.' }, { name: 'px', description: 'integer px within the role\'s `FONT_SIZE_SPECS` range; out-of-range or fractional values throw.' }],
       },
       {

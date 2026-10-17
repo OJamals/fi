@@ -11,7 +11,7 @@
 // are host RPCs with no model involvement, and the one session row the
 // flat/hover/menu/archive scenarios need comes from a seeded fixture (the
 // seeded-history seed reused verbatim — no new recording).
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { join, sep } from 'node:path'
 import type { Browser, Locator, Page } from 'playwright'
@@ -755,7 +755,7 @@ describe('web e2e: workspace management (create / rename / grouping / hover affo
   it.skipIf(MODE === 'record')('issued zero model calls and stayed clean', async () => {
     expect(tripwire.warnings).toEqual([])
     await assertFixtureInventory(SNAPSHOT_DIR, [
-      '.gitkeep', 'directory-browser.expected.md', 'new-session.expected.md',
+      '.gitkeep', 'directory-browser.expected.md', 'new-session.expected.md', 'missing-directory.expected.md',
     ])
   })
 })
@@ -805,6 +805,45 @@ describe('web e2e: New Session after an outdated blank cache', () => {
     } finally {
       await browser?.close()
       await scaffold.close()
+    }
+  })
+})
+
+describe('web e2e: recorded workspace session with a missing directory', () => {
+  it('keeps recorded membership through a header refresh and durable rename', async () => {
+    const scaffold = await launchWebScaffold({})
+    const projectPath = join(scaffold.workspaceCwd, 'retained-project')
+    const movedPath = `${projectPath}-temporarily-moved`
+    let moved = false
+    try {
+      await mkdir(projectPath)
+      const seedScaffold = { ...scaffold, workspaceCwd: projectPath }
+      const fixture = await readFile(SEED, 'utf8')
+      const id = await seedSession(seedScaffold, fixture, 'missing-directory-recorded')
+      const workspace = await scaffold.ctx.workspaceRegistry.create(projectPath, 'Recorded workspace')
+      await workspace.attachSession(id)
+      const before = await readPersistedEvents(scaffold, id)
+      await rename(projectPath, movedPath)
+      moved = true
+      // An unknown cold session forces the real registry to refresh persisted headers.
+      const trigger = await seedSession(seedScaffold, fixture, 'missing-directory-refresh')
+      await scaffold.ctx.workspaceRegistry.pinSession(trigger)
+      await workspace.setTitle('Retained workspace')
+      expect(workspace.sessionIds).toEqual([id])
+      expect(await workspace.status()).toBe('missing-dir')
+      expect(await readPersistedEvents(scaffold, id)).toEqual(before)
+      await compareOrRefreshGolden(join(SNAPSHOT_DIR, 'missing-directory.expected.md'),
+        `Workspace: ${workspace.title}\nStatus: ${await workspace.status()}\nRecorded session retained: ${workspace.sessionIds.includes(id)}`, MODE)
+      await rename(movedPath, projectPath)
+      moved = false
+      expect(await workspace.status()).toBe('ok')
+      expect(workspace.sessionIds).toEqual([id])
+    } finally {
+      try {
+        if (moved) await rename(movedPath, projectPath)
+      } finally {
+        await scaffold.close()
+      }
     }
   })
 })

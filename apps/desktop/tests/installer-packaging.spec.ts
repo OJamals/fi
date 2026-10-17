@@ -12,10 +12,11 @@ vi.mock('node:child_process', async (importOriginal) => {
 })
 
 describe('installer preparation preserves application dependencies', () => {
-  it.each(['win32', 'darwin'] as const)('rejects a missing production policy before signing on %s', async (platform) => {
+  it.each(['win32', 'darwin'] as const)('rejects an incompletely configured production policy before signing on %s', async (platform) => {
     const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
     expect(() => createElectronBuilderConfig({ DSH_DESKTOP_APP_ID: 'com.example.installer',
       DSH_DESKTOP_AUTO_UPDATE_ENV: 'production',
+      DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: '{}',
       DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://test.example.com',
     }, platform, 'x64')).toThrow('DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN')
   })
@@ -75,6 +76,12 @@ describe('installer preparation preserves application dependencies', () => {
       DSH_DESKTOP_UNSIGNED: '1',
     }, 'win32', 'x64')
     expect(config.artifactName).toBe('deepseek-harness-${version}-${os}-${arch}-unsigned.${ext}')
+    expect(config.publish).toBeNull()
+    const production = createElectronBuilderConfig({ DSH_DESKTOP_UNSIGNED: '1',
+      DSH_DESKTOP_AUTO_UPDATE_ENV: 'production' }, 'win32', 'x64')
+    expect(production.publish).not.toBeNull()
+    expect(production.win.verifyUpdateCodeSignature).toBe(false)
+    expect(production.extraMetadata.dshMandatoryUpdatePolicy).toBeUndefined()
   })
 
   it('packages every preload entry point the shell loads', async () => {

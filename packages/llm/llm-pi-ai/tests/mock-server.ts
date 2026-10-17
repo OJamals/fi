@@ -29,7 +29,7 @@ export const textEvents = [
 /** Local provider stand-in: replays scripted behaviors per request. */
 export async function mockServer(script: {
   status?: number
-  events?: string[]
+  events?: (string | { event: string; data: string })[]
   body?: string
   delayMs?: number
   headers?: Record<string, string>
@@ -68,7 +68,7 @@ export async function mockServer(script: {
       const writeNext = (): void => {
         const event = behavior.events?.[index++]
         if (event === undefined) { response.end(); return }
-        response.write(`data: ${event}\n\n`)
+        response.write(typeof event === 'string' ? `data: ${event}\n\n` : `event: ${event.event}\ndata: ${event.data}\n\n`)
         if (behavior.delayMs === undefined) writeNext()
         else setTimeout(writeNext, behavior.delayMs)
       }
@@ -88,4 +88,13 @@ export async function mockServer(script: {
     requestReceived: requestReceived.promise,
     get closedResponses() { return closedResponses },
   }
+}
+
+/**
+ * Encode one Anthropic Messages frame with its named SSE event.
+ * @param data - frame payload carrying its event type.
+ * @returns named event and serialized payload.
+ */
+export function anthropicFrame(data: Record<string, unknown>): { event: string; data: string } {
+  return { event: String(data['type']), data: JSON.stringify(data) }
 }

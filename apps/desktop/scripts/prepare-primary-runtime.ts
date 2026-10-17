@@ -1,11 +1,14 @@
 /** Desktop resource locations and signing-aware verification for the shared runtime builder. */
 
-import { readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { preparePrimaryRuntime as preparePayload, smokePrimaryRuntime as smokePayload } from '../../../scripts/primary-runtime/prepare.ts'
 import { parsePrimaryRuntime, workspaceDependencyPaths } from '../../../packages/skill/tool-workspace-dependencies/src/index.ts'
 import { resolveDesktopBuildTarget, resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { scrubWindowsSigningEnvironment } from './windows-sign.mjs'
+import { signMacOSRuntimeAdHoc, stripMacOSRuntimeDebug, thinMacOSRuntime } from './macos-runtime.ts'
+import { DESKTOP_APP_ID } from './desktop-release-environment.mjs'
 
 /**
  * Prepare Desktop resources for its selected packaging target.
@@ -15,7 +18,17 @@ import { scrubWindowsSigningEnvironment } from './windows-sign.mjs'
 export async function preparePrimaryRuntime(options: { deferSmoke?: boolean } = {}): Promise<void> {
   const paths = resolveDesktopTargetBuildPaths()
   const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
-  await preparePayload({ target: resolveDesktopBuildTarget(), output: paths.runtime, cache: paths.downloads, version })
+  const target = resolveDesktopBuildTarget()
+  await preparePayload({ target, output: paths.runtime, cache: paths.downloads, version })
+  if (target.startsWith('mac-')) {
+    const root = join(paths.runtime, 'primary-runtime')
+    await thinMacOSRuntime(root, target === 'mac-arm64' ? 'arm64' : 'x64')
+    await stripMacOSRuntimeDebug(root, join(paths.root, 'debug-originals', 'primary-runtime'))
+    await signMacOSRuntimeAdHoc(root, DESKTOP_APP_ID)
+    const manifest = parsePrimaryRuntime(JSON.parse(readFileSync(join(root, 'runtime.json'), 'utf8')))
+    const payloadDigest = createHash('sha256').update(`desktop-thin-debug-v2:${manifest.payloadDigest}:${target}`).digest('hex')
+    writeFileSync(join(root, 'runtime.json'), `${JSON.stringify({ ...manifest, payloadDigest }, undefined, 2)}\n`)
+  }
   if (!options.deferSmoke) smokePrimaryRuntime(join(paths.runtime, 'primary-runtime'))
 }
 

@@ -26,6 +26,8 @@ Copilot credentials remain at `llm-pi-ai/github-copilot`. Other credentials belo
 
 `requestTimeoutMs`, `streamIdleTimeoutMs`, `authTimeoutMs`, `pollIntervalMs`, and `refreshMarginMs` govern operation deadlines and refresh. `defaultContextWindow` and `defaultMaxTokens` supply conservative model capacities where catalogs omit them. Prepared calls capture one account and configuration generation. Redirects are rejected on authenticated endpoints. Removing sign-in deletes FI's local credential; provider-side revocation remains separate.
 
+Kiro discovery follows every `nextToken` page within one `requestTimeoutMs` deadline, preserving the account and profile and deduplicating model ids. Invalid pages or repeated tokens fail discovery instead of returning a partial catalog.
+
 ## Protocol sources
 
 Native codecs follow auth2api revision `05e9e0a68a6e952044fd2c03186722577c6de37a`. Cursor uses HTTP/2 Connect protobuf; Kiro uses CRC-checked AWS event streams; Cline uses OpenAI-compatible chat with truthful FI client headers; Code Assist reuses FI's Gemini message and SSE codec with its own Google endpoint and project envelope. [NOTICE](NOTICE.md) retains component attribution and distribution restrictions.
@@ -40,7 +42,7 @@ Models receive the recorded `GenerateOptions.system` prompt, conversation, and d
 
 #### Token effect
 
-Cursor serializes recorded history when starting a native run, then sends tool results as native MCP results on the same stream. It enforces output limits with a local BPE budget covering text, reasoning, and complete tool calls; this is not the provider's billing tokenizer. Other transports forward output limits. Provider usage is retained when available.
+Cursor serializes recorded history when starting a native run, then sends tool results as native MCP results on the same stream. It enforces output limits with a local BPE budget covering text, reasoning, and complete tool calls; this is not the provider's billing tokenizer. The offline `o200k_base` tokenizer is bundled as a private lazy-loaded chunk with its MIT license; uncapped calls and other providers do not load it. Other transports forward output limits. Provider usage is retained when available.
 
 #### KV Cache effect
 

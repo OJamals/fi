@@ -13,11 +13,13 @@ function origin(value, name) {
 /**
  * Resolve mandatory policy metadata before preparing artifacts or accessing signing hardware.
  * @param {NodeJS.ProcessEnv} environment File-owned release settings; the unselected origin is not required.
- * @returns {{ origin: string, allowedPageOrigins: string[], authentication: 'anonymous' | 'feishu-test', [key: string]: unknown }} Selected policy.
+ * @returns {{ origin: string, allowedPageOrigins: string[], authentication: 'anonymous' | 'feishu-test', [key: string]: unknown } | undefined} Selected policy, or no policy for GitHub-only production releases.
  */
 export function resolveDesktopPolicyEnvironment(environment) {
   const deployment = resolveDesktopAutoUpdateEnvironment(environment)
   const name = deployment === 'test' ? 'DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN' : 'DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN'
+  if (deployment === 'production' && environment[name] === undefined
+    && environment.DSH_DESKTOP_MANDATORY_UPDATE_CONFIG === undefined) return undefined
   const selected = origin(environment[name], name)
   let settings = {}
   if (environment.DSH_DESKTOP_MANDATORY_UPDATE_CONFIG !== undefined) {

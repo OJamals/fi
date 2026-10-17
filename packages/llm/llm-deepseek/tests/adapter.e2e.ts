@@ -31,7 +31,7 @@ afterEach(async () => {
   vi.unstubAllEnvs()
   vi.unstubAllGlobals()
 })
-async function boot(models?: Messages.Options['models']) {
+async function boot(models?: Messages.Options['models'], baseURL = Protocol.PUBLIC_BASE_URL) {
   const home = await mkdtemp(join(tmpdir(), 'dsh-messages-e2e-'))
   cleanups.push(() => rm(home, { recursive: true, force: true }))
   vi.stubEnv('DSH_HOME', home)
@@ -39,7 +39,7 @@ async function boot(models?: Messages.Options['models']) {
   cleanups.push(() => ctx.fiber.dispose())
   await ctx.plugin(LlmRuntime)
   await ctx.plugin(Messages, {
-    baseURL: Protocol.PUBLIC_BASE_URL,
+    baseURL,
     maxTokens: 4096,
     ...models === undefined ? {} : { models },
   })
@@ -225,6 +225,24 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('DeepSeek Messages real API', () 
     history.push(second.message, user('Reply with exactly DONE.'))
     const third = await assemble(ctx.llm.stream({ ...request, messages: history }))
     expect(third.assembler.finish.kind).toBe('stop')
+  })
+
+  it('continues saved Responses tool history with an empty trailing text item', async () => {
+    const ctx = await boot(undefined, process.env.DEEPSEEK_BASE_URL ?? Protocol.PUBLIC_BASE_URL)
+    const calls = [0, 1, 2].map(index => ({
+      type: 'tool-call' as const, id: ToolCallId(`call_${index}|item_${index}`), name: 'lookup_value', arguments: '{"key":"secret"}',
+    }))
+    const history = [
+      user('Look up the secret value.'),
+      createAssistantMessage({ source: { provider: 'foreign', model: 'claude' }, content: [...calls, { type: 'text', text: '' }] }),
+      ...calls.map(call => createToolResultMessage({ callId: call.id, content: [{ type: 'text', text: 'EMPTY_TEXT_RECOVERED_731' }], isError: false })),
+      user('Do not call tools. Reply with exactly EMPTY_TEXT_RECOVERED_731.'),
+    ]
+    const saved = JSON.stringify(history)
+    const response = await assemble(ctx.llm.stream(options({ model: 'deepseek-flash', messages: history, tools: [tool], reasoningEffort: ReasoningEffortId('off') })))
+    expect(response.assembler.finish.kind).toBe('stop')
+    expect(response.message.content.filter(block => block.type === 'text').map(block => block.text).join('')).toContain('EMPTY_TEXT_RECOVERED_731')
+    expect(JSON.stringify(history)).toBe(saved)
   })
 
   it('continues persisted foreign history containing malformed tool arguments', async () => {

@@ -72,6 +72,8 @@ The resolver discovers optional storage through `ctx.get("spillStore")` and save
 
 The budget uses the provider and model captured after `system-prompt/assemble` completes for the target agent. Direct `prepare` calls before any assembly use agent options; session headers do not select the budget model. Diagnostic assemblies without an agent do not affect captured routes.
 
+Candidate discovery resolves label services and indexes attached sessions once per listing, after the session query completes. Each new listing observes current attachments and titles; it does not retain a label cache between queries.
+
 ### Source map
 
 | File | Role |

@@ -60,7 +60,7 @@ jobs:
           $release = gh api "repos/$env:FI_RELEASE_REPOSITORY/releases/tags/$env:FI_RELEASE_TAG"
           if ($LASTEXITCODE -ne 0) { throw 'Published release lookup failed' }
           $release | Set-Content -Path "$env:FI_RELEASE_ROOT/release.json" -Encoding utf8
-          gh release download $env:FI_RELEASE_TAG --repo $env:FI_RELEASE_REPOSITORY --dir "$env:FI_RELEASE_ROOT/assets" --pattern 'fi-*-mac-*.zip' --pattern 'fi-*-win-x64.exe' --pattern '*.yml'
+          gh release download $env:FI_RELEASE_TAG --repo $env:FI_RELEASE_REPOSITORY --dir "$env:FI_RELEASE_ROOT/assets" --pattern 'fi-*-mac-*.zip' --pattern 'fi-*-win-x64*.exe' --pattern 'fi-*-linux-x64.AppImage' --pattern '*.yml'
           if ($LASTEXITCODE -ne 0) { throw 'Release payload download failed' }
 
       - name: Validate payloads and prepare channel metadata

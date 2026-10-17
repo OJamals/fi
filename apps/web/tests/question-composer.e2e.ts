@@ -495,6 +495,45 @@ describe('web e2e: resident question composer round trip', () => {
     expect(tripwire.warnings).toEqual([])
   }, 200_000)
 
+  it.skipIf(MODE === 'record')('keeps custom focus visually unselected until typing replaces a single choice', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-question-custom-focus'))
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    const agent = scaffold.ctx.agents.get(answeredSession as SessionId)
+    if (agent === undefined) throw new Error('answered fixture session is not attached')
+    const asked = scaffold.ctx.userQuestions.ask({
+      agent,
+      questions: [{ id: 'single', question: 'Choose one', options: [{ label: 'Alpha (Recommended)' }, { label: 'Beta' }] }],
+    })
+    const composer = page.locator('[data-question-key]')
+    const option = composer.getByRole('radio', { name: /^Alpha/ })
+    const field = composer.getByRole('textbox')
+    await option.focus()
+    const border = () => field.evaluate((el) => {
+      const row = el.closest('[class*="customRow"]')
+      if (row === null) throw new Error('custom answer row is missing')
+      return getComputedStyle(row).borderColor
+    })
+    const idleBorder = await border()
+    await field.focus()
+    const focused = {
+      optionSelected: await option.getAttribute('aria-checked'),
+      customBorderUnchanged: await border() === idleBorder,
+    }
+    expect(focused).toEqual({ optionSelected: 'true', customBorderUnchanged: true })
+    await field.fill('Replacement')
+    const typed = {
+      optionSelected: await option.getAttribute('aria-checked'),
+      customBorderChanged: await border() !== idleBorder,
+    }
+    expect(typed).toEqual({ optionSelected: 'false', customBorderChanged: true })
+    await compareOrRefreshGolden(
+      fileURLToPath(new URL('./expected/question-composer/custom-focus.expected.md', import.meta.url)),
+      `# Single-select custom focus\n\n${JSON.stringify({ focused, typed }, null, 2)}`, MODE,
+    )
+    await field.press('Enter')
+    expect(await asked).toEqual({ answers: [{ id: 'single', selected: [], custom: 'Replacement' }] })
+  })
+
   // The fixture's question carries options, so the round trip above only ever
   // exercises the inline shape. The optionless shape is the one that carries
   // padding, which is where a cap measured in box pixels drifts off the line

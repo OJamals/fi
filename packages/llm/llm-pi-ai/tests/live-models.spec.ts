@@ -92,6 +92,18 @@ describe('live model discovery', () => {
     expect(resolveLiveModels).not.toHaveBeenCalled()
   })
 
+  it('discovers new subscription models outside a saved selection without changing the picker', async () => {
+    const adapter = new PiAiAdapter({
+      profiles: () => resolveProfiles({ xai: { models: [{ id: 'grok-4.3' }] } }),
+      resolveApiKey: () => Promise.resolve(undefined),
+      auth: memoryAuth({ xai: OAUTH_GRANT }),
+      resolveLiveModels: () => Promise.resolve([{ id: 'grok-live-new', name: 'New model' }]),
+    })
+    expect(await adapter.liveModelIds('xai')).toEqual([{ id: 'grok-live-new', name: 'New model' }])
+    expect((await adapter.listModels('xai')).map(model => model.id)).toEqual(['grok-4.3'])
+    await expect(adapter.resolveModel('xai', 'grok-live-new')).rejects.toThrow('no configured model')
+  })
+
   it('never calls the hook for a route pi-ai does not mark as a subscription', async () => {
     const resolveLiveModels = vi.fn(() => Promise.resolve([{ id: 'gpt-9-preview' }]))
     const adapter = new PiAiAdapter({

@@ -1,7 +1,7 @@
 {
   "name": "@fi/authorization-bundle",
   "description": "FI authorization and search settings UI over the shared runtime composition",
-  "version": "0.2.0-rc.2",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "main": "lib/index.js",

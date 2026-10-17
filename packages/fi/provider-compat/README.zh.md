@@ -35,7 +35,7 @@ kind: "package-reference"
 
 ### Claude Code、Codex 与 Grok 的实时模型发现
 
-无论成功或失败，模型发现都会取消响应 reader 并释放其锁，包括取消本身失败的情况。
+无论成功或失败，模型发现都会取消响应 reader 并释放其锁，包括取消本身失败的情况。目录与 Codex ETag 按已解析凭据的 SHA-256 摘要隔离；切换账户或刷新凭据会获取独立目录。Claude 发现通过 `after_id` 遍历 `has_more` 和 `last_id`，共享一次截止时间，并拒绝不完整或重复的分页。
 
 本插件还会回答 `@deepseek-ai/dsh-llm-pi-ai` 面向其三条订阅路由（`anthropic`、`openai-codex`、`xai`）的可选 `llm-pi-ai/live-models` waterfall，因此已登录账户的新模型无需目录更新即可出现在 `listModels`、模型发现与采纳流程中。`liveModelDiscoveryEnabled`（默认 `true`）与 `liveModelDiscoveryCacheTtlMs`（默认 300000，即五分钟；接受 1,000–86,400,000）是本插件上的 `Config` 字段，因为抓取节奏是部署方的选择，不是常量。每个提供方都会以 `subscriptionHeaders` 为聊天请求已构建的同一身份被询问，只是指向该提供方自己的模型列表端点而非推理端点：
 

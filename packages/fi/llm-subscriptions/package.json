@@ -1,6 +1,6 @@
 {
   "name": "@fi/llm-subscriptions",
-  "version": "0.2.0-rc.2",
+  "version": "1.0.0",
   "private": true,
   "description": "Native subscription authorization and inference for Cursor, Kiro, Cline, and Google Code Assist",
   "type": "module",
@@ -15,14 +15,16 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "lib/index.js",
+    "lib/*.js",
+    "lib/licenses/**",
     "lib/types/**/*.d.ts"
   ],
   "license": "UNLICENSED",
   "scripts": {
     "bundle": "tsdown",
     "watch": "tsdown --watch",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:bundle": "node --test tests/tokenizer-bundle.test.mjs"
   },
   "fi": {
     "kind": "package",
@@ -42,8 +44,7 @@
     "@deepseek-ai/schemastery": "workspace:~",
     "@earendil-works/pi-ai": "0.87.1",
     "zod": "^4.4.3",
-    "@fi/llm-antigravity": "workspace:*",
-    "gpt-tokenizer": "^3.4.0"
+    "@fi/llm-antigravity": "workspace:*"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:~",
@@ -54,6 +55,7 @@
     "@deepseek-ai/dsh-llm": "workspace:*",
     "@deepseek-ai/dsh-settings": "workspace:*",
     "@types/node": "^22.20.0",
+    "gpt-tokenizer": "^3.4.0",
     "vitest": "^4.1.8"
   },
   "peerDependenciesMeta": {

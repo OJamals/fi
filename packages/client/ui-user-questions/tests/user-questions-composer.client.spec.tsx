@@ -10,6 +10,7 @@ import { createWaterfallRequest, PendingQuestion, type QuestionCardSnapshot, typ
 import { createQuestionDraftStore } from '../src/client/draft-store.ts'
 import { QuestionComposer as Composer, parseRecommendedLabel } from '../src/client/QuestionComposer.tsx'
 import { en, zh } from '../src/client/locales.ts'
+import css from '../src/client/QuestionComposer.module.css'
 import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
 
@@ -240,6 +241,19 @@ describe('QuestionComposer', () => {
     expect(option.getAttribute('aria-checked')).toBe('false')
     expect(screen.getByRole('status').textContent).toBe('请先完成这道问题。')
     expect(answer).not.toHaveBeenCalled()
+  })
+
+  it('keeps a selected option exclusive while its empty custom field has focus', () => {
+    const { carrier } = wait()
+    render(<QuestionComposer matched={carrier} {...kit} />)
+    const option = screen.getByRole('radio', { name: /工程落地型/ })
+    const custom = screen.getByPlaceholderText('输入你的答案')
+    fireEvent.focus(custom)
+    expect(option.getAttribute('aria-checked')).toBe('true')
+    expect(custom.closest(`.${css.customRow}`)?.className).toContain(css.customRowYielded)
+    fireEvent.change(custom, { target: { value: 'Another answer' } })
+    expect(option.getAttribute('aria-checked')).toBe('false')
+    expect(custom.closest(`.${css.customRow}`)?.className).not.toContain(css.customRowYielded)
   })
 
   it('collects single, custom, and multi-select answers before one batch submit', () => {

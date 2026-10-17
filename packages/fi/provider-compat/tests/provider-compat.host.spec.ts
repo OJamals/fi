@@ -395,6 +395,54 @@ describe('subscription fetch', () => {
 })
 
 describe('live subscription model discovery', () => {
+  it('reads every Claude page and deduplicates models across pages', async () => {
+    const requests = stubFetch([
+      () => Response.json({ data: [{ id: 'claude-new' }], has_more: true, last_id: 'claude-new' }),
+      () => Response.json({ data: [{ id: 'claude-new' }, { id: 'claude-other' }], has_more: false }),
+    ])
+    expect(await liveModelRequest({ provider: 'anthropic', apiKey: ANTHROPIC_OAUTH_TOKEN }))
+      .toMatchInlineSnapshot(`
+        [
+          {
+            "id": "claude-new",
+          },
+          {
+            "id": "claude-other",
+          },
+        ]
+      `)
+    expect(new URL(requests[1]!.url).searchParams.get('after_id')).toBe('claude-new')
+  })
+
+  it.each([undefined, '', 'claude-new'])('rejects incomplete or looping Claude pagination: %s', async (last_id) => {
+    stubFetch([
+      () => Response.json({ data: [{ id: 'claude-new' }], has_more: true, last_id: 'claude-new' }),
+      () => Response.json({ data: [{ id: 'claude-other' }], has_more: true, last_id }),
+    ])
+    expect(await liveModelRequest({ provider: 'anthropic', apiKey: ANTHROPIC_OAUTH_TOKEN })).toEqual([])
+  })
+
+  it.each(['anthropic', 'openai-codex', 'xai'] as const)('isolates %s catalogs and ETags after account changes', async (provider) => {
+    const token = provider === 'anthropic' ? ANTHROPIC_OAUTH_TOKEN
+      : provider === 'openai-codex' ? CODEX_OAUTH_TOKEN : GROK_OAUTH_TOKEN
+    const reply = (suffix: string) => Response.json(provider === 'openai-codex'
+      ? { models: [{ slug: `model-${suffix}` }] }
+      : { data: [{ id: `claude-${suffix}` }] }, { headers: { etag: `"${suffix}"` } })
+    const requests = stubFetch([() => reply('first'), () => reply('second'), () => new Response(null, { status: 503 })])
+    const session = mountLiveModels()
+    try {
+      const first = await session.request({ provider, apiKey: token })
+      const second = await session.request({ provider, apiKey: `${token}-second` })
+      expect(second).not.toEqual(first)
+      expect(requests[1]?.headers.has('if-none-match')).toBe(false)
+      expect(await session.request({ provider, apiKey: `${token}-third` })).toEqual([])
+      expect(await session.request({ provider, apiKey: token })).toEqual(first)
+      expect(requests).toHaveLength(3)
+    } finally {
+      await session.dispose()
+    }
+  })
+
   it('reads Anthropic\'s model directory with Claude Code OAuth identity, keeping only claude- ids', async () => {
     const requests = stubFetch([() => new Response(JSON.stringify({
       data: [{ id: 'claude-sonnet-4-7' }, { id: 'claude-sonnet-4-7' }, { id: 'gpt-4' }, { id: 42 }],

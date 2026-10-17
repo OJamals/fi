@@ -14,6 +14,8 @@ import { notarizeMacOSDiskImageArtifact } from '../scripts/notarize-macos-disk-i
 vi.mock('../lib/types/runtime-tree.js', () => import('../src/runtime-tree.ts'))
 // Vite keeps a root-relative id when the generated file is absent on a clean checkout.
 vi.mock('/apps/desktop/lib/types/runtime-tree.js', () => import('../src/runtime-tree.ts'))
+// Archive extraction is covered with real files in primary-runtime-archive.spec.ts.
+vi.mock('../scripts/archive-primary-runtime.mjs', () => ({ archiveMacOSPrimaryRuntime: async () => {} }))
 import {
   assertMacOSRuntimeSignatureDetails,
   assertMacOSSignatureDetails,

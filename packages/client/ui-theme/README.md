@@ -29,6 +29,8 @@ Users switch the color scheme, font sizes, and fonts from rows in Settings (Gene
 
 ### Appearance and font size
 
+Desktop `Mod+=` and `Mod+Shift+=` increase text, code, and terminal sizes together by one pixel; `Mod+-` decreases them. Each role keeps its own limits and Settings control. The shortcut saves changed fields in one mutation and emits one theme change, ignores repeats and IME composition, and leaves terminal-region input alone. Web runtime keeps browser zoom behavior.
+
 The plugin registers Appearance preference cubes and the text font-size stepper in the General section. A More font settings button after the stepper expands a region below it, collapsed on every settings open, with a font row for each of text, code, and the terminal, plus the code and terminal font-size steppers. The text stepper accepts integer values from 10 through 22 px and defaults to 14 px. It changes conversation headings and base text by the same increment, including the user bubble and composer draft; flow-row titles, summaries, and tables follow one step under the body size, while small text keeps a fixed size. The code stepper (10–16 px, default 11) sets the code-block size; inline code stays 1 px larger, and the small tool-output variant uses the same size. The terminal stepper (10–20 px, default 13) sets the sidebar terminal cell font size; changing it keeps the shell and output and refits the grid. Each accepted change writes through the Host settings API. Rapid changes serialize in gesture order with namespace revisions, and a rejected latest write reloads the durable values. Non-loopback pages keep these choices process-local.
 
 ### Fonts

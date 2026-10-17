@@ -1,6 +1,6 @@
 /** Desktop Office skills and bundled authoring dependencies. */
 
-import { realpathSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runtimeArchivePath } from './office-engine.ts'
@@ -26,13 +26,17 @@ export interface Config {
  * @param config - Bundled payload source and Harness-home installation root.
  */
 export async function apply(ctx: Context, config: Config): Promise<void> {
+  const node = existsSync(join(config.source, 'archive.json'))
+    ? (await workspaceDependencies.installPrimaryRuntime(config.source, config.root, { repairInvalidEntries: true })).node
+    : join(config.source, 'dependencies', 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node')
+  if (node === undefined) throw new Error('desktop Office: bundled runtime must provide Node.js')
   await ctx.plugin(workspaceDependencies, config)
   const archive = runtimeArchivePath(config.runtimeDir) === undefined ? undefined : dirname(realpathSync(config.runtimeDir))
   const manifest = fileURLToPath(import.meta.resolve('@deepseek-ai/libreoffice-kit/package.json'))
   const packageRoot = dirname(archive === undefined ? manifest : join(`${archive}.unpacked`, relative(archive, manifest)))
   await ctx.plugin(officeSkills, {
     assetRoot: join(dirname(config.source), 'office-skills'),
-    node: join(config.source, 'dependencies', 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node'),
+    node,
     cli: join(packageRoot, 'lib', 'cli.js'),
   })
 }

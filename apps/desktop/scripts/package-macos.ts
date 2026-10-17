@@ -12,6 +12,7 @@ import {
 } from './desktop-release-environment.mjs'
 import {
   desktopUpdateMetadataFilename,
+  desktopUpdateChannel,
   resolveDesktopAutoUpdateConfig,
 } from './desktop-auto-update-environment.mjs'
 import { verifyMacOSAppUpdateConfig } from './macos-app-update-config.mjs'
@@ -44,7 +45,7 @@ export interface MacOSArtifactOperations {
 
 const operations: MacOSArtifactOperations = {
   async copyApp(source, destination) {
-    await execute('/usr/bin/ditto', [source, destination])
+    await execute('/usr/bin/ditto', ['--hfsCompression', source, destination])
   },
   notarize: notarizeMacOS,
   verifySignature: verifyMacOSSignature,
@@ -115,7 +116,8 @@ export async function packageMacOSArtifacts(
       [dmgOutput, `${base}.dmg`],
       [zipOutput, `${base}.zip`],
       [zipOutput, `${base}.zip.blockmap`],
-      [zipOutput, desktopUpdateMetadataFilename(version, 'darwin')],
+      [zipOutput, environment.DSH_DESKTOP_AUTO_UPDATE_ENV === 'production'
+        ? `${desktopUpdateChannel(version)}-mac.yml` : desktopUpdateMetadataFilename(version, 'darwin')],
     ] as const
     for (const [output, filename] of artifacts) {
       const file = join(output, filename)

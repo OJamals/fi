@@ -103,7 +103,7 @@ Running group titles, reasoning labels, tool and command rows, the active retry 
 
 Running reasoning rows and the process fallback show “Thinking”. Collapsed running reasoning omits source-text previews; opening the row reveals its complete live Markdown. Settled rows retain their work-details preview policy. The bottom “Working” status keeps elapsed time and a stable screen-reader announcement.
 
-The running status shows a whale whose APNG mask inherits the text color. CSS selects the static SVG when reduced motion or forced colors are active, or alpha masks are unsupported. The build embeds the image in the plugin stylesheet; React does not pass image data through DOM styles.
+The running status shows a vector fi mark that inherits the text color. The complete mark pulses between full and 55% opacity on a 1.5-second CSS loop. On the same cycle, its dot rises 2px with deceleration, accelerates down, rebounds 0.65px, and rests before repeating. The working label and elapsed timer retain their opacity. Reduced motion and forced colors keep the complete mark static. The decorative icon makes no image requests.
 
 Scroll-edge fades initialize when `ResizeObserver` reports the open group's layout; opening the group performs no immediate scroll-dimension read in a layout effect.
 
@@ -175,7 +175,7 @@ None; Chat presentation does not assemble or mutate provider requests.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **Running-icon resolution** — the animated whale uses a 28×28 image at a default 14×14 CSS size. Larger content fonts or device pixel ratios above 2 can soften the raster stroke; the static fallback remains vector-based. Browser image caching owns the animation clock, so remounting does not guarantee playback restarts at the first frame.
+- **Running-icon motion** — the fi mark defaults to 14×14 CSS pixels and scales with the content font setting. Remounting starts a new CSS animation cycle.
 
 - **Tool-change presentation** — The `developer-message` Definition shares context presentation with `input-message`. Tool-only developer messages name a single added or removed tool inline without expansion. Multiple changes show added/removed counts and expand to comma-separated tool lists, one line per change kind. Mixed content uses the generic context presentation.
 

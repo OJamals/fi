@@ -59,6 +59,34 @@ function script(handler: (request: Request) => Response | Promise<Response>) {
   )
 }
 const models = { free: [{ id: 'cline-free/test' }], clinePass: [{ id: 'cline-pass/test' }] }
+it('lists all Kiro catalog pages using the same account and profile', async () => {
+  const paths: string[] = []
+  script((request) => {
+    const url = new URL(request.url)
+    paths.push(url.search)
+    expect(url.searchParams.get('profileArn')).toBe('profile-test')
+    expect(url.searchParams.get('origin')).toBe('AI_EDITOR')
+    expect(request.headers.get('authorization')).toBe('Bearer fixture-key')
+    return Response.json(url.searchParams.has('nextToken')
+      ? { models: [{ modelId: 'new-model' }, { modelId: 'later-model' }] }
+      : { models: [{ modelId: 'new-model' }], nextToken: 'next+page' })
+  })
+  expect(await catalog({ ...seed, provider: 'kiro', subscriptionAuth: { profileArn: 'profile-test' } }, options))
+    .toMatchInlineSnapshot(`
+      [
+        "new-model",
+        "later-model",
+      ]
+    `)
+  expect(paths).toHaveLength(2)
+  expect(new URLSearchParams(paths[1]).get('nextToken')).toBe('next+page')
+})
+
+it('rejects repeated Kiro pagination tokens instead of returning a partial catalog', async () => {
+  script(() => Response.json({ models: [{ modelId: 'new-model' }], nextToken: 'same' }))
+  await expect(catalog({ ...seed, provider: 'kiro' }, options)).rejects.toThrow('repeated a pagination token')
+})
+
 it('uses pi-ai Copilot OAuth with the native chat catalog and rejects foreign origins', async () => {
   const ctx = await harness()
   await ctx.credentials.modifyRecord(credentialKey('llm-pi-ai', 'github-copilot'), async () => ({ kind: 'grant', payload: {

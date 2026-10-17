@@ -6,7 +6,7 @@
 
 **你的模型，你的工作区。**
 
-fi 是基于 [DeepSeek Harness（DSH）](https://github.com/deepseek-ai/deepseek-harness) 和 [Cordis](https://github.com/cordiverse/cordis) 构建的预发布 coding agent 应用。你可以用它处理本地项目、连接模型订阅或 API 提供方、使用所选搜索引擎开展研究，并在编写代码的同时生成图像。它可在原生桌面壳中运行，也可通过浏览器连接本地运行时。
+fi 是基于 [DeepSeek Harness（DSH）](https://github.com/deepseek-ai/deepseek-harness) 和 [Cordis](https://github.com/cordiverse/cordis) 构建的 coding agent 应用。你可以用它处理本地项目、连接模型订阅或 API 提供方、使用所选搜索引擎开展研究，并在编写代码的同时生成图像。它可在原生桌面壳中运行，也可通过浏览器连接本地运行时。
 
 ![fi 功能概览：连接模型提供方、开展研究、创建图像，并基于 DeepSeek Harness 和 Cordis 进行开发](docs/assets/fi/feature-overview.png)
 
@@ -50,6 +50,10 @@ Ollama Cloud 使用原生设备批准流程，不需要本地 Ollama daemon。An
 
 采用全新状态的本地源码构建截图；未展示提供方账号或推理请求。
 
+![fi 演示：工作区、外观、模型连接、插件与搜索](https://github.com/OJamals/fi/blob/fi-readme-assets/2026-10-14/fi-walkthrough.gif?raw=true)
+
+[观看或下载 MP4 演示](https://github.com/OJamals/fi/raw/refs/heads/fi-readme-assets/2026-10-14/fi-walkthrough.mp4)。这段 23 秒的分镜演示使用 2026 年 10 月 14 日同一次本地源码构建会话中的六张截图，展示界面控件，并非实时模型响应或响应耗时。
+
 <a id="run"></a><a id="run-from-source"></a>
 
 ## 从源码运行
@@ -69,13 +73,13 @@ pnpm run dev:desktop
 
 ## 更新
 
-生产桌面构建从已发布的 [fi GitHub Releases](https://github.com/OJamals/fi/releases) 读取已签名更新元数据。Preview 构建跟随 preview prerelease，稳定构建跟随稳定 release；草稿 release 会被忽略。
+生产桌面构建从已发布的 [fi GitHub Releases](https://github.com/OJamals/fi/releases) 读取更新元数据。Preview 构建跟随 preview prerelease，稳定构建跟随稳定 release；草稿 release 会被忽略。
 
 ## 项目状态
 
-本 README 描述源码能力。源码 package 版本为 `0.2.0-rc.2`；桌面 release 使用独立版本，包含的功能可能较少。请在 [fi Releases](https://github.com/OJamals/fi/releases) 中选择可用构建并阅读其说明。本地未签名构建不属于已签名或公证的发布制品。
+本 README 描述源码能力。源码 package 版本为 `1.0.0`；桌面 release 使用独立版本，包含的功能可能较少。请在 [fi Releases](https://github.com/OJamals/fi/releases) 中选择可用构建并阅读其说明。本地未签名构建不属于已签名或公证的发布制品。
 
-fi 处于预发布阶段，可能发生破坏性变更。使用前请阅读 [SAFETY.zh.md](SAFETY.zh.md)。DeepSeek Harness 最初由 DeepSeek AI 开发；fi 保留该归属说明以及底层 DSH package 与 CLI 名称。
+各 release 的说明列出可用构建与平台签名状态。使用前请阅读 [SAFETY.zh.md](SAFETY.zh.md)。DeepSeek Harness 最初由 DeepSeek AI 开发；fi 保留该归属说明以及底层 DSH package 与 CLI 名称。
 
 ## 开发
 

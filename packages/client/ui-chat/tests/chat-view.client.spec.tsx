@@ -4299,8 +4299,8 @@ describe('ChatView', () => {
     expect(status?.lastElementChild?.textContent).toBe('正在工作')
     const icon = status?.querySelector('svg')?.parentElement
     expect(icon?.getAttribute('aria-hidden')).toBe('true')
-    expect(icon?.firstElementChild?.tagName).toBe('SPAN')
-    expect(icon?.querySelectorAll('path')).toHaveLength(1)
+    expect(icon?.firstElementChild?.tagName).toBe('svg')
+    expect(icon?.querySelectorAll('path')).toHaveLength(2)
     expect(icon?.getAttribute('style')).toBeNull()
     expect(status?.querySelector('animate')).toBeNull()
     act(() => { h.setSession({ running: false }) })

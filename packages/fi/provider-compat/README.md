@@ -35,7 +35,7 @@ Direct subscription HTTP clients first call pi-ai `Models.getAuth(provider)`, re
 
 ### Live model discovery for Claude Code, Codex, and Grok
 
-Discovery cancels its response reader and releases its lock after success or failure, including when cancellation itself fails.
+Discovery cancels its response reader and releases its lock after success or failure, including when cancellation itself fails. Catalogs and Codex ETags are isolated by a SHA-256 digest of the resolved credential; changing accounts or refreshing credentials fetches a separate catalog. Claude discovery follows `has_more` and `last_id` through `after_id` within one deadline and rejects incomplete or repeating pagination.
 
 This plugin also answers `@deepseek-ai/dsh-llm-pi-ai`'s optional `llm-pi-ai/live-models` waterfall for its three subscription routes (`anthropic`, `openai-codex`, `xai`), so a signed-in account's new models appear in `listModels`, model discovery, and the adopt flow without a catalog update. `liveModelDiscoveryEnabled` (default `true`) and `liveModelDiscoveryCacheTtlMs` (default 300000, five minutes; 1,000–86,400,000 accepted) are `Config` fields on this plugin, since the fetch cadence is a deployment choice, not a constant. Each provider is interrogated with the same identity `subscriptionHeaders` already builds for a chat request, pointed at that provider's own model-listing endpoint instead of its inference one:
 

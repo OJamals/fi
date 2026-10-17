@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
@@ -23,6 +23,14 @@ function root(): string {
   return path
 }
 const identity = { signingIdentity: 'Example (TEAMID1234)', teamId: 'TEAMID1234' }
+it.skipIf(process.platform === 'win32')('signs an aliased interpreter once without replacing its aliases', async () => {
+  const path = root()
+  writeFileSync(join(path, 'python3.12'), Buffer.from('cffaedfe00000000', 'hex'))
+  symlinkSync('python3.12', join(path, 'python3'))
+  await expect(signMacOSRuntimeAdHoc(path, 'com.example.app')).resolves.toBe(1)
+  expect(signMacOSRuntimeCodeAdHoc).toHaveBeenCalledTimes(1)
+  expect(signMacOSRuntimeCodeAdHoc).toHaveBeenCalledWith(join(path, 'python3.12'), expect.any(String), undefined)
+})
 afterEach(() => {
   vi.resetAllMocks()
   for (const path of roots.splice(0)) rmSync(path, { recursive: true, force: true })

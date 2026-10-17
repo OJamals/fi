@@ -1,7 +1,7 @@
 /** Desktop-only omissions from already installed production npm packages. */
 
 /**
- * Identify build and diagnostic files omitted from the immutable Desktop runtime.
+ * Identify CLI-only, build, and diagnostic files omitted from the immutable Desktop runtime.
  * Unrecognized assets and target runtime binaries are retained. Paths name the copied
  * node_modules tree, including nested package containers.
  * @param path - Path relative to the production node_modules directory.
@@ -24,6 +24,12 @@ export function desktopRuntimeFileExclusion(
   const nameParts = packageParts[0]?.startsWith('@') ? 2 : 1
   const name = packageParts.slice(0, nameParts).join('/')
   const entry = packageParts.slice(nameParts).join('/')
+  if (name === '@mixmark-io/domino' && (entry === '.yarn' || entry.startsWith('.yarn/'))) return 'Domino build tooling'
+  if (name === 'zod' && /^src\/.*\/(?:tests|__tests__)(?:\/|$)/u.test(entry)) return 'Zod test sources'
+  if (name === 'gaxios' && /^build\/(?:cjs|esm)\/test(?:\/|$)/u.test(entry)) return 'Gaxios test fixtures'
+  if (name === 'fast-uri' && (entry === 'test' || entry.startsWith('test/'))) return 'fast-uri test fixtures'
+  if (name === '@deepseek-ai/dsh' && entry === 'lib/bin.js') return 'standalone CLI dispatcher'
+  if (name === '@deepseek-ai/dsh-desktop-host' && entry === 'lib/cli.js') return 'retired Desktop CLI dispatcher'
   if (name.startsWith('@deepseek-ai/libreoffice-kit-')) {
     if (name !== `@deepseek-ai/libreoffice-kit-${officeEngine}`) return 'LibreOffice other platform'
   }
@@ -34,6 +40,9 @@ export function desktopRuntimeFileExclusion(
     return 'fs-ext build configuration'
   }
   if (name === '@mixmark-io/domino' && (entry === 'test' || entry.startsWith('test/'))) return 'Domino test fixtures'
+  if (name === 'node-pty' && target.platform !== 'win32' && (entry === 'third_party/conpty' || entry.startsWith('third_party/conpty/'))) {
+    return 'node-pty Windows console runtime'
+  }
   if (name === 'node-pty' && entry.startsWith('prebuilds/')) {
     const platform = packageParts[nameParts + 1]
     if (platform !== undefined && platform !== `${target.platform}-${target.arch}`) return 'node-pty other platform'
