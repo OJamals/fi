@@ -6,6 +6,7 @@ import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import { registerDeepSeekProvider, catalogModelInfo } from '@deepseek-ai/dsh-llm-deepseek'
 import { Config, plainOptions, resolveAdapterOptions } from './config.ts'
 import type { ResolvedDeepSeekOptions } from './config.ts'
+import { discoverDeepSeekModels } from './discovery.ts'
 
 export { Config, plainOptions, resolveAdapterOptions } from './config.ts'
 export type { Options, ResolvedDeepSeekOptions } from './config.ts'
@@ -36,6 +37,16 @@ export function apply(ctx: Context, config: Config): void {
   ctx.llm.registerConfigurableProviders([
     { provider: PROVIDER, displayName: 'DeepSeek', settingsNs: ctx.fiber.entry?.options.id ?? name, settingsPath: [] },
   ])
+  ctx.llm.registerModelDiscovery(ctx.fiber.entry?.options.id ?? name, async (request, signal) => {
+    const connection = options()
+    const apiKey = request.apiKey === undefined
+      ? await resolveApiKey(connection)
+      : assertUsableApiKey(request.apiKey, 'llm-deepseek', connection.apiKeyEnv)
+    return discoverDeepSeekModels(request.baseURL ?? connection.baseURL, apiKey, {
+      timeoutMs: config.modelDiscoveryTimeoutMs.get(),
+      maxBytes: config.modelDiscoveryMaxBytes.get(),
+    }, signal)
+  })
   registerDeepSeekProvider(ctx, PROVIDER, {
     enabled: () => config.enabled.get(),
     options, providerName: 'DeepSeek',

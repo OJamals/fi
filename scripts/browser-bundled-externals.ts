@@ -103,7 +103,7 @@ async function collectClientBundles(
       platform: 'browser',
       transform: client.define === undefined ? {} : { define: client.define },
       plugins: [recorder(seen, workspaceNames), client.plugins ?? []] as NonNullable<Rolldown.InputOptions['plugins']>,
-      tsconfig: resolve(root, 'tsconfig.base.client.json'),
+      tsconfig: resolve(root, '.config/tsconfig.client-base.json'),
     })
     try {
       await bundle.generate({ format: 'cjs', sourcemap: false })

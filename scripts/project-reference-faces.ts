@@ -94,7 +94,7 @@ function projectFace(
   if (basename(configPath) === 'tsconfig.host.json') return 'host'
   if (basename(configPath) === 'tsconfig.client.json') return 'client'
   if (configPath === resolve(root, 'tsconfig.base.json')) return 'host'
-  if (configPath === resolve(root, 'tsconfig.base.client.json')) return 'client'
+  if (configPath === resolve(root, '.config/tsconfig.client-base.json')) return 'client'
   if (seen.has(configPath)) return undefined
   seen.add(configPath)
   const parent = localExtendsConfig(configPath, config.extends)

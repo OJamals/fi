@@ -401,7 +401,10 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
     const modelList = <ModelListEditor
       {...catalogProps}
       idsOnly={idsOnly}
-      catalogProvider={props.declared === true || idsOnly ? undefined : props.provider}
+      catalogProvider={family === 'deepseek' || props.declared === true || idsOnly ? undefined : props.provider}
+      inputField={family === 'deepseek' ? 'inputModalities' : 'input'}
+      defaultContextWindow={family === 'deepseek' && typeof defaultContextWindow === 'number' ? defaultContextWindow : undefined}
+      defaultMaxTokens={family === 'deepseek' && typeof defaultMaxTokens === 'number' ? defaultMaxTokens : undefined}
       defaultInput={Array.isArray(defaultInput) ? defaultInput : undefined}
       probe={probe} probeBlocked={keyFailure} operations={operations} onBusyChange={setListBusy} />
     return (
@@ -504,20 +507,7 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
                 </div>
               )
               : null}
-            {/* Both families edit the same rows through the same contract; only
-                the extras differ — DeepSeek's inherited capacities, pi-ai's
-                endpoint interrogation. */}
-            {family === 'deepseek'
-              ? (
-                <DeepSeekModelsEditor
-                  {...catalogProps}
-                  defaultContextWindow={typeof defaultContextWindow === 'number'
-                    ? defaultContextWindow
-                    : undefined}
-                  defaultMaxTokens={typeof defaultMaxTokens === 'number' ? defaultMaxTokens : undefined}
-                />
-              )
-              : subscription ? null : modelList}
+            {subscription ? null : modelList}
           </div>
         </details>}
       </>

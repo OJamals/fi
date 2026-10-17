@@ -12,11 +12,17 @@ export interface Config extends ProtocolConfig {
   enabled: Volatile<boolean>
   /** Credential reference resolved per request; defaults to DEEPSEEK_API_KEY. */
   apiKeyEnv: Volatile<string>
+  /** Maximum duration of an explicit model-directory request. */
+  modelDiscoveryTimeoutMs: Volatile<number>
+  /** Maximum bytes read from a model-directory response. */
+  modelDiscoveryMaxBytes: Volatile<number>
 }
 export const Config = z.object({
   ...deepSeekConfigFields,
   enabled: z.boolean().default(true).volatile(),
   apiKeyEnv: z.string().role('credential-ref').default('DEEPSEEK_API_KEY').volatile(),
+  modelDiscoveryTimeoutMs: z.number().step(1).min(1).max(2147483647).default(30000).volatile(),
+  modelDiscoveryMaxBytes: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(4 * 1024 * 1024).volatile(),
 })
 /** Plain deployment inputs for the API-key provider. */
 export type Options = ProtocolOptions & { apiKeyEnv?: string }

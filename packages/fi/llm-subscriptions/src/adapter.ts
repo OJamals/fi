@@ -132,8 +132,16 @@ export class SubscriptionAdapter extends LlmAdapter {
     }
   }
 
-  override async resolveModel(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo> {
-    return info((await this.prepare(provider, model, signal)).model)
+  override resolveModel(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo> {
+    signal?.throwIfAborted()
+    this.id(provider)
+    return Promise.resolve({
+      provider,
+      id: model,
+      name: model,
+      inputModalities: ['text'],
+      context: { contextWindow: this.options().defaultContextWindow },
+    })
   }
 
   // The standard adapter entry points share one account-frozen preparation path.

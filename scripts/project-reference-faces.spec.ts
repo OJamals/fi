@@ -24,8 +24,9 @@ function workspaceFixture(options: {
   const split = join(root, 'packages/api/split')
   mkdirSync(shared, { recursive: true })
   mkdirSync(split, { recursive: true })
+  mkdirSync(join(root, '.config'))
   writeJson(join(root, 'tsconfig.base.json'), {})
-  writeJson(join(root, 'tsconfig.base.client.json'), { extends: './tsconfig.base.json' })
+  writeJson(join(root, '.config/tsconfig.client-base.json'), { extends: '../tsconfig.base.json' })
   writeJson(join(shared, 'package.json'), { name: '@deepseek-ai/dsh-shared' })
   writeJson(join(shared, 'tsconfig.json'), {
     extends: '../../../tsconfig.base.json',
@@ -88,7 +89,7 @@ describe('Project Reference compiler faces', () => {
     mkdirSync(clientConsumer, { recursive: true })
     writeJson(join(clientConsumer, 'package.json'), { name: '@deepseek-ai/dsh-client-consumer' })
     writeJson(join(clientConsumer, 'tsconfig.json'), {
-      extends: '../../../tsconfig.base.client.json',
+      extends: '../../../.config/tsconfig.client-base.json',
       references: [{ path: '../../api/split/tsconfig.host.json' }],
     })
 

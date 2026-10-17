@@ -148,7 +148,7 @@ export function selectOfferedRows(entries: readonly AuthorizationEntryView[], of
     rows.push({
       key: entry.key,
       provider: entry.key === 'llm-pi-ai/github-copilot' ? 'copilot' : entry.key.slice(entry.key.indexOf('/') + 1),
-      label: entry.label,
+      label: OFFERED.includes(entry.key) ? entry.label.toLowerCase() : entry.label,
       methods: methods.map(method => ({ id: method.id, label: method.label })),
       stored: entry.stored,
       inFlight: entry.inFlight,

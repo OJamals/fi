@@ -41,6 +41,8 @@ kind: "package-reference"
 
 `models` 是该 provider 独立的可配置目录；默认值和协议能力来自共享传输包。目录判断不探测推理端点。设置命名空间采用 Cordis entry id，没有 entry 时采用插件名。产品保留 official 的 `llm-deepseek` entry id，账号使用 `llm-deepseek-account`。
 
+**获取可用模型**通过独立、显式的 `GET /models` 请求使用 Bearer 身份验证。请求使用编辑器中的草稿地址和密钥；省略时采用解析后的连接地址及已保存凭据。地址末尾的 `/anthropic` 或 `/anthropic/v1` 会先移除，再追加 `/models`，网关路径前缀保持不变。响应提供候选模型的标识、名称、容量和输入类型；只有用户选择并保存后才修改设置。凭据缺失、HTTP 错误、无效或不完整的目录以及超限响应都会显示失败，且拒绝重定向。`modelDiscoveryTimeoutMs` 默认 30,000 毫秒，`modelDiscoveryMaxBytes` 默认 4 MiB；调用方取消也会终止请求。普通会话模型选择器仍读取已配置的目录。
+
 <a id="understand-the-implementation"></a>
 ## 理解实现
 

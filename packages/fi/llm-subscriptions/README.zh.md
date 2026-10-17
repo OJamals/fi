@@ -29,6 +29,8 @@ Copilot 凭据保留在 `llm-pi-ai/github-copilot`。其他凭据分别存储于
 
 Kiro 发现会在同一次 `requestTimeoutMs` 截止时间内遍历所有 `nextToken` 页面，保持账户和 profile 不变，并去除重复模型 ID。无效页面或重复令牌会使发现失败，而不会返回不完整目录。
 
+模型选择器在每次刷新时为每个提供方获取一次目录。单个模型的元数据使用配置的容量，不再请求凭据或目录。准备生成请求时，仍会根据当前账户目录验证所选模型。
+
 <a id="protocol-sources"></a>
 ## 协议来源
 

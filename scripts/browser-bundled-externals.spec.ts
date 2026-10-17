@@ -38,7 +38,7 @@ function fixture(): string {
       paths: { '@fixture/static': ['./packages/client/static/src/index.ts'] },
     },
   }))
-  write(root, 'tsconfig.base.client.json', '{"extends":"./tsconfig.base.json"}')
+  write(root, '.config/tsconfig.client-base.json', '{"extends":"../tsconfig.base.json"}')
   return root
 }
 

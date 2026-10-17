@@ -28,6 +28,8 @@ Copilot credentials remain at `llm-pi-ai/github-copilot`. Other credentials belo
 
 Kiro discovery follows every `nextToken` page within one `requestTimeoutMs` deadline, preserving the account and profile and deduplicating model ids. Invalid pages or repeated tokens fail discovery instead of returning a partial catalog.
 
+The model picker fetches each provider catalog once per refresh. Per-model metadata uses configured capacities without more credential or catalog requests. Preparing a generation still validates the selected model against the current account catalog.
+
 ## Protocol sources
 
 Native codecs follow auth2api revision `05e9e0a68a6e952044fd2c03186722577c6de37a`. Cursor uses HTTP/2 Connect protobuf; Kiro uses CRC-checked AWS event streams; Cline uses OpenAI-compatible chat with truthful FI client headers; Code Assist reuses FI's Gemini message and SSE codec with its own Google endpoint and project envelope. [NOTICE](NOTICE.md) retains component attribution and distribution restrictions.

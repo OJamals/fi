@@ -1,5 +1,5 @@
 /**
- * The model list of one pi-ai provider profile, plus the action that asks the
+ * The model list of one API provider profile, plus the action that asks the
  * provider what it serves.
  *
  * The list is the profile's `models` array as the card holds it: an empty list
@@ -63,6 +63,11 @@ export interface ProbeTarget {
 
 /** Props of {@link ModelListEditor}. */
 export interface ModelListEditorProps {
+  /** Configuration field used for a model's accepted input types. */
+  inputField?: 'input' | 'inputModalities'
+  /** Provider defaults shown when a model omits its capacities. */
+  defaultContextWindow?: number | undefined
+  defaultMaxTokens?: number | undefined
   /** The adapter stores only model IDs, without editable metadata. */
   idsOnly?: boolean
   /** The rows as currently drafted. */
@@ -132,13 +137,13 @@ function capacitySpelling(value: number | undefined): string {
 }
 
 /** Adopt a candidate, preserving disclosed capacities and input types. */
-function adopt(candidate: LlmDiscoveredModel): ModelDraft {
+function adopt(candidate: LlmDiscoveredModel, inputField: 'input' | 'inputModalities'): ModelDraft {
   return {
     id: candidate.id,
     ...candidate.name === undefined ? {} : { name: candidate.name },
     ...candidate.contextWindow === undefined ? {} : { contextWindow: candidate.contextWindow },
     ...candidate.maxTokens === undefined ? {} : { maxTokens: candidate.maxTokens },
-    ...candidate.inputModalities === undefined ? {} : { input: [...candidate.inputModalities] },
+    ...candidate.inputModalities === undefined ? {} : { [inputField]: [...candidate.inputModalities] },
   }
 }
 
@@ -150,6 +155,7 @@ function adopt(candidate: LlmDiscoveredModel): ModelDraft {
 export function ModelListEditor(props: ModelListEditorProps): ReactNode {
   const { models, onChange, probe, operations, t, disabled, onBusyChange } = props
   const { catalogProvider } = props
+  const inputField = props.inputField ?? 'input'
   const [busy, setBusy] = useState(false)
   const active = useRef(true)
   useEffect(() => {
@@ -192,6 +198,16 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
   const editCapacity = (index: number, field: CapacityField, text: string): void => {
     setEditing(current => new Map(current).set(bufferKey(index, field), text))
     patch(index, { [field]: parseCapacity(text) })
+  }
+  const settleCapacity = (index: number, field: CapacityField): void => {
+    const key = bufferKey(index, field)
+    const text = editing.get(key)
+    if (text === undefined || Number.isNaN(parseCapacity(text))) return
+    setEditing((current) => {
+      const next = new Map(current)
+      next.delete(key)
+      return next
+    })
   }
 
   /** What a capacity field shows: the buffer while typing, else the stored count. */
@@ -288,7 +304,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
       // Keyed by id, so a half-typed row whose id is still empty is not a
       // match and the candidate joins as its own row — correct, since a row
       // without an id is not yet a model and the create/apply gates refuse it.
-      byId.set(candidate.id, byId.get(candidate.id) ?? adopt(candidate))
+      byId.set(candidate.id, byId.get(candidate.id) ?? adopt(candidate, inputField))
     }
     onChange([...byId.values()])
     closePicker()
@@ -344,7 +360,11 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
               type="button"
               className={styles['linkButton']}
               disabled={disabled}
-              onClick={props.onReset}
+              onClick={() => {
+                setEditing(new Map())
+                setExpanded(new Set())
+                props.onReset?.()
+              }}
             >
               {t('resetModels')}
             </button>
@@ -370,7 +390,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
             key={index}
             model={model}
             position={index + 1}
-            inputField="input"
+            inputField={inputField}
             inputFallback={inputDefaults.get(textOf(model, 'id')) ?? props.defaultInput}
             inputLoading={catalogProvider !== undefined && catalog === undefined}
             expanded={expanded.has(index)}
@@ -378,15 +398,18 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
             t={t}
             contextWindow={{
               value: capacityText(model, index, 'contextWindow'),
-              placeholder: CAPACITY_HINT.contextWindow,
+              placeholder: capacitySpelling(props.defaultContextWindow) || CAPACITY_HINT.contextWindow,
               onChange: (text) => { editCapacity(index, 'contextWindow', text) },
+              onBlur: () => { settleCapacity(index, 'contextWindow') },
             }}
             maxTokens={{
               value: capacityText(model, index, 'maxTokens'),
-              placeholder: CAPACITY_HINT.maxTokens,
+              placeholder: capacitySpelling(props.defaultMaxTokens) || CAPACITY_HINT.maxTokens,
               onChange: (text) => { editCapacity(index, 'maxTokens', text) },
+              onBlur: () => { settleCapacity(index, 'maxTokens') },
             }}
             onFieldChange={(field, value) => { patch(index, { [field]: value }) }}
+            onIdBlur={(value) => { if (value !== value.trim()) patch(index, { id: value.trim() }) }}
             onChange={(next) => { onChange(models.map((row, at) => at === index ? next : row)) }}
             onToggle={() => { toggleExpanded(index) }}
             onRemove={() => {

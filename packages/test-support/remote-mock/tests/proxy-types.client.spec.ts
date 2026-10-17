@@ -27,9 +27,9 @@ function virtualKey(path: string): string {
 }
 
 function compile(source: string, artifact?: string) {
-  const config = ts.readConfigFile(resolve(root, 'tsconfig.base.client.json'), filename => ts.sys.readFile(filename))
+  const config = ts.readConfigFile(resolve(root, '.config/tsconfig.client-base.json'), filename => ts.sys.readFile(filename))
   if (config.error !== undefined) throw new Error(ts.flattenDiagnosticMessageText(config.error.messageText, '\n'))
-  const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, root)
+  const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, resolve(root, '.config'))
   const options: ts.CompilerOptions = {
     ...parsed.options,
     composite: false,

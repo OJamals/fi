@@ -2,7 +2,7 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 import { z } from 'zod'
 import { Context } from '@deepseek-ai/cordis'
 import AuthorizationService from '@deepseek-ai/dsh-authorization'
@@ -59,6 +59,17 @@ function script(handler: (request: Request) => Response | Promise<Response>) {
   )
 }
 const models = { free: [{ id: 'cline-free/test' }], clinePass: [{ id: 'cline-pass/test' }] }
+it('resolves subscription picker metadata without repeating authenticated catalog requests', async () => {
+  const grant = vi.fn(() => Promise.resolve(seed))
+  script(() => Response.json(models))
+  const adapter = new SubscriptionAdapter(() => options, grant, () => undefined)
+  onTestFinished(() => adapter.dispose())
+  const listed = await adapter.listModels('cline')
+  expect(await Promise.all(listed.map(model => adapter.resolveModel('cline', model.id))))
+    .toEqual(listed.map(model => ({ ...model, context: { contextWindow: 32768 } })))
+  expect(grant).toHaveBeenCalledTimes(1)
+  expect(fetch).toHaveBeenCalledTimes(1)
+})
 it('lists all Kiro catalog pages using the same account and profile', async () => {
   const paths: string[] = []
   script((request) => {

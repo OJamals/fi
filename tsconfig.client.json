@@ -4,7 +4,7 @@
   // under the same keys (sessions, loader) with different services; shared
   // leaves (session/llm/tools/...) build once and are referenced by
   // both programs through each client package's own references.
-  "extends": "./tsconfig.base.client.json",
+  "extends": "./.config/tsconfig.client-base.json",
   "compilerOptions": {
     "noEmit": true,
     "rewriteRelativeImportExtensions": false,

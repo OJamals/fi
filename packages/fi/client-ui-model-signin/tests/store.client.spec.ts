@@ -18,6 +18,12 @@ function entry(overrides: Partial<AuthorizationEntryView> & { key: string }): Au
 const FRESH: SignInAttempt = { key: 'llm-pi-ai/anthropic', notice: null, prompt: null, settled: null }
 
 describe('selectOfferedRows', () => {
+  it('lowercases subscription labels without changing registered entries', () => {
+    const entries = [entry({ key: 'fi-subscriptions/kiro', label: 'Kiro' }),
+      entry({ key: 'fi-subscriptions/cline', label: 'Cline Free / Pass' })]
+    expect(selectOfferedRows(entries).map(row => row.label)).toEqual(['kiro', 'cline free / pass'])
+    expect(entries.map(row => row.label)).toEqual(['Kiro', 'Cline Free / Pass'])
+  })
   it('offers Copilot and native subscriptions, allowing account-key entry only for Cline', () => {
     const entries = ['cursor', 'kiro', 'gemini-cli'].map(id => entry({ key: `fi-subscriptions/${id}` }))
     entries.push(entry({ key: 'llm-pi-ai/github-copilot' }), entry({ key: 'fi-subscriptions/cline', methods: [{ id: 'api-key', label: 'Connect Cline account' }] }), entry({ key: 'llm-pi-ai/groq', methods: [{ id: 'api-key', label: 'Key' }] }))
@@ -30,7 +36,7 @@ describe('selectOfferedRows', () => {
   })
   it('offers OpenCode Console from its native authorization scope', () => {
     expect(selectOfferedRows([entry({ key: 'fi-opencode/opencode-console', label: 'OpenCode Console' })]))
-      .toEqual([expect.objectContaining({ provider: 'opencode-console', key: 'fi-opencode/opencode-console', label: 'OpenCode Console' })])
+      .toEqual([expect.objectContaining({ provider: 'opencode-console', key: 'fi-opencode/opencode-console', label: 'opencode console' })])
   })
   it('keeps only the offered providers, in the offered order', () => {
     const rows = selectOfferedRows([
@@ -41,6 +47,7 @@ describe('selectOfferedRows', () => {
     ])
 
     expect(rows.map(row => row.provider)).toEqual(['anthropic', 'openai-codex', 'xai'])
+    expect(rows.map(row => row.label)).toEqual(['anthropic', 'openai codex', 'xai'])
   })
 
   it('skips an offered provider the Host did not register', () => {

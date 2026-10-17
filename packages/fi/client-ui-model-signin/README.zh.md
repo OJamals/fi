@@ -39,6 +39,8 @@ Antigravity、OpenCode Console 与 Ollama Cloud 的「添加提供方」编辑�
 
 ### 增加另一个提供方
 
+订阅提供方名称在登录选择器和 Models 订阅列表中以小写显示；存储的配置名称和提供方 ID 保持不变。
+
 `src/client/store.ts` 中的 `SUBSCRIPTION_PROVIDER_IDS` 负责路由 id 与顺序；`OFFERED` 由此生成凭据键。Host 未注册的提供方会被跳过。连接后的可用行通过 `ctx.modelSettingsSubscriptions` 注册，因此 Models 页面只分组可用订阅路由；流程消失时，其行会回到主列表。挂载通用模型选择器时，本插件向其 `ctx.modelSubscriptions` 服务注册静态 id，把可用订阅模型分组放在带标签的底部分区，而不更改选择或认证。此区块提供 `oauth` 方式及 Ollama Cloud 的原生 `device` 方式；Cline 还提供账户密钥方式；其他 API 密钥由 Models 页面另行收集。
 
 选择器还提供 GitHub Copilot、Cursor、Kiro、Cline Free/Pass 和 Gemini Code Assist。Cline 专属账户密钥流程与 OAuth、设备批准并列提供；通用 API 密钥提供方仍由 Models 页面管理。五个原生路由使用 `fi-subscriptions` 编辑器及仅 ID 的模型选择。

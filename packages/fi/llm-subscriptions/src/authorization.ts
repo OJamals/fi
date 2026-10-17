@@ -13,11 +13,11 @@ import { loginGemini, refreshGemini } from './gemini-auth.ts'
 
 /** Labels shared by provider discovery and sign-in. */
 export const labels = {
-  'copilot': 'GitHub Copilot',
-  cursor: 'Cursor',
-  kiro: 'Kiro',
-  cline: 'Cline Free / Pass',
-  'gemini-cli': 'Gemini Code Assist',
+  'copilot': 'github copilot',
+  cursor: 'cursor',
+  kiro: 'kiro',
+  cline: 'cline free / pass',
+  'gemini-cli': 'gemini code assist',
 } as const
 const cursorSchema = z.object({ accessToken: z.string().min(1), refreshToken: z.string().optional() })
 const kiroToken = z.object({

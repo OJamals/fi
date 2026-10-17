@@ -1626,6 +1626,10 @@ export interface Config extends ProtocolConfig {
   enabled: Volatile<boolean>
   /** Credential reference resolved per request; defaults to DEEPSEEK_API_KEY. */
   apiKeyEnv: Volatile<string>
+  /** Maximum duration of an explicit model-directory request. */
+  modelDiscoveryTimeoutMs: Volatile<number>
+  /** Maximum bytes read from a model-directory response. */
+  modelDiscoveryMaxBytes: Volatile<number>
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-llm-deepseek-api-key -->

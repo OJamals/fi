@@ -3,6 +3,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
+import type { LlmDiscoveredModel } from '@deepseek-ai/dsh-api-remotes/client'
 import Schema from '@deepseek-ai/schemastery'
 import { Context } from '@deepseek-ai/cordis'
 import { bindSnapshotSelector, RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
@@ -207,7 +208,7 @@ function scriptedFace(overrides: {
         { provider: 'broken', displayName: 'broken', settingsNs: 'llm-pi-ai', settingsPath: ['nope', 'x'], active: false },
         { provider: 'plain', displayName: 'plain', settingsNs: 'llm-plain', settingsPath: ['profiles', 'plain'], active: false },
       ].map(({ active: _active, ...entry }) => entry)))),
-      discoverModels: vi.fn(() => Promise.resolve(remoteOk([]))),
+      discoverModels: vi.fn((): Promise<RemoteResult<LlmDiscoveredModel[]>> => Promise.resolve(remoteOk([]))),
     },
     settings: {
       describe: vi.fn(() => Promise.resolve(remoteOk({ writable: true, hasDocument: false, namespaces: wireNamespaces() }))),
@@ -732,6 +733,33 @@ describe('ModelsSection', () => {
       [{ op: 'set', path: ['baseURL'], value: 'https://next2' }],
       0,
     ])
+  })
+
+  it('fetches DeepSeek models with draft connection settings and saves selected input modalities', async () => {
+    const { face, mutate } = await mountDeepSeekCard({
+      mutate: vi.fn(() => Promise.resolve(remoteOk(wireNamespaces()[0]))),
+    })
+    expect(face.llm.discoverModels).not.toHaveBeenCalled()
+    face.llm.discoverModels.mockResolvedValue(remoteOk([
+      { id: 'new-deepseek', name: 'New DeepSeek', contextWindow: 1000000, maxTokens: 64000, inputModalities: ['text', 'image'] },
+    ]))
+    fireEvent.click(screen.getByText(en.customized))
+    fireEvent.change(screen.getByLabelText(en.keyInput), { target: { value: 'draft-key' } })
+    fireEvent.change(screen.getByLabelText(en.baseUrl), { target: { value: 'https://gateway.example/anthropic' } })
+    fireEvent.click(screen.getByRole('button', { name: en.fetchModels }))
+    await screen.findByRole('checkbox', { name: 'new-deepseek' })
+    expect(face.llm.discoverModels).toHaveBeenCalledWith('llm-deepseek', {
+      provider: 'deepseek-official', apiKey: 'draft-key', baseURL: 'https://gateway.example/anthropic',
+    })
+    fireEvent.click(screen.getByRole('button', { name: en.fetchAdopt }))
+    fireEvent.click(screen.getByText(en.apply))
+    await waitFor(() => { expect(mutate).toHaveBeenCalledTimes(1) })
+    const expectedModels: unknown = expect.arrayContaining([
+      { id: 'new-deepseek', name: 'New DeepSeek', contextWindow: 1000000, maxTokens: 64000, inputModalities: ['text', 'image'] },
+    ])
+    expect(mutate.mock.calls[0]?.[1]).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: ['models'], value: expectedModels }),
+    ]))
   })
 
   it('materializes inherited models and adds an arbitrary DeepSeek id', async () => {

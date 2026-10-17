@@ -106,8 +106,8 @@ function mount(
 describe('WelcomeNotice', () => {
   it('uses the exact owner copy in both GUI locales', () => {
     expect(WELCOME_NOTICE_COPY.en).toEqual({
-      title: 'Preview Notice',
-      body: 'fi 0.2 is still in preview. We welcome feedback from users and developers as its product features and plugin APIs continue to evolve.\n\nWe look forward to exploring the limits of intelligence together on open, reusable, and composable infrastructure. Use fi to bring ideas to life and help grow its plugin ecosystem.',
+      title: 'Welcome to fi',
+      body: 'Connect your subscription or API key, choose a model, and start a coding task.',
       continueLabel: 'Continue',
     })
     expect(en.welcomeBody).toBe(WELCOME_NOTICE_COPY.en.body)
@@ -120,7 +120,7 @@ describe('WelcomeNotice', () => {
     for (const paragraph of WELCOME_NOTICE_COPY.zh.body.split('\n\n')) {
       expect(screen.getByText(paragraph, { exact: true })).toBeTruthy()
     }
-    expect(dialog.querySelectorAll('p')).toHaveLength(2)
+    expect(dialog.querySelectorAll('p')).toHaveLength(1)
     expect(dialog.querySelectorAll('button')).toHaveLength(1)
     expect(screen.getByRole('button', { name: WELCOME_NOTICE_COPY.zh.continueLabel })).toBeTruthy()
     expect(document.activeElement).toBe(screen.getByRole('heading', { name: WELCOME_NOTICE_COPY.zh.title }))

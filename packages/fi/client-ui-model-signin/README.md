@@ -39,6 +39,8 @@ The `fi.search.sign-in` slot supplies search settings with a separate store usin
 
 ### Offering another provider
 
+Subscription provider names appear in lowercase in the sign-in selector and Models subscription list; stored profile names and provider IDs remain unchanged.
+
 `SUBSCRIPTION_PROVIDER_IDS` in `src/client/store.ts` owns the route ids and order; `OFFERED` derives their credential keys. A provider the Host has not registered is skipped. The joined offered rows register through `ctx.modelSettingsSubscriptions`, so the Models page groups only available subscription routes and restores their rows to the main list if a flow disappears. When the generic model selector is mounted, this plugin registers the static ids with its `ctx.modelSubscriptions` service, placing available subscription model groups in a labeled bottom section without changing selection or authentication. The section offers `oauth` methods and Ollama Cloud's native `device` method; Cline also offers its account-key method; other API keys remain on the Models page.
 
 The selector also offers GitHub Copilot, Cursor, Kiro, Cline Free/Pass, and Gemini Code Assist. Cline's scoped account-key flow is offered alongside OAuth and device approval; generic API-key providers remain on the Models page. The five native routes use the `fi-subscriptions` editor and ids-only model selections.

@@ -11,7 +11,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-client-ui-settings-models` 是 dsh Web 客户端的 Models 设置页面：用户可以配置 API 密钥（以只写方式存入 profile 的凭据引用之下）、编辑每个提供商的模型列表，并手工声明自定义 pi-ai 路由；页面以提供商行展示，一次只展开一张编辑卡片。该页面把提供商目录、设置文档与凭据描述合并为一个共享快照，因此行的状态在三个方面始终一致。它还会带首次运行的用户走两个有序弹窗——版本化预览版说明，以及模型通用的设置步骤：没有提供方的用户会被引导到本页面，而不是收集某一家的凭据。
+`dsh-client-ui-settings-models` 是 dsh Web 客户端的 Models 设置页面：用户可以配置 API 密钥（以只写方式存入 profile 的凭据引用之下）、编辑每个提供商的模型列表，并手工声明自定义 pi-ai 路由；页面以提供商行展示，一次只展开一张编辑卡片。该页面把提供商目录、设置文档与凭据描述合并为一个共享快照，因此行的状态在三个方面始终一致。它还会带首次运行的用户走两个有序弹窗——版本化欢迎说明，以及模型通用的设置步骤：没有提供方的用户会被引导到本页面，而不是收集某一家的凭据。
 
 ## 目录
 
@@ -37,7 +37,7 @@ DeepSeek 官方提供方是可选项。“移除”会禁用其路由并保留�
 
 存在已存储目录错误的提供商仍显示诊断以及编辑、删除入口。添加操作只面向已注册的 settings 命名空间，因此不可用的命名空间不会留下无法打开编辑器的按钮。保存被拒绝时，编辑器保持打开并展示 Host 诊断。
 
-Host 配置 `credentialOnboarding` 默认为 `true`。模型通用的设置步骤会在保持启用它的所有客户端中运行，包括 Electron（`dshDesktop`）；预览版说明仅在 Web 显示。FI 的授权 bundle 会禁用账号 UI 和 DeepSeek 账号路由，因此 FI Desktop 使用模型设置，而不是账号引导，并可配置任意提供方。其他原生壳可以通过 `credentialOnboarding: false` 禁用自动设置步骤。Host 通过 `webserver/index-inject` 发布这个公开的布尔值，Client 在注册弹窗前校验它。它是页面初始化数据，不是持久化的完成标记。
+Host 配置 `credentialOnboarding` 默认为 `true`。模型通用的设置步骤会在保持启用它的所有客户端中运行，包括 Electron（`dshDesktop`）；欢迎说明仅在 Web 显示。FI 的授权 bundle 会禁用账号 UI 和 DeepSeek 账号路由，因此 FI Desktop 使用模型设置，而不是账号引导，并可配置任意提供方。其他原生壳可以通过 `credentialOnboarding: false` 禁用自动设置步骤。Host 通过 `webserver/index-inject` 发布这个公开的布尔值，Client 在注册弹窗前校验它。它是页面初始化数据，不是持久化的完成标记。
 
 ### API 密钥
 
@@ -51,7 +51,7 @@ API 密钥输入框初始为空，并通过 `autocomplete="new-password"` 请求
 
 收起的「自定义设置」折叠区承载精选的额外字段：两个家族都有 `baseURL`（deepseek 的占位符显示公共端点）、各适配器自己的模型目录，以及适配器未提供的 pi-ai 路由的**显示名称**与 **API 协议**。Profile `headers` 仍是 `cordis.patch.yml` 或 Cordis 配置中的部署配置，Models 页面不提供编辑器。Provider ID 保持固定：它是 settings 的键、其他每个 namespace 与每一条已记录会话引用的名字，也是页面读不回、因而搬不走的凭据引用词干。推理等级刻意不在可编辑字段之列：它是按模型的能力，提供商级的控件只可能被设成某些模型会拒绝的值。每个模型行可编辑 `id`、可选显示 `name`、可选 `contextWindow`/`maxTokens` 和输入类型；无关的模型字段在编辑后仍会保留。
 
-`llm-deepseek` 的 DeepSeek 卡片编辑端点、凭据和模型目录。它使用 Messages，默认端点占位符为 `https://api.deepseek.com/anthropic`。
+DeepSeek API 密钥卡片使用标准模型列表编辑器，包含**获取可用模型**、候选选择、手工输入和重置。获取操作使用草稿连接并提供实时 `/models` 结果；不会自动保存，也不会在打开卡片时发起请求。采用的模型保留 DeepSeek 的 `inputModalities` 字段。卡片编辑 `llm-deepseek` 的端点、凭据和模型目录。推理保留 DeepSeek 支持的 Messages 传输，默认端点占位符为 `https://api.deepseek.com/anthropic`；现有会话和显式提供方设置继续有效。
 
 展开**自定义设置 → 模型选项**编辑模型。两个提供商家族共用相同的模型行布局、标签和图标：上下文窗口与最大输出 token 数分为两列，**输入类型**独占下一行，提供**文本**和**图片**复选框。未声明输入类型的模型行优先显示已安装模型的输入类型，其次是提供商默认值，最后回退为文本。已知 pi-ai 提供商会加载已安装目录，不向端点发送请求；打开模型行不会写入覆盖值。显式输入选择具有优先权，包括为视觉模型设置的仅文本覆盖。修改复选框会保存所选类型，且至少保留一种。DeepSeek 写入 `inputModalities`，pi-ai 写入 `input`。DeepSeek 取消勾选图片时，还会移除 `imagePixelBudget` 和 `imageMaxBytes`，因为适配器在没有图片输入时拒绝这些限制。在 `cordis.patch.yml` 中清除输入字段可恢复适配器继承；**恢复默认模型**会重置整个模型目录覆盖。仅声明上游模型实际能够处理的输入类型。
 
@@ -91,7 +91,7 @@ Models 页面包含 **DeepSeek 账号**（`deepseek-account`，英文为 **DeepS
 
 ### 引导协调器
 
-预览版说明在 `src/client/locales.ts` 中持有精确文案，并在 `src/onboarding-copy.ts` 中持有确认版本；回环时它通过共享配置表单比较并写入 `ui-settings-general.welcomeNoticeVersion`，且只有显式点击「继续」才会记录当前版本。已确认旧版的用户会再次看到当前说明。非回环浏览器无法使用这个仅限宿主的 namespace，因此确认只保留在进程内，刷新后说明会再次出现。设置步骤是模型通用的：不预设任何提供方，可用模型目录中尚无解析默认值的用户会被引导至模型页面——所有提供方（内置或自建）都在那里配置。该步骤自身不写入任何凭据，也不改变任何设置。
+欢迎说明在 `src/client/locales.ts` 中持有精确文案，并在 `src/onboarding-copy.ts` 中持有确认版本；回环时它通过共享配置表单比较并写入 `ui-settings-general.welcomeNoticeVersion`，且只有显式点击「继续」才会记录当前版本。已确认旧版的用户会再次看到当前说明。非回环浏览器无法使用这个仅限宿主的 namespace，因此确认只保留在进程内，刷新后说明会再次出现。设置步骤是模型通用的：不预设任何提供方，可用模型目录中尚无解析默认值的用户会被引导至模型页面——所有提供方（内置或自建）都在那里配置。该步骤自身不写入任何凭据，也不改变任何设置。
 
 </details>
 

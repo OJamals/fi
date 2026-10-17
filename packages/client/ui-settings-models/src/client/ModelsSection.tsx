@@ -364,7 +364,9 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
   const anyUsable = state.rows.some(providerUsable)
   const configured = state.rows.filter(row => row.configured)
   const subscriptionIds = new Set(offeredSubscriptions)
-  const subscriptionConfigured = configured.filter(row => subscriptionIds.has(row.entry.provider) && row.apiKeyEnv === undefined)
+  const subscriptionConfigured = configured
+    .filter(row => subscriptionIds.has(row.entry.provider) && row.apiKeyEnv === undefined)
+    .map(row => ({ ...row, entry: { ...row.entry, displayName: row.entry.displayName.toLowerCase() } }))
   const normalConfigured = configured.filter(row => !subscriptionIds.has(row.entry.provider) || row.apiKeyEnv !== undefined)
   const configurable = state.rows.filter(row => state.namespaces.has(row.entry.settingsNs))
   const addable: AddableRow[] = state.rows.flatMap((row) => {

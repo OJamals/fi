@@ -41,6 +41,8 @@ The endpoint and credential reference come from one configuration resolution. In
 
 `models` is an independently configurable catalog for this provider; defaults and protocol capabilities come from the shared transport. Discovery does not probe inference endpoints. The settings namespace is the Cordis entry id, or the plugin name without an entry. Product profiles retain the official entry id `llm-deepseek` and use `llm-deepseek-account` for the account route.
 
+**Fetch available models** performs a separate, explicit `GET /models` request with bearer authentication. It uses the editor's draft endpoint and key, falling back to the resolved connection and stored credential when omitted. A trailing `/anthropic` or `/anthropic/v1` is removed before appending `/models`; gateway prefixes remain intact. The response supplies candidate IDs, names, capacities, and input types without changing settings until the user selects and saves them. Missing credentials, HTTP errors, malformed or incomplete directories, and oversized responses fail visibly. Redirects are refused. `modelDiscoveryTimeoutMs` defaults to 30,000 ms and `modelDiscoveryMaxBytes` to 4 MiB; caller cancellation also aborts the request. The normal conversation picker still reads the configured catalog.
+
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 

@@ -14,7 +14,7 @@ Implemented notes that only describe small UI adjustments or purely mechanical c
 
 The archive uses `.agents/notes/archived/{kind}/yyyy-mm-dd-topic.md`; the redundant `implemented` segment is absent. The archival change moves the complete English, Chinese, and consistency-sidecar triplet, leaves `Status: implemented` intact, and inserts `Archived: YYYY-MM-DD` immediately below it in both language files. Relocation, that metadata line, the corresponding sidecar re-record, and mechanical inbound-link repair are the only permitted archival edits. Archival admission checks lifecycle metadata and completeness, not title punctuation, blank-line layout, or language-switcher wording; requiring those repairs would rewrite the historical record.
 
-The root `.rgignore` excludes the archive from searches that traverse a parent directory. Historical queries name the archive directory explicitly, so intentional access remains available without mixing frozen facts into active decision discovery.
+The root `.ignore` excludes the archive from searches that traverse a parent directory. Historical queries name the archive directory explicitly, so intentional access remains available without mixing frozen facts into active decision discovery.
 
 After archival, the triplet is permanently frozen and is historical context rather than current authority. It is not updated for renamed packages, changed behavior, translation standards, formatting rules, broken outbound links, or later documentation contracts. Active prose may intentionally link into an archived note, redirect that link to current authority, or delete it. Repository gates therefore validate links into archived files but never treat archived files as link sources.
 
