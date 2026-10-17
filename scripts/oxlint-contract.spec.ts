@@ -221,7 +221,7 @@ export const longProbe = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 +
     expect(packageJson.devDependencies).not.toHaveProperty('@typescript-eslint/parser')
     expect(existsSync(join(repositoryRoot, 'eslint.format.config.mjs'))).toBe(false)
 
-    const lefthook = await readFile(join(repositoryRoot, 'lefthook.yml'), 'utf8')
+    const lefthook = await readFile(join(repositoryRoot, '.config/lefthook.yml'), 'utf8')
     expect(lefthook).toContain('scripts/run-oxlint.ts --config .oxlintrc.staged.json --fix')
     expect(lefthook).not.toContain('node_modules/.bin/eslint')
     expect(lefthook).not.toContain('eslint.format.config.mjs')

@@ -70,7 +70,7 @@ Claude Code 证据会锁定 Agent SDK 0.3.263、Claude Code 2.1.263 与八个 SD
 
 带密钥 Claude Code e2e 仅在提供方的内存环境中映射密钥与固定的官方端点，把模型变量设为文档所示的 `deepseek-v4-pro[1m]` 与 `deepseek-v4-flash`，并实际经过生产提供方、官方 SDK 与真实 CLI。它将去除首尾空白后的结果与一个随机数比较，并证明整棵进程树退出，且测试不会直接调用 Messages API。
 
-项目所有者的分发授权范围限定为官方 `@anthropic-ai/claude-agent-sdk` 身份，以及每个 SDK 版本通过 `optionalDependencies` 声明的官方 Claude Code CLI 与平台载荷。[`THIRD_PARTY_NOTICES.md`](../../../../THIRD_PARTY_NOTICES.md) 会推导并披露当前载荷集合，但不会将其声明条款重新归类为宽松条款。版本、许可证字段和载荷集合发生变化时，仍须经过常规的依赖、锁文件、兼容性、条款和声明评审；无关的非宽松运行时包继续以默认拒绝方式失败。
+项目所有者的分发授权范围限定为官方 `@anthropic-ai/claude-agent-sdk` 身份，以及每个 SDK 版本通过 `optionalDependencies` 声明的官方 Claude Code CLI 与平台载荷。[`THIRD_PARTY_NOTICES.md`](../../../../docs/THIRD_PARTY_NOTICES.md) 会推导并披露当前载荷集合，但不会将其声明条款重新归类为宽松条款。版本、许可证字段和载荷集合发生变化时，仍须经过常规的依赖、锁文件、兼容性、条款和声明评审；无关的非宽松运行时包继续以默认拒绝方式失败。
 
 ## 曾考虑的替代方案
 

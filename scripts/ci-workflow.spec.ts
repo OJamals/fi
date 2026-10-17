@@ -1234,7 +1234,7 @@ describe('Documentation site publication', () => {
 
 describe('Git hooks', () => {
   it('leaves frozen Agent Note sidecars to the archive verifier', () => {
-    const lefthook = loadWorkflow('lefthook.yml')
+    const lefthook = loadWorkflow('.config/lefthook.yml')
 
     for (const hookName of ['pre-commit', 'pre-merge-commit']) {
       const hook = lefthook[hookName]

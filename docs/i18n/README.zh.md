@@ -57,6 +57,7 @@
 
 **排除**（永不配对，门禁拒绝为它们建 `.zh.md` 或 `.i18n.yaml`）：
 
+- `docs/THIRD_PARTY_NOTICES.md` — 自动生成的依赖与许可证清单。
 - 根目录 `README.md`、`docs/BRAND_GUIDELINES.md` 和 `docs/SAFETY.md` — 仅维护英文，以保持 GitHub 根目录文件列表简洁；贡献指南位于配对范围之外的 `.github/CONTRIBUTING.md`。
 - [cordis-api/inherited.md](../cordis-api/inherited.md)：该生成文档没有经评审的中文对侧，因此网站的两个 locale 都投影英文源文件。
 - `docs/AGENTS.md`、`.agents/notes/**/AGENTS.md` 以及指向它们的 `CLAUDE.md` 指令符号链接：agent 指令，与根 `AGENTS.md` 一样只以英文维护。

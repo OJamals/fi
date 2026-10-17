@@ -70,7 +70,7 @@ The Claude Code evidence pins Agent SDK 0.3.263, Claude Code 2.1.263, and all ei
 
 The Claude Code credentialed e2e maps the key and fixed official endpoint only in the provider's in-memory environment, uses the documented `deepseek-v4-pro[1m]` and `deepseek-v4-flash` model variables, and traverses the production provider, official SDK, and real CLI. It compares the trimmed result with a random nonce and proves whole-tree exit without calling the Messages API directly from the test.
 
-The project owner's distribution authorization is scoped to the official `@anthropic-ai/claude-agent-sdk` identity and the official Claude Code CLI/platform payloads each SDK version declares through `optionalDependencies`. [`THIRD_PARTY_NOTICES.md`](../../../../THIRD_PARTY_NOTICES.md) derives and discloses the current payload set without reclassifying its declared terms as permissive. Version, license-field, and payload-set changes still undergo ordinary dependency, lockfile, compatibility, terms, and notices review; unrelated non-permissive runtime packages continue to fail closed.
+The project owner's distribution authorization is scoped to the official `@anthropic-ai/claude-agent-sdk` identity and the official Claude Code CLI/platform payloads each SDK version declares through `optionalDependencies`. [`THIRD_PARTY_NOTICES.md`](../../../../docs/THIRD_PARTY_NOTICES.md) derives and discloses the current payload set without reclassifying its declared terms as permissive. Version, license-field, and payload-set changes still undergo ordinary dependency, lockfile, compatibility, terms, and notices review; unrelated non-permissive runtime packages continue to fail closed.
 
 ## Alternatives considered
 

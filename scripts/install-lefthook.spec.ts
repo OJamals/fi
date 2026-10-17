@@ -94,7 +94,7 @@ if (replaceLockPath !== undefined) writeFileSync(replaceLockPath, 'replacement o
 const shouldFail = process.env.DSH_TEST_LEFTHOOK_FAIL === '1'
 if (!shouldFail) {
   const binary = join(root, 'node_modules', '.bin', process.platform === 'win32' ? 'lefthook.cmd' : 'lefthook')
-  const config = readFileSync(join(root, 'lefthook.yml'), 'utf8').trim()
+  const config = readFileSync(join(root, '.config/lefthook.yml'), 'utf8').trim()
   const hook = \`#!/bin/sh\\n# root=\${root}\\n# binary=\${binary}\\n# config=\${config}\\nexit 0\\n\`
   for (const name of ['pre-commit', 'pre-merge-commit', 'pre-push']) writeFileSync(join(hooksPath, name), hook, { mode: 0o755 })
 }
@@ -148,8 +148,8 @@ function createFixture(names: { main?: string; linked?: string } = {}): Fixture 
   git(fixture, main, ['add', 'README.md'])
   git(fixture, main, ['commit', '-m', 'fixture'])
   git(fixture, main, ['worktree', 'add', '-b', 'linked', linked])
-  write(join(main, 'lefthook.yml'), 'main-worktree-config\n')
-  write(join(linked, 'lefthook.yml'), 'linked-worktree-config\n')
+  write(join(main, '.config/lefthook.yml'), 'main-worktree-config\n')
+  write(join(linked, '.config/lefthook.yml'), 'linked-worktree-config\n')
   installFakeLefthook(main)
   installFakeLefthook(linked)
   return fixture
@@ -291,7 +291,7 @@ describe('worktree-local Lefthook installer', { timeout: 90_000 }, () => {
     const mainHookBefore = readFileSync(join(mainHooks, 'pre-commit'), 'utf8')
     const lateLinked = join(fixture.container, 'late-linked')
     git(fixture, fixture.main, ['worktree', 'add', '-b', 'late-linked', lateLinked])
-    write(join(lateLinked, 'lefthook.yml'), 'late-linked-worktree-config\n')
+    write(join(lateLinked, '.config/lefthook.yml'), 'late-linked-worktree-config\n')
     installFakeLefthook(lateLinked)
     expect(git(fixture, lateLinked, ['config', '--worktree', '--get', 'core.hooksPath'])).toBe(mainHooks)
 

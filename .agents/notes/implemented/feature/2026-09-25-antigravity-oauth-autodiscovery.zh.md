@@ -41,7 +41,7 @@ Status: implemented
 
 ## Repository secret guard
 
-除自动发现外，`scripts/verify-no-secrets.ts` 会扫描暂存内容（`--staged`，接入 `lefthook.yml` 的 pre-commit 任务）与即将推送的差异（`--push`，接入 pre-push），查找 Google OAuth 客户端密钥、Google OAuth 客户端 id、Google API key 或私钥头；另有 `--tree` 模式（`pnpm run verify-no-secrets`，接入 `scripts/run-gates.ts` 的 `ciSharedStaticGates`）审计所有受跟踪文件的完整内容。两个钩子模式只扫描差异中新增的行——已提交的内容不会在之后每次提交时被重复标记——解析自 `git diff -U0` 的输出；`--tree` 没有这样的历史可依赖。一份显式的、经过评审的许可名单（以精确的仓库相对路径与模式名称为键，绝非目录前缀）用于豁免经评审确认为虚构的夹具；像本功能自身测试那样由运行时拼接构建的夹具则完全不需要这类条目，因为其源码文本从未真正拼出被匹配的模式。
+除自动发现外，`scripts/verify-no-secrets.ts` 会扫描暂存内容（`--staged`，接入 `.config/lefthook.yml` 的 pre-commit 任务）与即将推送的差异（`--push`，接入 pre-push），查找 Google OAuth 客户端密钥、Google OAuth 客户端 id、Google API key 或私钥头；另有 `--tree` 模式（`pnpm run verify-no-secrets`，接入 `scripts/run-gates.ts` 的 `ciSharedStaticGates`）审计所有受跟踪文件的完整内容。两个钩子模式只扫描差异中新增的行——已提交的内容不会在之后每次提交时被重复标记——解析自 `git diff -U0` 的输出；`--tree` 没有这样的历史可依赖。一份显式的、经过评审的许可名单（以精确的仓库相对路径与模式名称为键，绝非目录前缀）用于豁免经评审确认为虚构的夹具；像本功能自身测试那样由运行时拼接构建的夹具则完全不需要这类条目，因为其源码文本从未真正拼出被匹配的模式。
 
 ## Consequences
 

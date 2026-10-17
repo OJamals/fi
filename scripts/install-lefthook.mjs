@@ -597,7 +597,7 @@ function originIsFile(origin, root, configPath) {
 function refuseInheritedHooksPath(entry) {
   throw new Error(
     `refusing to replace user-owned core.hooksPath (${configSource(entry)}). `
-    + `Chain those hooks through lefthook.yml, or, if this inherited path may remain active only in other worktrees, `
+    + `Chain those hooks through .config/lefthook.yml, or, if this inherited path may remain active only in other worktrees, `
     + `rerun with ${ALLOW_HOOKS_PATH_OVERRIDE}=1`,
   )
 }

@@ -66,4 +66,4 @@ See [development](docs/development.md), [architecture](docs/architecture.md), [d
 
 ## License
 
-[MIT](LICENSE). [Third-party notices](THIRD_PARTY_NOTICES.md).
+[MIT](LICENSE). [Third-party notices](docs/THIRD_PARTY_NOTICES.md).
