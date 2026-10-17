@@ -9,7 +9,7 @@ import { standardDecoratorPlugin, vitestExecArgv } from './vitest.shared.ts'
 // apps/web/visual/gui-surfaces.visual.ts for the determinism techniques and
 // docs/testing.md for the recording workflow.
 try {
-  process.loadEnvFile(new URL('.env', import.meta.url).pathname)
+  process.loadEnvFile(new URL('../../.env', import.meta.url).pathname)
 } catch {
   // No .env — fine, the environment may already carry the variables.
 }

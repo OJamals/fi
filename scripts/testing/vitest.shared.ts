@@ -17,14 +17,15 @@ export function standardDecoratorPlugin() {
     name: 'dsh-standard-decorators',
     enforce: 'pre' as const,
     transform(code: string, id: string) {
-      const file = id.split('?', 1)[0]!
+      const queryIndex = id.indexOf('?')
+      const file = queryIndex === -1 ? id : id.slice(0, queryIndex)
       if (!/\.[cm]?tsx?$/.test(file) || !decoratorSyntax.test(code)) return
       const result = ts.transpileModule(code, {
         fileName: file,
         compilerOptions: {
           target: ts.ScriptTarget.ES2024,
           module: ts.ModuleKind.ESNext,
-          jsx: file.endsWith('x') ? ts.JsxEmit.ReactJSX : undefined,
+          ...(file.endsWith('x') ? { jsx: ts.JsxEmit.ReactJSX } : {}),
           sourceMap: true,
         },
       })

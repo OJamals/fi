@@ -26,7 +26,7 @@ Status: implemented
 
 未修改的场景单独运行通过，四个并发独立进程中有一个在同一高亮卡片 locator 处失败。插桩失败将未获响应的目录请求定位到第二次 `unrouteAll` 的执行区间内；推进页面时钟后请求仍未获响应，而直接读取 Host 可以完成。协议记录独立于 DOM 断言确认了拦截状态的切换。
 
-`DSH_SNAPSHOT=replay pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/plugin-install-cancel.e2e.ts` 在四个并发独立进程中全部通过，每个进程均为 1/1。一次协议记录观察到一次 `Fetch.enable`、零次 `Fetch.disable`，且全部 33 次目录请求均收到响应。现有预期输出覆盖取消先于请求交付、取消运行中的子进程、恢复 manifest（元数据清单）与 lockfile、重试、已启用卡片状态、两种主题与动画偏好、高亮到期，以及丢失结果恢复。
+`DSH_SNAPSHOT=replay pnpm exec vitest run --config scripts/testing/vitest.web.config.ts apps/web/tests/plugin-install-cancel.e2e.ts` 在四个并发独立进程中全部通过，每个进程均为 1/1。一次协议记录观察到一次 `Fetch.enable`、零次 `Fetch.disable`，且全部 33 次目录请求均收到响应。现有预期输出覆盖取消先于请求交付、取消运行中的子进程、恢复 manifest（元数据清单）与 lockfile、重试、已启用卡片状态、两种主题与动画偏好、高亮到期，以及丢失结果恢复。
 
 ## Consequences
 

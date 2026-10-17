@@ -3,29 +3,26 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write README.md
 /fi:
-  en: b0caa09965832b54
-  zh: 89614b61ddc4ad6d
-/fi/dsh-foundation-fi-additions:
-  en: 3d5782efb416aeea
-  zh: 49fa0a4097241a27
-/fi/connect-your-models:
-  en: eaeca48efa36838e
-  zh: 8d1a8689f5731d48
-/fi/research-and-create:
-  en: 5228f5cbeffcb8df
-  zh: 3d7fe15fe8fa41bf
-/fi/run-from-source:
-  en: b6ff46dda2f36fad
-  zh: 31afdb74a7f1c2c9
+  en: 8c7e5ac468412f63
+  zh: 5aa79e5baaafa8df
+/fi/download:
+  en: a424b2187c8d036f
+  zh: 74fc50a40d4b282e
+/fi/get-started:
+  en: 6fb0a062d3d5c06d
+  zh: 2f3dfdb05f52c177
+/fi/what-you-can-do:
+  en: 48722725e7bb9386
+  zh: 886a3d9251f0f002
 /fi/updates:
-  en: 026640d1c2c2a9ce
-  zh: 614479da2d7cb92e
-/fi/project-status:
-  en: 2551106c7204ea06
-  zh: 9b1f60e9723c651d
+  en: 11fcb8d8366b75fc
+  zh: 4023edc41c6cc385
+/fi/run-from-source:
+  en: 23458ea56d7c92a3
+  zh: bc9ec6004389f881
 /fi/development:
-  en: 10410b625b050cb9
-  zh: f58732efbcfb5a59
+  en: fc6fffe477e4b2c9
+  zh: faec910c620db776
 /fi/license:
-  en: e05fec219f9a227b
-  zh: 5be4be75960d450e
+  en: 6ff5168301af5480
+  zh: f5aff1c091979908

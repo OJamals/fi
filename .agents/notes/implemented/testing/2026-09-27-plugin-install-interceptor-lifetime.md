@@ -26,7 +26,7 @@ The [input-state decision](2026-09-27-web-lane-assertions-name-their-input-state
 
 The unchanged scenario passes alone and fails at the same highlighted-card locator in one of four concurrent independent processes. Instrumented failures place the unanswered directory request inside the second `unrouteAll` interval; advancing the page clock leaves it unanswered, while direct Host reads complete. The protocol trace identifies the interception transition independently of the DOM assertion.
 
-`DSH_SNAPSHOT=replay pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/plugin-install-cancel.e2e.ts` passes in four concurrent independent processes (1/1 each). One protocol capture observes one `Fetch.enable`, no `Fetch.disable`, and responses for all 33 directory requests. The existing goldens cover cancellation before delivery, cancellation of the running child, manifest and lockfile restoration, retry, enabled-card status, both themes and motion preferences, highlight expiry, and lost-result recovery.
+`DSH_SNAPSHOT=replay pnpm exec vitest run --config scripts/testing/vitest.web.config.ts apps/web/tests/plugin-install-cancel.e2e.ts` passes in four concurrent independent processes (1/1 each). One protocol capture observes one `Fetch.enable`, no `Fetch.disable`, and responses for all 33 directory requests. The existing goldens cover cancellation before delivery, cancellation of the running child, manifest and lockfile restoration, retry, enabled-card status, both themes and motion preferences, highlight expiry, and lost-result recovery.
 
 ## Consequences
 

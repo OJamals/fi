@@ -38,7 +38,7 @@ install-cancel 场景改为轮询卡片状态，而不再单次采样，因此�
 
 两个负向对照用已发布的断言复现了记录到的特征。folding 场景第一次捕获前改为悬停 New Session 行而非 Workspace 行时，`sidebar.expected.md` 失败：golden 记录 `treeitem "{{workspace}} Workspace actions …"`，实际得到 `treeitem "{{workspace}}"`。turn-tail 场景在聚焦 Copy 按钮前只做一次鼠标按下而不按键时不会出现气泡，running 捕获随后失败并缺少串行通道记录到的 `tooltip "Copy"`。两个对照在改动之后均通过。
 
-本地按文件实测：`DSH_SNAPSHOT=replay pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/<file>.e2e.ts` → workspace-new-session-folding 改动前 15/15、改动后 20/20，turn-tail-actions 改动前 8/8、改动后 20/20，plugin-install-cancel 改动前 12/12、改动后 20/20。通道配置 `DSH_SNAPSHOT=replay DSH_WEB_SNAPSHOT_WORKERS=16 pnpm run test:web:ci` 连续三次运行中三个文件全部通过。
+本地按文件实测：`DSH_SNAPSHOT=replay pnpm exec vitest run --config scripts/testing/vitest.web.config.ts apps/web/tests/<file>.e2e.ts` → workspace-new-session-folding 改动前 15/15、改动后 20/20，turn-tail-actions 改动前 8/8、改动后 20/20，plugin-install-cancel 改动前 12/12、改动后 20/20。通道配置 `DSH_SNAPSHOT=replay DSH_WEB_SNAPSHOT_WORKERS=16 pnpm run test:web:ci` 连续三次运行中三个文件全部通过。
 
 install-cancel 场景还记录过独立的 30 s 高亮卡片等待：启用点击关闭对话框后，`node 24 / snapshots and artifacts` 上有两次、把该文件恢复到改动前版本后用同一通道命令运行的本地一次，都未能找到卡片。当时页面时钟已暂停，因此可排除高亮到期。[拦截器生命周期决策](2026-09-27-plugin-install-interceptor-lifetime.zh.md) 负责已定位的目录请求停滞及其 fixture 修复。状态轮询仍覆盖卡片出现之后的读取。
 
