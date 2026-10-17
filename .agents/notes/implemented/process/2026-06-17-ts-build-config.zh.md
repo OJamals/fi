@@ -47,10 +47,10 @@ Status: implemented
 ```sh
 pnpm run build:
 tsc -b tsconfig.host.json
-tsdown --env.DSH_BUILD_FACE host
+tsdown --config scripts/tsdown.config.ts --env.DSH_BUILD_FACE host
 pnpm --filter @deepseek-ai/dsh-desktop run bundle
 tsc -b tsconfig.client.json
-tsdown --env.DSH_BUILD_FACE client
+tsdown --config scripts/tsdown.config.ts --env.DSH_BUILD_FACE client
 pnpm run build:web
 
 pnpm run verify-node-next-types:

@@ -77,10 +77,10 @@ Host 与 Client 保持两个 aggregate program，是因为两侧在相同键下�
 
 ```sh
 tsc -b tsconfig.host.json
-tsdown --env.DSH_BUILD_FACE host
+tsdown --config scripts/tsdown.config.ts --env.DSH_BUILD_FACE host
 pnpm --filter @deepseek-ai/dsh-desktop run bundle
 tsc -b tsconfig.client.json
-tsdown --env.DSH_BUILD_FACE client
+tsdown --config scripts/tsdown.config.ts --env.DSH_BUILD_FACE client
 pnpm run build:web
 ```
 
