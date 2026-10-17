@@ -26,18 +26,20 @@ function barrier() {
   return { promise, release }
 }
 
-async function fixture(arch: 'arm64' | 'x64' = 'arm64') {
+async function fixture(arch: 'arm64' | 'x64' = 'arm64', production = false) {
   const root = await mkdtemp(join(tmpdir(), 'desktop-parallel-notarization-'))
   const artifactsRoot = join(root, 'artifacts')
   const appPath = join(artifactsRoot, arch === 'arm64' ? 'mac-arm64' : 'mac', 'fi.app')
   await mkdir(join(appPath, 'Contents', 'Resources'), { recursive: true })
   await writeFile(join(appPath, 'payload'), 'signed content')
-  await writeMacOSAppUpdateConfig(join(appPath, 'Contents', 'Resources'), {
+  await writeMacOSAppUpdateConfig(join(appPath, 'Contents', 'Resources'), production ? {
+    github: { owner: 'OJamals', repo: 'fi', channel: 'latest' },
+  } : {
     publicUrl: `https://desktop-updates.example.com/dsh-desk/0123456789abcdef0123456789abcdef/feeds/mac-${arch}/`,
   }, 'deepseek-harness-updater')
-  const version = '1.2.3-alpha.1'
+  const version = production ? '1.0.0' : '1.2.3-alpha.1'
   const base = `fi-${version}-mac-${arch}`
-  const request = { arch, artifactsRoot, version, environment }
+  const request = { arch, artifactsRoot, version, environment: { ...environment, ...(production ? { DSH_DESKTOP_AUTO_UPDATE_ENV: 'production' } : {}) } }
   const apple: MacOSArtifactOperations = {
     copyApp: async (source, destination) => {
       await cp(source, destination, { recursive: true, verbatimSymlinks: true })
@@ -57,13 +59,32 @@ async function fixture(arch: 'arm64' | 'x64' = 'arm64') {
     await writeFile(join(artifact.output, `${base}.${artifact.format}`), contents)
     if (artifact.format === 'zip') {
       await writeFile(join(artifact.output, `${base}.zip.blockmap`), 'blockmap')
-      await writeFile(join(artifact.output, 'nightly-mac.yml'), 'update metadata')
+      await writeFile(join(artifact.output, production ? 'latest-mac.yml' : 'nightly-mac.yml'), 'update metadata')
     }
   }
   return { root, appPath, request, apple, build, base }
 }
 
 describe('parallel macOS artifacts', () => {
+  it.each([false, true])('validates the production GitHub channel before promotion (mismatch: %s)', async (mismatch) => {
+    const f = await fixture('arm64', true)
+    try {
+      if (mismatch) {
+        await writeMacOSAppUpdateConfig(join(f.appPath, 'Contents', 'Resources'), {
+          github: { owner: 'OJamals', repo: 'fi', channel: 'preview' },
+        }, 'fi-updater')
+        await expect(packageMacOSArtifacts(f.request, f.build, f.apple)).rejects.toThrow('does not match github:OJamals/fi')
+        expect(existsSync(join(f.request.artifactsRoot, `${f.base}.zip`))).toBe(false)
+      } else {
+        await packageMacOSArtifacts(f.request, f.build, f.apple)
+        expect(await readFile(join(f.request.artifactsRoot, 'latest-mac.yml'), 'utf8')).toBe('update metadata')
+        expect(existsSync(join(f.request.artifactsRoot, `${f.base}.zip`))).toBe(true)
+      }
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+
   it.each(['arm64', 'x64'] as const)('overlaps notarization on isolated %s copies and promotes only completed payloads', async (arch) => {
     const f = await fixture(arch)
     const appStarted = barrier()
