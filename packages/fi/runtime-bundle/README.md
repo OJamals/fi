@@ -28,7 +28,7 @@ List this bundle after the upstream base and application bundle in a locally ins
 
 The layer clears the inherited DeepSeek model default and enables `agent-default-model.selectionPolicy: available`. A usable explicit selection takes precedence; otherwise linked subscription grants take precedence over configured API providers, with deterministic provider-id ordering. Grant keys are configured in `subscriptionCredentials`. With no usable route, the GUI reports no default and prompts for setup; automation entry points require a model before starting work. Automatic choices remain runtime-only. Explicit choices persist through the configuration editor.
 
-DeepSeek's account service and account model route are disabled. Its API-key provider remains optional: Models settings can remove and re-add it while retaining credentials. Saved conversations retain their model selection; removing that route requires choosing an available model before sending another prompt.
+DeepSeek's account service and account model route are disabled. Its API-key provider starts disabled and is absent from the configured Models list until explicitly added. Add it through **Settings → Models → Add model provider**, or set `llm-deepseek.enabled: true` in settings. Explicit user settings override the bundle default; removing and re-adding the provider retains credentials. Saved conversations retain their model selection; a disabled route requires choosing an available model before sending another prompt.
 
 Search defaults to Auto: use the current model's linked native search when supported, otherwise keyless Bing RSS. Explicit provider overrides remain available. The [search preferences owner](../web-search-preferences/README.md) defines routing, keys, and errors.
 

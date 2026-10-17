@@ -13,6 +13,10 @@
 - id: llm-deepseek-account
   disabled: true
 
+- id: llm-deepseek
+  config:
+    enabled: false
+
 - id: session-telemetry-otel
   config:
     mode: DISABLED

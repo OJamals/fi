@@ -98,7 +98,7 @@ describe('the bundle layer', () => {
     })
   })
 
-  it('disables the DeepSeek-account settings UI, its Remote, and its account-based LLM route, but not the API-key route', () => {
+  it('disables DeepSeek accounts and leaves the mounted API-key route opt-in', () => {
     type PatchLayer = Parameters<typeof composeEntries>[0][number]
     const base = parse(
       readFileSync(new URL('../../../bundle/base/cordis.patch.yml', import.meta.url), 'utf8'),
@@ -118,6 +118,11 @@ describe('the bundle layer', () => {
     // fi is model-universal: the DeepSeek account gate is off, but a user-supplied API key still
     // makes DeepSeek an ordinary provider on the Models page.
     expect(effective.find(entry => entry.id === 'llm-deepseek')?.disabled).not.toBe(true)
+    expect(effective.find(entry => entry.id === 'llm-deepseek')?.config).toEqual({ enabled: false })
+    const optedIn = composeEntries([base, webApp, runtime, layer, [
+      { id: 'llm-deepseek', config: { enabled: true } },
+    ]])
+    expect(optedIn.find(entry => entry.id === 'llm-deepseek')?.config).toEqual({ enabled: true })
   })
 
   it('declares that patch through the manifest field the profile composer reads', () => {
