@@ -1,7 +1,5 @@
 # fi
 
-English | [中文](README.zh.md)
-
 <img src="apps/web/public/fi-logo.png" alt="fi" width="88">
 
 **Your models. Your workspace.**
@@ -10,9 +8,9 @@ An all-in-one coding agent for Windows, macOS, and Linux. Sign in with your supp
 
 [Download v1](https://github.com/OJamals/fi/releases/tag/v1.0.0) · [Get started](#get-started) · [User guide](docs/user/index.md) · [Run from source](#run)
 
-![fi demo: workspace, appearance, model connections, plugins, and web search](https://raw.githubusercontent.com/OJamals/fi/refs/heads/fi-readme-assets/2026-10-14/fi-walkthrough.gif)
+![fi coding demo: connect a ChatGPT subscription, choose a model, build a focus timer, and run its tests](https://raw.githubusercontent.com/OJamals/fi/refs/heads/fi-readme-assets/2026-10-17/fi-coding-demo.gif)
 
-A 23-second interface walkthrough, captured from a local build on October 14, 2026. Shows controls and settings; no live model responses. [Watch or download the video](https://github.com/OJamals/fi/raw/refs/heads/fi-readme-assets/2026-10-14/fi-walkthrough.mp4).
+A real ChatGPT/Codex session: connect a subscription, select GPT-6.1-Sol, build a focus timer, and pass all eight tests. Six scenes from one local run on October 17, 2026, condensed into 24 seconds; account-entry screens and waiting time are omitted. The last scene shows the generated app running in a browser. [Watch or download the video](https://github.com/OJamals/fi/raw/refs/heads/fi-readme-assets/2026-10-17/fi-coding-demo.mp4).
 
 ## Download
 
@@ -31,7 +29,7 @@ See [release notes and all downloads](https://github.com/OJamals/fi/releases). O
 3. Select a model for the conversation. Adding a provider alone does not select a model.
 4. Describe a task, review requested permissions, and inspect the resulting file changes.
 
-Account access, models, and quotas depend on your provider. Read the [safety guide](SAFETY.md) before granting tools access to local files or commands.
+Account access, models, and quotas depend on your provider. Read the [safety guide](docs/SAFETY.md) before granting tools access to local files or commands.
 
 ## What you can do
 
@@ -66,7 +64,7 @@ For the browser app, use `pnpm run dev:web`. Configure a model before sending a 
 
 fi builds on [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness), originally developed by DeepSeek AI, and [Cordis](https://github.com/cordiverse/cordis). It retains their plugin runtime and adds model-account connections, search and image tools, workspace controls, and its own desktop branding and update channel. Optional capabilities depend on the active profile and plugins.
 
-See [development](docs/development.md), [architecture](docs/architecture.md), [desktop packaging](apps/desktop/README.md), and [contributing](CONTRIBUTING.md). Agents follow [AGENTS.md](AGENTS.md).
+See [development](docs/development.md), [architecture](docs/architecture.md), [desktop packaging](apps/desktop/README.md), and [contributing](.github/CONTRIBUTING.md). Agents follow [AGENTS.md](AGENTS.md).
 
 ## License
 
