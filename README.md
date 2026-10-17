@@ -17,8 +17,10 @@ A real ChatGPT/Codex session: connect a subscription, select GPT-6.1-Sol, build 
 | Platform | v1.0.0 download | Signing |
 |---|---|---|
 | macOS · Apple Silicon | [DMG](https://github.com/OJamals/fi/releases/download/v1.0.0/fi-1.0.0-mac-arm64.dmg) | Signed and notarized |
+| Windows · x64 | [Installer](https://github.com/OJamals/fi/releases/download/v1.0.0/fi-1.0.0-win-x64-unsigned.exe) | Unsigned |
+| Linux · x64 | [AppImage](https://github.com/OJamals/fi/releases/download/v1.0.0/fi-1.0.0-linux-x64.AppImage) | Unsigned |
 
-This release includes macOS Apple Silicon installers only. Windows and Linux builds are not included. Open the DMG and drag fi into Applications. See [release notes and all downloads](https://github.com/OJamals/fi/releases).
+See [release notes and all downloads](https://github.com/OJamals/fi/releases). On macOS, open the DMG and drag fi into Applications. On Windows, run the installer. On Linux, make the AppImage executable and open it.
 
 ## Get started
 
