@@ -45,7 +45,7 @@ jobs:
           echo "TMPDIR=$RUNNER_TEMP" >> "$GITHUB_ENV"
           echo "NODE_COMPILE_CACHE=$RUNNER_TEMP/node-compile-cache" >> "$GITHUB_ENV"
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           dest: ${{ runner.temp }}/setup-pnpm
 
