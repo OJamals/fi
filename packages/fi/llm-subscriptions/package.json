@@ -1,6 +1,6 @@
 {
   "name": "@fi/llm-subscriptions",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Native subscription authorization and inference for Cursor, Kiro, Cline, and Google Code Assist",
   "type": "module",

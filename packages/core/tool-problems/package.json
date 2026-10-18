@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-tool-problems",
   "description": "Model-facing problems tool over the DeepSeek Harness diagnostics seam (ctx.problems) — one parameterless read-only tool that inspects the caller Session Workspace's current diagnostic snapshot and renders a bounded, deterministically ordered result",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publishConfig": {
     "access": "public"
   },

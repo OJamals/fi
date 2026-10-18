@@ -1,6 +1,6 @@
 {
   "name": "@fi/provider-compat",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Canonical provider metadata and subscription-only HTTP and WebSocket transport compatibility for FI",
   "type": "module",

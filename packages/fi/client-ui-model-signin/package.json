@@ -1,7 +1,7 @@
 {
   "name": "@fi/client-ui-model-signin",
   "description": "Subscription sign-in card for the Models page: OAuth login for Claude Pro/Max and ChatGPT Plus/Pro through the authorization seam",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "main": "lib/index.js",
