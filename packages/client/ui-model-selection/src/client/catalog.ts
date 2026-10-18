@@ -11,7 +11,7 @@ export interface ModelCatalogState {
   error: string | null
 }
 
-/** Loads at most one model catalog for the current Host generation. */
+/** Shares catalog requests and caches complete catalogs for the current Host generation. */
 export class ModelCatalogDirectory {
   /** Current shared catalog value and load lifecycle. */
   readonly store: SnapshotStore<ModelCatalogState> = createSnapshotStore({
@@ -41,12 +41,14 @@ export class ModelCatalogDirectory {
   constructor(private readonly ctx: ClientContext) {}
 
   /**
-   * Return the current generation's catalog, sharing its one in-flight load.
+   * Return a complete cached catalog or retry a partial failure, sharing one in-flight load.
    * @returns the loaded global catalog.
    */
   load(): Promise<ModelCatalog> {
     const state = this.store.getSnapshot()
-    if (state.status === 'ready' && state.value !== null) return Promise.resolve(state.value)
+    if (state.status === 'ready' && state.value !== null && state.value.failures.length === 0) {
+      return Promise.resolve(state.value)
+    }
     if (this.inflight !== undefined) return this.inflight
     const generation = this.generation
     this.store.update((draft) => {

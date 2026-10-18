@@ -45,6 +45,8 @@ Installed client plugins can register provider route ids through `ctx.modelSubsc
 
 ### Unroutable sessions
 
+Complete model catalogs are cached for the current Host generation. A catalog containing provider failures is reloaded on the next explicit read, including Retry; concurrent reads share one request and retain usable groups while loading.
+
 A removed provider or model blocks prompt admission with `session/model-unavailable`; the user must choose an available model. Refreshes and refresh failures retain the last displayed selection and groups. A Host reset clears that display. Sign-out hides the account provider from the picker while preserving the saved provider/model ID and reasoning effort. Signing in restores the catalog name when that model is available again. Existing session logs remain unchanged.
 
 ### Selection failures

@@ -1,0 +1,26 @@
+{
+  "value": {
+    "default": {
+      "provider": "fixture",
+      "model": "recovered"
+    },
+    "routableProviders": [
+      "fixture"
+    ],
+    "groups": [
+      {
+        "id": "fixture",
+        "name": "Fixture",
+        "models": [
+          {
+            "id": "recovered",
+            "name": "recovered"
+          }
+        ]
+      }
+    ],
+    "failures": []
+  },
+  "status": "ready",
+  "error": null
+}

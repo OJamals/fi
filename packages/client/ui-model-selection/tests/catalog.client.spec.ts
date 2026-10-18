@@ -16,6 +16,28 @@ function directory(models: () => Promise<unknown>): ModelCatalogDirectory {
 }
 
 describe('ModelCatalogDirectory', () => {
+  it('reloads provider-local failures and caches the recovered catalog', async () => {
+    const partial = { ...catalog('available'), failures: [{ id: 'cline', name: 'Cline', message: 'fetch failed' }] }
+    const recovered = catalog('recovered')
+    const pending = Promise.withResolvers<unknown>()
+    const models = vi.fn()
+      .mockResolvedValueOnce({ ok: true, value: partial })
+      .mockReturnValueOnce(pending.promise)
+    const subject = directory(models)
+    await expect(subject.load()).resolves.toEqual(partial)
+
+    const retry = subject.load()
+    expect(subject.load()).toBe(retry)
+    expect(models).toHaveBeenCalledTimes(2)
+    expect(subject.store.getSnapshot()).toMatchObject({ status: 'loading', value: partial })
+    pending.resolve({ ok: true, value: recovered })
+    await expect(retry).resolves.toEqual(recovered)
+    await expect(subject.load()).resolves.toEqual(recovered)
+    expect(models).toHaveBeenCalledTimes(2)
+    await expect(JSON.stringify(subject.store.getSnapshot(), null, 2) + '\n')
+      .toMatchFileSnapshot('./expected/partial-catalog-retry.txt')
+  })
+
   it('shares one failing request, exposes the RPC error, and permits a retry', async () => {
     const models = vi.fn()
       .mockResolvedValueOnce({
