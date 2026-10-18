@@ -33,7 +33,15 @@ function inferenceFailure(data: unknown): LlmFailure | undefined {
   const type = '_tag' in parsed.data ? parsed.data._tag : parsed.data.error.type
   return type === 'SsoRequired'
     ? { code: 'SSO_REQUIRED', status: 403, message: 'OpenCode organization requires SSO; reconnect OpenCode Console' }
-    : { code: 'POLICY_REJECTED', status: 403, message: 'OpenCode free-tier policy rejected this request; select another Console model or use the official OpenCode client' }
+    : { code: 'POLICY_REJECTED', status: 403, message: 'OpenCode rejected free-tier access (HTTP 403); retry later or choose a model with confirmed access. The official OpenCode client may also be affected' }
+}
+
+/** Read recognized Console policy failures without exposing its response fields. */
+async function responseFailure(response: Response): Promise<LlmFailure | undefined> {
+  if (response.status !== 403) return undefined
+  let data: unknown
+  try { data = await response.clone().json() } catch (_invalidErrorBody) { /* The SDK handles non-JSON errors. */ }
+  return inferenceFailure(data)
 }
 
 /**
@@ -177,13 +185,12 @@ export class OpenCodeAdapter extends LlmAdapter {
           const endpoint = entry.model.api === 'anthropic-messages'
             ? `${entry.model.baseUrl}/messages${url.search}` : request.url
           const body = payloadSchema.parse(await request.clone().json())
-          const send = (payload: Record<string, unknown>) => fetch(new Request(endpoint, { ...init, method: request.method,
+          const send = (payload: Record<string, unknown>, destination = endpoint) => fetch(new Request(destination, {
+            ...init, method: request.method,
             headers: request.headers, signal: request.signal, body: JSON.stringify(payload), redirect: 'error' }))
           let response = await fetch(new Request(endpoint, request), { redirect: 'error' })
           if (response.status === 403) {
-            let data: unknown
-            try { data = await response.clone().json() } catch (_invalidErrorBody) { /* The SDK handles non-JSON errors. */ }
-            failure = inferenceFailure(data)
+            failure = await responseFailure(response)
             if (failure?.code === 'POLICY_REJECTED' && entry.model.api !== 'anthropic-messages') {
               await response.body?.cancel()
               const responses = entry.model.api === 'openai-responses'
@@ -198,11 +205,14 @@ export class OpenCodeAdapter extends LlmAdapter {
                 await response.body?.cancel()
                 response = await send({ ...compatible, tool_choice: 'auto' })
               }
-              failure = undefined
-              if (response.status === 403) {
-                let retryError: unknown
-                try { retryError = await response.clone().json() } catch (_invalidRetryBody) { /* The SDK handles non-JSON errors. */ }
-                failure = inferenceFailure(retryError)
+              failure = await responseFailure(response)
+              // The canonical chat gateway and Zen route serve the same Console model and grant.
+              if (failure?.code === 'POLICY_REJECTED' && entry.model.api === 'openai-completions'
+                && endpoint === 'https://opencode.ai/inference/openai/v1/chat/completions') {
+                await response.body?.cancel()
+                failure = undefined
+                response = await send(body, 'https://opencode.ai/zen/v1/chat/completions')
+                failure = await responseFailure(response)
               }
               if (response.ok && !response.headers.get('content-type')?.toLowerCase().includes('text/event-stream')) {
                 await response.body?.cancel()

@@ -192,6 +192,8 @@ export class SubscriptionAdapter extends LlmAdapter {
         fetch: async (input, init) => {
           const request = new Request(input, init)
           const body = z.record(z.string(), z.unknown()).parse(await request.json())
+          // Cline's catalog omits capacity; the fallback context estimate must not reduce its output budget.
+          if (grant.provider === 'cline') body.max_tokens = options.maxTokens ?? config.defaultMaxTokens
           if (grant.provider === 'cursor') {
             const results = new Map(options.messages.flatMap(message => message.role === 'tool'
               ? [[message.toolCallId as string, message.isError ?? false] as const] : []))

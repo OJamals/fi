@@ -96,9 +96,30 @@ describe('OpenCode catalog network recovery', () => {
   it.each([0, 2])('bounds retries at %i and exposes only a safe network code', async (catalogRetryCount) => {
     script(() => { throw networkError() })
     await expect(loadCatalog({ ...config, catalogRetryCount }, seed, 'opencode-console'))
-      .rejects.toThrow(/^OpenCode catalog network request failed \(ECONNRESET\); check connectivity and retry$/)
+      .rejects.toThrow(`OpenCode catalog network request failed (ECONNRESET) at opencode.ai after ${catalogRetryCount + 1} attempts; check connectivity and retry`)
     expect(fetch).toHaveBeenCalledTimes(catalogRetryCount + 1)
     expect(sleeps).toHaveLength(catalogRetryCount)
+  })
+
+  it('recovers after repeated connection refusals with the deployed default retry budget', async () => {
+    const ctx = await harness()
+    await ctx.credentials.modifyRecord(OPENCODE_KEY, async () => ({ kind: 'grant', payload: seed }))
+    let calls = 0
+    script(() => {
+      if (++calls < 4) throw new TypeError('private failure details', { cause: { code: 'ECONNREFUSED' } })
+      return json(catalog())
+    })
+    await liveConfig(ctx, OpenCodeService, { providers: { 'opencode-console': {} } }, 'fi-opencode')
+    await expect(ctx.llm.listModels('opencode-console')).resolves.toHaveLength(1)
+    expect(calls).toBe(4)
+    expect(sleeps).toEqual([500, 1000, 2000])
+  })
+
+  it('caps exponential delays at the shared deadline duration', async () => {
+    script(() => { throw networkError() })
+    await expect(loadCatalog({ ...config, catalogRetryCount: 4, catalogRetryDelayMs: 600 }, seed, 'opencode-console'))
+      .rejects.toThrow('after 5 attempts')
+    expect(sleeps).toEqual([600, 1000, 1000, 1000])
   })
 
   it.each(['auth', 'redirect', 'tls', 'json', 'policy'])('does not retry %s failures', async (kind) => {
@@ -552,7 +573,7 @@ describe('OpenCode model routing', () => {
     'preserves safe policy and SSO recovery through %s while retaining genuine authentication errors', async (packageName) => {
       const adapter = new OpenCodeAdapter(() => config, () => Promise.resolve(seed))
       for (const { body, status, code, message } of [
-        { body: { error: { type: 'FreeTierError', message: 'should-not-leak' } }, status: 403, code: 'POLICY_REJECTED', message: 'OpenCode free-tier policy rejected this request; select another Console model or use the official OpenCode client' },
+        { body: { error: { type: 'FreeTierError', message: 'should-not-leak' } }, status: 403, code: 'POLICY_REJECTED', message: 'OpenCode rejected free-tier access (HTTP 403); retry later or choose a model with confirmed access. The official OpenCode client may also be affected' },
         { body: { _tag: 'SsoRequired', secret: 'should-not-leak' }, status: 403, code: 'SSO_REQUIRED', message: 'OpenCode organization requires SSO; reconnect OpenCode Console' },
         { body: { error: { type: 'SsoRequired', message: 'should-not-leak' } }, status: 403, code: 'SSO_REQUIRED', message: 'OpenCode organization requires SSO; reconnect OpenCode Console' },
         { body: { error: { type: 'AuthenticationError', message: 'Invalid token' } }, status: 401, code: 'AUTH', message: undefined },
@@ -616,6 +637,80 @@ describe('OpenCode model routing', () => {
     expect(second.message({ provider: options.provider, model: options.model }).content).toEqual([{ type: 'text', text: 'Done' }])
     expect(second.replayState).toMatchObject({ response: { provider: 'opencode-console', model: 'friendly' } })
     expect(calls).toBe(2)
+  })
+
+  it('recovers a rejected inference route through the same-account Zen endpoint without changing the request', async () => {
+    const requests: { url: string; body: unknown; headers: Headers }[] = []
+    script(async (request) => {
+      if (request.method === 'GET') {
+        const data = catalog()
+        data.providers.opencode.settings.baseURL = 'https://opencode.ai/inference/openai/v1'
+        return json(data)
+      }
+      requests.push({ url: request.url, body: await request.json(), headers: request.headers })
+      if (request.url.includes('/inference/')) return json({ error: { type: 'FreeTierError' } }, 403)
+      return new Response('data: {"id":"r","choices":[{"index":0,"delta":{"content":"OK"},"finish_reason":null}]}\n\ndata: {"id":"r","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } })
+    })
+    const chunks = []
+    const adapter = new OpenCodeAdapter(() => config, async () => seed)
+    for await (const chunk of adapter.stream({ provider: 'opencode-console', model: 'friendly',
+      messages: [{ role: 'user', content: [{ type: 'text', text: 'Reply OK' }] }],
+      tools: [{ name: 'get_status', description: 'Read status', parameters: { type: 'object', properties: {} } }],
+    })) chunks.push(chunk)
+    expect(chunks.at(-1)).toMatchObject({ type: 'finish', reason: { kind: 'stop' } })
+    expect(requests.map(request => request.url)).toEqual([
+      'https://opencode.ai/inference/openai/v1/chat/completions',
+      'https://opencode.ai/inference/openai/v1/chat/completions',
+      'https://opencode.ai/zen/v1/chat/completions',
+    ])
+    expect(requests[2]?.body).toEqual(requests[0]?.body)
+    expect(Object.fromEntries(requests[2]!.headers)).toEqual(Object.fromEntries(requests[0]!.headers))
+    expect(requests[2]?.headers.get('authorization')).toBe(`Bearer ${seed.access}`)
+    expect(requests[2]?.headers.get('x-org-id')).toBe(seed.orgId)
+  })
+
+  it.each([
+    { base: 'https://opencode.ai/inference/openai/v1', status: 401, error: 'FreeTierError', requests: 1 },
+    { base: 'https://opencode.ai/inference/openai/v1', status: 403, error: 'SsoRequired', requests: 1 },
+    { base: 'https://opencode.ai/inference/openai/v1', status: 403, error: 'OtherError', requests: 1 },
+    { base: 'https://other.opencode.ai/inference/openai/v1', status: 403, error: 'FreeTierError', requests: 2 },
+    { base: 'https://opencode.ai/custom', status: 403, error: 'FreeTierError', requests: 2 },
+  ])('does not change endpoints for $base $status $error', async ({ base, status, error, requests }) => {
+    const urls: string[] = []
+    script((request) => {
+      if (request.method === 'GET') {
+        const data = catalog()
+        data.providers.opencode.settings.baseURL = base
+        return json(data)
+      }
+      urls.push(request.url)
+      return json({ error: { type: error } }, status)
+    })
+    const adapter = new OpenCodeAdapter(() => config, async () => seed)
+    for await (const _chunk of adapter.stream({ provider: 'opencode-console', model: 'friendly', messages: [] })) { /* drain */ }
+    expect(urls).toEqual(Array.from({ length: requests }, () => `${base}/chat/completions`))
+  })
+
+  it.each([403, 401, 500, 200, 'transport'] as const)('bounds endpoint recovery and validates its response (%s)', async (status) => {
+    let requests = 0
+    script((request) => {
+      if (request.method === 'GET') {
+        const data = catalog()
+        data.providers.opencode.settings.baseURL = 'https://opencode.ai/inference/openai/v1'
+        return json(data)
+      }
+      requests++
+      if (request.url.includes('/inference/')) return json({ error: { type: 'FreeTierError' } }, 403)
+      if (status === 'transport') throw new TypeError('fetch failed')
+      return json({ error: { type: 'FreeTierError' } }, status)
+    })
+    const chunks = []
+    const adapter = new OpenCodeAdapter(() => config, async () => seed)
+    for await (const chunk of adapter.stream({ provider: 'opencode-console', model: 'friendly', messages: [] })) chunks.push(chunk)
+    expect(requests).toBe(3)
+    expect(chunks.at(-1)).toMatchObject({ type: 'finish', reason: { kind: 'error', failure: {
+      code: status === 403 ? 'POLICY_REJECTED' : status === 401 ? 'AUTH' : status === 500 ? 'SERVER' : 'TRANSPORT',
+    } } })
   })
 
   it.each([undefined, 400, 503])('recovers free-tier chat with restricted selection and bounded auto fallback (%s)', async (fallback) => {

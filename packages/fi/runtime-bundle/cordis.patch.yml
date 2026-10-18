@@ -14,8 +14,7 @@
   disabled: true
 
 - id: llm-deepseek
-  config:
-    enabled: false
+  disabled: true
 
 - id: session-telemetry-otel
   config:

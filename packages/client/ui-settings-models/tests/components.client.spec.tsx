@@ -415,6 +415,31 @@ describe('ModelsSection', () => {
     ])
   })
 
+  it('keeps native subscription routes out of the API provider selector while retaining dual-auth providers', async () => {
+    const scripted = scriptedFace()
+    const directory = await scripted.face.llm.listConfigurableProviders()
+    scripted.face.llm.listConfigurableProviders.mockResolvedValue(remoteOk([
+      ...directory.value,
+      { provider: 'ollama-cloud', displayName: 'Ollama Cloud', settingsNs: 'fi-ollama', settingsPath: ['providers', 'ollama-cloud'] },
+    ]))
+    scripted.face.settings.describe.mockResolvedValue(remoteOk({
+      writable: true, hasDocument: false,
+      namespaces: [...wireNamespaces(), {
+        ns: 'fi-ollama', schema: JSON.parse(JSON.stringify(Schema.object({
+          providers: Schema.dict(Schema.object({ models: Schema.array(Schema.string()) })),
+        }).toJSON())) as JsonValue,
+        value: { providers: {} }, autoGenerate: false, applies: 'live', secrets: [], revision: 0,
+      }],
+    }))
+    await mountFace(scripted, stubRenderSlot(), ['ollama-cloud', 'anthropic'])
+    fireEvent.click(screen.getByRole('button', { name: en.add }))
+    const selector = screen.getByRole('combobox', { name: en.provider })
+    expect(within(selector).queryByRole('option', { name: 'Ollama Cloud' })).toBeNull()
+    expect(within(selector).getByRole('option', { name: 'anthropic' })).toBeTruthy()
+    await expect(within(selector).getAllByRole('option').map(option => option.textContent).join('\n') + '\n')
+      .toMatchFileSnapshot('./expected/api-provider-choices.txt')
+  })
+
   it('places offered keyless routes below subscription sign-in while keeping API-key routes above', async () => {
     const scripted = scriptedFace()
     const namespaces = wireNamespaces().map(view => view.ns === 'llm-pi-ai'

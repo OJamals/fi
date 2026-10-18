@@ -368,8 +368,9 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
     .filter(row => subscriptionIds.has(row.entry.provider) && row.apiKeyEnv === undefined)
     .map(row => ({ ...row, entry: { ...row.entry, displayName: row.entry.displayName.toLowerCase() } }))
   const normalConfigured = configured.filter(row => !subscriptionIds.has(row.entry.provider) || row.apiKeyEnv !== undefined)
-  const configurable = state.rows.filter(row => state.namespaces.has(row.entry.settingsNs))
-  const addable: AddableRow[] = state.rows.flatMap((row) => {
+  const configurable = state.rows.filter(row => state.namespaces.has(row.entry.settingsNs)
+    && (!subscriptionIds.has(row.entry.provider) || row.entry.settingsNs === 'llm-pi-ai'))
+  const addable: AddableRow[] = configurable.flatMap((row) => {
     const namespace = state.namespaces.get(row.entry.settingsNs)
     return namespace === undefined || row.configured ? [] : [{ row, namespace }]
   })

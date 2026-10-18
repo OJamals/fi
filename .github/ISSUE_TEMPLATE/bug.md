@@ -1,25 +1,29 @@
 ---
 name: Bug
-about: 记录现有预期行为的失效
+about: Report an installation, provider, or workspace problem
 type: Bug
 ---
 
 ## Summary
 
-<!-- 简要说明发生了什么错误，以及受影响的用户或场景。 -->
+<!-- What failed? Remove credentials and private project content from logs and screenshots. -->
 
 ## Reproduction
 
-<!-- 列出能稳定触发问题的最小步骤、输入或代码。 -->
+<!-- Smallest steps that reproduce the problem. For provider issues, say whether sign-in, model discovery, or generation failed. -->
 
 ## Current behavior
 
-<!-- 说明实际结果，并附上必要的错误信息、日志或截图。 -->
+<!-- Include the exact error and a redacted log or screenshot when useful. -->
 
 ## Expected behavior
 
-<!-- 说明正确结果。 -->
+<!-- What did you expect to happen? -->
 
 ## Environment
 
-<!-- 说明相关版本、平台、配置或运行条件。 -->
+- App version:
+- Operating system and architecture:
+- Installed release or source build:
+- Provider and exact model ID, if applicable:
+- Reproduces in a new conversation:

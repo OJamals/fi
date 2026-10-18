@@ -2,11 +2,11 @@
 
 <img src="apps/web/public/fi-logo.png" alt="fi" width="88">
 
-**Your models. Your workspace.**
+**One open-source desktop workspace for your AI subscriptions.**
 
-An all-in-one coding agent for Windows, macOS, and Linux. Sign in with your supported AI subscriptions or connect API providers, then edit code, research the web, and create images in one workspace. A browser app is also available for local development.
+Use supported AI subscriptions or API keys to edit code, research the web, and create images on Windows, macOS, and Linux. Choose a model for each conversation and work with your local project files. A browser app is also available for local development.
 
-[Download v1](https://github.com/OJamals/fi/releases/tag/v1.0.0) · [Get started](#get-started) · [User guide](docs/user/index.md) · [Run from source](#run)
+[Download v1](https://github.com/OJamals/fi/releases/tag/v1.0.0) · [Get started](#get-started) · [Model connections](#model-connections) · [Contribute](.github/CONTRIBUTING.md)
 
 ![fi coding demo: connect a ChatGPT subscription, choose a model, build a focus timer, and run its tests](https://raw.githubusercontent.com/OJamals/fi/refs/heads/fi-readme-assets/2026-10-17/fi-coding-demo.gif)
 
@@ -30,6 +30,21 @@ See [release notes and all downloads](https://github.com/OJamals/fi/releases). O
 4. Describe a task, review requested permissions, and inspect the resulting file changes.
 
 Account access, models, and quotas depend on your provider. Read the [safety guide](docs/SAFETY.md) before granting tools access to local files or commands.
+
+## Model connections
+
+Choose the connection that matches your account. A successful sign-in or model listing does not guarantee inference access; provider quotas and policies still apply.
+
+| Connection | Where to start | Details |
+|---|---|---|
+| Supported subscription accounts | **Settings → Models → Sign in with your subscription** | [Account setup](packages/fi/client-ui-model-signin/README.md) |
+| Cline Free / Pass | Choose **cline free / pass**, then select the matching model prefix | [Cline and subscription adapters](packages/fi/llm-subscriptions/README.md) |
+| OpenCode Console | Choose **opencode console** under subscriptions | [Catalog, access requirements, and free-tier limitations](packages/fi/llm-opencode/README.md) |
+| API providers or custom endpoints | **Settings → Models → Add model provider** | [Provider guide](docs/user/guide/providers.md) |
+
+## Help improve fi
+
+Try one task in a small project and [report what worked or failed](https://github.com/OJamals/fi/issues/new?template=bug.md). Include your app version, operating system, provider, and exact model ID. Remove credentials and private project content from logs. Code, documentation, and reproducible bug reports are welcome; see [contributing](.github/CONTRIBUTING.md).
 
 ## What you can do
 

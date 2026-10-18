@@ -15,6 +15,7 @@ export async function apply(ctx) {
     },
   }))
   let restore = () => {}
+  let catalogFailures = error === undefined ? 3 : 0
   await applyLoopbackServerEffect(ctx, {
     label: 'opencode-console-fixture',
     requestListener: (request, response) => {
@@ -24,12 +25,13 @@ export async function apply(ctx) {
       if (request.method === 'GET' && request.url === '/console/api/v2/config') {
         response.writeHead(200, { 'content-type': 'application/json' })
         response.end(JSON.stringify({ providers: { opencode: {
-          package: '@ai-sdk/openai-compatible', settings: { baseURL: 'https://opencode.ai/zen/v1' },
+          package: '@ai-sdk/openai-compatible', settings: { baseURL: error === 'FreeTierRecovery'
+            ? 'https://opencode.ai/inference/openai/v1' : 'https://opencode.ai/zen/v1' },
           models: { friendly: { modelID: 'wire-model', name: 'Friendly', capabilities: { input: ['text'], output: ['text'] }, limit: { context: 128000, output: 8192 } } },
         } } }))
         return
       }
-      if (request.method !== 'POST' || request.url !== '/zen/v1/chat/completions') {
+      if (request.method !== 'POST' || !['/zen/v1/chat/completions', '/inference/openai/v1/chat/completions'].includes(request.url)) {
         response.writeHead(404); response.end(); return
       }
       if (request.headers['x-opencode-org-id'] !== 'snapshot-org') {
@@ -51,7 +53,7 @@ export async function apply(ctx) {
             }
           }
         }
-        if (error !== undefined && !(error === 'FreeTierRecovery' && body.tool_choice !== undefined)) {
+        if (error !== undefined && !(error === 'FreeTierRecovery' && request.url === '/zen/v1/chat/completions')) {
           response.writeHead(403, { 'content-type': 'application/json' })
           response.end(JSON.stringify({ error: { type: error === 'FreeTierRecovery' ? 'FreeTierError' : error, message: 'failure-diagnostic-must-not-leak' } }))
           return
@@ -66,7 +68,10 @@ export async function apply(ctx) {
         const request = new Request(input, init)
         const url = new URL(request.url)
         if (url.hostname !== 'opencode.ai') return original(input, init)
-        if (!['/console/api/v2/config', '/zen/v1/chat/completions'].includes(url.pathname)) throw new Error('unexpected OpenCode fixture endpoint')
+        if (!['/console/api/v2/config', '/zen/v1/chat/completions', '/inference/openai/v1/chat/completions'].includes(url.pathname)) throw new Error('unexpected OpenCode fixture endpoint')
+        if (url.pathname === '/console/api/v2/config' && catalogFailures-- > 0) {
+          return Promise.reject(new TypeError('fetch failed', { cause: { code: 'ECONNREFUSED' } }))
+        }
         return original(new Request(`http://127.0.0.1:${address.port}${url.pathname}`, request))
       }
       globalThis.fetch = fixtureFetch

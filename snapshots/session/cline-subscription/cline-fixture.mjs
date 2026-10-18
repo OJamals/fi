@@ -24,7 +24,8 @@ export async function apply(ctx) {
       request.on('data', chunk => { text += chunk })
       request.on('end', () => {
         const body = JSON.parse(text)
-        if (body.model !== 'cline-free/test-model' || body.stream !== true || text.includes('snapshot-key') || !request.headers['x-task-id']) {
+        if (body.model !== 'cline-free/test-model' || body.stream !== true || body.max_tokens !== 8192
+          || text.includes('snapshot-key') || !request.headers['x-task-id']) {
           response.writeHead(400); response.end(); return
         }
         response.writeHead(200, { 'content-type': 'text/event-stream' })

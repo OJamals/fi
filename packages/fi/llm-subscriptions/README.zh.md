@@ -36,6 +36,8 @@ Kiro 发现会在同一次 `requestTimeoutMs` 截止时间内遍历所有 `nextT
 
 原生编解码器依据 auth2api 修订 `05e9e0a68a6e952044fd2c03186722577c6de37a`。Cursor 使用 HTTP/2 Connect protobuf；Kiro 使用 CRC 校验的 AWS 事件流；Cline 使用 OpenAI 兼容聊天及真实 FI 客户端头；Code Assist 复用 FI 的 Gemini 消息和 SSE 编解码器，但使用自身 Google 端点及项目封装。[NOTICE](NOTICE.md) 保留组件归属与分发限制。
 
+Cline 发送调用方的 `maxTokens`，省略时使用 `defaultMaxTokens`，不会按回退上下文估算缩减。其公布的目录不含上下文容量；上游提供方校验实际上下文和输出限制。
+
 <a id="model-experience"></a>
 ## 模型体验
 

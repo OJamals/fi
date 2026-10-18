@@ -291,9 +291,9 @@ it('deduplicates Gemini quota models and rejects malformed catalogs', async () =
 })
 
 it.each([
-  { model: 'cline-free/test', sessionId: undefined },
-  { model: 'cline-pass/test', sessionId: SessionId('cline-session') },
-])('streams $model with truthful identity and optional task tracking', async ({ model, sessionId }) => {
+  { model: 'cline-free/test', sessionId: undefined, maxTokens: undefined },
+  { model: 'cline-pass/test', sessionId: SessionId('cline-session'), maxTokens: 2048 },
+])('streams $model with truthful identity, output budget, and optional task tracking', async ({ model, sessionId, maxTokens }) => {
   script(async (request) => {
     if (request.url.endsWith('recommended-models')) return Response.json(models)
     expect(request.url).toBe('https://api.cline.bot/api/v1/chat/completions')
@@ -302,6 +302,8 @@ it.each([
     const body = await request.text()
     expect(body).not.toContain(seed.accessToken)
     expect(z.object({ model: z.string() }).parse(JSON.parse(body)).model).toBe(model)
+    expect(z.object({ max_tokens: z.number() }).parse(JSON.parse(body)).max_tokens)
+      .toBe(maxTokens ?? options.defaultMaxTokens)
     expect(body).not.toContain('cline-session')
     return new Response(
       'data: {"choices":[{"index":0,"delta":{"content":"PONG"},"finish_reason":null}]}\n\ndata: {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n',
@@ -318,7 +320,8 @@ it.each([
     provider: 'cline',
     model,
     ...sessionId === undefined ? {} : { sessionId },
-    messages: [{ role: 'user', content: [{ type: 'text', text: 'PING' }] }],
+    ...maxTokens === undefined ? {} : { maxTokens },
+    messages: [{ role: 'user', content: [{ type: 'text', text: 'PING'.repeat(options.defaultContextWindow * 2) }] }],
   }))
     chunks.push(chunk)
   expect(JSON.stringify(chunks)).toContain('PONG')

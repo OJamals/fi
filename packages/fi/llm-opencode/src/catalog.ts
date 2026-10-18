@@ -118,9 +118,9 @@ export async function loadCatalog(
       const failure = transientFailure.safeParse(error)
       if (!failure.success) throw error
       if (attempt >= config.catalogRetryCount) {
-        throw new Error(`OpenCode catalog network request failed (${failure.data.cause.code}); check connectivity and retry`)
+        throw new Error(`OpenCode catalog network request failed (${failure.data.cause.code}) at ${new URL(config.server).host} after ${attempt + 1} attempts; check connectivity and retry`)
       }
-      await setTimeout(config.catalogRetryDelayMs, undefined, { signal: deadline })
+      await setTimeout(Math.min(config.catalogRetryDelayMs * 2 ** attempt, config.requestTimeoutMs), undefined, { signal: deadline })
     }
   }
 }

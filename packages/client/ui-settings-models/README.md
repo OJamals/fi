@@ -31,7 +31,7 @@ DeepSeek official is optional. **Remove** disables its route while preserving it
 
 Saving credentials or a custom provider preserves the selected model. The user can select an available model from the composer.
 
-Active providers appear first, followed by inactive providers; each group uses stable neutral provider-id order.
+Active providers appear first, followed by inactive providers; each group uses stable neutral provider-id order. Native subscription routes offered by the sign-in interface are excluded from the API provider selector; pi-ai providers remain available for API-key setup even when they also support subscriptions.
 
 Open the Models page from the Settings navigation to see configured API-key providers in the main row list. Configured routes with no `apiKeyEnv` whose OAuth flows are offered by a mounted subscription interface appear below its sign-in controls, in the subscription area. An API-key profile stays in the main list even when that provider also offers subscription sign-in. Both locations retain the same edit and delete actions; if no subscription interface is mounted, every configured route stays in the main list. A whole-section provider whose key is not configured anywhere renders as its open setup card instead, but only in the first-run posture and only until the user closes that card. Each card kind owns its own open state, so closing one never discards a draft in another.
 

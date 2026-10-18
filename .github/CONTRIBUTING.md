@@ -1,21 +1,21 @@
-# Contributing
+# Contributing to fi
 
-Thank you for your interest in contributing to DeepSeek Harness!
+fi welcomes focused pull requests, documentation improvements, and reproducible bug reports. It builds on DeepSeek Harness and Cordis; report fi-specific behavior in [this repository's issues](https://github.com/OJamals/fi/issues).
 
-We deeply believe in the power of open source communities, and that belief has shaped this project from the very beginning.
+## Try fi and report a problem
 
-DeepSeek Harness is still at an early stage and under active development. We are sorry that we cannot accept external pull requests at the moment. However, contributing code to this repository is far from the only way to help. There are many other ways to get involved:
+Start with the [download and setup guide](../README.md#get-started). Include your app version, operating system and architecture, provider, exact model ID, reproduction steps, and expected and actual results. Distinguish sign-in, model discovery, and generation failures. Remove tokens, account identifiers, and private project content from logs or screenshots.
 
-- Identify and report issues or bugs in GitHub Discussions:
-  - Upvote discussions that you would like to bring to the team's attention. We are a very small team and may not be able to reply to every post, but we monitor them and consider them when allocating resources.
-- Contribute to the ecosystem:
-  - Create a plugin that excites you and share it with others:
-    - Associate your GitHub project with the `dsh-plugin` topic to help others discover your plugin.
-  - Write blog posts and how-to guides about DeepSeek Harness.
-  - Answer questions and help other members of the community.
+## Make a first contribution
 
-DeepSeek Harness is designed to be deeply customizable. We do not believe that packages in the official repository are inherently more important than packages created by the community. You may consider this repository an idea, an official showcase, and a source of inspiration, but not a mandate from us.
+1. Browse [good first issues](https://github.com/OJamals/fi/issues?q=is%3Aissue%20is%3Aopen%20label%3A%22good%20first%20issue%22), or open an issue describing a small improvement. Discuss large changes before implementing them.
+2. Follow [source setup](../README.md#run) and the [development guide](../docs/development.md). Read [AGENTS.md](../AGENTS.md); changes under `packages/` also require the architecture guide linked there.
+3. Keep your change focused. Update the owning documentation and any bilingual counterpart. Add behavior coverage for fixes; follow the repository's snapshot requirements for user-visible changes.
+4. Run the checks relevant to your change and [pre-push checks](../.agents/skills/dsh-pre-push-checks/SKILL.md). Report the commands and results in your pull request, including any checks you could not run.
+5. Open a pull request against `main`. Explain the problem, resulting behavior, and validation. Include screenshots for UI changes and preserve attribution to upstream work.
 
-We have already seen exciting projects emerge from the community, and we hope to see the ecosystem continue to grow in its own directions.
+Provider work needs separate evidence for catalog discovery and actual generation. Never commit credentials or claim account-wide support from a single successful request.
 
-Into the unknown.
+## Other ways to help
+
+Test installation on your platform, improve setup instructions, share a reproducible workflow, or build a plugin. An honest report of an installation obstacle is useful even without a code change.

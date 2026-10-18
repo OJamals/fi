@@ -1,13 +1,13 @@
 ---
 name: Task
-about: 明确的非 Feature、非 Bug 工作
+about: Propose a scoped documentation, testing, or maintenance task
 type: Task
 ---
 
 ## Summary
 
-<!-- 简要说明需要完成的工作。 -->
+<!-- Describe the task and why it helps users or contributors. -->
 
 ## Deliverables
 
-<!-- 列出需要提交或更新的代码、文档、配置或结论。 -->
+<!-- List the affected files, acceptance criteria, and local checks. -->

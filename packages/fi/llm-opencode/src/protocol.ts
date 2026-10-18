@@ -13,7 +13,7 @@ export interface ConsoleOptions {
   requestTimeoutMs: number
   /** Additional attempts after transient catalog network failures. */
   catalogRetryCount: number
-  /** Delay between catalog attempts, within the shared request deadline. */
+  /** Initial catalog retry delay; doubles on each retry within the shared request deadline. */
   catalogRetryDelayMs: number
   /** Maximum silence between provider stream events, in milliseconds. */
   streamIdleTimeoutMs: number

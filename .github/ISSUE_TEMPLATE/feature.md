@@ -1,13 +1,13 @@
 ---
 name: Feature
-about: 新增或有意改变可观察行为
+about: Suggest a change to fi's user experience or capabilities
 type: Feature
 ---
 
 ## Motivation
 
-<!-- 说明当前问题、受影响的用户，以及为什么需要这项变化。 -->
+<!-- What task is difficult today, and who needs this improvement? -->
 
 ## Behavior
 
-<!-- 说明预期的用户、模型或系统可观察行为。 -->
+<!-- Describe the desired behavior, an example, and any workaround you use today. -->

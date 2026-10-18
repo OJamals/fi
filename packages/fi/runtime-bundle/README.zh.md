@@ -29,7 +29,7 @@ FI 私有运行时层在 `@deepseek-ai/dsh-base` 后挂载订阅适配器、提�
 
 本层清除继承的 DeepSeek 默认模型，并启用 `agent-default-model.selectionPolicy: available`。可用的显式选择优先；否则已关联订阅授权优先于已配置的 API 提供方，同级按提供方 id 稳定排序。`subscriptionCredentials` 配置授权键。没有可用路由时，GUI 报告没有默认模型并提示设置；自动化入口必须先配置模型。自动选择仅保留在运行时；显式选择通过配置编辑器持久保存。
 
-DeepSeek 账户服务和账户模型路由被禁用。其 API-key 提供方默认禁用，在显式添加前不会出现在已配置的 Models 列表中。可通过 **设置 → 模型 → 添加模型提供商** 添加，或在设置中将 `llm-deepseek.enabled` 设为 `true`。显式用户设置覆盖 bundle 默认值；删除并重新添加提供方会保留凭据。已有聊天保留模型选择；路由禁用后，发送下一条提示前需选择可用模型。
+DeepSeek 账户服务、账户模型路由和旧版 API-key 插件均被禁用。第三方选择器提供 pi-ai 的 `deepseek` 提供方。已有 `deepseek-official` 用户可在 profile 补丁中显式启用 `llm-deepseek` 插件；参见[升级指南](../../../docs/upgrade-guide/v1.0.0/deepseek-provider-opt-in/guide.zh.md)。凭据和已保存的对话会保留。
 
 搜索默认使用 Auto：当前模型支持已关联的原生搜索时使用该搜索，否则使用无需密钥的 Bing RSS。仍支持显式提供方覆盖。[搜索偏好包](../web-search-preferences/README.zh.md)定义路由、密钥和错误行为。
 

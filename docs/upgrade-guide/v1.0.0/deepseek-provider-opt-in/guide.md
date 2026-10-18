@@ -9,10 +9,16 @@ English | [中文](guide.zh.md)
 
 ## Change
 
-FI's shared runtime bundle defaults `llm-deepseek.enabled` to `false`. Fresh profiles no longer show an unconfigured DeepSeek provider in Models. Existing explicit `enabled: true` settings remain effective. Users who previously relied on the inherited enabled default, including those supplying only `DEEPSEEK_API_KEY`, must enable the route before using it. Credentials and saved conversations are not deleted.
+FI's shared runtime bundle disables the legacy `llm-deepseek` plugin. Its `deepseek-official` route no longer appears in the third-party selector; pi-ai's `deepseek` provider remains available. Existing `llm-deepseek.enabled: true` settings alone do not enable a disabled plugin. Credentials and saved conversations are not deleted.
 
 ## Migration
 
-1. To use DeepSeek, open **Settings → Models → Add model provider** and add it, or set `llm-deepseek.enabled: true` in the profile's settings. Keep your existing credential configuration.
-2. Confirm DeepSeek appears in Models and select an available model. Existing conversations using a disabled route need an enabled route or another model before their next message.
-3. To use another provider, leave DeepSeek disabled and configure that provider normally.
+1. For API-key setup, open **Settings → Models → Add model provider** and choose `deepseek`.
+2. To retain the legacy `deepseek-official` route, add the following entry to your profile's `cordis.patch.yml`, and restart the application. Keep your existing credentials; if you previously disabled the route in settings, enable it again.
+
+```yaml
+- id: llm-deepseek
+  disabled: false
+```
+
+3. Confirm your chosen provider appears in Models and select an available model before sending another message in a conversation that used the disabled route.

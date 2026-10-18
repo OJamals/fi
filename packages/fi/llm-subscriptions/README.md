@@ -34,6 +34,8 @@ The model picker fetches each provider catalog once per refresh. Per-model metad
 
 Native codecs follow auth2api revision `05e9e0a68a6e952044fd2c03186722577c6de37a`. Cursor uses HTTP/2 Connect protobuf; Kiro uses CRC-checked AWS event streams; Cline uses OpenAI-compatible chat with truthful FI client headers; Code Assist reuses FI's Gemini message and SSE codec with its own Google endpoint and project envelope. [NOTICE](NOTICE.md) retains component attribution and distribution restrictions.
 
+Cline sends the caller's `maxTokens`, or `defaultMaxTokens` when omitted, without reducing it against the fallback context estimate. Its advertised catalog omits context capacity; the upstream provider validates the actual context and output limits.
+
 ## Model Experience
 
 ### Subscription requests
