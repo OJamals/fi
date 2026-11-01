@@ -195,8 +195,40 @@ describe('OpenCode billing and quota failures', () => {
     expect(captured).toHaveLength(1)
   })
 
+  const go = (packageName: string) => ({ providers: { 'opencode-go': { ...model(packageName).providers.opencode, settings: { baseURL: 'https://opencode.ai/zen/go/v1' } } } })
+  const runGo = async (adapter: OpenCodeAdapter) => {
+    const chunks: StreamChunk[] = []
+    for await (const chunk of adapter.stream({ provider: 'opencode-console', model: 'opencode-go/friendly', messages: message })) chunks.push(chunk)
+    return chunks
+  }
+
+  it.each(['@ai-sdk/openai-compatible', '@ai-sdk/anthropic'])(
+    'reports a workspace without OpenCode Go as a subscription failure, not free-tier access, through %s', async (packageName) => {
+      const adapter = new OpenCodeAdapter(() => config, async () => grant)
+      const captured = serve(go(packageName), () => json({ type: 'error', error: { type: 'server_error',
+        message: 'Upstream request failed: An active OpenCode Go subscription is required to use Go models.' }, secret: 'must-not-leak' }, 403))
+      const last = finish(await runGo(adapter))
+      expect(last).toMatchObject({ type: 'finish', reason: { kind: 'error', failure: { code: 'SUBSCRIPTION_REQUIRED', status: 403,
+        message: 'OpenCode Go is not active in this workspace; subscribe in the Console or choose another organization or a Zen model' } } })
+      expect(JSON.stringify(last)).not.toContain('must-not-leak')
+      // The free-tier compatibility retry cannot grant a subscription.
+      expect(captured).toHaveLength(1)
+    },
+  )
+
+  it('reports the OpenCode Go usage limit as a quota failure, not the free usage limit', async () => {
+    const adapter = new OpenCodeAdapter(() => config, async () => grant)
+    const captured = serve(go('@ai-sdk/openai-compatible'), () => json({ type: 'error', error: { type: 'error', message: 'Go usage limit exceeded' }, secret: 'must-not-leak' }, 429))
+    const last = finish(await runGo(adapter))
+    expect(last).toMatchObject({ type: 'finish', reason: { kind: 'error', failure: { code: 'QUOTA', status: 429,
+      message: 'OpenCode Go usage limit reached; retry after it resets, add Zen balance in the Console, or choose another organization' } } })
+    expect(JSON.stringify(last)).not.toContain('must-not-leak')
+    expect(captured).toHaveLength(1)
+  })
+
   it.each([
     [402, { error: { type: 'server_error', message: 'Something else' } }],
+    [403, { error: { type: 'server_error', message: 'Upstream request failed: something else' } }],
     [402, { error: { type: 'billing_error', message: 'Upstream request failed: Insufficient account funds' } }],
     [402, 'pay up'],
     [429, { error: { type: 'RateLimitError' } }],

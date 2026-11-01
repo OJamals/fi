@@ -46,7 +46,7 @@ Console 返回省略包、端点或模型的工作区叠加配置时，由 `http
 
 Google 路由使用 pi-ai 的 OpenAI Chat 适配器构建请求，再由 [`@fi/llm-antigravity`](../llm-antigravity/README.zh.md) 的 `callGeminiChat` 转换为简洁的 Gemini 请求，发送至 `{baseURL}/models/{id}:streamGenerateContent?alt=sse`，携带 `x-goog-api-key` 和 OpenCode 客户端标头。路径取自目录项，绝不取自 SDK 请求体。端点准入、拒绝重定向以及 `402`、`429`、`403` 的分类与其他路由相同；OpenAI 兼容的免费层重试不适用。未选择强度时，Gemini 3 模型返回思考摘要。
 
-OpenAI 兼容推理收到 `403 FreeTierError` 时，使用与 auth2api 兼容的流式传输和工具选择重试。Chat 后端以 HTTP 400 或 5xx 拒绝受限选择时，再尝试一次 `auto`；本地验证仍拒绝未声明或禁用的工具。如果 `https://opencode.ai/inference/openai/v1/chat/completions` 仍返回 `403 FreeTierError`，则最后尝试一次将原始请求发送至 `https://opencode.ai/zen/v1/chat/completions`，保留模型、授权凭据、组织、请求头和对话。此路由恢复要求返回 SSE，且不适用于其他端点、协议、身份验证错误或 SSO 失败。持续的免费层拒绝报告 `POLICY_REJECTED`。结构化的 `403 SsoRequired` 报告 `SSO_REQUIRED` 并提示重新连接。Console 精确的 `402` 余额不足响应体和 `429 FreeUsageLimitError` 报告终止性的 `QUOTA` 失败而非可重试错误，且不暴露提供者响应字段。其他错误继续由共享 SDK 处理。
+OpenAI 兼容推理收到 `403 FreeTierError` 时，使用与 auth2api 兼容的流式传输和工具选择重试。Chat 后端以 HTTP 400 或 5xx 拒绝受限选择时，再尝试一次 `auto`；本地验证仍拒绝未声明或禁用的工具。如果 `https://opencode.ai/inference/openai/v1/chat/completions` 仍返回 `403 FreeTierError`，则最后尝试一次将原始请求发送至 `https://opencode.ai/zen/v1/chat/completions`，保留模型、授权凭据、组织、请求头和对话。此路由恢复要求返回 SSE，且不适用于其他端点、协议、身份验证错误或 SSO 失败。持续的免费层拒绝报告 `POLICY_REJECTED`。结构化的 `403 SsoRequired` 报告 `SSO_REQUIRED` 并提示重新连接。Console 精确的 `402` 余额不足响应体和 `429 FreeUsageLimitError` 报告终止性的 `QUOTA` 失败而非可重试错误。OpenCode Go 的 `429` 用量上限响应体同样报告 `QUOTA`，其 `403` 需要订阅响应体报告 `SUBSCRIPTION_REQUIRED` 而非身份验证失败，且不进行免费层重试；不暴露提供者响应字段。其他错误继续由共享 SDK 处理。
 
 <a id="model-experience"></a>
 ## 模型体验

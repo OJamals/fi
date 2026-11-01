@@ -30,6 +30,10 @@ const inferenceErrorSchema = z.object({
 })
 /** The only 402 body the Console documents for an unfunded workspace. */
 const INSUFFICIENT_FUNDS = 'Upstream request failed: Insufficient account funds'
+/** OpenCode Go's 403 for a workspace without an active subscription. */
+const GO_SUBSCRIPTION_REQUIRED = 'Upstream request failed: An active OpenCode Go subscription is required to use Go models.'
+/** OpenCode Go's 429 once any of its rolling usage limits is spent; it covers every Go model. */
+const GO_USAGE_LIMIT = 'Go usage limit exceeded'
 
 /** Known Console failures replace the SDK's generic status diagnosis. */
 function inferenceFailure(status: number, data: unknown): LlmFailure | undefined {
@@ -42,12 +46,19 @@ function inferenceFailure(status: number, data: unknown): LlmFailure | undefined
       : undefined
   }
   if (status === 429) {
+    if (error?.message === GO_USAGE_LIMIT) {
+      return { code: QUOTA_EXCEEDED_CODE, status, message: 'OpenCode Go usage limit reached; retry after it resets, add Zen balance in the Console, or choose another organization' }
+    }
     return error?.type === 'FreeUsageLimitError'
       ? { code: QUOTA_EXCEEDED_CODE, status, message: 'OpenCode free usage limit reached; retry later or choose a paid model or another organization' }
       : undefined
   }
   if (_tag === 'SsoRequired' || error?.type === 'SsoRequired') {
     return { code: 'SSO_REQUIRED', status, message: 'OpenCode organization requires SSO; reconnect OpenCode Console' }
+  }
+  if (error?.type === 'server_error' && error.message === GO_SUBSCRIPTION_REQUIRED) {
+    // Not AUTH: the credential is valid, and reconnecting cannot grant a subscription.
+    return { code: 'SUBSCRIPTION_REQUIRED', status, message: 'OpenCode Go is not active in this workspace; subscribe in the Console or choose another organization or a Zen model' }
   }
   return error?.type === 'FreeTierError'
     ? { code: 'POLICY_REJECTED', status, message: 'OpenCode rejected free-tier access (HTTP 403); retry later or choose a model with confirmed access. The official OpenCode client may also be affected' }
