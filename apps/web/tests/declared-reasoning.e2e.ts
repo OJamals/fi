@@ -22,6 +22,28 @@ const UI_EXPECTED = fileURLToPath(new URL('./expected/declared-reasoning/ui.expe
 const POINTER_EXPECTED = fileURLToPath(new URL('./expected/declared-reasoning/pointer-menu.expected.md', import.meta.url))
 const MODE = webSnapshotMode()
 
+/** Probe actual hit testing, including the expanded edges and neighboring controls. */
+async function assertComposerTargets(page: Page, minimum: number): Promise<void> {
+  for (const control of [
+    page.getByRole('button', { name: '添加文件或调用指令', exact: true }),
+    page.getByRole('button', { name: /^选择模型/ }),
+    page.getByRole('button', { name: '发送消息', exact: true }),
+  ]) {
+    const misses = await control.evaluate((button, size) => {
+      const rect = button.getBoundingClientRect()
+      const halfWidth = Math.max(rect.width, size) / 2 - 0.5
+      const halfHeight = Math.max(rect.height, size) / 2 - 0.5
+      const centerX = rect.x + rect.width / 2
+      const centerY = rect.y + rect.height / 2
+      return [-halfWidth, 0, halfWidth].flatMap(x => [-halfHeight, 0, halfHeight].flatMap((y) => {
+        const hit = button.ownerDocument.elementFromPoint(centerX + x, centerY + y)
+        return hit?.closest('button') === button ? [] : [{ x, y, hit: hit?.closest('button')?.getAttribute('aria-label') ?? hit?.tagName }]
+      }))
+    }, minimum)
+    expect(misses, await control.getAttribute('aria-label') ?? '').toEqual([])
+  }
+}
+
 describe.skipIf(MODE === 'record').each([
   { name: 'Chromium', engine: chromium },
   { name: 'WebKit', engine: webkit },
@@ -67,6 +89,34 @@ describe.skipIf(MODE === 'record').each([
       await browser?.close()
     } finally {
       await scaffold?.close()
+    }
+  })
+
+  it('keeps composer hit areas and menu rows usable on desktop and touch', async () => {
+    for (const touch of [false, true]) {
+      const targetPage = await browser.newPage({
+        viewport: touch ? { width: 390, height: 844 } : { width: 1680, height: 1000 },
+        locale: ZH_BROWSER_LOCALE,
+        hasTouch: touch,
+        isMobile: touch,
+      })
+      try {
+        await targetPage.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
+        await targetPage.locator('[data-composer-input][contenteditable="true"]').first().waitFor({ timeout: 15_000 })
+        await targetPage.locator('[data-composer-input]').first().fill('Pointer target check')
+        const minimum = touch ? 44 : 40
+        await assertComposerTargets(targetPage, minimum)
+        await targetPage.getByRole('button', { name: /^选择模型/ }).click()
+        const heights = await targetPage.getByRole('menuitem').evaluateAll(rows => rows.map(row => row.getBoundingClientRect().height))
+        expect(heights).toHaveLength(2)
+        for (const height of heights) expect(height).toBeGreaterThanOrEqual(minimum)
+        const menu = await targetPage.getByRole('menu').boundingBox()
+        expect(menu).not.toBeNull()
+        expect(menu!.x).toBeGreaterThanOrEqual(0)
+        expect(menu!.x + menu!.width).toBeLessThanOrEqual(targetPage.viewportSize()!.width)
+      } finally {
+        await targetPage.close()
+      }
     }
   })
 

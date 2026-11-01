@@ -303,7 +303,7 @@ describe('web e2e: organized model picker and compact subscription control', () 
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
 
-  it('keeps all six subscription providers selectable in one compact control at desktop and narrow dark widths', async () => {
+  it('keeps all subscription providers selectable in one compact control at desktop and narrow dark widths', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-compact-subscription-control'))
     const authorizationBegin = vi.spyOn(scaffold.ctx.fiAuthorizationController, 'begin')
     await page.setViewportSize({ width: 1440, height: 900 })
@@ -317,8 +317,9 @@ describe('web e2e: organized model picker and compact subscription control', () 
     const state = subscription.getByText('Not signed in', { exact: true })
     const action = subscription.getByRole('button').first()
     await expect.poll(() => provider.count(), { timeout: 10_000 }).toBe(1)
-    expect(await provider.locator('option').count()).toBe(6)
-    for (let index = 0; index < 6; index++) {
+    await expect.poll(() => provider.locator('option').count(), { timeout: 10_000 }).toBe(11)
+    expect(await provider.locator('option[value="fi-ollama/ollama-cloud"]').count()).toBe(1)
+    for (let index = 0; index < 11; index++) {
       await provider.selectOption({ index })
       // Choosing a row exposes its operation without initiating it.
       await expect.poll(() => subscription.getByRole('button').count(), { timeout: 5_000 }).toBe(1)

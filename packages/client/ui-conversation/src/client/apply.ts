@@ -540,13 +540,15 @@ export function apply(ctx: Context, config: Config = Config({})): void {
     yield registerConversationSession()
     yield registerHeader()
     yield registerSessionHeader()
-    yield registerComposerBar()
   })
 
   ctx.plugin(ConversationController, {
     input: inputHub,
     blocks: composerBlocks,
     maxConcurrentFileUploads,
+  })
+  ctx.inject(['conversation', 'slots'], (scope) => {
+    scope.slots.inject('conversation.composer.bar', registerComposerBar)
   })
   ctx.plugin(todoDockEntry)
   ctx.plugin(queueDockEntry)

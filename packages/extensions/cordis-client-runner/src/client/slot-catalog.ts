@@ -654,8 +654,8 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     key: 'conversation.hero.brand.mark',
     kind: 'single',
     scope: 'root',
-    summary: 'Brand mark shown before the blank-session headline.',
-    doc: 'Brand mark shown before the blank-session headline.',
+    summary: 'Brand mark shown on the blank-session home screen.',
+    doc: 'Brand mark shown on the blank-session home screen.',
     registerOptions: [],
     ownerProps: [
       '/** Presentation props supplied to the blank-session brand mark. */\nexport interface HeroBrandMarkOwnerProps {\n  /** Requested square edge in pixels. */\n  size: number\n  /** Host class preserving the surrounding mark geometry. */\n  className?: string | undefined\n}',

@@ -7,6 +7,7 @@
    12px caption chevron; 28px chip height matches the sibling Plan /
    Read-only selects in the same tool row. */
 .trigger {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -27,6 +28,13 @@
   line-height: 20px;
   font-weight: 400;
   cursor: pointer;
+}
+
+/* Row measurement and menu placement keep the compact trigger rectangle. */
+.trigger::before {
+  content: '';
+  position: absolute;
+  inset: -6px 0;
 }
 
 .trigger:hover:not(:disabled) {
@@ -172,78 +180,29 @@
 }
 
 .retry {
+  position: relative;
   flex: 0 0 auto;
+  min-width: 40px;
+  min-height: 28px;
   padding: 0;
   border: none;
   background: transparent;
   color: inherit;
   font: inherit;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
+}
+
+.retry::before {
+  content: '';
+  position: absolute;
+  inset: -6px 0;
 }
 
 .retry:focus-visible {
-  border-radius: 4px;
+  border-radius: var(--dsw-radius-sm);
   outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 2px;
-}
-
-.searchRow {
-  position: relative;
-  flex-shrink: 0;
-  margin: 2px 0 3px;
-}
-
-.searchRow .search {
-  display: flex;
-  height: auto;
-  padding: 5px 7px;
-  border: 0 solid transparent;
-  border-radius: var(--dsw-radius-md);
-  background: transparent;
-}
-
-.searchRow .searchWithQuery {
-  padding-right: 34px;
-}
-
-.searchClear {
-  position: absolute;
-  top: 50%;
-  right: 4px;
-  transform: translateY(-50%);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  corner-shape: round;
-  background: transparent;
-  color: var(--dsw-alias-label-secondary);
-  cursor: pointer;
-}
-
-.searchClear:hover,
-.searchClear:focus-visible {
-  outline: none;
-  background: var(--dsw-alias-interactive-bg-hover);
-}
-
-.searchRow .search:focus-within {
-  border-color: transparent;
-}
-
-.searchRow .search input {
-  padding: 0;
-  font-size: 12px;
-  line-height: normal;
-}
-
-.searchRow .search input::placeholder {
-  color: var(--dsw-alias-label-caption);
 }
 
 .groups {
@@ -280,7 +239,7 @@
   color: var(--dsw-alias-label-tertiary);
   font-size: 11px;
   line-height: 16px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .groupTitle {
@@ -295,7 +254,7 @@
   min-height: 40px;
   padding: 5px 8px 3px;
   border: none;
-  border-radius: var(--dsw-radius-sm);
+  border-radius: var(--dsw-radius-md);
   outline: none;
   background: transparent;
   color: var(--dsw-alias-label-tertiary);
@@ -336,7 +295,7 @@
   gap: 6px;
   width: auto;
   min-width: 100%;
-  min-height: 34px;
+  min-height: 40px;
   padding: 5px 7px;
   border: none;
   border-radius: var(--dsw-radius-md);
@@ -346,19 +305,13 @@
   text-align: left;
   cursor: pointer;
   content-visibility: auto;
-  contain-intrinsic-size: auto 38px;
+  contain-intrinsic-size: auto 40px;
 }
 
-.option:not(.modelOption):hover:not(:disabled),
+.option:hover:not(:disabled),
 .option:focus-visible,
 .optionActive:not(:disabled) {
   background: var(--dsw-alias-interactive-bg-hover);
-}
-
-/* Selection marker is the trailing check, not a fill — matches the Menu
- * primitive's selected treatment. */
-.selected {
-  background: transparent;
 }
 
 .option:disabled {
@@ -403,7 +356,7 @@
   gap: 6px;
   width: auto;
   min-width: 100%;
-  height: 34px;
+  height: 40px;
   padding: 0 8px;
   border: none;
   border-radius: var(--dsw-radius-md);
@@ -449,10 +402,24 @@
 }
 
 @media (pointer: coarse) {
+  .trigger::before {
+    inset-block: -8px;
+  }
+
+  .cell,
   .searchInput,
   .groupTitle,
   .option {
     min-height: 44px;
+  }
+
+  .option {
+    contain-intrinsic-size: auto 44px;
+  }
+
+  .retry {
+    min-width: 44px;
+    min-height: 32px;
   }
 }
 

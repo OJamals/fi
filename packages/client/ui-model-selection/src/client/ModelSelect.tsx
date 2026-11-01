@@ -158,18 +158,16 @@ export function ModelSelect(
     return groups.flatMap((group) => {
       const providerMatches = [group.name, group.id]
         .some(value => normalizeSearch(value).includes(normalizedModelQuery))
-      // Provider ids are routable identities (for example, `anthropic/claude`),
-      // so retain FI's normalized exact matching alongside upstream's fuzzy
-      // display-name discovery. Exact identity hits stay ahead of fuzzy ones.
+      if (providerMatches) return group.models.length === 0 ? [] : [{ group, models: group.models }]
+      // Normalized identity matches precede fuzzy display-name matches.
       const exactModels = group.models.filter(model => [model.name, model.id]
         .some(value => normalizeSearch(value).includes(normalizedModelQuery)))
-      const rankedModels = rankByName(group.models, modelQuery.trim())
-      const models = providerMatches
-        ? group.models
-        : [...exactModels, ...rankedModels.filter(model => !exactModels.includes(model))]
+      const exactMatches = new Set(exactModels)
+      const models = [...exactModels, ...rankByName(group.models, modelQuery.trim())
+        .filter(model => !exactMatches.has(model))]
       return models.length === 0 ? [] : [{ group, models }]
     })
-  }, [groups, normalizedModelQuery, searching])
+  }, [groups, modelQuery, normalizedModelQuery, searching])
   const visibleModelCount = visibleGroups.reduce((total, group) => total + group.models.length, 0)
   const subscriptionIdSet = new Set(subscriptionIds)
   const regularGroups = visibleGroups.filter(({ group }) => !subscriptionIdSet.has(group.id))
@@ -481,7 +479,7 @@ export function ModelSelect(
                   role="menuitemradio"
                   data-model-menu-nav="true"
                   aria-checked={selected}
-                  className={clsx(css.option, selected && css.selected)}
+                  className={css.option}
                   key={model.id}
                   title={model.name}
                   disabled={busy}
@@ -659,7 +657,7 @@ export function ModelSelect(
                     role="menuitemradio"
                     data-model-menu-nav="true"
                     aria-checked={effectiveEffort === level.effort}
-                    className={clsx(css.option, effectiveEffort === level.effort && css.selected)}
+                    className={css.option}
                     key={level.key}
                     disabled={busy}
                     onClick={() => { chooseEffort(level.effort) }}

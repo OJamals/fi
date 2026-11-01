@@ -41,12 +41,11 @@ describe('web e2e: startup auto-selection', () => {
   it('keeps the resident Hero and composer nodes when the first Workspace session appears', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-first-workspace-stable-tree'))
     await page.locator(`${ROOT_PHASE}[data-phase="hero"]`).waitFor({ timeout: 15_000 })
-    const headline = page.getByText('Into the Unknown', { exact: true })
-    // The headline text sits in its own span inside the title group; the fish
-    // hitbox precedes the group, not the text span.
-    const fishHitbox = headline.locator('xpath=../preceding-sibling::span[1]')
-    const fish = fishHitbox.locator('img')
-    await expect.poll(() => fish.evaluate(node => node instanceof HTMLImageElement && node.complete && node.naturalWidth > 0)).toBe(true)
+    const fishHitbox = page.locator('[data-conversation-hero] > span').first()
+    const fish = fishHitbox.locator('img, svg').first()
+    await expect.poll(() => fish.evaluate(node => node instanceof HTMLImageElement
+      ? node.complete && node.naturalWidth > 0
+      : node.getBoundingClientRect().width > 0)).toBe(true)
     await fishHitbox.hover()
     expect(await fish.evaluate(node => getComputedStyle(node).animationName)).not.toBe('none')
     await page.evaluate(() => {
@@ -102,8 +101,6 @@ describe('web e2e: startup auto-selection', () => {
 
     let releaseOpening = (): void => {}
     const openingHeld = new Promise<void>((resolve) => { releaseOpening = resolve })
-    let openingRequested = (): void => {}
-    const openingInFlight = new Promise<void>((resolve) => { openingRequested = resolve })
     let gated = false
     const readObservation = scaffold.ctx.sessionQuery.observeSession
       .bind(scaffold.ctx.sessionQuery)
@@ -112,7 +109,6 @@ describe('web e2e: startup auto-selection', () => {
         const observation = await readObservation(sessionId, options)
         if (gated) return observation
         gated = true
-        openingRequested()
         await openingHeld
         return observation
       })
@@ -120,14 +116,14 @@ describe('web e2e: startup auto-selection', () => {
     const warningsBefore = tripwire.warnings.length
     try {
       await page.reload({ waitUntil: 'commit' })
-      await openingInFlight
+      await expect.poll(() => gated, { timeout: 15_000 }).toBe(true)
 
       // The frame a user sees while the session is still opening: hero phase, the
-      // hero title, and a composer that is actually painted (`settling` hides the
+      // brand mark, and a composer that is actually painted (`settling` hides the
       // seat with `visibility:hidden`, which Playwright reports as not visible).
       await page.waitForSelector(ROOT_PHASE, { timeout: 15_000 })
       expect(await page.locator(ROOT_PHASE).first().getAttribute('data-phase')).toBe('hero')
-      expect(await page.getByText('Into the Unknown').isVisible()).toBe(true)
+      expect(await page.locator('[data-conversation-hero]').isVisible()).toBe(true)
       expect(await page.locator('[data-composer-input]').first().isVisible()).toBe(true)
 
       releaseOpening()

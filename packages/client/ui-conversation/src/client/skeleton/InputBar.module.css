@@ -147,21 +147,6 @@
   position: relative;
 }
 
-/* Machine pending dot (adjudicating / submitting). */
-.pending {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  corner-shape: round;
-  background: var(--dsw-alias-state-business-primary);
-  animation: input-pending 1s ease-in-out infinite alternate;
-}
-
-@keyframes input-pending {
-  from { opacity: 0.35; }
-  to { opacity: 1; }
-}
-
 /* The contenteditable draft surface (grows with its content; .scroll caps
    and scrolls it). figma .InputText 34:10434 drew pl 16 / pr 12 / pt 4; the
    left pad tightened to 14, and the right pad is 8 here plus .scroll's 4px
@@ -312,6 +297,7 @@
 
 /* Attach circle (figma + control): 28px, selector fill, primary glyph. */
 .add {
+  position: relative;
   display: grid;
   place-items: center;
   flex: none;
@@ -325,6 +311,13 @@
   cursor: pointer;
 }
 
+/* Pointer targets grow independently of the composer's measured control row. */
+.add::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+
 .add:hover:not(:disabled) {
   background: var(--dsw-alias-interactive-bg-hover-solid);
 }
@@ -334,42 +327,11 @@
   cursor: default;
 }
 
-/* Plan / Read-only / model — native <select>, chip-like closed chrome
-   (figma ToggleButton: 13/20 medium secondary, 12px chevron). */
-.select {
-  max-width: 220px;
-  height: 28px;
-  padding: 0 20px 0 8px;
-  border: none;
-  border-radius: var(--dsw-radius-sm);
-  outline: none;
-  background-color: transparent;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2381858C' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 4px center;
-  background-size: 12px 12px;
-  color: var(--dsw-alias-label-secondary);
-  font-size: 13px;
-  line-height: 20px;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-  appearance: none;
-}
-
-.select:hover:not(:disabled) {
-  background-color: var(--dsw-alias-interactive-bg-hover);
-}
-
-.select:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
 /* Primary send (figma IconButton 34:10465): 34px circle, #3964FE light /
    #679EFE dark — the info-fill pair (500→400), NOT button-primary (ink);
    white glyph; empty text = 0.4 opacity. */
 .primary {
+  position: relative;
   display: grid;
   place-items: center;
   flex: none;
@@ -390,6 +352,12 @@
   transform: translateY(-2px);
 }
 
+.primary::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+}
+
 .primary:hover:not(:disabled) {
   background: var(--dsw-alias-button-info-hover);
 }
@@ -399,15 +367,18 @@
   cursor: default;
 }
 
-.retry {
-  margin-left: 8px;
-  padding: 1px 8px;
-  border: 1px solid currentColor;
-  border-radius: var(--dsw-radius-sm);
-  background: transparent;
-  color: inherit;
-  font-size: 12px;
-  cursor: pointer;
+@media (pointer: coarse) {
+  .tools {
+    gap: 12px;
+  }
+
+  .add::before {
+    inset: -8px;
+  }
+
+  .primary::before {
+    inset: -5px;
+  }
 }
 
 .standardControls { display: flex; align-items: center; gap: 12px; min-width: 0; }

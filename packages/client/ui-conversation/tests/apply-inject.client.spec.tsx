@@ -144,6 +144,27 @@ async function bench() {
 }
 
 describe('Conversation inject API', () => {
+  it('publishes usable composer bindings when the plugin remounts', async () => {
+    const b = await bench()
+    onTestFinished(() => b.runtime.dispose())
+    await b.feature.dispose()
+    const bindings: (boolean | string)[] = []
+    b.runtime.ctx.effect(() => b.slots.subscribe('conversation.composer.bar', () => {
+      if (b.slots.entries('conversation.composer.bar').length === 0) return
+      try {
+        bindings.push(b.composerApi(ROOT).keyboard !== undefined)
+      } catch (error: unknown) {
+        bindings.push(String(error))
+      }
+    }))
+    b.runtime.ctx.inject(['conversation', 'slots'], (scope) => {
+      scope.slots.register({ name: 'conversation.hero.agentPreset' }, () => null)
+    })
+    await b.runtime.mount({ inject: [...inject], apply })
+    await vi.waitFor(() => { expect(bindings).toEqual([true]) })
+    await vi.waitFor(() => { expect(b.slots.entries('conversation.hero.agentPreset')).toHaveLength(1) })
+  })
+
   it('owns the File action, reads its mounted composer availability, and unregisters on disposal', async () => {
     const b = await bench()
     onTestFinished(() => b.runtime.dispose())

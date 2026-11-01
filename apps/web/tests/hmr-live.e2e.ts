@@ -19,6 +19,8 @@ const CLIENT_ARTIFACT_PATTERNS = [
   'packages/*/*/lib/client.js.map',
   'packages/*/*/lib/client.*.js',
   'packages/*/*/lib/client.*.js.map',
+  'packages/*/*/lib/types/client/**/*.js',
+  'packages/*/*/lib/types/client/**/*.js.map',
 ]
 
 /** Return every artifact that `pnpm run dev:web` can rewrite. */
@@ -94,10 +96,10 @@ it('hot-reloads a real client-plugin source edit without refreshing the page', a
     .map(async path => [path, await readFile(path)] as const))
   const originalClientArtifactPaths = new Set(originalClientArtifacts.map(([path]) => path))
   const originalSource = await readFile(sourcePath)
-  const oldText = 'Into the Unknown'
-  const sourceNeedle = "'hero.headline': 'Into the Unknown'"
+  const oldText = 'Choose workspace'
+  const sourceNeedle = "'hero.chooseWorkspace': 'Choose workspace'"
   const newText = `HMR UPDATED ${'x'.repeat(80)}`
-  const updatedSource = originalSource.toString().replace(sourceNeedle, `'hero.headline': '${newText}'`)
+  const updatedSource = originalSource.toString().replace(sourceNeedle, `'hero.chooseWorkspace': '${newText}'`)
   if (updatedSource === originalSource.toString()) throw new Error(`HMR source lacks ${JSON.stringify(sourceNeedle)}`)
 
   const subprocessCtx = new Context()
@@ -105,6 +107,7 @@ it('hot-reloads a real client-plugin source edit without refreshing the page', a
   let watcher: SubprocessHandle | undefined
   let host: SubprocessHandle | undefined
   let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
+  let watcherOutput = ''
   const failures: unknown[] = []
   try {
     subprocessFiber = await subprocessCtx.plugin(LocalSubprocessRuntime)
@@ -115,9 +118,14 @@ it('hot-reloads a real client-plugin source edit without refreshing the page', a
       REPO_ROOT,
       { ...clientBuildEnvironment },
     ))
+    const captureOutput = (chunk: Buffer): void => {
+      watcherOutput = (watcherOutput + chunk.toString()).slice(-12_000)
+    }
+    watcher.stdout?.on('data', captureOutput)
+    watcher.stderr?.on('data', captureOutput)
     await waitForOutput(watcher, /dev-web: watching/, 'pnpm run dev:web --skip-build --no-serve')
     host = subprocessCtx.subprocess.spawn(spawnSpec(
-      [process.execPath, binPath, 'web', '--no-open', '--port', '0'],
+      [process.execPath, binPath, 'web', '--patch', join(REPO_ROOT, 'apps/web/tests/pin-browse-picker.overlay.yml'), '--no-open', '--port', '0'],
       world,
       {
         DEEPSEEK_API_KEY: 'keyless-hmr-no-call',
@@ -128,9 +136,13 @@ it('hot-reloads a real client-plugin source edit without refreshing the page', a
     browser = await chromium.launch()
     const page = await browser.newPage()
     const pageErrors: string[] = []
+    const consoleErrors: string[] = []
     page.on('pageerror', error => pageErrors.push(String(error)))
+    page.on('console', (message) => {
+      if (message.type() === 'error' || message.type() === 'warning') consoleErrors.push(message.text().split('\n', 1)[0] ?? '')
+    })
     await page.goto(baseUrl, { waitUntil: 'load' })
-    await page.getByText(oldText, { exact: true }).waitFor({ timeout: 15_000 })
+    await page.getByRole('button', { name: oldText, exact: true }).waitFor({ timeout: 15_000 })
     const pageIdentity = await page.evaluate(() => {
       // In-page code: an import would not survive serialization, and the page
       // entropy source available in every context is getRandomValues.
@@ -140,10 +152,13 @@ it('hot-reloads a real client-plugin source edit without refreshing the page', a
     })
 
     await writeFile(sourcePath, updatedSource)
-    await page.getByText(newText, { exact: true }).waitFor({ timeout: 30_000 })
+    await page.getByRole('button', { name: newText, exact: true }).waitFor({ timeout: 30_000 }).catch((error: unknown) => {
+      throw new Error(`HMR text did not update; page errors: ${JSON.stringify(pageErrors)}; console: ${JSON.stringify(consoleErrors)}; watcher output:\n${watcherOutput}`, { cause: error })
+    })
     expect(await page.evaluate(() => (window as Window & { __dshHmrPageIdentity?: string }).__dshHmrPageIdentity))
       .toBe(pageIdentity)
     expect(pageErrors).toEqual([])
+    expect(consoleErrors).toEqual([])
   } catch (error) {
     failures.push(error)
   } finally {

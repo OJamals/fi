@@ -779,6 +779,7 @@ describe('ModelSelect provider disclosure and search', () => {
         name: 'Provider',
         models: [
           { id: 'gemini-flash', name: 'Gemini Flash' },
+          { id: 'gemflare', name: 'GemFlare' },
           { id: 'anthropic/claude-sonnet', name: 'Claude Sonnet' },
         ],
       }],
@@ -790,6 +791,9 @@ describe('ModelSelect provider disclosure and search', () => {
     const search = screen.getByRole('searchbox', { name: '搜索模型' })
 
     fireEvent.change(search, { target: { value: 'GMFL' } })
+    expect(screen.getAllByRole('menuitemradio').map(item => item.textContent)).toEqual(['GemFlare', 'Gemini Flash'])
+
+    fireEvent.change(search, { target: { value: 'GM FL' } })
     expect(screen.getAllByRole('menuitemradio').map(item => item.textContent)).toEqual(['Gemini Flash'])
 
     fireEvent.change(search, { target: { value: ' ANTHROPIC / CLAUDE ' } })
