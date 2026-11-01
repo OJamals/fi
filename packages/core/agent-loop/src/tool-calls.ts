@@ -68,6 +68,11 @@ export async function executeToolCalls(
   const agent = ctx.agents.requireInitiator()
   const { session } = agent
 
+  if (signal.aborted) {
+    for (const block of toolCalls) appendSkippedToolCall(session, turn, step, block)
+    return { concluded: false }
+  }
+
   // Inputs are distinct because tools/execute wrappers may replace `exec.signal`.
   const planned: PlannedCall[] = toolCalls.map(block => ({
     block,
