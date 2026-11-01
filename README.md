@@ -30,13 +30,13 @@ A recorded ChatGPT/Codex coding session: connect a subscription, choose a model,
 
 ## Download
 
-The published desktop installers below are **v1.0.0**. [Build from source](#run-from-source) to use the current `main` branch.
+The published desktop installers below are **v1.0.1**. [Build from source](#run-from-source) to use the current `main` branch.
 
-| Platform | v1.0.0 download | Signing |
+| Platform | v1.0.1 download | Signing |
 |---|---|---|
-| macOS · Apple Silicon | [DMG](https://github.com/OJamals/fi/releases/download/v1.0.0/fi-1.0.0-mac-arm64.dmg) | Signed and notarized |
-| Windows · x64 | [Installer](https://github.com/OJamals/fi/releases/download/v1.0.0/fi-1.0.0-win-x64-unsigned.exe) | Unsigned |
-| Linux · x64 | [AppImage](https://github.com/OJamals/fi/releases/download/v1.0.0/fi-1.0.0-linux-x64.AppImage) | Unsigned |
+| macOS · Apple Silicon | [DMG](https://github.com/OJamals/fi/releases/download/v1.0.1/fi-1.0.1-mac-arm64.dmg) | Signed and notarized |
+| Windows · x64 | [Installer](https://github.com/OJamals/fi/releases/download/v1.0.1/fi-1.0.1-win-x64-unsigned.exe) | Unsigned |
+| Linux · x64 | [AppImage](https://github.com/OJamals/fi/releases/download/v1.0.1/fi-1.0.1-linux-x64.AppImage) | Unsigned |
 
 See [release notes and all downloads](https://github.com/OJamals/fi/releases). On macOS, open the DMG and drag fi into Applications. On Windows, run the installer. On Linux, make the AppImage executable and open it.
 
