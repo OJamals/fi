@@ -110,16 +110,28 @@ describe('minimal agent preset', () => {
       .replaceAll(scaffold.workspaceCwd, '{{cwd}}')
       .trimEnd()
 
+    const history = await scaffold.ctx.tools.execute({
+      signal,
+      callId: ToolCallId('minimal-bash-history'),
+      name: 'bash',
+      arguments: { command: "echo '<!doctype html>'; echo hi!!" },
+      agent: agentHandle.agent,
+    })
+
     expect({
       prompt: systemPrompt,
       tools: requestHeader.tools?.map(tool => tool.name),
       goalCommand: scaffold.ctx.commands.find(agentHandle.agent, 'goal') !== undefined,
       bash: text(bash),
+      history: text(history),
     }).toMatchInlineSnapshot(`
       {
         "bash": "PERSISTED:{{cwd}}/persistent-state
       [Command finished with exit code 0]",
         "goalCommand": false,
+        "history": "<!doctype html>
+      hi!!
+      [Command finished with exit code 0]",
         "prompt": "You are a helpful software engineer assistant.",
         "tools": [
           "bash",
