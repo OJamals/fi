@@ -29,10 +29,10 @@
     "@deepseek-ai/dsh-llm-pi-ai": "workspace:*"
   },
   "dependencies": {
-    "@earendil-works/pi-ai": "0.87.1",
-    "https-proxy-agent": "^7.0.6",
+    "@earendil-works/pi-ai": "1.4.0",
+    "https-proxy-agent": "^9.1.0",
     "@deepseek-ai/schemastery": "workspace:~",
-    "ws": "^8.21.0"
+    "ws": "^8.22.1"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:~",

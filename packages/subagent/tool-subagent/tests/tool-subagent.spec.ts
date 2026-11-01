@@ -1235,7 +1235,7 @@ describe('dsh-tool-subagent continuable background mode', () => {
       { description: 'continuable work', prompt: 'dig in' },
       { agent: parent },
     )
-    expect(started.isError).toBe(false)
+    expect(started.isError, text(started)).toBe(false)
     const match = /^started subagent (\S+)$/.exec(text(started))
     expect(match).not.toBeNull()
     const [, childId] = match!
@@ -1267,7 +1267,7 @@ describe('dsh-tool-subagent continuable background mode', () => {
       { description: 'blocking work', prompt: 'dig in', run_in_background: false },
       { agent: parent },
     )
-    expect(result.isError).toBe(false)
+    expect(result.isError, text(result)).toBe(false)
     if (result.isError) throw new Error('expected foreground subagent success')
     expect(result.value).toMatchObject({ kind: 'foreground' })
     expect(text(result)).toBe('continuable answer')
@@ -1319,7 +1319,7 @@ describe('dsh-tool-subagent continuable background mode', () => {
     const [failed, succeeded] = await Promise.all([cancelledResult, survivingResult])
     expect(preparationCount).toBe(2)
     expect(failed.isError).toBe(true)
-    expect(succeeded.isError).toBe(false)
+    expect(succeeded.isError, text(succeeded)).toBe(false)
     expect(cancelledChildId).toBeDefined()
     expect(survivingChildId).toBeDefined()
     expect(ctx.agents.get(cancelledChildId!)).toBeUndefined()

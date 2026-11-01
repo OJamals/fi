@@ -1,0 +1,418 @@
+diff --git a/dist/api/anthropic-messages.js b/dist/api/anthropic-messages.js
+index 841da89..2eb8eec 100644
+--- a/dist/api/anthropic-messages.js
++++ b/dist/api/anthropic-messages.js
+@@ -585,7 +585,6 @@ export const stream = (model, context, options) => {
+                         const block = blocks[index];
+                         if (block && block.type === "toolCall") {
+                             block.partialJson += event.delta.partial_json;
+-                            block.arguments = parseStreamingJson(block.partialJson);
+                             stream.push({
+                                 type: "toolcall_delta",
+                                 contentIndex: index,
+diff --git a/dist/api/bedrock-converse-stream.js b/dist/api/bedrock-converse-stream.js
+index 422dfcf..8430e81 100644
+--- a/dist/api/bedrock-converse-stream.js
++++ b/dist/api/bedrock-converse-stream.js
+@@ -473,7 +473,6 @@ function handleContentBlockDelta(event, blocks, output, stream) {
+     }
+     else if (delta?.toolUse && block?.type === "toolCall") {
+         block.partialJson = (block.partialJson || "") + (delta.toolUse.input || "");
+-        block.arguments = parseStreamingJson(block.partialJson);
+         stream.push({ type: "toolcall_delta", contentIndex: index, delta: delta.toolUse.input || "", partial: output });
+     }
+     else if (delta?.reasoningContent) {
+diff --git a/dist/api/mistral-conversations.js b/dist/api/mistral-conversations.js
+index 193e8e4..f97526b 100644
+--- a/dist/api/mistral-conversations.js
++++ b/dist/api/mistral-conversations.js
+@@ -570,7 +570,6 @@ async function consumeChatStream(model, output, stream, mistralStream, onProvide
+                 ? toolCall.function.arguments
+                 : JSON.stringify(toolCall.function.arguments || {});
+             block.partialArgs = (block.partialArgs || "") + argsDelta;
+-            block.arguments = parseStreamingJson(block.partialArgs);
+             stream.push({
+                 type: "toolcall_delta",
+                 contentIndex: toolBlocksByKey.get(key),
+diff --git a/dist/api/openai-codex-responses.d.ts b/dist/api/openai-codex-responses.d.ts
+index 704476d..ca4df99 100644
+--- a/dist/api/openai-codex-responses.d.ts
++++ b/dist/api/openai-codex-responses.d.ts
+@@ -1,5 +1,5 @@
+ import type { ResponseCreateParamsStreaming } from "openai/resources/responses/responses.js";
+-import type { SimpleStreamOptions, StreamFunction, StreamOptions } from "../types.ts";
++import type { PreparedWebSocket, SimpleStreamOptions, StreamFunction, StreamOptions } from "../types.ts";
+ export interface OpenAICodexResponsesOptions extends StreamOptions {
+     reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+     reasoningSummary?: "auto" | "concise" | "detailed" | "off" | "on" | null;
+@@ -28,4 +28,6 @@ export interface OpenAICodexWebSocketDebugStats {
+ export declare function getOpenAICodexWebSocketDebugStats(sessionId: string): OpenAICodexWebSocketDebugStats | undefined;
+ export declare function resetOpenAICodexWebSocketDebugStats(sessionId?: string): void;
+ export declare function closeOpenAICodexWebSocketSessions(sessionId?: string): void;
++/** Retire one connector and close only its cached sockets and fallback partitions. The owner closes pending sockets. */
++export declare function closeOpenAICodexWebSocketConnector(connector: PreparedWebSocket["connect"]): void;
+ //# sourceMappingURL=openai-codex-responses.d.ts.map
+\ No newline at end of file
+diff --git a/dist/api/openai-codex-responses.js b/dist/api/openai-codex-responses.js
+index 45bcd08..3aeac11 100644
+--- a/dist/api/openai-codex-responses.js
++++ b/dist/api/openai-codex-responses.js
+@@ -185,10 +185,22 @@ export const stream = (model, context, options) => {
+             const httpTimeoutMs = normalizeTimeoutMs(options?.timeoutMs);
+             const websocketConnectTimeoutMs = normalizeTimeoutMs(options?.websocketConnectTimeoutMs);
+             const transport = options?.transport || "auto";
++            // Prepare before fallback/cache lookup so every request validates its current authentication.
++            const preparedWebSocket = transport !== "sse" && options?.websocketFactory
++                ? options.websocketFactory(resolveCodexWebSocketUrl(model.baseUrl), headersToRecord(websocketHeaders), options.env)
++                : undefined;
++            const connectionPartition = preparedWebSocket
++                ? await websocketPartition(preparedWebSocket)
++                : undefined;
++            const connectionAccount = connectionPartition ? accountId + ":" + connectionPartition : accountId;
++            const fallbackSessionId = connectionPartition && cacheSessionId
++                ? cacheSessionId + "\0" + connectionPartition
++                : cacheSessionId;
++            assertWebSocketConnectorActive(preparedWebSocket);
+             let startEmitted = false;
+-            const websocketDisabledForSession = transport !== "sse" && isWebSocketSseFallbackActive(cacheSessionId);
++            const websocketDisabledForSession = transport !== "sse" && isWebSocketSseFallbackActive(fallbackSessionId);
+             if (websocketDisabledForSession) {
+-                recordWebSocketSseFallback(cacheSessionId);
++                recordWebSocketSseFallback(cacheSessionId, fallbackSessionId);
+             }
+             if (transport !== "sse" && !websocketDisabledForSession) {
+                 let websocketStarted = false;
+@@ -203,7 +215,7 @@ export const stream = (model, context, options) => {
+                                 startEmitted = true;
+                                 stream.push({ type: "start", partial: output });
+                             }
+-                        }, httpTimeoutMs, websocketConnectTimeoutMs, cacheSessionId, accountId, grammarToolInputProperties, options);
++                        }, httpTimeoutMs, websocketConnectTimeoutMs, cacheSessionId, connectionAccount, grammarToolInputProperties, options, preparedWebSocket);
+                         if (options?.signal?.aborted) {
+                             throw new Error("Request was aborted");
+                         }
+@@ -217,6 +229,7 @@ export const stream = (model, context, options) => {
+                         return;
+                     }
+                     catch (error) {
++                        assertWebSocketConnectorActive(preparedWebSocket);
+                         const aborted = options?.signal?.aborted;
+                         const connectionLimitBeforeStart = !websocketStarted && isWebSocketConnectionLimitReachedError(error);
+                         const previousResponseNotFound = isPreviousResponseNotFoundError(error);
+@@ -238,11 +251,12 @@ export const stream = (model, context, options) => {
+                             phase: websocketStarted ? "after_message_stream_start" : "before_message_stream_start",
+                             requestBytes: new TextEncoder().encode(bodyJson).byteLength,
+                         }));
+-                        recordWebSocketFailure(cacheSessionId, error);
++                        trackWebSocketConnectorPartition(preparedWebSocket, cacheSessionId, connectionAccount);
++                        recordWebSocketFailure(cacheSessionId, error, fallbackSessionId);
+                         if (websocketStarted) {
+                             throw error;
+                         }
+-                        recordWebSocketSseFallback(cacheSessionId);
++                        recordWebSocketSseFallback(cacheSessionId, fallbackSessionId);
+                         break;
+                     }
+                 }
+@@ -260,6 +274,7 @@ export const stream = (model, context, options) => {
+             let lastError;
+             const maxRetries = options?.maxRetries ?? DEFAULT_MAX_RETRIES;
+             for (let attempt = 0; attempt <= maxRetries; attempt++) {
++                assertWebSocketConnectorActive(preparedWebSocket);
+                 if (options?.signal?.aborted) {
+                     throw new Error("Request was aborted");
+                 }
+@@ -685,12 +700,25 @@ export function resetOpenAICodexWebSocketDebugStats(sessionId) {
+     if (sessionId) {
+         websocketDebugStats.delete(sessionId);
+         websocketSseFallbackSessions.delete(sessionId);
++        for (const key of websocketSseFallbackSessions) {
++            if (key.startsWith(sessionId + "\0")) websocketSseFallbackSessions.delete(key);
++        }
+         return;
+     }
+     websocketDebugStats.clear();
+     websocketSseFallbackSessions.clear();
+ }
+ export function closeOpenAICodexWebSocketSessions(sessionId) {
++    for (const [connector, partitions] of websocketConnectorPartitions) {
++        for (const [key, entry] of partitions) {
++            if (!sessionId || entry.sessionId === sessionId) partitions.delete(key);
++        }
++        if (partitions.size === 0) websocketConnectorPartitions.delete(connector);
++    }
++    for (const key of websocketSseFallbackSessions) {
++        if (sessionId ? key.startsWith(sessionId + "\0") : key.includes("\0"))
++            websocketSseFallbackSessions.delete(key);
++    }
+     const closeEntry = (entry) => {
+         if (entry.idleTimer)
+             clearTimeout(entry.idleTimer);
+@@ -709,25 +737,79 @@ export function closeOpenAICodexWebSocketSessions(sessionId) {
+     websocketSessionCache.clear();
+ }
+ registerSessionResourceCleanup(closeOpenAICodexWebSocketSessions);
++const websocketConnectorPartitions = new Map();
++const disposedWebSocketConnectors = new WeakSet();
++function trackWebSocketConnectorPartition(prepared, sessionId, accountId) {
++    assertWebSocketConnectorActive(prepared);
++    if (!prepared || !sessionId) return;
++    let partitions = websocketConnectorPartitions.get(prepared.connect);
++    if (!partitions) {
++        partitions = new Map();
++        websocketConnectorPartitions.set(prepared.connect, partitions);
++    }
++    const partition = accountId.slice(accountId.lastIndexOf(":") + 1);
++    partitions.set(sessionId + "\0" + partition, { sessionId, accountId });
++}
++function assertWebSocketConnectorActive(prepared, socket) {
++    if (prepared && disposedWebSocketConnectors.has(prepared.connect)) {
++        if (socket) closeWebSocketSilently(socket, 1000, "connector_disposed");
++        throw new Error("WebSocket connector is disposed");
++    }
++}
++export function closeOpenAICodexWebSocketConnector(connector) {
++    disposedWebSocketConnectors.add(connector);
++    const sessions = new Set();
++    for (const [key, { sessionId, accountId }] of websocketConnectorPartitions.get(connector) ?? []) {
++        sessions.add(sessionId);
++        websocketSseFallbackSessions.delete(key);
++        const entries = websocketSessionCache.get(sessionId);
++        const entry = entries?.get(accountId);
++        if (entry) {
++            if (entry.idleTimer) clearTimeout(entry.idleTimer);
++            closeWebSocketSilently(entry.socket, 1000, "connector_disposed");
++            entries.delete(accountId);
++            if (entries.size === 0) websocketSessionCache.delete(sessionId);
++        }
++    }
++    websocketConnectorPartitions.delete(connector);
++    for (const sessionId of sessions) {
++        const stats = websocketDebugStats.get(sessionId);
++        if (stats) stats.websocketFallbackActive = [...websocketSseFallbackSessions].some(key => key === sessionId || key.startsWith(sessionId + "\0"));
++    }
++}
+ function isWebSocketSseFallbackActive(sessionId) {
+     return sessionId ? websocketSseFallbackSessions.has(sessionId) : false;
+ }
+-function recordWebSocketSseFallback(sessionId) {
++function recordWebSocketSseFallback(sessionId, fallbackSessionId = sessionId) {
+     if (!sessionId)
+         return;
+     const stats = getOrCreateWebSocketDebugStats(sessionId);
+     stats.sseFallbacks++;
+-    stats.websocketFallbackActive = isWebSocketSseFallbackActive(sessionId);
++    stats.websocketFallbackActive = isWebSocketSseFallbackActive(fallbackSessionId);
+ }
+-function recordWebSocketFailure(sessionId, error) {
++function recordWebSocketFailure(sessionId, error, fallbackSessionId = sessionId) {
+     if (!sessionId)
+         return;
+-    websocketSseFallbackSessions.add(sessionId);
++    websocketSseFallbackSessions.add(fallbackSessionId);
+     const stats = getOrCreateWebSocketDebugStats(sessionId);
+     stats.websocketFailures++;
+     stats.lastWebSocketError = formatThrownValue(error);
+     stats.websocketFallbackActive = true;
+ }
++const websocketConnectorIds = new WeakMap();
++let nextWebsocketConnectorId = 0;
++async function websocketPartition(prepared) {
++    assertWebSocketConnectorActive(prepared);
++    let connectorId = websocketConnectorIds.get(prepared.connect);
++    if (connectorId === undefined) {
++        connectorId = ++nextWebsocketConnectorId;
++        websocketConnectorIds.set(prepared.connect, connectorId);
++    }
++    const headers = [...new Headers(prepared.headers).entries()].sort(([a], [b]) => a.localeCompare(b));
++    const bytes = new TextEncoder().encode(JSON.stringify([prepared.url, headers, connectorId, prepared.proxyUrl]));
++    const digest = await crypto.subtle.digest("SHA-256", bytes);
++    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
++}
+ let _cachedWebsocket = null;
+ async function getWebSocketConstructor(env) {
+     if (!env && _cachedWebsocket)
+@@ -803,9 +885,11 @@ function scheduleSessionWebSocketExpiry(sessionId, accountId, entry) {
+             websocketSessionCache.delete(sessionId);
+     }, SESSION_WEBSOCKET_CACHE_TTL_MS);
+ }
+-async function connectWebSocket(url, headers, signal, connectTimeoutMs = DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS, env) {
+-    const WebSocketCtor = await getWebSocketConstructor(env);
+-    if (!WebSocketCtor) {
++async function connectWebSocket(url, headers, signal, connectTimeoutMs = DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS, env, prepared) {
++    assertWebSocketConnectorActive(prepared);
++    if (prepared) signal?.throwIfAborted();
++    const WebSocketCtor = prepared ? undefined : await getWebSocketConstructor(env);
++    if (!prepared && !WebSocketCtor) {
+         throw new Error("WebSocket transport is not available in this runtime");
+     }
+     const wsHeaders = headersToRecord(headers);
+@@ -815,7 +899,8 @@ async function connectWebSocket(url, headers, signal, connectTimeoutMs = DEFAULT
+         let timeout;
+         let socket;
+         try {
+-            socket = new WebSocketCtor(url, { headers: wsHeaders });
++            if (prepared) signal?.throwIfAborted();
++            socket = prepared ? prepared.connect(prepared.url, prepared.headers, prepared.proxyUrl) : new WebSocketCtor(url, { headers: wsHeaders });
+         }
+         catch (error) {
+             reject(error instanceof Error ? error : new Error(String(error)));
+@@ -844,6 +929,10 @@ async function connectWebSocket(url, headers, signal, connectTimeoutMs = DEFAULT
+         const onOpen = () => {
+             if (settled)
+                 return;
++            if (prepared && disposedWebSocketConnectors.has(prepared.connect)) {
++                fail(new Error("WebSocket connector is disposed"), "connector_disposed");
++                return;
++            }
+             settled = true;
+             cleanup();
+             resolve(socket);
+@@ -871,9 +960,10 @@ async function connectWebSocket(url, headers, signal, connectTimeoutMs = DEFAULT
+         }
+     });
+ }
+-async function acquireWebSocket(url, headers, sessionId, accountId, signal, connectTimeoutMs, env) {
++async function acquireWebSocket(url, headers, sessionId, accountId, signal, connectTimeoutMs, env, prepared) {
++    assertWebSocketConnectorActive(prepared);
+     if (!sessionId) {
+-        const socket = await connectWebSocket(url, headers, signal, connectTimeoutMs, env);
++        const socket = await connectWebSocket(url, headers, signal, connectTimeoutMs, env, prepared);
+         return {
+             socket,
+             reused: false,
+@@ -900,7 +990,7 @@ async function acquireWebSocket(url, headers, sessionId, accountId, signal, conn
+                 entry: cached,
+                 reused: true,
+                 release: ({ keep } = {}) => {
+-                    if (!keep || !isWebSocketReusable(cached.socket)) {
++                    if (!keep || !isWebSocketReusable(cached.socket) || (prepared && (disposedWebSocketConnectors.has(prepared.connect) || websocketSessionCache.get(sessionId)?.get(accountId) !== cached))) {
+                         closeWebSocketSilently(cached.socket);
+                         const currentEntries = websocketSessionCache.get(sessionId);
+                         if (currentEntries?.get(accountId) === cached)
+@@ -915,7 +1005,7 @@ async function acquireWebSocket(url, headers, sessionId, accountId, signal, conn
+             };
+         }
+         if (cached.busy) {
+-            const socket = await connectWebSocket(url, headers, signal, connectTimeoutMs, env);
++            const socket = await connectWebSocket(url, headers, signal, connectTimeoutMs, env, prepared);
+             return {
+                 socket,
+                 reused: false,
+@@ -931,7 +1021,9 @@ async function acquireWebSocket(url, headers, sessionId, accountId, signal, conn
+                 websocketSessionCache.delete(sessionId);
+         }
+     }
+-    const socket = await connectWebSocket(url, headers, signal, connectTimeoutMs, env);
++    const socket = await connectWebSocket(url, headers, signal, connectTimeoutMs, env, prepared);
++    assertWebSocketConnectorActive(prepared, socket);
++    trackWebSocketConnectorPartition(prepared, sessionId, accountId);
+     const entry = { socket, busy: true, createdAt: Date.now() };
+     accountEntries = websocketSessionCache.get(sessionId);
+     if (!accountEntries) {
+@@ -944,7 +1036,7 @@ async function acquireWebSocket(url, headers, sessionId, accountId, signal, conn
+         entry,
+         reused: false,
+         release: ({ keep } = {}) => {
+-            if (!keep || !isWebSocketReusable(entry.socket)) {
++            if (!keep || !isWebSocketReusable(entry.socket) || (prepared && (disposedWebSocketConnectors.has(prepared.connect) || websocketSessionCache.get(sessionId)?.get(accountId) !== entry))) {
+                 closeWebSocketSilently(entry.socket);
+                 if (entry.idleTimer)
+                     clearTimeout(entry.idleTimer);
+@@ -1176,10 +1268,11 @@ async function* startWebSocketOutputOnFirstEvent(events, onStart) {
+         yield event;
+     }
+ }
+-async function processWebSocketStream(url, body, headers, output, stream, model, onStart, idleTimeoutMs, websocketConnectTimeoutMs, cacheSessionId, accountId, grammarToolInputProperties, options) {
+-    const { socket, entry, reused, release } = await acquireWebSocket(url, headers, cacheSessionId, accountId, options?.signal, websocketConnectTimeoutMs, options?.env);
++async function processWebSocketStream(url, body, headers, output, stream, model, onStart, idleTimeoutMs, websocketConnectTimeoutMs, cacheSessionId, accountId, grammarToolInputProperties, options, preparedWebSocket) {
++    const { socket, entry, reused, release } = await acquireWebSocket(url, headers, cacheSessionId, accountId, options?.signal, websocketConnectTimeoutMs, options?.env, preparedWebSocket);
+     let keepConnection = true;
+-    const useCachedContext = options?.transport === "websocket-cached" || options?.transport === "auto";
++    assertWebSocketConnectorActive(preparedWebSocket, socket);
++    const useCachedContext = options?.transport === "websocket-cached" || options?.transport === "auto" || (preparedWebSocket !== undefined && options?.transport === undefined);
+     // ChatGPT Codex Responses rejects `store: true` ("Store must be set to false").
+     // WebSocket continuation still works via connection-scoped previous_response_id state.
+     const fullBody = body;
+diff --git a/dist/api/openai-completions.js b/dist/api/openai-completions.js
+index 793ed0a..3fbc8bf 100644
+--- a/dist/api/openai-completions.js
++++ b/dist/api/openai-completions.js
+@@ -453,7 +453,6 @@ export const stream = (model, context, options) => {
+                             if (toolCall.function?.arguments) {
+                                 delta = toolCall.function.arguments;
+                                 block.partialArgs = (block.partialArgs ?? "") + toolCall.function.arguments;
+-                                block.arguments = parseStreamingJson(block.partialArgs);
+                             }
+                             else if (toolCall.custom?.input) {
+                                 const nextInput = getCustomToolCallInput(block) + toolCall.custom.input;
+diff --git a/dist/api/openai-responses-shared.js b/dist/api/openai-responses-shared.js
+index b7b27ca..6af7fbf 100644
+--- a/dist/api/openai-responses-shared.js
++++ b/dist/api/openai-responses-shared.js
+@@ -613,7 +613,6 @@ export async function processResponsesStream(openaiStream, output, stream, model
+             if (!slot || slot.block.partialJson === undefined)
+                 continue;
+             slot.block.partialJson += event.delta;
+-            slot.block.arguments = parseStreamingJson(slot.block.partialJson);
+             pushToolCallDelta(slot, event.delta);
+         }
+         else if (event.type === "response.function_call_arguments.done") {
+diff --git a/dist/api/pi-messages.js b/dist/api/pi-messages.js
+index d58f22e..5fc3001 100644
+--- a/dist/api/pi-messages.js
++++ b/dist/api/pi-messages.js
+@@ -156,8 +156,6 @@ function createEventConverter(model) {
+             case "toolcall_delta": {
+                 const json = `${toolJson.get(event.contentIndex) ?? ""}${event.delta}`;
+                 toolJson.set(event.contentIndex, json);
+-                partial.content[event.contentIndex].arguments =
+-                    parseStreamingJson(json);
+                 break;
+             }
+             case "toolcall_end":
+diff --git a/dist/api/simple-options.js b/dist/api/simple-options.js
+index ed753df..44027e1 100644
+--- a/dist/api/simple-options.js
++++ b/dist/api/simple-options.js
+@@ -25,6 +25,7 @@ export function buildBaseOptions(model, context, options, apiKey) {
+         telemetry: options?.telemetry,
+         apiKey: apiKey || options?.apiKey,
+         fetch: options?.fetch,
++        websocketFactory: options?.websocketFactory,
+         transport: options?.transport,
+         cacheRetention: options?.cacheRetention,
+         sessionId: options?.sessionId,
+diff --git a/dist/types.d.ts b/dist/types.d.ts
+index e92eefd..1ba761f 100644
+--- a/dist/types.d.ts
++++ b/dist/types.d.ts
+@@ -40,6 +40,19 @@ export type Transport = "sse" | "websocket" | "websocket-cached" | "auto";
+ export type ProviderEnv = Record<string, string>;
+ export type ProviderHeaders = Record<string, string | null>;
+ export type FetchFunction = typeof globalThis.fetch;
++/** A socket implementing the event API consumed by the Codex transport. */
++export type ProviderWebSocket = Pick<WebSocket, "readyState" | "send" | "close" | "addEventListener" | "removeEventListener">;
++/** Final authenticated handshake, prepared before connection reuse is considered. */
++export interface PreparedWebSocket {
++    url: string;
++    headers: Record<string, string>;
++    /** Resolved proxy for this handshake; included in the connection reuse partition. */
++    proxyUrl?: string;
++    /** Keep this function stable across requests to permit connection reuse. */
++    connect: (url: string, headers: Readonly<Record<string, string>>, proxyUrl?: string) => ProviderWebSocket;
++}
++/** Synchronous per-request handshake preparation; throws before fallback or socket dispatch. */
++export type WebSocketFactory = (url: string, headers: Readonly<Record<string, string>>, env?: ProviderEnv) => PreparedWebSocket;
+ export interface ProviderResponse {
+     status: number;
+     headers: Record<string, string>;
+@@ -56,6 +69,8 @@ export interface ProviderRequestOptions<TModel = Model<Api>> {
+      * This does not affect WebSocket transports.
+      */
+     fetch?: FetchFunction;
++    /** Optional Codex WebSocket handshake factory; omission preserves the runtime constructor path. */
++    websocketFactory?: WebSocketFactory;
+     /**
+      * Provider-scoped environment values. These take precedence over process.env for
+      * provider configuration such as regional settings, endpoint placeholders, and

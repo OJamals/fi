@@ -1,22 +1,22 @@
 {
   "package": "@earendil-works/pi-ai",
-  "version": "0.87.1",
-  "integrity": "sha512-X/3PfQBnnoeVdO9Cv8zHghUMglzlgNZYGNzoPnbRoGnHl3Rw3TlA2UKSUB7BRHUOxMryHXYa8dnjWZlbRheDZA==",
+  "version": "1.4.0",
+  "integrity": "sha512-hQM/C4+1w8rHYACzDDf+0vQMnEnpzIop1tptIERVgR3ZeT/hHSzBNG8PaWPgxWQjqSeKCyBZSyp8uTT6eKK1pQ==",
   "repository": "https://github.com/earendil-works/pi.git",
   "repositoryDirectory": "packages/ai",
-  "patch": "patches/@earendil-works__pi-ai@0.87.1.patch",
-  "patchSha256": "917114c1d61ff722bf76bba11fdc23c92d69e4b0c54a1f267d64145079765892",
+  "patch": "patches/@earendil-works__pi-ai@1.4.0.patch",
+  "patchSha256": "3e77faac921acf4172c8365dd81fb5de462057ce3ad5e0adf9188338efaa8706",
   "originalFiles": {
-    "dist/api/anthropic-messages.js": "97de17d406264322ff7927fa0c20e1c61b46386b5e14f9c6e0012599c01664f7",
-    "dist/api/bedrock-converse-stream.js": "47d08990180cce57c49bdb5f81daa0971b13f5ce77fe5762d9d41ff0d0b9551d",
-    "dist/api/mistral-conversations.js": "beea0b191eaf33f0b412fb0c10219fac89a599fba9c4f215a1fcfd5ea8c3f46e",
+    "dist/api/anthropic-messages.js": "360298eff89e8c517c213880088db33c93b56ba737c91e885b22e7e125ca5d55",
+    "dist/api/bedrock-converse-stream.js": "2e4a6b46379f7c43ceccb5cef44793bfe6e14f11f4ea42c507b3cc8460d54f0b",
+    "dist/api/mistral-conversations.js": "9870c5bd8b92f1dc3a17af42a2e42e737e10d8d1a8c1e8c579db5f2ef1dfb92f",
     "dist/api/openai-codex-responses.d.ts": "a1e45bf4733690b417c463f450c36c0c42b8060cfa14213b9281c0d35770d030",
-    "dist/api/openai-codex-responses.js": "6e69310d77278231cfc87d7f03ee815d4a0f2ff273e6c43fcee6835e7df2b0c7",
-    "dist/api/openai-completions.js": "a2397cb3114a3d1a05993f6f19671ecbcc85540d8f8c59a233808c717df2682c",
-    "dist/api/openai-responses-shared.js": "7846279b34c2a569bda2b0753c8b083f8b976204b4fdd7586095ebbb6a643410",
-    "dist/api/pi-messages.js": "f88b2bca1317b6fc7600cad90900fb60483c18db4afa234928b3e08b121d36bd",
-    "dist/api/simple-options.js": "1caf860e028e22639578aba3ec8b79e5be9650c27bd3f19471c78502976555f3",
-    "dist/types.d.ts": "5e08c1db4740b95b7107d3c3540a6d0e414a82d9c75fab950150827c994e14a3"
+    "dist/api/openai-codex-responses.js": "339c75c5799ec3baca669114e3779988f819a5479e2b2c43dfa0b0f05b921c92",
+    "dist/api/openai-completions.js": "106eb312121137abbe9ad8050e2c9baa1ea27315233c7b8bee8c7820c8b3a6cf",
+    "dist/api/openai-responses-shared.js": "eed025a4821b1e017dd024b930caf8fa11c7fe053a81efe11bd7d846fdc641d3",
+    "dist/api/pi-messages.js": "b4ad43cfb8eab44986c734d7f2f689204349abed6dfb4082971e1916efeb2ee6",
+    "dist/api/simple-options.js": "ff234becff46a6c25c1e437c86d72fbe7aeb4e107266d1bf6951622d223b0ae0",
+    "dist/types.d.ts": "9348589a0c88c61e78e8575539cec4bf4e4fba8bf9029d3535ddeae07cb1c696"
   },
   "retirementCondition": "Remove when the installed upstream SDK supports final authenticated WebSocket preparation and credential/endpoint/metadata-isolated connection reuse, and FI wire, fallback, cancellation and live tests pass without this patch."
 }

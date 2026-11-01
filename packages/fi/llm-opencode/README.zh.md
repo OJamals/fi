@@ -28,6 +28,10 @@ OpenCode Console 订阅登录位于设置 → 模型。授权组合包挂载此�
 
 目录读取通过 `catalogRetryCount`（默认 `3`，`0` 禁用重试）和 `catalogRetryDelayMs`（初始延迟，默认 `500`）重试已识别的暂时性网络故障。每次重试的延迟翻倍，上限为 `requestTimeoutMs`；所有尝试和等待共用该截止时间及调用方取消信号。重试耗尽时报告网络错误代码、目标主机、尝试次数和恢复提示。认证、重定向、证书错误、无效目录和令牌交换不会重试。该策略遵循 [Undici RetryHandler](https://github.com/nodejs/undici/blob/main/docs/docs/api/RetryHandler.md) 记录的有界退避方案，不替换应用的 fetch 传输。
 
+### 原生客户端代理
+
+启用 `OPENCODE_NATIVE_BINARY` 的本地 auth2api 服务可通过通用 pi-ai 适配器处理现有 `opencode-console` 会话。为该路由配置 `api: openai-completions`、代理的 `/v1` URL、`apiKeyEnv` 中的凭据存储引用、`headers: { x-auth2api-provider: opencode }`，以及发现的未加前缀模型 ID。禁用本插件的 Loader 条目，避免两个适配器同时拥有该路由；从 `agent-default-model.subscriptionCredentials` 中移除此路由，同时保留默认 provider/model 选择。OAuth 授权仍保存在凭据存储中。API 调用方执行工具；原生桥接阻止本地工具执行并保留流式传输。托管免费层的配额与策略错误仍会显示。模型请求前必须启动代理。
+
 ## Protocol sources
 
 规范[提供方元数据](../provider-compat/src/provider-settings.json) 固定 OpenCode Console 插件与模型请求的源码引用，涵盖设备令牌、组织范围和客户端/会话标头。Auth2api 的适配器提供 v2 目录映射和协议选择的本地参考。

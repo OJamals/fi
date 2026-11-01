@@ -14,7 +14,7 @@ overrides:
   '@axe-core/playwright>playwright-core': 1.61.1
 
 patchedDependencies:
-  '@earendil-works/pi-ai@0.87.1': 917114c1d61ff722bf76bba11fdc23c92d69e4b0c54a1f267d64145079765892
+  '@earendil-works/pi-ai@1.4.0': 3e77faac921acf4172c8365dd81fb5de462057ce3ad5e0adf9188338efaa8706
   '@electron/osx-sign@1.3.3': 280e7b2816caf01423097d24e79107a66afeb563a348630ce9928ae8499a5861
   '@fortune-sheet/core@1.0.4': 8791a230763dbf853fd65d627c68c31de37209992851377855e16cf08ea70532
   '@fortune-sheet/react@1.0.4': 2932e52e79afcd4ced08cfa123b5eded786c85043da32f622f3e80af6fc96c37
@@ -1111,8 +1111,8 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
       ws:
-        specifier: ^8.21.0
-        version: 8.21.0
+        specifier: ^8.22.1
+        version: 8.22.1
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:~
@@ -7985,8 +7985,8 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
       ws:
-        specifier: ^8.21.0
-        version: 8.21.0
+        specifier: ^8.22.1
+        version: 8.22.1
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:~
@@ -8820,8 +8820,8 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
       '@earendil-works/pi-ai':
-        specifier: 0.87.1
-        version: 0.87.1(patch_hash=917114c1d61ff722bf76bba11fdc23c92d69e4b0c54a1f267d64145079765892)(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(supports-color@9.4.0)(ws@8.21.0)(zod@4.4.3)
+        specifier: 1.4.0
+        version: 1.4.0(patch_hash=3e77faac921acf4172c8365dd81fb5de462057ce3ad5e0adf9188338efaa8706)(@aws-sdk/credential-provider-node@3.972.84)(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(@smithy/signature-v4@5.7.4)(undici@8.10.0)(ws@8.22.1)(zod@4.4.3)
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -8869,8 +8869,8 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
       '@earendil-works/pi-ai':
-        specifier: 0.87.1
-        version: 0.87.1(patch_hash=917114c1d61ff722bf76bba11fdc23c92d69e4b0c54a1f267d64145079765892)(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(supports-color@9.4.0)(ws@8.21.0)(zod@4.4.3)
+        specifier: 1.4.0
+        version: 1.4.0(patch_hash=3e77faac921acf4172c8365dd81fb5de462057ce3ad5e0adf9188338efaa8706)(@aws-sdk/credential-provider-node@3.972.84)(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(@smithy/signature-v4@5.7.4)(undici@8.10.0)(ws@8.22.1)(zod@4.4.3)
       '@fi/provider-compat':
         specifier: workspace:~
         version: link:../provider-compat
@@ -8921,8 +8921,8 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
       '@earendil-works/pi-ai':
-        specifier: 0.87.1
-        version: 0.87.1(patch_hash=917114c1d61ff722bf76bba11fdc23c92d69e4b0c54a1f267d64145079765892)(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(supports-color@9.4.0)(ws@8.21.0)(zod@4.4.3)
+        specifier: 1.4.0
+        version: 1.4.0(patch_hash=3e77faac921acf4172c8365dd81fb5de462057ce3ad5e0adf9188338efaa8706)(@aws-sdk/credential-provider-node@3.972.84)(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(@smithy/signature-v4@5.7.4)(undici@8.10.0)(ws@8.22.1)(zod@4.4.3)
       '@fi/llm-antigravity':
         specifier: workspace:*
         version: link:../llm-antigravity
@@ -8967,14 +8967,14 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
       '@earendil-works/pi-ai':
-        specifier: 0.87.1
-        version: 0.87.1(patch_hash=917114c1d61ff722bf76bba11fdc23c92d69e4b0c54a1f267d64145079765892)(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(supports-color@9.4.0)(ws@8.21.0)(zod@4.4.3)
+        specifier: 1.4.0
+        version: 1.4.0(patch_hash=3e77faac921acf4172c8365dd81fb5de462057ce3ad5e0adf9188338efaa8706)(@aws-sdk/credential-provider-node@3.972.84)(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(@smithy/signature-v4@5.7.4)(undici@8.10.0)(ws@8.22.1)(zod@4.4.3)
       https-proxy-agent:
-        specifier: ^7.0.6
-        version: 7.0.6
+        specifier: ^9.1.0
+        version: 9.1.0
       ws:
-        specifier: ^8.21.0
-        version: 8.21.0
+        specifier: ^8.22.1
+        version: 8.22.1
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:~
@@ -9020,8 +9020,8 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
       '@earendil-works/pi-ai':
-        specifier: ^0.87.1
-        version: 0.87.1(patch_hash=917114c1d61ff722bf76bba11fdc23c92d69e4b0c54a1f267d64145079765892)(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(supports-color@9.4.0)(ws@8.21.0)(zod@4.4.3)
+        specifier: 1.4.0
+        version: 1.4.0(patch_hash=3e77faac921acf4172c8365dd81fb5de462057ce3ad5e0adf9188338efaa8706)(@aws-sdk/credential-provider-node@3.972.84)(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(@smithy/signature-v4@5.7.4)(undici@8.10.0)(ws@8.22.1)(zod@4.4.3)
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:~
@@ -9154,8 +9154,8 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
       '@earendil-works/pi-ai':
-        specifier: ^0.87.1
-        version: 0.87.1(patch_hash=917114c1d61ff722bf76bba11fdc23c92d69e4b0c54a1f267d64145079765892)(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(supports-color@9.4.0)(ws@8.21.0)(zod@4.4.3)
+        specifier: 1.4.0
+        version: 1.4.0(patch_hash=3e77faac921acf4172c8365dd81fb5de462057ce3ad5e0adf9188338efaa8706)(@aws-sdk/credential-provider-node@3.972.84)(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(@smithy/signature-v4@5.7.4)(undici@8.10.0)(ws@8.22.1)(zod@4.4.3)
       eventsource-parser:
         specifier: ^3.1.0
         version: 3.1.0
@@ -10451,8 +10451,8 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
       '@earendil-works/pi-ai':
-        specifier: ^0.87.1
-        version: 0.87.1(patch_hash=917114c1d61ff722bf76bba11fdc23c92d69e4b0c54a1f267d64145079765892)(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(supports-color@9.4.0)(ws@8.21.0)(zod@4.4.3)
+        specifier: 1.4.0
+        version: 1.4.0(patch_hash=3e77faac921acf4172c8365dd81fb5de462057ce3ad5e0adf9188338efaa8706)(@aws-sdk/credential-provider-node@3.972.84)(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(@smithy/signature-v4@5.7.4)(undici@8.10.0)(ws@8.22.1)(zod@4.4.3)
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:~
@@ -15613,8 +15613,8 @@ packages:
       '@modelcontextprotocol/sdk': ^1.29.0
       zod: ^4.0.0
 
-  '@anthropic-ai/sdk@0.124.0':
-    resolution: {integrity: sha512-cN5O8i9UVxHeOQAzj/XjshWXG8KiibJDw9OGpH2Z/eR3n/RBxdoLxDJOcfqAJWvjaMDFfHTBADU04hWRJVkDyA==}
+  '@anthropic-ai/sdk@0.129.0':
+    resolution: {integrity: sha512-MH7LB20kNpGLUpPTe2OG5XvL/KhX8HUO9XyBaFjgFk6TLS4Xjt0VPIuMKywe7POKKPslX+QxSlVok9e+8kG5Nw==}
     hasBin: true
     peerDependencies:
       zod: ^3.25.0 || ^4.0.0
@@ -15956,13 +15956,13 @@ packages:
       search-insights:
         optional: true
 
-  '@earendil-works/pi-ai@0.87.1':
-    resolution: {integrity: sha512-X/3PfQBnnoeVdO9Cv8zHghUMglzlgNZYGNzoPnbRoGnHl3Rw3TlA2UKSUB7BRHUOxMryHXYa8dnjWZlbRheDZA==}
+  '@earendil-works/pi-ai@1.4.0':
+    resolution: {integrity: sha512-hQM/C4+1w8rHYACzDDf+0vQMnEnpzIop1tptIERVgR3ZeT/hHSzBNG8PaWPgxWQjqSeKCyBZSyp8uTT6eKK1pQ==}
     engines: {node: '>=22.19.0'}
     hasBin: true
 
-  '@earendil-works/pi-telemetry@0.87.1':
-    resolution: {integrity: sha512-MC6TRQH5lgMXpcN+Vku2WMI2T8BsiUPzMQHGo81uqFZD3/9O79WWJAysEDGuzduP6R4tvtgwMLwmqIxynM10JQ==}
+  '@earendil-works/pi-telemetry@1.4.0':
+    resolution: {integrity: sha512-MLIfowwUYIY65jSjMX82paZOrX/NTvLk6D08h+3Jq42a99RzUOewzuCR0zOlPul3D6UBfddat76VT6LvsHEs1w==}
     engines: {node: '>=22.19.0'}
 
   '@electron-internal/extract-zip@1.0.5':
@@ -17851,6 +17851,7 @@ packages:
   '@smithy/core@3.35.0':
     resolution: {integrity: sha512-zRMhfkByhT2snNdr1si24vJitU6Cr9ix2MikUfWmkAgp4jrNP0GcKSP5YvwQ+TlI8AZXER5QOGJn3JsVtSD9/A==}
     engines: {node: '>=18.0.0'}
+    deprecated: Deprecated due to a bug in custom logger data redaction. See https://github.com/aws/aws-sdk-js-v3/issues/8393.
 
   '@smithy/credential-provider-imds@4.5.2':
     resolution: {integrity: sha512-A9uSdn72ozbRUSit0eib0TW7nXuNPlaeM0zcGkJ+nE6tFcSDbnmtwoxbTCFBukVQcszDAyvsd7+rTduPTXpygg==}
@@ -21157,12 +21158,25 @@ packages:
     resolution: {integrity: sha512-++Zlftm0kVLPmzC06t6epuWmcRMDbI4z5P3NNX979WA/k23+NtSOynEGzsVfZwguKw2mi5umVgnBlJQMwRz4Pg==}
     engines: {node: '>=20'}
 
-  openai@6.40.0:
-    resolution: {integrity: sha512-MWtTjd/gQt4jpbji61NTgFWJLoY/PdRJ6wG9/ZDRMYNMlBKrCrSlkLI+KgHP1vR1qT6LKSAyAqIxno6lcK9JiA==}
+  openai@7.19.0:
+    resolution: {integrity: sha512-MX2s3u2L5racTO0CC/SWpCOasJQBCJrqLKXK+l82cAhdeF8mPMBEe/gxMm0ZFa2xpKpOFLRjxv5afYEZbBXmbQ==}
+    engines: {node: '>=22.0.0'}
     peerDependencies:
-      ws: ^8.18.0
+      '@aws-sdk/credential-provider-node': '>=3.972.0 <4'
+      '@smithy/hash-node': '>=4.3.0 <5'
+      '@smithy/signature-v4': '>=5.4.0 <6'
+      undici: '>=5 <9'
+      ws: ^8.21.0
       zod: ^3.25 || ^4.0
     peerDependenciesMeta:
+      '@aws-sdk/credential-provider-node':
+        optional: true
+      '@smithy/hash-node':
+        optional: true
+      '@smithy/signature-v4':
+        optional: true
+      undici:
+        optional: true
       ws:
         optional: true
       zod:
@@ -22601,6 +22615,18 @@ packages:
       utf-8-validate:
         optional: true
 
+  ws@8.22.1:
+    resolution: {integrity: sha512-oyL6OPYme/CmiFvNuGzeoxCJ4nOrZE2O1FwM9MWM1AsGri6nLXB2pg+lNA8aLeXMSav0J6eIVS1j6vUPzUtK9g==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
   wsl-utils@1.0.0:
     resolution: {integrity: sha512-Hl0ZOAs672vg+06kfujwRhoS6/jehvULrlFkuF2dRu6pHgA8U06h3xqNIqNNU1LTXPcedxByAR4GS6pwQK0mgA==}
     engines: {node: '>=20'}
@@ -22877,7 +22903,7 @@ snapshots:
       '@anthropic-ai/claude-agent-sdk-win32-arm64': 0.3.263
       '@anthropic-ai/claude-agent-sdk-win32-x64': 0.3.263
 
-  '@anthropic-ai/sdk@0.124.0(zod@4.4.3)':
+  '@anthropic-ai/sdk@0.129.0(zod@4.4.3)':
     dependencies:
       json-schema-to-ts: 3.1.1
       standardwebhooks: 1.1.1
@@ -23346,28 +23372,32 @@ snapshots:
     transitivePeerDependencies:
       - '@algolia/client-search'
 
-  '@earendil-works/pi-ai@0.87.1(patch_hash=917114c1d61ff722bf76bba11fdc23c92d69e4b0c54a1f267d64145079765892)(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(supports-color@9.4.0)(ws@8.21.0)(zod@4.4.3)':
+  '@earendil-works/pi-ai@1.4.0(patch_hash=3e77faac921acf4172c8365dd81fb5de462057ce3ad5e0adf9188338efaa8706)(@aws-sdk/credential-provider-node@3.972.84)(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(@smithy/signature-v4@5.7.4)(undici@8.10.0)(ws@8.22.1)(zod@4.4.3)':
     dependencies:
-      '@anthropic-ai/sdk': 0.124.0(zod@4.4.3)
+      '@anthropic-ai/sdk': 0.129.0(zod@4.4.3)
       '@aws-sdk/client-bedrock-runtime': 3.1127.0
-      '@earendil-works/pi-telemetry': 0.87.1
+      '@earendil-works/pi-telemetry': 1.4.0
       '@google/genai': 2.21.0(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))
       '@smithy/node-http-handler': 4.12.1
-      http-proxy-agent: 9.1.0(supports-color@9.4.0)
-      https-proxy-agent: 9.1.0(supports-color@9.4.0)
-      openai: 6.40.0(ws@8.21.0)(zod@4.4.3)
+      http-proxy-agent: 9.1.0
+      https-proxy-agent: 9.1.0
+      openai: 7.19.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/signature-v4@5.7.4)(undici@8.10.0)(ws@8.22.1)(zod@4.4.3)
       partial-json: 0.1.7
       typebox: 1.3.27
     transitivePeerDependencies:
+      - '@aws-sdk/credential-provider-node'
       - '@modelcontextprotocol/sdk'
+      - '@smithy/hash-node'
+      - '@smithy/signature-v4'
       - bufferutil
       - kerberos
       - supports-color
+      - undici
       - utf-8-validate
       - ws
       - zod
 
-  '@earendil-works/pi-telemetry@0.87.1': {}
+  '@earendil-works/pi-telemetry@1.4.0': {}
 
   '@electron-internal/extract-zip@1.0.5': {}
 
@@ -27483,7 +27513,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  http-proxy-agent@9.1.0(supports-color@9.4.0):
+  http-proxy-agent@9.1.0:
     dependencies:
       agent-base: 9.0.0
       debug: 4.4.3(supports-color@9.4.0)
@@ -27542,7 +27572,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  https-proxy-agent@9.1.0(supports-color@9.4.0):
+  https-proxy-agent@9.1.0:
     dependencies:
       agent-base: 9.0.0
       debug: 4.4.3(supports-color@9.4.0)
@@ -28660,9 +28690,12 @@ snapshots:
       powershell-utils: 0.2.1
       wsl-utils: 1.0.0
 
-  openai@6.40.0(ws@8.21.0)(zod@4.4.3):
+  openai@7.19.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/signature-v4@5.7.4)(undici@8.10.0)(ws@8.22.1)(zod@4.4.3):
     optionalDependencies:
-      ws: 8.21.0
+      '@aws-sdk/credential-provider-node': 3.972.84
+      '@smithy/signature-v4': 5.7.4
+      undici: 8.10.0
+      ws: 8.22.1
       zod: 4.4.3
 
   opener@1.5.2: {}
@@ -30315,6 +30348,8 @@ snapshots:
   wrappy@1.0.2: {}
 
   ws@8.21.0: {}
+
+  ws@8.22.1: {}
 
   wsl-utils@1.0.0:
     dependencies:

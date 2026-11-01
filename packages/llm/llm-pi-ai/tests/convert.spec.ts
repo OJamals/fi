@@ -726,7 +726,7 @@ describe('toPiContext', () => {
 
 describe('toStreamChunks', () => {
   it.each([
-    ['claude-haiku-4-5', 'claude-haiku-4-5-20251001'],
+    ['claude-haiku-4-5-20251001', 'claude-haiku-4-5-20251001'],
     ['claude-opus-5', 'kimi-for-coding'],
     ['claude-opus-5', undefined],
   ])('retains signed thinking for Anthropic request %s reported as %s', async (requestedModel, reportedModel) => {
@@ -763,9 +763,7 @@ describe('toStreamChunks', () => {
     const requested = getBuiltinModels('anthropic').find(model => model.id === requestedModel)
     if (requested === undefined) throw new Error('missing Anthropic catalog model')
     expect(transformMessages(context.messages, requested)[0]).toMatchObject({ content: native.content })
-    expect(transformMessages(context.messages, { ...requested, id: 'other-model' })[0]).toMatchObject({
-      content: [{ type: 'text', text: 'reason' }],
-    })
+    expect(transformMessages(context.messages, { ...requested, id: 'other-model' })[0]).toMatchObject({ content: [] })
   })
 
   const partialWithToolCall = assistant({

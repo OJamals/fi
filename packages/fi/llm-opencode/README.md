@@ -28,6 +28,10 @@ Route profiles accept `displayName` and a `models` array of selected ids. An abs
 
 Catalog reads retry recognized transient network failures with `catalogRetryCount` (default `3`, `0` disables retries) and `catalogRetryDelayMs` (initial delay, default `500`). Delays double on each retry, capped at `requestTimeoutMs`; all attempts and backoff share that deadline and caller cancellation. Exhausted retries report the network code, destination host, attempt count, and recovery guidance. Authentication, redirects, certificate errors, invalid catalogs, and token exchanges are not retried. This follows the bounded backoff strategy documented by [Undici RetryHandler](https://github.com/nodejs/undici/blob/main/docs/docs/api/RetryHandler.md), without replacing the application's fetch transport.
 
+### Native client proxy
+
+A local auth2api server with `OPENCODE_NATIVE_BINARY` can serve existing `opencode-console` sessions through the generic pi-ai adapter. Configure that route with `api: openai-completions`, the proxy's `/v1` URL, a credential-store reference in `apiKeyEnv`, `headers: { x-auth2api-provider: opencode }`, and its discovered bare model IDs. Disable this plugin's Loader entry to avoid two adapters owning the route, and remove that route from `agent-default-model.subscriptionCredentials`; keep the default provider/model selection. OAuth grants remain in the credential store. The API caller executes tools; the native bridge blocks local tool execution and preserves streaming. Hosted free-tier quota and policy failures remain visible. The proxy must be running before a model request.
+
 ## Protocol sources
 
 The canonical [provider metadata](../provider-compat/src/provider-settings.json) pins the OpenCode Console plugin and model-request source references for device tokens, organization scope, and client/session headers. Auth2api's adapter supplies the local reference for v2 catalog projection and protocol selection.
