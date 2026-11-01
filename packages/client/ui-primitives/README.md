@@ -203,6 +203,8 @@ These limits define how the atoms behave at the edges; they are current package 
 - **User-facing copy is required at the render site** — the atoms are zero-Cordis and cannot reach `ctx.locale`; each feature must supply complete localized labels through the primitive's typed props ([decision](../../../.agents/notes/implemented/architecture/2026-08-23-locale-owned-client-ui-copy.md)).
 - **`TerminalBlock` is not a terminal emulator** — it renders settled or still-running command output, not an interactive session: SGR colors, carriage return, backspace, erase-in-line, tab stops, and character width are honored; absolute cursor positioning, screen clearing, and alternate-screen sequences are stripped.
 
+- **The Go struct-field rule is patched locally** — when the Go grammar loads, its repeated one-line struct-field rule is replaced with the rule [worlpaker/go-syntax#25](https://github.com/worlpaker/go-syntax/pull/25) merged, because the vendored rule backtracks exponentially on lines such as a brace-bearing comment after `struct {`. If a dependency upgrade removes that rule, loading the grammar throws and Go code renders as plain text; delete the patch once `@shikijs/langs` ships the upstream rule.
+
 <a id="dev-note"></a>
 ### Dev Note
 

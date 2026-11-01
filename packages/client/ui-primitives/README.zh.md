@@ -203,6 +203,8 @@ kind: "package-library"
 - **面向用户的文案必须由渲染点提供**：这些原子组件是 zero-Cordis 的，拿不到 `ctx.locale`；各功能必须通过原子组件的带类型 prop 提供完整本地化 label（见[决策](../../../.agents/notes/implemented/architecture/2026-08-23-locale-owned-client-ui-copy.zh.md)）。
 - **`TerminalBlock` 不是终端模拟器**：它渲染已结束或仍在运行的命令输出，而不是交互式会话：SGR 颜色、回车、退格、行内擦除、制表位与字符宽度会被遵循；绝对光标定位、清屏与备用屏幕序列会被剥离。
 
+- **Go 结构体字段规则在本地打了补丁**：Go 语法加载时，重复匹配单行结构体字段的规则会替换为 [worlpaker/go-syntax#25](https://github.com/worlpaker/go-syntax/pull/25) 合入的规则，因为内置规则在 `struct {` 之后含花括号注释等行上会指数级回溯。若依赖升级后该规则消失，加载语法会抛错，Go 代码以纯文本显示；`@shikijs/langs` 发布上游规则后删除此补丁。
+
 <a id="dev-note"></a>
 ### 开发备注
 

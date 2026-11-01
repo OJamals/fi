@@ -9,6 +9,7 @@ import {
   recordFixture, watchConsole, webSnapshotMode,
 } from './scaffold.ts'
 import { connectFreshWorkspace, expandTurnProcesses, newEnglishPage } from './support.ts'
+import { GO_SOURCE } from '../../../packages/client/ui-primitives/tests/go-source.ts'
 
 const DIR = fileURLToPath(new URL('../../../snapshots/web/code-language', import.meta.url))
 const FIXTURE = join(DIR, 'session.v4.jsonl')
@@ -81,6 +82,42 @@ it('replays highlighted Python stubs, PowerShell and CSV reads with their docume
       await read.locator('[data-disclosure-row]').click()
     }
     if (MODE !== 'record') await compareOrRefreshGolden(join(DIR, 'ui.expected.md'), snapshots.join('\n\n'), MODE)
+    expect(tripwire.pageErrors).toEqual([])
+    expect(tripwire.warnings).toEqual([])
+  } finally {
+    try {
+      await browser?.close()
+    } finally {
+      await scaffold.close()
+    }
+  }
+})
+
+const GO_DIR = fileURLToPath(new URL('../../../snapshots/web/go-highlighting', import.meta.url))
+const GO_FIXTURE = join(GO_DIR, 'session.v4.jsonl')
+
+it.skipIf(MODE === 'record')('renders recorded Go struct comments without blocking the conversation', async () => {
+  const scaffold = await launchWebScaffold({ replayFixture: GO_FIXTURE, compareReplaySession: true })
+  let browser: Browser | undefined
+  try {
+    browser = await chromium.launch()
+    const page = await newEnglishPage(browser)
+    const tripwire = watchConsole(page)
+    await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
+    await connectFreshWorkspace(page, scaffold.workspaceCwd)
+    const settled = scaffold.whenTurnSettled()
+    const input = page.locator('[data-composer-input]').first()
+    await input.fill(fixtureUserPrompts(await readFile(GO_FIXTURE, 'utf8'))[0]!)
+    await input.press('Enter')
+    await settled
+    const block = page.locator('.md-code-block')
+    await block.locator('pre.shiki span[style]').first().waitFor({ timeout: 10_000 })
+    expect((await block.locator('.line').allTextContents()).join('\n').trimEnd()).toBe(GO_SOURCE.trimEnd())
+    await compareOrRefreshGolden(
+      join(GO_DIR, 'ui.expected.md'),
+      await captureStableAria(page, '.md-code-block', scaffold.workspaceCwd),
+      MODE,
+    )
     expect(tripwire.pageErrors).toEqual([])
     expect(tripwire.warnings).toEqual([])
   } finally {
