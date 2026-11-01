@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "sourceRepository": "https://github.com/OJamals/auth2api.git",
-  "sourceCommit": "f01e39985f503ed699b5ace4d687bb54360a9edd",
+  "sourceCommit": "a269c561adb334e12aaf74850d8ec9f698ce06a0",
   "dirtyBaseline": false,
   "sourceUpdaterPath": "tools/update-provider-settings.mjs",
   "sourceSettingsPath": "src/provider-settings.json",

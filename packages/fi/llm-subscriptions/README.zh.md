@@ -36,7 +36,7 @@ Kiro 发现会在同一次 `requestTimeoutMs` 截止时间内遍历所有 `nextT
 <a id="protocol-sources"></a>
 ## 协议来源
 
-原生协议改编自本地 auth2api 仓库 `f01e399` 及其截至 2026-11-01 的未提交工作树。Cursor 和 Kiro 的线路协议参考 decolua/9router，Cursor 浏览器授权参考 kaitranntt/CLIProxyAPIPlus。Cursor 令牌刷新参考 PaceBar 提供方说明和 eisbaw/cursor_api_demo（由 auth2api 引用）；Kiro 客户端标识参考 Kiro 更新源和 kaitranntt/CLIProxyAPIPlus；Copilot 客户端标识参考 microsoft/vscode 1.144.0 发行版。Cursor 使用 HTTP/2 Connect protobuf；Kiro 使用 CRC 校验的 AWS 事件流；Cline 使用 OpenAI 兼容聊天及真实 FI 客户端头；Code Assist 复用 FI 的 Gemini 消息和 SSE 编解码器，但使用自身 Google 端点及项目封装。[NOTICE](NOTICE.md) 保留组件归属与分发限制。
+原生协议改编自本地 auth2api 仓库 `a269c56`。Cursor 和 Kiro 的线路协议参考 decolua/9router，Cursor 浏览器授权参考 kaitranntt/CLIProxyAPIPlus。Cursor 令牌刷新参考 PaceBar 提供方说明和 eisbaw/cursor_api_demo（由 auth2api 引用）；Kiro 客户端标识参考 Kiro 更新源和 kaitranntt/CLIProxyAPIPlus；Copilot 客户端标识参考 microsoft/vscode 1.144.0 发行版。Cursor 使用 HTTP/2 Connect protobuf；Kiro 使用 CRC 校验的 AWS 事件流；Cline 使用 OpenAI 兼容聊天及真实 FI 客户端头；Code Assist 复用 FI 的 Gemini 消息和 SSE 编解码器，但使用自身 Google 端点及项目封装。[NOTICE](NOTICE.md) 保留组件归属与分发限制。
 
 所呈现的客户端版本是协议常量：Cursor 3.27.22、Kiro 1.4.62，以及 VS Code 1.144.0 搭配 Copilot Chat 0.72.0。Copilot、Kiro 和 Cursor 的会话与机器标识由已登录账户派生。
 
