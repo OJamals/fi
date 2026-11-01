@@ -15,14 +15,14 @@
   en: b7e2f55197654055
   zh: b8b63c8c12c0995d
 /fi-llm-opencode/authorization-and-configuration:
-  en: f1fb86eec2c7f248
-  zh: 3aa249868a6c62c6
+  en: 4ed3626b0ee52ca7
+  zh: 3e13f60e7ec09702
 /fi-llm-opencode/authorization-and-configuration/native-client-proxy:
   en: 31b37d8165503b4e
   zh: 71f92edddcafb367
 /fi-llm-opencode/protocol-sources:
-  en: 22979020f9dc931c
-  zh: 87ba81deb08f3efe
+  en: adeb0c5bf9e8b38b
+  zh: f2db294b7fc85170
 /fi-llm-opencode/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
@@ -30,8 +30,8 @@
   en: 80554050e6f8755c
   zh: 80554050e6f8755c
 /fi-llm-opencode/model-experience/console-model-request-and-response/what-the-model-sees:
-  en: 3e9e43e9dd27fdad
-  zh: c66d9002841c2972
+  en: 5a327f4544bf5a4b
+  zh: 127c9913cc852b13
 /fi-llm-opencode/model-experience/console-model-request-and-response/token-effect:
   en: d7e8ef9c2ef162a0
   zh: 7d8a357009b0e810
@@ -39,8 +39,8 @@
   en: 3841ed7779f5f8cf
   zh: ea6752ff213ca273
 /fi-llm-opencode/known-limitations-and-deferred-work:
-  en: 2bac5c52b265e41c
-  zh: 859be04794390f71
+  en: 82013169b2ab4ef2
+  zh: 4674e76a9011bd23
 /fi-llm-opencode/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: 1499f90e25f08424

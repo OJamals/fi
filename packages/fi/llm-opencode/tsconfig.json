@@ -4,6 +4,7 @@
   "include": ["src", "src/client-capture.json"],
   "references": [
     { "path": "../provider-compat" },
+    { "path": "../llm-antigravity" },
     { "path": "../../../vendor/cordis" },
     { "path": "../../../vendor/loader" },
     { "path": "../../../vendor/schemastery" },

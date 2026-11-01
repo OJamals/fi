@@ -4,9 +4,11 @@
  * Two sources, one shape: the transport's static fallback list (shipped
  * `antigravity-*` identifiers plus the capture-derived AGY projection
  * targets), and — when a grant is stored — the live `fetchAvailableModels`
- * reply, already projected to the identifiers `agy models` prints. Both are
- * model ids the Cloud Code endpoint accepts; the request path's
- * `normalizeModel` maps every one of them to an upstream catalog key.
+ * reply, already projected to the identifiers `agy models` prints. The live
+ * reply replaces the static list rather than extending it: only models the
+ * account's catalog returns are offered. Both are model ids the Cloud Code
+ * endpoint accepts; the request path's `normalizeModel` maps every one of
+ * them to an upstream catalog key.
  *
  * Display names are derived, not stored: the id is the durable fact, the
  * name is presentation. A new id from a future live catalog still renders
@@ -47,9 +49,9 @@ export function antigravityModelName(id: string): string {
 
 /**
  * The static catalog: every text or image model the transport can name without a
- * network call, in the transport's own order. Surfaces merge live catalog
- * ids ahead of this list when a grant makes `fetchAvailableModels`
- * reachable.
+ * network call, in the transport's own order. Surfaces answer with it only as
+ * the fallback for a signed-out or unreachable catalog; a live
+ * `fetchAvailableModels` reply is never merged into it.
  */
 export const ANTIGRAVITY_STATIC_CATALOG: readonly AntigravityCatalogEntry[] =
   staticAntigravityModelIds().map(id => ({ id, name: antigravityModelName(id) }))

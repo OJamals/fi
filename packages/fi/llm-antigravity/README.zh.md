@@ -18,7 +18,7 @@ Antigravity OAuth 适配器与 Cloud Code 传输，为 fi 提供 Antigravity 登
 - [已知限制与延期工作](#known-limitations-and-deferred-work)
 - [开发备注](#dev-note)
 
-`callCodeAssistChat` 向原生 Code Assist 订阅适配器提供共享 Gemini 消息与 SSE 编解码器。它使用固定 Code Assist 端点、真实 FI 客户端头及明确的合格项目，不添加 Antigravity 请求身份。
+`callCodeAssistChat` 向原生 Code Assist 订阅适配器提供共享 Gemini 消息与 SSE 编解码器。它使用固定 Code Assist 端点、真实 FI 客户端头及明确的合格项目，不添加 Antigravity 请求身份。`callGeminiChat` 将同一编解码器应用于调用方指定的公开 Gemini `streamGenerateContent` 端点：HTTPS API 根地址、模型路径、`x-goog-api-key`、调用方提供的身份标头，以及不含 Cloud Code 信封和会话 ID 的简洁请求。它拒绝重定向，读取未包装和带 `response` 包装的事件，可替换 `thinkingConfig` 并补充 `generationConfig` 字段，且原样返回非成功的上游响应，由调用方分类。
 
 <a id="summary"></a>
 ## 概述
@@ -28,7 +28,7 @@ Antigravity OAuth 适配器与 Cloud Code 传输，为 fi 提供 Antigravity 登
 <a id="what-it-does"></a>
 ## 功能
 
-实时发现包含账户默认模型或代理模型分组中列出、存在于目录且已启用的所有代理模型，包括新发布的 ID。已有请求别名继续受支持；禁用模型与未列出的内部目录键仍然隐藏。
+实时发现只列出账户实时目录返回的内容：账户默认模型或代理模型分组中列出且已启用的所有代理模型，以及客户端自身调用的实用模型（命令、搜索与提交信息模型，如 `gemini-3.5-flash-lite`），包括新发布的 ID。实用模型列表会过滤为可选 ID，因此 `tab_*` 等内部占位符和 `-tiered` 路由器仍然隐藏。已有请求别名继续受支持；禁用模型与未列出的内部目录键仍然隐藏。静态列表只是未登录或目录不可达时的回退，绝不会追加到实时目录之后。
 
 - 在 `ctx.authorization` 上注册 `fi-antigravity/antigravity` 流程
 - 运行 Google PKCE OAuth 流程（浏览器 → 回环回调 → 令牌交换 → 项目发现）
@@ -54,9 +54,9 @@ OAuth 流程使用一个 Google 已安装应用 OAuth 客户端、回环重定�
 
 传输从 `@fi/provider-compat` 读取固定于捕获结果的端点、CLI 指纹版本、客户端、构建号与认证方式，在该指纹中加入运行时操作系统和架构，再将 Gemini `contents`/`generationConfig` 包装进 Cloud Code envelope（`{project, model, request, userAgent: "antigravity", requestId, requestType: "agent"}`），并 POST 到 `v1internal:streamGenerateContent?alt=sse`。
 
-订阅能力消费者从包根调用 `resolveAntigravityGrant(ctx, signal)`，使令牌刷新继续由凭据存储串行处理。原生 Gemini 消费者从 `@fi/llm-antigravity/transport` 导入 `callAntigravityGeminiNative`；`action: "generateContent"` 返回汇总后的原生 Gemini JSON，`streamGenerateContent` 返回原生 SSE。同一传输还导出 `callAntigravityImageGenerations` 与 `callAntigravityImageEdits`，它们将 OpenAI Images 请求字段投影为原生 Gemini 请求，并在不增加第二套 SSE 解析器的情况下返回 OpenAI Images JSON。传输保留 `groundingMetadata` 等候选项元数据；网页搜索提供方负责依据验证与结果投影。
+订阅能力消费者从包根调用 `resolveAntigravityGrant(ctx, signal)`，使令牌刷新继续由凭据存储串行处理。原生 Gemini 消费者从 `@fi/llm-antigravity/transport` 导入 `callAntigravityGeminiNative`；`action: "generateContent"` 返回汇总后的原生 Gemini JSON，`streamGenerateContent` 返回原生 SSE。同一传输还导出 `callAntigravityImageGenerations` 与 `callAntigravityImageEdits`，它们将 OpenAI Images 请求字段投影为原生 Gemini 请求，并在不增加第二套 SSE 解析器的情况下返回 OpenAI Images JSON。传输保留 `groundingMetadata` 等候选项元数据；网页搜索提供方负责依据验证与结果投影。原生请求若将 `googleSearch` 与 `functionDeclarations` 放在一起，会在任何 fetch 之前被 HTTP 400 拒绝：Cloud Code 会拒绝该组合，并忽略本可放行它的 `toolConfig.includeServerSideToolInvocations` 标志（2026-11-01 在每个 Gemini 模型上实测）。聊天投影只声明函数工具，因此从不发送 Google Search。
 
-每次上游 fetch 都拒绝重定向。原生请求、内联媒体、响应总量、SSE 行与 SSE 帧上限是正整数调用选项；省略原生请求、内联媒体与响应总量上限时使用捕获所得的 20 MiB 协议/安全上限，fi 图像投影则复用部署中已验证的附件策略。非成功响应和流内提供方错误只暴露状态诊断；取消操作或返回的流都会取消上游读取器。
+每次上游 fetch 都拒绝重定向。原生请求、内联媒体、响应总量、SSE 行与 SSE 帧上限是正整数调用选项；省略原生请求、内联媒体与响应总量上限时使用捕获所得的 20 MiB 协议/安全上限，fi 图像投影则复用部署中已验证的附件策略。非成功响应和流内提供方错误只暴露状态诊断；取消操作或返回的流都会取消上游读取器。429 或 503 响应体唯一的贡献是其重试提示：`Retry-After` 头、Google `RetryInfo` 延迟或 `ErrorInfo` 配额重置，最多读取 64 KiB 且限时两秒，并以 `Retry-After` 秒数传递，适配器再将其作为 `providerRetryAfterMs` 交给重试层遵循。
 
 聊天请求在投影前验证工具参数、工具选择与响应格式。传输入口在解码前拒绝缺失或非 SSE 响应体。回放在投影前解析持久图像；生成图像的接收操作按输入顺序返回附件。
 
@@ -83,7 +83,7 @@ OAuth 流程使用一个 Google 已安装应用 OAuth 客户端、回环重定�
 
 #### 模型看到什么
 
-上游 Gemini SSE 事件按原生部件顺序成为 harness 的推理、文本、图像、工具调用、用量与结束块；没有结束原因就终止的流呈现为错误，而不是静默截断的回答。收到结束原因后，`[DONE]` 会关闭返回的聊天流并释放上游读取器。生成图像数量与解码后总字节数使用已挂载附件策略的限制；附件服务只有在解码并验证真实光栅后才接受声明的图像媒体类型。
+上游 Gemini SSE 事件按原生部件顺序成为 harness 的推理、文本、图像、工具调用、用量与结束块；没有结束原因就终止的流呈现为错误，而不是静默截断的回答。Gemini 拒绝的提示（`promptFeedback.blockReason`）与策略结束原因（`SAFETY`、`RECITATION`、`PROHIBITED_CONTENT` 等）都会以指明原因的内容过滤错误结束块终止本轮，而不是失败的流；Gemini 拒绝的图像请求是 HTTP 400 `content_filter`，而不是可重试的上游失败。收到结束原因后，`[DONE]` 会关闭返回的聊天流并释放上游读取器。生成图像数量与解码后总字节数使用已挂载附件策略的限制；附件服务只有在解码并验证真实光栅后才接受声明的图像媒体类型。
 
 #### Token 影响
 
@@ -99,6 +99,8 @@ OAuth 流程使用一个 Google 已安装应用 OAuth 客户端、回环重定�
 
 - OAuth 流程需要访问所显示的浏览器 URL 及其位于 `127.0.0.1:54545` 的回环回调；它不提供手动代码输入路径。
 - 原生 Gemini 传输返回提供方 JSON 与元数据；消费它的网页搜索包负责依据要求、引用与面向用户的投影。
+- Cloud Code 只把 Google Search 作为独立请求运行，因此 fi 从不将其与函数声明组合。模型侧搜索循环（一个由仅搜索请求应答的 `google_search` 函数）尚未实现，因为没有 fi 界面需要在一次生成中同时使用搜索与函数。
+- 请求前不预读配额。跳过已耗尽模型的目的是让代理转向另一个账户，而 fi 每条路由只使用一份授权；配额耗尽表现为带有提示延迟的上游 429。Cloud Code 的 `countTokens` 也未接入，因为 LLM seam 没有提供方 token 计数钩子。
 - Antigravity 兼容元数据仍固定于捕获结果。`@fi/provider-compat` 拥有端点与 CLI 指纹字段；更新该生成记录需要新的捕获证据。
 - Stealth 刻意保持最小：UA 字符串与发现请求中的 `ideType: "ANTIGRAVITY"` 是仅有的身份声明，均为捕获派生。
 

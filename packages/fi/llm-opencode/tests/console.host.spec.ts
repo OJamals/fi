@@ -28,7 +28,7 @@ vi.mock('node:timers/promises', () => ({ setTimeout: vi.fn((ms: number, _value: 
 const config: ConsoleOptions = {
   server: 'https://opencode.ai/console', clientId: 'opencode-cli', userAgent: 'opencode/latest/2.2.5/cli',
   requestTimeoutMs: 1000, streamIdleTimeoutMs: 1000, refreshMarginMs: 120_000,
-  catalogRetryCount: 1, catalogRetryDelayMs: 250,
+  catalogRetryCount: 1, catalogRetryDelayMs: 250, catalogCacheMs: 0, registryCacheMs: 300_000, registryStaleMs: 86_400_000,
   defaultContextWindow: 128_000, defaultMaxTokens: 8192,
 }
 const seed: ConsoleGrant = {
@@ -506,7 +506,7 @@ describe('OpenCode model routing', () => {
     const data = { providers: { opencode: { ...source, models: {
       ...source.models, disabled: { disabled: true }, deprecated: { status: 'deprecated' },
       image: { capabilities: { output: ['image'] } }, imageInput: { capabilities: { input: ['image'], output: ['text'] } },
-      emptyInput: { capabilities: { input: [], output: ['text'] } }, unsupported: { package: '@ai-sdk/google' },
+      emptyInput: { capabilities: { input: [], output: ['text'] } }, unsupported: { package: '@ai-sdk/mistral' },
     } } } }
     expect(projectCatalog(data, 'opencode-console', config).map(entry => entry.model.id)).toEqual(['friendly'])
   })

@@ -10,14 +10,22 @@ const account = { token: { accessToken: 'fixture', antigravityProjectId: 'projec
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); __resetAntigravityModelsCache() })
 
 it.each(['chat', 'native'] as const)('finishes %s response rejection when body cancellation fails', async (kind) => {
-  for (const status of [200, 503]) {
-    const cancel = vi.fn(() => { throw new Error('cancel failure') })
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue(new Response(new ReadableStream({ cancel }), { status })))
-    const result = kind === 'chat'
-      ? await callAntigravityChat({ account, body: {} })
-      : await callAntigravityGeminiNative({ account, model: 'gemini', action: 'generateContent', body: {} })
-    expect(result.status).toBe(status === 200 ? 502 : 503)
-    expect(cancel).toHaveBeenCalledOnce()
+  // A 503 body is read for its retry hint until the read deadline cancels the silent stream.
+  vi.useFakeTimers()
+  try {
+    for (const status of [200, 503]) {
+      const cancel = vi.fn(() => { throw new Error('cancel failure') })
+      vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue(new Response(new ReadableStream({ cancel }), { status })))
+      const pending = kind === 'chat'
+        ? callAntigravityChat({ account, body: {} })
+        : callAntigravityGeminiNative({ account, model: 'gemini', action: 'generateContent', body: {} })
+      await vi.advanceTimersByTimeAsync(2_000)
+      const result = await pending
+      expect(result.status).toBe(status === 200 ? 502 : 503)
+      expect(cancel).toHaveBeenCalledOnce()
+    }
+  } finally {
+    vi.useRealTimers()
   }
 })
 
@@ -303,13 +311,19 @@ it('keeps model discovery available without a project grant', async () => {
   expect(fetcher).not.toHaveBeenCalled()
 })
 
-it.each([null, {}, { models: [] }, { models: { unknown: {} }, agentModelSorts: [null, {}, { groups: [null, {}, { modelIds: ['missing', 42] }] }] }])('falls back or filters malformed catalog %j', async (body) => {
+it.each([null, {}, { models: [] }])('falls back to the static catalog for malformed catalog %j', async (body) => {
   vi.spyOn(console, 'error').mockImplementation(() => {})
   vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue(Response.json(body)))
   const models = await listAntigravityModels(account)
-  expect(models.length).toBeGreaterThan(0)
-  expect(models.map(model => model.id)).not.toContain('unknown')
-  expect(models.map(model => model.id)).not.toContain('missing')
+  expect(models.map(model => model.id)).toEqual(expect.arrayContaining([...staticAntigravityTextModelIds()]))
+})
+
+it('lists only live models: a readable catalog with nothing selectable is empty, never padded with the static list', async () => {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue(Response.json({
+    models: { unknown: {} },
+    agentModelSorts: [null, {}, { groups: [null, {}, { modelIds: ['missing', 42] }] }],
+  })))
+  expect(await listAntigravityModels(account)).toEqual([])
 })
 
 it('exposes newly advertised agent models without exposing unlisted internal catalog keys', async () => {
@@ -326,6 +340,58 @@ it('exposes newly advertised agent models without exposing unlisted internal cat
       "gemini-3.8-flash-high",
     ]
   `)
+})
+
+const utilityCatalog = {
+  models: {
+    'gemini-4-argon-medium': {},
+    'gemini-3.8-flash-low': {},
+    'gemini-3.5-flash-lite': {},
+    'gemini-3.1-flash-lite': {},
+    'gemini-3.2-flash-lite': { disabled: true },
+    'gemini-3.8-flash-tiered': {},
+    'gemini-2.5-flash-thinking': {},
+    'claude-opus-5-5-high': {},
+    tab_flash_lite_preview: {},
+    chat_20706: {},
+    'gemini-3.1-flash-image': {},
+  },
+  defaultAgentModelId: 'gemini-4-argon-medium',
+  agentModelSorts: [{ groups: [{ modelIds: ['gemini-4-argon-medium', 'gemini-3.8-flash-low', 'claude-opus-5-5-high'] }] }],
+  commandModelIds: ['gemini-3-flash'],
+  mqueryModelIds: ['gemini-3.5-flash-lite'],
+  webSearchModelIds: ['gemini-3.5-flash-lite', 'gemini-3.8-flash-tiered', 'tab_flash_lite_preview'],
+  commitMessageModelIds: ['gemini-3.1-flash-lite', 'gemini-3.2-flash-lite', 'gemini-2.5-flash-thinking', 'chat_20706', 42],
+  tabModelIds: ['chat_20706'],
+  imageGenerationModelIds: ['gemini-3.1-flash-image'],
+}
+
+it('lists exactly the account\'s live models: agent selector first, then utility models such as flash-lite', async () => {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue(Response.json(utilityCatalog)))
+  const models = (await listAntigravityModels(account)).map(model => model.id)
+  expect(models).toEqual([
+    'gemini-4-argon-medium',
+    'gemini-3.8-flash-low',
+    'claude-opus-5-5-high',
+    'gemini-3.5-flash-lite',
+    'gemini-3.1-flash-lite',
+    'gemini-3.1-flash-image',
+  ])
+  // The client's command model is not in this account's catalog, and no static id is appended to a live one.
+  expect(models).not.toContain('gemini-3-flash')
+  for (const id of staticAntigravityTextModelIds()) expect(models).not.toContain(id)
+})
+
+it('ignores utility lists that are not arrays', async () => {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue(Response.json({
+    ...utilityCatalog,
+    mqueryModelIds: 'gemini-3.5-flash-lite',
+    webSearchModelIds: { 0: 'gemini-3.5-flash-lite' },
+    commitMessageModelIds: null,
+  })))
+  const models = (await listAntigravityModels(account)).map(model => model.id)
+  expect(models).not.toContain('gemini-3.5-flash-lite')
+  expect(models).not.toContain('gemini-3.1-flash-lite')
 })
 
 it.each([401, 403, 500])('handles catalog HTTP %s without exposing upstream content', async (status) => {
@@ -382,3 +448,86 @@ it.each([':heartbeat\nunknown\nevent\ndata: {"candidates":[{"finishReason":"STOP
   const response = await callAntigravityChat({ account, body: { model: 'gemini', messages: [] } })
   expect(await response.json()).toMatchObject({ choices: [{ finish_reason: 'stop' }] })
 })
+
+const searchBesideFunctions = [
+  { tools: [{ googleSearch: {} }, { functionDeclarations: [{ name: 'f' }] }] },
+  { tools: [{ google_search: {} }, { function_declarations: [{ name: 'f' }] }] },
+  { tools: [{ googleSearch: {}, functionDeclarations: [] }] },
+]
+
+it.each(searchBesideFunctions)('refuses Google Search beside function declarations before any fetch: %j', async (extra) => {
+  const fetcher = vi.fn<typeof fetch>()
+  vi.stubGlobal('fetch', fetcher)
+  const response = await callAntigravityGeminiNative({
+    account, model: 'gemini', action: 'generateContent',
+    body: { contents: [{ role: 'user', parts: [{ text: 'x' }] }], toolConfig: { includeServerSideToolInvocations: true }, ...extra },
+  })
+  expect(response.status).toBe(400)
+  await expect(response.json()).resolves.toMatchObject({
+    error: { code: 400, status: 'INVALID_ARGUMENT', message: expect.stringMatching(/googleSearch beside functionDeclarations/) as string },
+  })
+  expect(fetcher).not.toHaveBeenCalled()
+})
+
+it.each([
+  { tools: [{ googleSearch: {} }] },
+  { tools: [{ functionDeclarations: [{ name: 'f' }] }] },
+  { tools: [null, { urlContext: {} }, { functionDeclarations: [{ name: 'f' }] }] },
+  { tools: [{ urlContext: {} }, { googleSearch: {} }] },
+])('forwards search or functions sent alone, and URL context beside functions: %j', async (extra) => {
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response('data: {"candidates":[{"finishReason":"STOP"}]}\n\n', {
+    headers: { 'content-type': 'text/event-stream' },
+  }))
+  vi.stubGlobal('fetch', fetcher)
+  const response = await callAntigravityGeminiNative({
+    account, model: 'gemini', action: 'generateContent',
+    body: { contents: [{ role: 'user', parts: [{ text: 'x' }] }], ...extra },
+  })
+  expect(response.status).toBe(200)
+  expect(fetcher).toHaveBeenCalledOnce()
+})
+
+it('never sends Google Search from the chat projection, whatever tools the caller names', async () => {
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response('data: {"candidates":[{"finishReason":"STOP"}]}\n\n', {
+    headers: { 'content-type': 'text/event-stream' },
+  }))
+  vi.stubGlobal('fetch', fetcher)
+  await callAntigravityChat({
+    account,
+    body: {
+      model: 'gemini-3.1-pro-high',
+      messages: [{ role: 'user', content: 'x' }],
+      web_search_options: {},
+      tools: [
+        { type: 'web_search' },
+        { googleSearch: {} },
+        { type: 'function', function: { name: 'lookup', parameters: { type: 'object', properties: {} } } },
+      ],
+    },
+  })
+  const body = fetcher.mock.calls[0]?.[1]?.body
+  if (typeof body !== 'string') throw new Error('expected JSON request')
+  const request = (JSON.parse(body) as { request: { tools: unknown[] } }).request
+  expect(request.tools).toEqual([{ functionDeclarations: [{ name: 'lookup', description: '', parameters: { type: 'object', properties: {} } }] }])
+  expect(body).not.toMatch(/googleSearch|google_search/)
+})
+
+it.each(['gemini-3.5-flash-lite', 'antigravity/gemini-3.5-flash-lite', 'AGY:Gemini-3.5-Flash-Lite'])(
+  'sends the flash-lite client id %s as one upstream model on both request paths',
+  async (model) => {
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async () => new Response('data: {"candidates":[{"finishReason":"STOP"}]}\n\n', {
+      headers: { 'content-type': 'text/event-stream' },
+    }))
+    vi.stubGlobal('fetch', fetcher)
+    await callAntigravityChat({ account, body: { model, messages: [{ role: 'user', content: 'x' }] } })
+    await callAntigravityGeminiNative({
+      account, model, action: 'generateContent', body: { contents: [{ role: 'user', parts: [{ text: 'x' }] }] },
+    })
+    const models = fetcher.mock.calls.map(([, init]) => {
+      const body = init?.body
+      if (typeof body !== 'string') throw new Error('expected JSON request')
+      return (JSON.parse(body) as { model: string }).model
+    })
+    expect(models).toEqual(['gemini-3.5-flash-lite', 'gemini-3.5-flash-lite'])
+  },
+)

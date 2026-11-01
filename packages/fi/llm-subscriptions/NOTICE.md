@@ -1,8 +1,8 @@
 # Component notices
 
-Native protocol implementations were adapted from the local auth2api repository at `05e9e0a68a6e952044fd2c03186722577c6de37a`, whose overall distribution status is UNLICENSED. This private package does not grant a new license to that material.
+Native protocol implementations were adapted from the local auth2api repository at `a269c56`, whose overall distribution status is UNLICENSED. This private package does not grant a new license to that material.
 
-Cursor and Kiro protocol work follows decolua/9router at `ce4460ef79382bfddb4aa5fc0ff9f3cb0d5f95a8`. Cursor browser authorization follows kaitranntt/CLIProxyAPIPlus at `04048d868e96a0450abae26728fef39c734c30d0`. Shared Gemini translation retains the notices of @fi/llm-antigravity. No public redistribution or relicensing is authorized by this integration.
+Cursor and Kiro protocol work follows decolua/9router at `ce4460ef79382bfddb4aa5fc0ff9f3cb0d5f95a8`. Cursor browser authorization follows kaitranntt/CLIProxyAPIPlus at `04048d868e96a0450abae26728fef39c734c30d0`. Cursor token refresh follows the PaceBar provider notes and eisbaw/cursor_api_demo, as cited by auth2api. Kiro client identity follows the Kiro update feed and kaitranntt/CLIProxyAPIPlus. Copilot client identity follows the microsoft/vscode 1.144.0 release. Shared Gemini translation retains the notices of @fi/llm-antigravity. No public redistribution or relicensing is authorized by this integration.
 
 ## MIT notices
 

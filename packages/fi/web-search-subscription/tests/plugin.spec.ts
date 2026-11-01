@@ -99,6 +99,60 @@ describe('subscription search plugin composition', () => {
     expect(fetch).toHaveBeenCalledOnce()
   })
 
+  async function antigravityComposition(reply: unknown): Promise<{ ctx: Context; wire: () => { request: Record<string, unknown> } }> {
+    const ctx = await composition()
+    await ctx.credentials.modifyRecord(credentialKey('fi-antigravity', 'antigravity'), () => Promise.resolve({
+      kind: 'grant', payload: { access: 'fixture-access', projectId: 'fixture-project' },
+    }))
+    const fetch = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(
+      `data: ${JSON.stringify({ response: reply })}\n\n`,
+      { headers: { 'content-type': 'text/event-stream' } },
+    ))
+    vi.stubGlobal('fetch', fetch)
+    await ctx.plugin(subscriptionPlugin, { provider: 'antigravity', model: 'antigravity-gemini-3-flash' })
+    return {
+      ctx,
+      wire: () => {
+        const body = fetch.mock.calls[0]?.[1]?.body
+        if (typeof body !== 'string') throw new Error('expected a JSON request body')
+        return JSON.parse(body) as { request: Record<string, unknown> }
+      },
+    }
+  }
+
+  it('searches Antigravity with Google Search alone, never beside function declarations', async () => {
+    const { ctx, wire } = await antigravityComposition({
+      candidates: [{
+        content: { parts: [{ thought: true, text: 'thinking' }, { text: 'Fact' }] },
+        finishReason: 'STOP',
+        groundingMetadata: {
+          webSearchQueries: ['fact'],
+          groundingChunks: [{ web: { uri: 'https://example.com/source', title: 'Source' } }],
+        },
+      }],
+    })
+    await expect(ctx.web.search({ query: 'fact' })).resolves.toEqual({
+      content: 'Fact',
+      sources: [{ url: 'https://example.com/source', title: 'Source' }],
+      truncated: false,
+    })
+    const { request } = wire()
+    expect(request.tools).toEqual([{ googleSearch: {} }])
+    expect(request).not.toHaveProperty('toolConfig')
+    expect(JSON.stringify(request)).not.toContain('functionDeclarations')
+  })
+
+  it('reports an Antigravity refusal of the search prompt as content filtered through the real transport', async () => {
+    const { ctx } = await antigravityComposition({
+      promptFeedback: { blockReason: 'PROHIBITED_CONTENT' },
+      usageMetadata: { promptTokenCount: 3, totalTokenCount: 3 },
+    })
+    await expect(ctx.web.search({ query: 'fact' })).rejects.toMatchObject({
+      code: 'WEB_PROVIDER_CONTENT_FILTERED',
+      message: 'Antigravity refused the search prompt (PROHIBITED_CONTENT)',
+    })
+  })
+
   it('keeps the namespace plugin through the real Loader and registers with WebRuntime', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(responseSse(), {
       headers: { 'content-type': 'text/event-stream' },

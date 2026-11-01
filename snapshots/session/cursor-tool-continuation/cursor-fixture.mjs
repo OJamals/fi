@@ -37,8 +37,12 @@ export async function apply(ctx) {
         const packet = pending.subarray(5, 5 + length)
         pending = pending.subarray(5 + length)
         if (packet[0] === 10) {
-          stream.write(frame(pb(2, Buffer.concat([pb(1, 42), pb(15, 'exec-42'),
-            pb(11, Buffer.concat([pb(1, 'get_goal'), pb(3, 'fixture-call'), pb(5, 'get_goal')]))]))))
+          // The conversation checkpoint ends the step, as Cursor sends it after the last parallel call.
+          stream.write(Buffer.concat([
+            frame(pb(2, Buffer.concat([pb(1, 42), pb(15, 'exec-42'),
+              pb(11, Buffer.concat([pb(1, 'get_goal'), pb(3, 'fixture-call'), pb(5, 'get_goal')]))]))),
+            frame(pb(3, pb(5, Buffer.concat([pb(1, 100), pb(2, 256000)])))),
+          ]))
         } else if (packet[0] === 18 && packet.includes(Buffer.from('exec-42')) && packet.includes(Buffer.from('goal'))) {
           stream.write(Buffer.concat([frame(pb(1, pb(1, pb(1, 'PONG')))), frame(pb(1, pb(14, Buffer.alloc(0))))]))
         } else stream.close(http2.constants.NGHTTP2_PROTOCOL_ERROR)

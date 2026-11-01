@@ -1,4 +1,5 @@
 /** OpenCode Console JSON validation, endpoint admission, and bounded requests. */
+import { addAbortListener } from 'node:events'
 import { z } from 'zod'
 
 /** Non-secret deployment settings frozen for one authorization or model operation. */
@@ -15,6 +16,12 @@ export interface ConsoleOptions {
   catalogRetryCount: number
   /** Initial catalog retry delay; doubles on each retry within the shared request deadline. */
   catalogRetryDelayMs: number
+  /** How long a prepared-call catalog is reused for the same account and organization; zero reloads it for every call. */
+  catalogCacheMs: number
+  /** How long the public model registry is reused before it is revalidated, and how long a failed revalidation keeps the held copy. */
+  registryCacheMs: number
+  /** Longest a registry copy may be reused after revalidation keeps failing. */
+  registryStaleMs: number
   /** Maximum silence between provider stream events, in milliseconds. */
   streamIdleTimeoutMs: number
   /** Rotate tokens this many milliseconds before their expiration. */
@@ -95,6 +102,24 @@ export async function consoleJson(options: ConsoleOptions, path: string, init: R
     throw new Error(`OpenCode Console request failed (${response.status})`)
   }
   return data
+}
+
+/**
+ * Wait for shared work while honoring one caller's cancellation, without cancelling the work for its other waiters.
+ * @param work - promise owned by its starter.
+ * @param signal - this waiter's cancellation.
+ * @returns the work's result, or a rejection with the signal's reason if it aborts first.
+ */
+export async function awaitWithAbort<T>(work: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (signal === undefined) return work
+  signal.throwIfAborted()
+  const cancelled = Promise.withResolvers<never>()
+  const listener = addAbortListener(signal, () => { cancelled.reject(signal.reason) })
+  try {
+    return await Promise.race([work, cancelled.promise])
+  } finally {
+    listener[Symbol.dispose]()
+  }
 }
 
 /**

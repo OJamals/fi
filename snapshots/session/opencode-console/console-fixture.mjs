@@ -7,7 +7,7 @@ export const inject = ['credentials']
 /** Seed a non-secret grant and admit only the two scripted OpenCode endpoints. */
 export async function apply(ctx) {
   const error = process.env.DSH_OPENCODE_FIXTURE_ERROR
-  if (error !== undefined && !['FreeTierError', 'FreeTierRecovery', 'SsoRequired'].includes(error)) throw new Error('unknown OpenCode fixture failure')
+  if (error !== undefined && !['FreeTierError', 'FreeTierRecovery', 'SsoRequired', 'InsufficientFunds'].includes(error)) throw new Error('unknown OpenCode fixture failure')
   await ctx.credentials.modifyRecord('fi-opencode/opencode-console', async () => ({
     kind: 'grant', payload: {
       type: 'oauth', server: 'https://opencode.ai/console', access: 'snapshot-access', refresh: 'snapshot-refresh',
@@ -52,6 +52,11 @@ export async function apply(ctx) {
               response.writeHead(400); response.end(); return
             }
           }
+        }
+        if (error === 'InsufficientFunds') {
+          response.writeHead(402, { 'content-type': 'application/json' })
+          response.end(JSON.stringify({ error: { type: 'server_error', message: 'Upstream request failed: Insufficient account funds' } }))
+          return
         }
         if (error !== undefined && !(error === 'FreeTierRecovery' && request.url === '/zen/v1/chat/completions')) {
           response.writeHead(403, { 'content-type': 'application/json' })

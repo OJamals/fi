@@ -9,6 +9,7 @@ import { githubCopilotProvider } from '@earendil-works/pi-ai/providers/github-co
 import { z } from 'zod'
 import { clineHeaders, grantSchema, json, kiroRegion, providerIds, withTimeoutSignal } from './protocol.ts'
 import type { SubscriptionGrant, SubscriptionId, SubscriptionOptions } from './protocol.ts'
+import { CURSOR_REFRESH_LEAD_MS, refreshCursor } from './cursor-auth.ts'
 import { loginGemini, refreshGemini } from './gemini-auth.ts'
 
 /** Labels shared by provider discovery and sign-in. */
@@ -207,14 +208,17 @@ export async function resolveGrant(
   signal?: AbortSignal,
 ): Promise<SubscriptionGrant | undefined> {
   if (id === 'copilot') {
-    const models = createModels({ credentials: credentialStoreFrom(ctx), authContext: authContextFrom(ctx) })
+    const store = credentialStoreFrom(ctx)
+    const models = createModels({ credentials: store, authContext: authContextFrom(ctx) })
     models.setProvider(githubCopilotProvider())
     const resolved = await models.getAuth('github-copilot', signal === undefined ? {} : { signal })
-    if (resolved?.source !== 'OAuth' || typeof resolved.auth.apiKey !== 'string') return undefined
+    // The GitHub account token identifies the install and looks up the premium quota reset.
+    const stored = await store.read('github-copilot', signal === undefined ? {} : { signal })
+    if (resolved?.source !== 'OAuth' || typeof resolved.auth.apiKey !== 'string' || stored?.type !== 'oauth') return undefined
     return {
-      provider: id, accessToken: resolved.auth.apiKey, refreshToken: '',
+      provider: id, accessToken: resolved.auth.apiKey, refreshToken: stored.refresh,
       expiresAt: '9999-01-01T00:00:00.000Z',
-      subscriptionAuth: { apiBase: resolved.auth.baseUrl ?? 'https://api.individual.githubcopilot.com' },
+      subscriptionAuth: { apiBase: resolved.auth.baseUrl },
     }
   }
   const key = credentialKey('fi-subscriptions', id)
@@ -225,16 +229,17 @@ export async function resolveGrant(
     if (grant.provider !== id) throw new Error('Subscription credential provider mismatch')
     return grant
   }
+  const margin = id === 'cursor' ? Math.max(config.refreshMarginMs, CURSOR_REFRESH_LEAD_MS) : config.refreshMarginMs
   const current = parse(await ctx.credentials.readRecord(key))
   signal?.throwIfAborted()
-  if (!current || Date.parse(current.expiresAt) > Date.now() + config.refreshMarginMs) return current
+  if (!current || Date.parse(current.expiresAt) > Date.now() + margin) return current
   const record = await ctx.credentials.modifyRecord(key, async (stored) => {
     const grant = parse(stored)
     signal?.throwIfAborted()
-    if (!grant || Date.parse(grant.expiresAt) > Date.now() + config.refreshMarginMs) return stored
-    if (id === 'cursor') throw new Error('Cursor authorization expired; sign in again')
+    if (!grant || Date.parse(grant.expiresAt) > Date.now() + margin) return stored
     let next: SubscriptionGrant
-    if (id === 'gemini-cli') next = await refreshGemini(grant, config, signal)
+    if (id === 'cursor') next = await refreshCursor(grant, config, signal)
+    else if (id === 'gemini-cli') next = await refreshGemini(grant, config, signal)
     else if (id === 'kiro') {
       const auth = grant.subscriptionAuth
       const token = kiroToken.extend({ refreshToken: z.string().min(1).optional() }).parse(

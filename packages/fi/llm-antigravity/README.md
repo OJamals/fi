@@ -18,7 +18,7 @@ Antigravity OAuth adapter and Cloud Code transport for fi. Registers the Antigra
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
 - [Dev Note](#dev-note)
 
-`callCodeAssistChat` exposes the shared Gemini message and SSE codec to the native Code Assist subscription adapter. It uses the fixed Code Assist endpoint, truthful FI headers, and an explicit entitled project, without adding the Antigravity request identity.
+`callCodeAssistChat` exposes the shared Gemini message and SSE codec to the native Code Assist subscription adapter. It uses the fixed Code Assist endpoint, truthful FI headers, and an explicit entitled project, without adding the Antigravity request identity. `callGeminiChat` applies the same codec to a public Gemini `streamGenerateContent` endpoint named by the caller: an HTTPS API root, the model path, `x-goog-api-key`, caller-supplied identity headers, and the bare request without a Cloud Code envelope or session id. It rejects redirects, reads unwrapped and `response`-wrapped events, can replace `thinkingConfig` and add `generationConfig` fields, and returns a non-success upstream reply unchanged for the caller to classify.
 
 <a id="summary"></a>
 ## Summary
@@ -28,7 +28,7 @@ Antigravity OAuth adapter and Cloud Code transport for fi. Registers the Antigra
 <a id="what-it-does"></a>
 ## What it does
 
-Live discovery includes every enabled agent model named by the account's default model or agent model groups and present in its catalog, including newly released ids. Existing request aliases remain supported; disabled models and unlisted internal catalog keys remain hidden.
+Live discovery lists only what the account's live catalog returns: every enabled agent model named by the account's default model or agent model groups, plus the utility models the client itself calls (command, search, and commit-message models such as `gemini-3.5-flash-lite`), including newly released ids. Utility lists are filtered to selectable ids, so internal placeholders such as `tab_*` and `-tiered` routers stay hidden. Existing request aliases remain supported; disabled models and unlisted internal catalog keys remain hidden. The static list is only the fallback for a signed-out or unreachable catalog and is never appended to a live one.
 
 - Registers the `fi-antigravity/antigravity` flow on `ctx.authorization`
 - Runs the Google PKCE OAuth dance (browser → loopback callback → token exchange → project discovery)
@@ -54,9 +54,9 @@ When neither value resolves, sign-in and refresh fall back to local-install auto
 
 The transport reads its capture-pinned endpoint, CLI fingerprint version, client, build, and authentication method from `@fi/provider-compat`. It adds the runtime OS and architecture to that fingerprint, wraps Gemini `contents`/`generationConfig` in the Cloud Code envelope (`{project, model, request, userAgent: "antigravity", requestId, requestType: "agent"}`), and POSTs to `v1internal:streamGenerateContent?alt=sse`.
 
-Subscription consumers call `resolveAntigravityGrant(ctx, signal)` from the package root so token refresh remains serialized by the credential store. Native Gemini consumers import `callAntigravityGeminiNative` from `@fi/llm-antigravity/transport`; `action: "generateContent"` returns collected native Gemini JSON, while `streamGenerateContent` returns native SSE. The same transport exports `callAntigravityImageGenerations` and `callAntigravityImageEdits`, which project OpenAI Images request fields into the native Gemini request and return OpenAI Images JSON without a second SSE parser. The transport preserves candidate metadata such as `groundingMetadata`; a web-search provider owns grounding validation and result projection.
+Subscription consumers call `resolveAntigravityGrant(ctx, signal)` from the package root so token refresh remains serialized by the credential store. Native Gemini consumers import `callAntigravityGeminiNative` from `@fi/llm-antigravity/transport`; `action: "generateContent"` returns collected native Gemini JSON, while `streamGenerateContent` returns native SSE. The same transport exports `callAntigravityImageGenerations` and `callAntigravityImageEdits`, which project OpenAI Images request fields into the native Gemini request and return OpenAI Images JSON without a second SSE parser. The transport preserves candidate metadata such as `groundingMetadata`; a web-search provider owns grounding validation and result projection. A native request that puts `googleSearch` beside `functionDeclarations` is refused with HTTP 400 before any fetch: Cloud Code rejects the combination and ignores `toolConfig.includeServerSideToolInvocations`, the flag that would allow it (live on every Gemini model, 2026-11-01). The chat projection declares function tools only, so it never sends Google Search.
 
-Every upstream fetch rejects redirects. Native request, inline-media, response-total, SSE-line, and SSE-frame ceilings are positive-integer call options; omitted native request, inline-media, and response-total ceilings use the captured 20 MiB protocol/security limit, while fi image projection reuses the deployment's validated attachment policy. Non-success and in-band provider errors expose status-only diagnostics, and cancelling either the operation or returned stream cancels the upstream reader.
+Every upstream fetch rejects redirects. Native request, inline-media, response-total, SSE-line, and SSE-frame ceilings are positive-integer call options; omitted native request, inline-media, and response-total ceilings use the captured 20 MiB protocol/security limit, while fi image projection reuses the deployment's validated attachment policy. Non-success and in-band provider errors expose status-only diagnostics, and cancelling either the operation or returned stream cancels the upstream reader. The one thing a 429 or 503 body contributes is its retry hint: a `Retry-After` header, a Google `RetryInfo` delay, or an `ErrorInfo` quota reset, read from at most 64 KiB within two seconds, is handed on as `Retry-After` seconds, and the adapter carries it as `providerRetryAfterMs` for the retry layer to honor.
 
 Chat request validation rejects invalid tool arguments, tool choices, and response formats before projection. Transport entrypoints reject missing or non-SSE bodies before decoding. Replay resolves durable images before projection; generated image admission returns attachments in input order.
 
@@ -83,7 +83,7 @@ Conversion preserves logical request order. The upstream is stateless per reques
 
 #### What the model sees
 
-Upstream Gemini SSE events become harness reasoning, text, image, tool-call, usage, and finish chunks in native part order; a stream that ends without a finish reason surfaces as an error, never a silently truncated answer. After a finish reason, `[DONE]` closes the returned chat stream and releases the upstream reader. Generated image count and aggregate decoded bytes use the mounted attachment policy, and declared image media types are accepted only after the attachment service decodes and verifies the raster.
+Upstream Gemini SSE events become harness reasoning, text, image, tool-call, usage, and finish chunks in native part order; a stream that ends without a finish reason surfaces as an error, never a silently truncated answer. A prompt Gemini refuses (`promptFeedback.blockReason`) and a policy finish reason (`SAFETY`, `RECITATION`, `PROHIBITED_CONTENT`, and the like) both end the turn as a content-filter error finish that names the reason, not as a failed stream; an image request Gemini refuses is HTTP 400 `content_filter`, not a retryable upstream failure. After a finish reason, `[DONE]` closes the returned chat stream and releases the upstream reader. Generated image count and aggregate decoded bytes use the mounted attachment policy, and declared image media types are accepted only after the attachment service decodes and verifies the raster.
 
 #### Token effect
 
@@ -99,6 +99,8 @@ Recorded response content appends to the next request and does not invalidate it
 
 - The OAuth flow requires access to the displayed browser URL and its loopback callback on `127.0.0.1:54545`; it has no manual code-entry path.
 - Native Gemini transport returns provider JSON and metadata; the consuming web-search package owns grounding requirements, citations, and user-facing projection.
+- Cloud Code runs Google Search only as its own request, so fi never combines it with function declarations. A model-side search loop (a `google_search` function answered by a search-only request) is not implemented because no fi surface needs search and functions in one generation.
+- Quota is not read ahead of a request. Skipping a spent model exists to move a proxy to another account, and fi serves each route from one grant; a spent quota surfaces as the upstream 429 with its hinted delay. Cloud Code's `countTokens` is not wired either, because the LLM seam has no provider token-count hook.
 - Antigravity compatibility metadata remains capture-pinned. `@fi/provider-compat` owns the endpoint and CLI fingerprint fields; updating that generated record requires new capture evidence.
 - Stealth is minimal: the UA string and `ideType: "ANTIGRAVITY"` in discovery are the only identity claims, both capture-derived.
 

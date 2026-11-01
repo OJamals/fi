@@ -70,7 +70,10 @@ async function settlesWithin<T>(promise: Promise<T>): Promise<T> {
   }
 }
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.useRealTimers()
+  vi.unstubAllGlobals()
+})
 
 describe('callAntigravityGeminiNative', () => {
   it('collects nonstream search and retains native grounding metadata', async () => {
@@ -323,10 +326,16 @@ describe('callAntigravityGeminiNative', () => {
     })
     expect(await inBand.text()).toBe('{"error":{"code":503,"message":"Antigravity upstream answered 503","status":"UPSTREAM_ERROR"}}')
 
-    const chat = await callAntigravityChat({
+    // A 429 body is read for its retry hint until the read deadline cancels the silent stream.
+    vi.useFakeTimers()
+    const pendingChat = callAntigravityChat({
       account: ACCOUNT,
       body: { model: 'gemini-3.1-pro-high', messages: [{ role: 'user', content: 'search' }] },
     })
+    await vi.advanceTimersByTimeAsync(2_000)
+    const chat = await pendingChat
+    vi.useRealTimers()
+    expect(chat.headers.has('retry-after')).toBe(false)
     expect(await chat.text()).toBe('{"error":{"message":"Antigravity upstream answered 429","type":"upstream_error"}}')
     expect(fetchSpy.mock.calls.every(([, init]) => (init as RequestInit).redirect === 'error')).toBe(true)
     expect(nativeCancelled).toHaveBeenCalledOnce()
@@ -505,6 +514,39 @@ describe('Antigravity image calls', () => {
     ])
   })
 
+  it.each([
+    ['a refused prompt', { promptFeedback: { blockReason: 'SAFETY' }, usageMetadata: { promptTokenCount: 3 } }, 'SAFETY'],
+    ['an image policy finish', { candidates: [{ content: { parts: [] }, finishReason: 'IMAGE_SAFETY' }] }, 'IMAGE_SAFETY'],
+    ['a recitation finish', { candidates: [{ finishReason: 'MAX_TOKENS' }, { finishReason: 'RECITATION' }] }, 'RECITATION'],
+  ])('answers %s as a definitive content_filter refusal, not an upstream failure', async (_name, payload, reason) => {
+    const fetchSpy = vi.fn<typeof globalThis.fetch>(async () => upstreamSse([{ response: payload }]))
+    vi.stubGlobal('fetch', fetchSpy)
+    const response = await callAntigravityImageGenerations({
+      account: ACCOUNT,
+      body: { model: 'gemini-3.1-flash-image', prompt: 'Draw a test', n: 2 },
+    })
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        message: `Image generation was blocked by Gemini safety filters (${reason})`,
+        type: 'invalid_request_error',
+        code: 'content_filter',
+      },
+    })
+    expect(fetchSpy).toHaveBeenCalledOnce()
+  })
+
+  it('keeps an image reply that stopped for a non-policy reason an upstream failure', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => upstreamSse([{
+      response: { candidates: [{ content: { parts: [] }, finishReason: 'MAX_TOKENS' }, null, { finishReason: 7 }] },
+    }])))
+    const response = await callAntigravityImageGenerations({
+      account: ACCOUNT,
+      body: { model: 'gemini-3.1-flash-image', prompt: 'Draw a test' },
+    })
+    expect(response.status).toBe(502)
+  })
+
   it('rejects opaque image ids before the native transport fetch', async () => {
     const fetchSpy = vi.fn<typeof globalThis.fetch>()
     vi.stubGlobal('fetch', fetchSpy)
@@ -534,5 +576,133 @@ describe('transformAntigravityEvent', () => {
     expect(event('MAX_TOKENS')?.choices[0]?.finish_reason).toBe('length')
     expect(event('MALFORMED_FUNCTION_CALL')?.choices[0]?.finish_reason).toBe('content_filter')
     expect(event('STOP')?.choices[0]?.finish_reason).toBe('tool_calls')
+  })
+
+  it.each(['SAFETY', 'RECITATION', 'PROHIBITED_CONTENT', 'BLOCKLIST'])(
+    'names the policy finish reason %s on a content_filter finish',
+    (finishReason) => {
+      const chunk = transformAntigravityEvent({
+        response: { candidates: [{ content: { parts: [] }, finishReason }] },
+      }, 'gemini-3.1-pro-high', 'request-1')
+      expect(chunk?.choices[0]).toMatchObject({ finish_reason: 'content_filter', content_filter_reason: finishReason })
+    },
+  )
+
+  it('never copies provider prose into a content_filter diagnostic', () => {
+    const chunk = transformAntigravityEvent({
+      response: { candidates: [{ content: { parts: [] }, finishReason: 'user secret prose' }] },
+    }, 'gemini-3.1-pro-high', 'request-1')
+    expect(chunk?.choices[0]).toMatchObject({ finish_reason: 'content_filter' })
+    expect(chunk?.choices[0]).not.toHaveProperty('content_filter_reason')
+    const blocked = transformAntigravityEvent({
+      response: { promptFeedback: { blockReason: 'user secret prose' } },
+    }, 'gemini-3.1-pro-high', 'request-1')
+    expect(blocked).toBeNull()
+  })
+
+  it('ends the turn with content_filter when Gemini refuses the prompt, keeping its usage', () => {
+    const chunk = transformAntigravityEvent({
+      response: {
+        promptFeedback: { blockReason: 'PROHIBITED_CONTENT' },
+        usageMetadata: { promptTokenCount: 3, totalTokenCount: 3 },
+      },
+    }, 'gemini-3.1-pro-high', 'request-1')
+    expect(chunk?.choices).toEqual([{
+      index: 0,
+      delta: {},
+      finish_reason: 'content_filter',
+      content_filter_reason: 'PROHIBITED_CONTENT',
+    }])
+    expect(chunk?.usage).toMatchObject({ prompt_tokens: 3, total_tokens: 3 })
+    const bare = transformAntigravityEvent({ promptFeedback: { blockReason: 'SAFETY' } }, 'm', 'id')
+    expect(bare?.choices[0]).toMatchObject({ finish_reason: 'content_filter', content_filter_reason: 'SAFETY' })
+    expect(bare).not.toHaveProperty('usage')
+  })
+
+  it.each([
+    { promptFeedback: {} },
+    { promptFeedback: { blockReason: 'BLOCK_REASON_UNSPECIFIED' } },
+    { promptFeedback: 'SAFETY' },
+    { promptFeedback: { blockReason: 4 } },
+    { promptFeedback: { blockReason: 'lowercase' } },
+    {},
+  ])('does not treat %j as a refused prompt', (response) => {
+    expect(transformAntigravityEvent({ response }, 'm', 'id')).toBeNull()
+    expect(transformAntigravityEvent({ response: { ...response, usageMetadata: { promptTokenCount: 1 } } }, 'm', 'id')?.choices)
+      .toEqual([])
+  })
+})
+
+describe('refused prompts through the chat transport', () => {
+  const refused = { response: { promptFeedback: { blockReason: 'PROHIBITED_CONTENT' }, usageMetadata: { promptTokenCount: 3, totalTokenCount: 3 } } }
+  const messages = [{ role: 'user', content: 'x' }]
+
+  it('streams a content_filter finish instead of failing the stream', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => upstreamSse([refused])))
+    const response = await callAntigravityChat({ account: ACCOUNT, body: { stream: true, model: 'gemini-3.1-pro-high', messages } })
+    const text = await response.text()
+    const chunks = text.split('\n').filter(line => line.startsWith('data: {')).map(line => JSON.parse(line.slice(6)) as {
+      choices: Array<{ delta: { role?: string }; finish_reason: string | null; content_filter_reason?: string }>
+    })
+    expect(chunks[0]?.choices[0]).toMatchObject({
+      delta: { role: 'assistant' },
+      finish_reason: 'content_filter',
+      content_filter_reason: 'PROHIBITED_CONTENT',
+    })
+    expect(text.trimEnd().endsWith('data: [DONE]')).toBe(true)
+  })
+
+  it('aggregates a content_filter completion', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => upstreamSse([refused])))
+    const response = await callAntigravityChat({ account: ACCOUNT, body: { model: 'gemini-3.1-pro-high', messages } })
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toMatchObject({
+      choices: [{ message: { role: 'assistant', content: '' }, finish_reason: 'content_filter' }],
+      usage: { prompt_tokens: 3 },
+    })
+  })
+
+  it('ends a stream that had already started', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => upstreamSse([
+      { response: { candidates: [{ content: { parts: [{ text: 'partial' }] } }] } },
+      refused,
+    ])))
+    const response = await callAntigravityChat({ account: ACCOUNT, body: { stream: true, model: 'gemini-3.1-pro-high', messages } })
+    const text = await response.text()
+    expect(text).toContain('partial')
+    expect(text).toContain('"finish_reason":"content_filter"')
+  })
+})
+
+describe('failure retry hints', () => {
+  const rateLimited = () => Response.json(
+    { error: { code: 429, message: 'echoes the prompt', details: [{ '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay: '53s' }] } },
+    { status: 429 },
+  )
+  const messages = [{ role: 'user', content: 'x' }]
+
+  it('hands the delay Google hinted to chat callers as Retry-After', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => rateLimited()))
+    const response = await callAntigravityChat({ account: ACCOUNT, body: { model: 'gemini-3.1-pro-high', messages } })
+    expect(response.status).toBe(429)
+    expect(response.headers.get('retry-after')).toBe('53')
+    const text = await response.text()
+    expect(text).toBe('{"error":{"message":"Antigravity upstream answered 429","type":"upstream_error"}}')
+  })
+
+  it('hands it to native callers beside the request id, and through image calls', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      const failure = rateLimited()
+      return new Response(failure.body, { status: 429, headers: { 'x-request-id': 'req-9' } })
+    }))
+    const native = await callAntigravityGeminiNative({
+      action: 'generateContent', model: 'gemini-3.1-pro-high', account: ACCOUNT, body: { contents: [{ role: 'user', parts: [{ text: 'x' }] }] },
+    })
+    expect(native.status).toBe(429)
+    expect(native.headers.get('retry-after')).toBe('53')
+    expect(native.headers.get('x-upstream-request-id')).toBe('req-9')
+    const image = await callAntigravityImageGenerations({ account: ACCOUNT, body: { model: 'gemini-3.1-flash-image', prompt: 'draw' } })
+    expect(image.status).toBe(429)
+    expect(image.headers.get('retry-after')).toBe('53')
   })
 })

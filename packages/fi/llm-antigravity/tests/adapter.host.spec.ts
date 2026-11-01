@@ -168,8 +168,22 @@ describe('listModels', () => {
     const adapter = new AntigravityAdapter(grants(GRANT))
     const models = await adapter.listModels('antigravity')
     const ids = models.map(model => model.id)
-    expect(ids).toContain('gemini-3.1-pro-high')
-    expect(ids).toContain('claude-sonnet-4-6')
+    // The static list is the signed-out fallback only; a live catalog is never padded with it.
+    expect(ids).toEqual(['gemini-3.1-pro-high', 'claude-sonnet-4-6'])
+  })
+
+  it('offers the account\'s utility models such as flash-lite beside the agent selector', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({
+      models: { 'gemini-pro-agent': {}, 'gemini-3.5-flash-lite': {}, tab_flash_lite_preview: {} },
+      agentModelSorts: [{ groups: [{ modelIds: ['gemini-pro-agent'] }] }],
+      webSearchModelIds: ['gemini-3.5-flash-lite', 'tab_flash_lite_preview'],
+      imageGenerationModelIds: [],
+    })))
+    const models = await new AntigravityAdapter(grants(GRANT)).listModels('antigravity')
+    expect(models.map(model => [model.id, model.name])).toEqual([
+      ['gemini-3.1-pro-high', 'Gemini 3.1 Pro High'],
+      ['gemini-3.5-flash-lite', 'Gemini 3.5 Flash Lite'],
+    ])
   })
 
   it('degrades to the static catalog when the live fetch fails', async () => {
@@ -764,6 +778,56 @@ describe('stream', () => {
       type: 'finish',
       reason: { kind: 'error', failure: { code: 'fi-antigravity/upstream', status: 429 } },
     })
+  })
+
+  it('hands the delay Google hinted on a rate limit to the retry layer', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({
+      error: {
+        code: 429,
+        message: 'echoes the prompt',
+        details: [{ '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay: '4s' }],
+      },
+    }, { status: 429 })))
+    const chunks = await collect(new AntigravityAdapter(grants(GRANT)).stream(request()))
+    expect(chunks).toEqual([{
+      type: 'finish',
+      reason: {
+        kind: 'error',
+        failure: {
+          code: 'fi-antigravity/upstream',
+          status: 429,
+          message: 'Antigravity upstream answered 429',
+          providerRetryAfterMs: 4_000,
+        },
+      },
+    }])
+  })
+
+  it('finishes a refused prompt as a content-filter error naming the reason, without throwing', async () => {
+    const fetchSpy = vi.fn<typeof globalThis.fetch>(async () => rawSseResponse([
+      `data: ${JSON.stringify({
+        response: {
+          promptFeedback: { blockReason: 'PROHIBITED_CONTENT' },
+          usageMetadata: { promptTokenCount: 3, totalTokenCount: 3 },
+        },
+      })}`,
+    ]))
+    vi.stubGlobal('fetch', fetchSpy)
+    const chunks = await collect(new AntigravityAdapter(grants(GRANT)).stream(request()))
+    expect(chunks).toEqual([
+      { type: 'usage', usage: { inputTokens: 3, outputTokens: 0, totalTokens: 3 } },
+      {
+        type: 'finish',
+        reason: {
+          kind: 'error',
+          failure: {
+            code: 'fi-antigravity/content-filter',
+            message: 'Antigravity content filter stopped the response (PROHIBITED_CONTENT)',
+          },
+        },
+      },
+    ])
+    expect(fetchSpy).toHaveBeenCalledOnce()
   })
 
   it('sends the Antigravity envelope and CLI identity upstream', async () => {

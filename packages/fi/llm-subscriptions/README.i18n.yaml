@@ -15,11 +15,11 @@
   en: b7e2f55197654055
   zh: d0dd062d6c570784
 /fi-llm-subscriptions/authorization-and-configuration:
-  en: 87e6b12f0365c291
-  zh: ce2d102930531f27
+  en: 39b5c9871619b538
+  zh: ac715bc0590dd002
 /fi-llm-subscriptions/protocol-sources:
-  en: bb83db31e10dfae2
-  zh: 2d39f8c9556e457c
+  en: b5e3eff9b8db0520
+  zh: 1c06c741631d3342
 /fi-llm-subscriptions/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
@@ -27,17 +27,17 @@
   en: 2835eef9a46c9bf8
   zh: abad818cdd067b7e
 /fi-llm-subscriptions/model-experience/subscription-requests/what-the-model-sees:
-  en: c07e4697cdecb60b
-  zh: 2b4e97fc405e5b2e
+  en: 7989d271e5614bb1
+  zh: 697bade5f0b3916c
 /fi-llm-subscriptions/model-experience/subscription-requests/token-effect:
-  en: b785d6762fbda396
-  zh: 37cd6ffeeba292cc
+  en: 3cab0d9646e00137
+  zh: 7780fe9615bdec57
 /fi-llm-subscriptions/model-experience/subscription-requests/kv-cache-effect:
-  en: f44954ffc8103c2a
-  zh: 7f610dffecede78d
+  en: 017298fae6cf35ef
+  zh: 03aed37babcf7bc8
 /fi-llm-subscriptions/known-limitations-and-deferred-work:
-  en: 94b35e43bb5a79eb
-  zh: e6cfa2524363162f
+  en: cf395a979031ebd8
+  zh: b5811c12f3c2394d
 /fi-llm-subscriptions/known-limitations-and-deferred-work/dev-note:
   en: 0a1253c6f7b5e8b9
   zh: 9f56528562c7c914

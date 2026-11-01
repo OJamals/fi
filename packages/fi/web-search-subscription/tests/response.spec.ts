@@ -116,6 +116,48 @@ describe('Antigravity search', () => {
     expect(parseAntigravitySearch(body, 1)).toEqual({ sources: [{ url, snippet: 'first' }], truncated: false })
   })
 
+  it('answers with visible text only, leaving thought parts out', () => {
+    const body = JSON.stringify({ candidates: [{ finishReason: 'STOP',
+      content: { parts: [{ thought: true, text: 'planning the query' }, { text: 'The answer.' }, { thought: false, text: ' More.' }] },
+      groundingMetadata: { webSearchQueries: ['query'], groundingChunks: [{ web: { uri: url } }] } }] })
+    expect(parseAntigravitySearch(body, 1)).toEqual({ content: 'The answer. More.', sources: [{ url }], truncated: false })
+  })
+
+  it.each(['PROHIBITED_CONTENT', 'SAFETY', 'OTHER'])('reports a refused prompt (%s) as content filtered, not incomplete', (reason) => {
+    const body = JSON.stringify({ promptFeedback: { blockReason: reason }, usageMetadata: { promptTokenCount: 3 } })
+    expect(() => parseAntigravitySearch(body, 1)).toThrow(expect.objectContaining({
+      code: 'WEB_PROVIDER_CONTENT_FILTERED',
+      message: `Antigravity refused the search prompt (${reason})`,
+    }) as Error)
+  })
+
+  it.each(['SAFETY', 'RECITATION', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII', 'IMAGE_SAFETY'])(
+    'reports a policy finish (%s) as content filtered',
+    (finishReason) => {
+      const body = JSON.stringify({ candidates: [{ finishReason, content: { parts: [{ text: 'partial' }] } }] })
+      expect(() => parseAntigravitySearch(body, 1)).toThrow(expect.objectContaining({
+        code: 'WEB_PROVIDER_CONTENT_FILTERED',
+        message: `Antigravity withheld the search answer (${finishReason})`,
+      }) as Error)
+    },
+  )
+
+  it.each([
+    [{ promptFeedback: { blockReason: 'BLOCK_REASON_UNSPECIFIED' } }],
+    [{ promptFeedback: { blockReason: 'free text from the provider' } }],
+    [{ promptFeedback: { blockReason: 7 } }],
+    [{ promptFeedback: 'SAFETY' }],
+    [{ promptFeedback: {} }],
+  ])('does not take %j for a refused prompt', (extra) => {
+    expect(() => parseAntigravitySearch(JSON.stringify({ candidates: [{ finishReason: 'MAX_TOKENS' }], ...extra }), 1))
+      .toThrow(expect.objectContaining({ code: 'WEB_PROVIDER_INCOMPLETE_RESPONSE' }) as Error)
+  })
+
+  it.each(['MAX_TOKENS', 'OTHER', 7, null])('keeps finish reason %j an incomplete response', (finishReason) => {
+    expect(() => parseAntigravitySearch(JSON.stringify({ candidates: [{ finishReason }] }), 1))
+      .toThrow(expect.objectContaining({ code: 'WEB_PROVIDER_INCOMPLETE_RESPONSE' }) as Error)
+  })
+
   it('rejects ungrounded content when query metadata is absent', () => {
     expect(() => parseAntigravitySearch(JSON.stringify({ candidates: [{ finishReason: 'STOP' }] }), 1))
       .toThrow('without native search evidence')

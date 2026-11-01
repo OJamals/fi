@@ -43,6 +43,9 @@ export const Config = z.object({
   requestTimeoutMs: z.number().step(1).min(1).max(2_147_483_647).default(30_000),
   catalogRetryCount: z.number().step(1).min(0).default(3),
   catalogRetryDelayMs: z.number().step(1).min(1).max(2_147_483_647).default(500),
+  catalogCacheMs: z.number().step(1).min(0).default(300_000),
+  registryCacheMs: z.number().step(1).min(0).default(300_000),
+  registryStaleMs: z.number().step(1).min(0).default(86_400_000),
   streamIdleTimeoutMs: z.number().step(1).min(1).max(2_147_483_647).default(120_000),
   refreshMarginMs: z.number().step(1).min(0).default(120_000),
   defaultContextWindow: z.number().step(1).min(1).default(128_000),
@@ -63,7 +66,7 @@ export default class OpenCodeService extends Service {
     this.ctx.inject(['settings'], (child) => { child.effect(() => child.settings.configure({ auto: false }, this.ctx.fiber)) })
     const settingsNs = this.ctx.fiber.entry?.options.id ?? 'fi-opencode'
     const adapter = new OpenCodeAdapter(options, (settings, signal) => resolveConsoleGrant(this.ctx, settings, signal),
-      provider => config.providers.get()[provider])
+      provider => config.providers.get()[provider], (message) => { this.ctx.logger.warn(message) })
     this.ctx.on('system-prompt/assemble', async (_assembly, _context, next) => {
       const assembly = await next()
       const provider = assembly.variables.provider

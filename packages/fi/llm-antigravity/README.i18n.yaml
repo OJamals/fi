@@ -9,20 +9,20 @@
   en: 61c440c1fe40db27
   zh: 944f72a1054475be
 /fi-llm-antigravity/table-of-contents:
-  en: 899b0fce0e9f1f79
-  zh: 479e580cc368c841
+  en: 550c9ca6025525d3
+  zh: a34f563b89c7709c
 /fi-llm-antigravity/summary:
   en: f27a29e011792bef
   zh: 334755cdf640f557
 /fi-llm-antigravity/what-it-does:
-  en: 7911ad96c1471a99
-  zh: 4b5a28aa9a24b5d8
+  en: 3ae70d950fcf9833
+  zh: 28cfb905c9589e21
 /fi-llm-antigravity/how-it-works:
   en: 17bd756e0a0e7efc
   zh: 9640977fc90a1872
 /fi-llm-antigravity/how-it-works/oauth-client-configuration:
-  en: b5d62ed751fbaa64
-  zh: 6f035f4e62598255
+  en: 4fc34b41333d75fd
+  zh: a7d34851425ae7a1
 /fi-llm-antigravity/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
@@ -42,8 +42,8 @@
   en: 802d7ff60a1d03ff
   zh: c41c56e28f3e8680
 /fi-llm-antigravity/model-experience/provider-response/what-the-model-sees:
-  en: ef7cb8b6db02c68e
-  zh: bd8c361494f8f576
+  en: 7dc76f1adc38777d
+  zh: 9aa845220883b998
 /fi-llm-antigravity/model-experience/provider-response/token-effect:
   en: c62891304e385363
   zh: 80236b388834451f
@@ -51,8 +51,8 @@
   en: 152ded00949eba70
   zh: 0e083917136d633d
 /fi-llm-antigravity/known-limitations-and-deferred-work:
-  en: 3cfc0232e14344c9
-  zh: bc070787676a67d1
+  en: a2e7e9e92810ecdf
+  zh: d95bad65a70ded80
 /fi-llm-antigravity/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: 6acef3b2d1929a55

@@ -31,6 +31,9 @@ test('the private offline tokenizer preserves encoding without its npm package',
     await copyFile(bundled, target)
     const actual = await import(pathToFileURL(target).href)
     actual.setMergeCacheSize(1000)
+    // The incremental output budget reads the pretokenizer regex and the shared streaming decoder.
+    assert.ok(actual.O200K_TOKEN_SPLIT_REGEX instanceof RegExp)
+    assert.equal(typeof actual.decoder.decode, 'function')
     const options = { disallowedSpecial: new Set() }
     for (const input of ['', 'hello world', '中文 العربية', '🧑🏽‍⚕️ café', '<|endoftext|>', '{"path":"/tmp/fi","value":42}']) {
       const expected = encode(input, options)

@@ -151,6 +151,7 @@ export async function loginGemini(
   // Observe rejection while bind/notice is pending; the operation still awaits the same result.
   void result.promise.catch(() => undefined)
   const server = createServer((request, response) => {
+    /* v8 ignore next -- an HTTP server request always carries a URL. */
     const url = new URL(request.url ?? '/', redirect)
     if (request.method !== 'GET' || url.pathname !== '/oauth2callback' || url.searchParams.get('state') !== state) {
       response.writeHead(400).end('Invalid OAuth callback')

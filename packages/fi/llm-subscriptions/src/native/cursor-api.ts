@@ -1,32 +1,33 @@
-import { z } from 'zod'
 import { nativeRequestSchema } from '../protocol.ts'
 /** Native cursor-api protocol adapted from auth2api; see README protocol sources. */
 import http2, { type ClientHttp2Stream } from 'node:http2'
 import { createHash, randomUUID } from 'node:crypto'
-import { gunzipSync } from 'node:zlib'
 import type { SubscriptionGrant as TokenData } from '../protocol.ts'
 import type { NativeRequest } from '../protocol.ts'
+import { CursorRun } from './cursor-run.ts'
+import { concat, cursorToolDefinition } from './cursor-wire.ts'
 import {
   MAX_NATIVE_FRAME,
   type NativeEvent,
   textContent,
   validateNativeControls,
 } from './subscription-stream.ts'
-import {
-  bytes,
-  decodeProto,
-  decodeValue,
-  encodeValue,
-  type Fields,
-  frame,
-  nested,
-  pb,
-  str,
-} from './subscription-protobuf.ts'
+import { decodeProto, frame, pb, str } from './subscription-protobuf.ts'
 
 // AgentService protocol adapted from 9router (MIT); see packages/fi/llm-subscriptions/NOTICE.md.
 const HOST = 'https://agent.api5.cursor.sh'
-const concat = (...parts: Uint8Array[]) => Buffer.concat(parts)
+/**
+ * The Cursor desktop build presented as `x-cursor-client-version`. 3.27.22 is the current
+ * stable macOS release, read on 2026-11-01 from Cursor's update feed and download API. It
+ * is the product version the IDE reports, not a captured fingerprint of a running client.
+ */
+export const CURSOR_CLIENT_VERSION = '3.27.22'
+
+function machineIdOf(token: TokenData): string {
+  const machine = token.subscriptionAuth?.machineId
+  if (!machine || /[\r\n]/.test(machine)) throw new Error('Cursor requires a valid machineId')
+  return machine
+}
 
 /**
  * Build Cursor compatibility headers from the captured account.
@@ -34,8 +35,7 @@ const concat = (...parts: Uint8Array[]) => Buffer.concat(parts)
  * @returns headers for Cursor AgentService.
  */
 export function cursorHeaders(token: TokenData): Record<string, string> {
-  const machine = token.subscriptionAuth?.machineId
-  if (!machine || /[\r\n]/.test(machine)) throw new Error('Cursor requires a valid machineId')
+  const machine = machineIdOf(token)
   // Cursor's JS checksum intentionally uses 32-bit shift semantics, including >>40.
   const timestamp = Math.floor(Date.now() / 1_000_000)
   const checksum = Buffer.from([40, 32, 24, 16, 8, 0].map(shift => (timestamp >> shift) & 255))
@@ -60,7 +60,7 @@ export function cursorHeaders(token: TokenData): Record<string, string> {
     'user-agent': 'connect-es/1.6.1',
     'x-cursor-checksum': checksum.toString('base64url') + machine,
     'x-client-key': createHash('sha256').update(access).digest('hex'),
-    'x-cursor-client-version': '3.12.17',
+    'x-cursor-client-version': CURSOR_CLIENT_VERSION,
     'x-cursor-client-type': 'ide',
     'x-cursor-client-os': process.platform === 'darwin' ? 'macos' : process.platform === 'win32' ? 'windows' : 'linux',
     'x-cursor-client-arch': process.arch === 'arm64' ? 'aarch64' : 'x64',
@@ -69,18 +69,6 @@ export function cursorHeaders(token: TokenData): Record<string, string> {
     'x-request-id': randomUUID(),
     'x-session-id': `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`,
   }
-}
-
-function cursorToolDefinition(tool: NativeRequest['tools'][number]): Buffer {
-  const fn = tool.function
-  if (!fn.name) throw new Error('Cursor supports function tools only')
-  return concat(
-    pb(1, fn.name),
-    pb(2, fn.description || ''),
-    pb(3, encodeValue(fn.parameters || {})),
-    pb(4, 'fi'),
-    pb(5, fn.name),
-  )
 }
 
 /**
@@ -153,8 +141,166 @@ export function cursorRequest(input: unknown): Buffer {
   )
 }
 
+/** Idle time after which an unused shared session is retired. */
+const IDLE_SESSION_MS = 60_000
+
+/** One HTTP/2 session, the request streams it currently carries, and its close notification. */
+interface HostSession {
+  /** Account identity the session belongs to. */
+  key: string
+  session: http2.ClientHttp2Session
+  streams: Set<ClientHttp2Stream>
+  /** False for a single-use session: one-off requests and overflow beyond maxConcurrentStreams. */
+  shared: boolean
+  retired: boolean
+  idle?: NodeJS.Timeout
+  closed: Promise<void>
+}
+
+/** A request stream and the means to stop reusing the session that carries it. */
+interface SessionRequest {
+  stream: ClientHttp2Stream
+  /** Stop reusing the session, e.g. after silence that suggests a dead connection. */
+  retire: () => void
+}
+
 /**
- * HTTP/2 response whose close method releases the stream and session.
+ * One HTTP/2 session per account, shared by that account's requests so TCP, TLS and
+ * SETTINGS are paid once instead of before every first byte. Accounts never share a
+ * connection: a real Cursor client carries one machine identity per connection, and
+ * multiplexing several would link them upstream. A session is retired (never reused, closed
+ * once its in-flight streams finish) on GOAWAY, session error or close, or after sitting idle;
+ * one request ending only destroys that request's stream. The owner disposes it.
+ */
+export class CursorSessions {
+  private readonly pool = new Map<string, HostSession>()
+  private readonly live = new Set<HostSession>()
+
+  private open(key: string, shared: boolean): HostSession {
+    const session = http2.connect(HOST)
+    const entry: HostSession = {
+      key,
+      session,
+      streams: new Set(),
+      shared,
+      retired: false,
+      closed: new Promise<void>((resolve) => { session.once('close', resolve) }),
+    }
+    this.live.add(entry)
+    if (shared) this.pool.set(key, entry)
+    session.on('goaway', () => { this.retire(entry) })
+    session.on('error', (error: Error) => {
+      this.retire(entry)
+      for (const stream of entry.streams) stream.destroy(error)
+      session.destroy()
+    })
+    session.once('close', () => {
+      this.retire(entry)
+      this.live.delete(entry)
+    })
+    return entry
+  }
+
+  private acquire(key: string, shared: boolean): HostSession {
+    if (!shared) return this.open(key, false)
+    const current = this.pool.get(key)
+    if (current && !current.session.destroyed && !current.session.closed) {
+      const capacity = current.session.remoteSettings.maxConcurrentStreams
+      return current.streams.size < (capacity ?? Infinity) ? current : this.open(key, false)
+    }
+    if (current) this.retire(current)
+    return this.open(key, true)
+  }
+
+  private retire(entry: HostSession): void {
+    entry.retired = true
+    clearTimeout(entry.idle)
+    if (this.pool.get(entry.key) === entry) this.pool.delete(entry.key)
+    entry.session.close() // graceful: in-flight streams finish; no-op once closed
+  }
+
+  /** Called when the last stream is gone: stop pinning the process, then idle out. */
+  private settle(entry: HostSession): void {
+    entry.session.unref()
+    if (!entry.shared || entry.retired) {
+      this.retire(entry)
+      return
+    }
+    clearTimeout(entry.idle)
+    entry.idle = setTimeout(() => { this.retire(entry) }, IDLE_SESSION_MS).unref()
+  }
+
+  /** Release a session whose request never started. */
+  private abandon(entry: HostSession): void {
+    if (!entry.streams.size) this.settle(entry)
+  }
+
+  /**
+   * Start one request on the account's shared session, or on a single-use session.
+   * @param key - account identity.
+   * @param shared - whether later requests may reuse the session.
+   * @param headers - HTTP/2 request headers.
+   * @returns the request stream and a way to retire its session.
+   */
+  request(key: string, shared: boolean, headers: http2.OutgoingHttpHeaders): SessionRequest {
+    let host = this.acquire(key, shared)
+    let stream: ClientHttp2Stream
+    try {
+      stream = host.session.request(headers)
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code !== 'ERR_HTTP2_INVALID_SESSION' && code !== 'ERR_HTTP2_GOAWAY_SESSION') {
+        this.abandon(host)
+        throw error
+      }
+      // A pooled session can start closing before its event reaches us. Nothing was sent,
+      // so retry once on a fresh session; a second failure is real.
+      this.retire(host)
+      host = this.acquire(key, shared)
+      try {
+        stream = host.session.request(headers)
+      } catch (retryError) {
+        this.abandon(host)
+        throw retryError
+      }
+    }
+    const owner = host
+    clearTimeout(owner.idle)
+    owner.session.ref()
+    owner.streams.add(stream)
+    stream.once('close', () => {
+      owner.streams.delete(stream)
+      if (!owner.streams.size) this.settle(owner)
+    })
+    return { stream, retire: () => { this.retire(owner) } }
+  }
+
+  /** Destroy every session and wait for the transports to close. */
+  async dispose(): Promise<void> {
+    const sessions = [...this.live]
+    for (const entry of sessions) {
+      this.retire(entry)
+      entry.session.destroy()
+    }
+    await Promise.all(sessions.map(entry => entry.closed))
+  }
+}
+
+/**
+ * End one request without touching its session. The connection outlives the stream, so the
+ * upstream only learns about a cancellation from RST_STREAM: send CANCEL while the response
+ * is unfinished, NO_ERROR once it was fully read. With an error, destroy() resets the stream
+ * itself and is the only way to hand that error to readers (close() would surface
+ * "premature close").
+ */
+function reset(stream: ClientHttp2Stream, error?: Error): void {
+  if (!error && !stream.closed)
+    stream.close(stream.readableEnded ? http2.constants.NGHTTP2_NO_ERROR : http2.constants.NGHTTP2_CANCEL)
+  stream.destroy(error)
+}
+
+/**
+ * HTTP/2 response whose close method releases the stream; the session outlives it.
  */
 export interface CursorConnection {
   stream: ClientHttp2Stream
@@ -164,17 +310,19 @@ export interface CursorConnection {
   resetDeadline: () => void
   /** Detach request cancellation before transferring ownership to a continuation. */
   detachCancellation: () => void
-  /** Resolves after the underlying HTTP/2 session closes. */
+  /** Resolves after the request stream closes. */
   closed: Promise<void>
 }
+
 /**
- * Open one bounded HTTP/2 operation; cancellation closes its stream and session.
+ * Open one bounded HTTP/2 operation; cancellation or a deadline closes its stream.
  * @param token - captured account credential.
  * @param path - AgentService RPC path.
  * @param payload - encoded request.
  * @param timeout - operation deadline in milliseconds.
  * @param signal - caller cancellation.
  * @param unary - whether the RPC uses unary protobuf framing.
+ * @param sessions - owner of the account's shared session; omitted for a single-use session.
  * @returns owned connection; callers must close it.
  */
 export async function connectCursor(
@@ -184,44 +332,42 @@ export async function connectCursor(
   timeout: number,
   signal?: AbortSignal,
   unary = false,
+  sessions?: CursorSessions,
 ): Promise<CursorConnection> {
   signal?.throwIfAborted()
   const headersForRequest = cursorHeaders(token)
-  const client = http2.connect(HOST)
-  const closedSession = new Promise<void>(resolve => client.once('close', resolve))
-  const stream = client.request({
-    ':method': 'POST',
-    ':path': path,
-    ...headersForRequest,
-    ...(unary ? { 'content-type': 'application/proto' } : {}),
-  })
+  const { stream, retire } = (sessions ?? new CursorSessions()).request(
+    machineIdOf(token),
+    sessions !== undefined,
+    { ':method': 'POST', ':path': path, ...headersForRequest, ...(unary ? { 'content-type': 'application/proto' } : {}) },
+  )
+  const closedStream = new Promise<void>((resolve) => { stream.once('close', resolve) })
   let closed = false
+  let responded = false
   const close = () => {
     if (closed) return
     closed = true
     clearTimeout(timer)
     signal?.removeEventListener('abort', abort)
-    stream.destroy()
-    client.destroy()
+    reset(stream) // only this request; the shared session stays up
   }
   const abort = () => {
-    stream.destroy(new Error('Cursor request aborted'))
+    reset(stream, new Error('Cursor request aborted'))
     close()
   }
   const expire = () => {
-    stream.destroy(new Error('Cursor request timed out'))
+    // Silence before any response may mean a dead connection: stop reusing it.
+    if (!responded) retire()
+    reset(stream, Object.assign(new Error('Cursor request timed out'), { name: 'TimeoutError' }))
     close()
   }
   let timer = setTimeout(expire, timeout)
-  const resetDeadline = () => {
-    clearTimeout(timer)
-    timer = setTimeout(expire, timeout)
-    timer.unref()
-  }
-  client.on('error', (error: Error) => stream.destroy(error))
   signal?.addEventListener('abort', abort, { once: true })
   const headers = new Promise<http2.IncomingHttpHeaders>((resolve, reject) => {
-    stream.once('response', resolve)
+    stream.once('response', (response) => {
+      responded = true
+      resolve(response)
+    })
     stream.on('error', reject)
     stream.once('close', () => {
       reject(new Error('Cursor stream closed before response'))
@@ -232,180 +378,42 @@ export async function connectCursor(
     if (unary) stream.end(payload)
     else stream.write(payload)
     const response = await headers
-    return { stream, status: Number(response[':status'] || 502), close, resetDeadline,
-      detachCancellation: () => signal?.removeEventListener('abort', abort), closed: closedSession }
+    return {
+      stream,
+      status: Number(response[':status']),
+      close,
+      resetDeadline: () => {
+        clearTimeout(timer)
+        timer = setTimeout(expire, timeout)
+        timer.unref()
+      },
+      detachCancellation: () => signal?.removeEventListener('abort', abort),
+      closed: closedStream,
+    }
   } catch (error) {
     close()
-    await closedSession
+    await closedStream
     throw error
   }
 }
 
-function execReply(exec: Fields, variant: number, payload: Buffer): Buffer {
-  return frame(pb(2, concat(pb(1, Number(exec.get(1)?.[0] || 0)), pb(15, str(exec, 15)), pb(variant, payload))))
-}
-
 /**
- * Decode fragmented Connect frames and answer protocol handshakes; reject unknown tools.
+ * One response of a Run as events; see CursorRun for the continuation contract.
  * @param source - HTTP/2 response bytes.
  * @param write - handshake reply writer.
  * @param model - selected model identifier.
  * @param allowedTools - caller-declared tool names.
  * @param toolDefinitions - caller tools advertised during context requests.
- * @param retainTool - optional owner that retains the native exec until its result arrives.
  * @returns text, tool, usage, and terminal events.
  */
-export async function* cursorEvents(
+export function cursorEvents(
   source: AsyncIterable<Uint8Array>,
   write: (data: Buffer) => void,
   model = '',
   allowedTools?: Set<string>,
   toolDefinitions: NativeRequest['tools'] = [],
-  retainTool?: (exec: Fields, id: string) => void,
 ): AsyncGenerator<NativeEvent> {
-  let pending: Buffer = Buffer.alloc(0)
-  let visible = false
-  let thinking = ''
-  let visibleThinking = 0
-  for await (const chunk of source) {
-    pending = concat(pending, chunk)
-    while (pending.length >= 5) {
-      const flags = pending.readUInt8(0)
-      const length = pending.readUInt32BE(1)
-      if (flags > 3 || length > MAX_NATIVE_FRAME) throw new Error('Invalid Cursor Connect frame')
-      if (pending.length < 5 + length) break
-      let payload = pending.subarray(5, 5 + length)
-      pending = pending.subarray(5 + length)
-      if (flags & 1) payload = gunzipSync(payload, { maxOutputLength: MAX_NATIVE_FRAME })
-      if (flags & 2) {
-        const trailer = z.object({ error: z.unknown().optional() }).parse(JSON.parse(payload.toString()))
-        if (trailer.error) throw new Error('Cursor returned a Connect stream error')
-        continue
-      }
-      const message = decodeProto(payload)
-      if (message.has(1)) {
-        const update = nested(message, 1)
-        if (update.has(1)) {
-          const content = str(nested(update, 1), 1)
-          if (content) {
-            visible = true
-            yield { delta: { content } }
-          }
-        }
-        if (update.has(4)) {
-          const reasoning = str(nested(update, 4), 1)
-          if (/^(cursor\/)?composer/i.test(model)) {
-            thinking += reasoning
-            if (Buffer.byteLength(thinking) > MAX_NATIVE_FRAME) throw new Error('Cursor thinking exceeds bounds')
-            const end = thinking.lastIndexOf('</think>')
-            if (end >= 0) {
-              const answer = thinking.slice(end + 8).trimStart()
-              if (answer.length > visibleThinking) {
-                visible = true
-                yield { delta: { content: answer.slice(visibleThinking) } }
-                visibleThinking = answer.length
-              }
-            }
-          } else if (reasoning) yield { delta: { reasoning_content: reasoning } }
-        }
-        if (update.has(14)) {
-          if (!visible) throw new Error('Cursor returned an empty turn')
-          yield { finish: 'stop' }
-          return
-        }
-      }
-      if (message.has(4)) {
-        const kv = nested(message, 4)
-        const variant = kv.has(2) ? 2 : kv.has(3) ? 3 : 0
-        if (!variant) throw new Error('Unsupported Cursor KV request')
-        write(
-          frame(
-            pb(
-              3,
-              concat(
-                pb(1, Number(kv.get(1)?.[0] || 0)),
-                pb(variant, variant === 2 ? pb(1, Buffer.alloc(0)) : Buffer.alloc(0)),
-                ...(kv.has(4) ? [pb(4, bytes(kv, 4))] : []),
-              ),
-            ),
-          ),
-        )
-      }
-      if (message.has(2)) {
-        const exec = nested(message, 2)
-        if (exec.has(10)) write(execReply(exec, 10, pb(1, pb(1, Buffer.alloc(0)))))
-        else if (exec.has(36)) {
-          // McpStateExecResult.success.servers: expose only caller-supplied tools.
-          const server = concat(
-            pb(1, 'auth2api'),
-            pb(2, 'fi'),
-            ...toolDefinitions.map(tool => pb(5, cursorToolDefinition(tool))),
-            pb(7, 'connected'),
-          )
-          write(execReply(exec, 36, pb(1, toolDefinitions.length ? pb(1, server) : Buffer.alloc(0))))
-        } else if (exec.has(14)) {
-          // ShellStream.rejected differs from unary tool errors. Close only the
-          // exec substream so the agent can continue without executing a shell.
-          write(execReply(exec, 14, pb(5, pb(3, 'Shell unavailable. Answer directly or use the supplied MCP tools.'))))
-          write(frame(pb(5, pb(1, pb(1, Number(exec.get(1)?.[0] || 0))))))
-        } else if (exec.has(11)) {
-          const mcp = nested(exec, 11)
-          const name = str(mcp, 5) || str(mcp, 1)
-          if (!name) throw new Error('Cursor MCP tool missing name')
-          if (allowedTools && !allowedTools.has(name)) throw new Error('Cursor returned an undeclared tool')
-          const args: Record<string, unknown> = Object.create(null) as Record<string, unknown>
-          for (const entry of mcp.get(2) || []) {
-            const pair = decodeProto(entry as Buffer)
-            args[str(pair, 1)] = decodeValue(bytes(pair, 2))
-          }
-          const id = `call_${randomUUID()}`
-          retainTool?.(exec, id)
-          yield {
-            delta: {
-              tool_calls: [
-                {
-                  index: 0,
-                  id: retainTool ? id : str(mcp, 3) || id,
-                  type: 'function',
-                  function: { name, arguments: JSON.stringify(args) },
-                },
-              ],
-            },
-          }
-          yield { finish: 'tool_calls' }
-          if (!retainTool) return
-          visible = false
-          thinking = ''
-          visibleThinking = 0
-        } else {
-          const variant = [...exec.keys()].find(field => ![1, 15, 19, 55].includes(field))
-          if (!variant || ![2, 3, 4, 5, 7, 8, 9, 16, 20, 23].includes(variant))
-            throw new Error(`Unsupported Cursor IDE tool request (${variant ?? 'missing'})`)
-          // No local execution. Reject builtins; caller executes returned function tools.
-          write(
-            execReply(
-              exec,
-              variant,
-              variant === 9 ? Buffer.alloc(0) : pb(2, pb(2, 'Tool unavailable. Use the supplied MCP tools.')),
-            ),
-          )
-        }
-      }
-    }
-    if (pending.length > MAX_NATIVE_FRAME + 5) throw new Error('Cursor frame exceeds bounds')
-  }
-  throw new Error('Cursor response ended without a complete turn')
-}
-
-/**
- * Encode a completed MCP call on its original native exec stream.
- * @param exec - pending server exec identifiers.
- * @param content - recorded text result.
- * @param isError - whether the caller's tool failed.
- * @returns framed native MCP result.
- */
-export function cursorToolResult(exec: Fields, content: string, isError: boolean): Buffer {
-  return execReply(exec, 11, pb(1, concat(pb(1, pb(1, pb(1, content))), pb(2, isError ? 1 : 0))))
+  return new CursorRun(source, write, model, allowedTools, toolDefinitions).events()
 }
 
 /**
@@ -429,8 +437,8 @@ export async function cursorModels(token: TokenData, timeout: number, signal?: A
     const chunks: Buffer[] = []
     let size = 0
     for await (const value of connection.stream) {
-      const chunk: unknown = value
-      if (!Buffer.isBuffer(chunk)) throw new Error('Cursor returned non-byte catalog data')
+      // The stream has no encoding, so every chunk is raw bytes.
+      const chunk = Buffer.from(value as Uint8Array)
       size += chunk.length
       if (size > MAX_NATIVE_FRAME) throw new Error('Cursor catalog exceeds bounds')
       chunks.push(chunk)
