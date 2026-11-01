@@ -1,36 +1,51 @@
 <a id="fi"></a>
 
-# fi: an open-source AI coding workspace
+<div align="center">
 
 <img src="apps/web/public/fi-logo.png" alt="fi" width="88">
 
+# fi
+
 **Your AI subscriptions, together in one coding workspace.**
 
-Connect subscriptions and accounts from multiple supported AI providers in fi, then choose a model for each conversation. Use local project files, terminal tools, and file-change review from the same workspace. API keys and custom endpoints can sit alongside your connected accounts.
+Sign in with the AI plans you already have (Claude, ChatGPT/Codex, Grok, GitHub Copilot, Cursor, and more) and choose the model for each conversation in one open-source coding app.
 
-The desktop app runs on Windows, macOS, and Linux. A browser app and headless CLI are available from source. fi builds on [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), originally developed by DeepSeek AI, and [Cordis](https://github.com/cordiverse/cordis).
+[![Latest release](https://img.shields.io/github/v/release/OJamals/fi?label=release)](https://github.com/OJamals/fi/releases/latest) [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)](#download)
 
-[Download desktop](#download) · [Get started](#get-started) · [Watch the demo](#see-fi-in-action) · [Run from source](#run-from-source) · [Contribute](.github/CONTRIBUTING.md)
+[Download](#download) · [Features](#features) · [Providers](#supported-providers) · [Get started](#get-started) · [Run from source](#run-from-source) · [Contribute](.github/CONTRIBUTING.md)
 
-## See fi in action
+</div>
 
 ![fi coding demo: connect a ChatGPT subscription, choose a model, build a focus timer, and run its tests](https://raw.githubusercontent.com/OJamals/fi/refs/heads/fi-readme-assets/2026-10-17/fi-coding-demo.gif)
 
-A recorded ChatGPT/Codex coding session: connect a subscription, choose a model, build a focus timer, and test the generated app. The clip condenses a longer session and omits account-entry screens and waiting time. [Watch or download the video](https://github.com/OJamals/fi/raw/refs/heads/fi-readme-assets/2026-10-17/fi-coding-demo.mp4).
+Connect a ChatGPT subscription, pick a model, then build and test a focus-timer app. The clip is condensed; [watch the full video](https://github.com/OJamals/fi/raw/refs/heads/fi-readme-assets/2026-10-17/fi-coding-demo.mp4).
 
-## What you can do
+## Features
 
-- **Code in your workspace.** Use file tools, terminals, persistent conversations, planning, and subagents.
-- **Connect providers together.** Keep several providers signed in and choose a model per conversation. See the [supported account list](#model-connections) and [account setup](packages/fi/client-ui-model-signin/README.md).
-- **Research the web.** Choose automatic routing or a search provider in **Plugins → Preferred web search**. Automatic routing uses supported subscription search, with free Bing search otherwise. [Search setup](packages/fi/web-search-preferences/README.md).
-- **Create and edit images.** Use configured Codex, Grok, or Antigravity subscription targets. Image tools require an eligible account; they do not silently switch providers or API billing. [Image setup](packages/fi/tool-image-generation/README.md).
-- **Work in isolated checkouts.** Managed Git worktrees start from committed HEAD; uncommitted changes are not copied. [Worktrees](packages/api/workspace-controller/README.md#managed-worktrees).
-- **Review changes.** Inspect per-turn file changes and restore supported edits. Restore data lasts for the running Host, so keep your own backups. [File review](packages/deliverables/workspace-changes/README.md).
-- **Make it yours.** Adjust text, code, and terminal fonts; configure [plugins and MCP servers](packages/mcp/README.md); import supported Claude Code and Codex contributions. Imported MCP servers and hooks start disabled. [Plugin compatibility](packages/extensions/plugin-compat/README.md).
+- **Every subscription in one picker.** Keep several providers signed in and choose a model per conversation. [API keys and custom endpoints](docs/user/guide/providers.md) sit alongside them.
+- **A full coding agent.** File tools, terminals, planning, subagents, and persistent conversations in your own project folder.
+- **Review every change.** Inspect each turn's file edits and [restore supported changes](packages/deliverables/workspace-changes/README.md).
+- **Isolated worktrees.** Run tasks in [managed Git worktrees](packages/api/workspace-controller/README.md#managed-worktrees) that start from committed `HEAD`.
+- **Built-in web search.** Uses your subscription's search when available and free Bing search otherwise. [Choose a provider](packages/fi/web-search-preferences/README.md).
+- **Image generation.** Create and edit images with an eligible [Codex, Grok, or Antigravity account](packages/fi/tool-image-generation/README.md).
+- **Plugins and MCP.** Add [MCP servers and plugins](packages/mcp/README.md), or [import Claude Code and Codex contributions](packages/extensions/plugin-compat/README.md); imported servers and hooks start disabled.
+- **Desktop, web, or CLI.** Desktop apps for macOS, Windows, and Linux with automatic updates; the browser app and headless CLI run from source.
+
+## Supported providers
+
+Connect them in **Settings → Models → Sign in with your subscription**.
+
+| Provider | How you connect |
+|---|---|
+| Claude, ChatGPT/Codex, Grok | [Subscription sign-in](packages/fi/client-ui-model-signin/README.md) |
+| GitHub Copilot, Cursor, Kiro, Cline, Gemini Code Assist | [Browser, device, or account-key sign-in](packages/fi/llm-subscriptions/README.md) |
+| Antigravity | [Google account sign-in](packages/fi/llm-antigravity/README.md) |
+| OpenCode Console | [Console sign-in](packages/fi/llm-opencode/README.md) |
+| Ollama Cloud | [Device approval](packages/fi/llm-ollama/README.md) |
+
+Each provider keeps its own models, credits, and quotas, and a successful sign-in does not guarantee inference access. Gemini Code Assist also needs a configured Google OAuth client and an eligible project.
 
 ## Download
-
-The published desktop installers below are **v1.0.1**. [Build from source](#run-from-source) to use the current `main` branch.
 
 | Platform | v1.0.1 download | Signing |
 |---|---|---|
@@ -38,56 +53,16 @@ The published desktop installers below are **v1.0.1**. [Build from source](#run-
 | Windows · x64 | [Installer](https://github.com/OJamals/fi/releases/download/v1.0.1/fi-1.0.1-win-x64-unsigned.exe) | Unsigned |
 | Linux · x64 | [AppImage](https://github.com/OJamals/fi/releases/download/v1.0.1/fi-1.0.1-linux-x64.AppImage) | Unsigned |
 
-See [release notes and all downloads](https://github.com/OJamals/fi/releases). On macOS, open the DMG and drag fi into Applications. On Windows, run the installer. On Linux, make the AppImage executable and open it.
+On macOS, drag fi from the DMG into Applications. On Linux, make the AppImage executable. Installed apps check [GitHub Releases](https://github.com/OJamals/fi/releases) for updates; use **Check for Updates** in the app menu.
 
 ## Get started
 
 1. Open fi and choose a project folder.
-2. Open **Settings → Models**. Sign in with a supported subscription or add an API provider.
-3. Select a model for the conversation.
-4. Describe a task, review requested permissions, and inspect the resulting file changes.
+2. In **Settings → Models**, sign in with a subscription or add an API provider.
+3. Pick a model for the conversation.
+4. Describe a task, approve the permissions it requests, and review the file changes.
 
-Account access, models, and quotas depend on your provider. Read the [safety guide](docs/SAFETY.md) before granting tools access to local files or commands.
-
-## Model connections
-
-### Use multiple subscriptions together
-
-Open **Settings → Models → Sign in with your subscription** and connect each supported provider you want to use. Complete its provider setup so its available models appear in the conversation model picker's **Subscriptions** section. Keep several providers connected, then choose which provider's model handles each conversation. You can switch to another connected model for later requests.
-
-For example, keep ChatGPT/Codex and Claude connected and select either provider’s models for each task from the same picker. Each provider retains its own account access, credits, model availability, and quotas.
-
-### Supported subscription and account providers
-
-The selector offers these routes when their adapters are enabled. Some use subscription sign-in, while others use provider credits, device approval, or an account key.
-
-| Provider/account | Setup and access notes |
-|---|---|
-| Claude (Anthropic) | [Subscription sign-in](packages/fi/client-ui-model-signin/README.md) |
-| ChatGPT / Codex (OpenAI) | [Subscription sign-in](packages/fi/client-ui-model-signin/README.md) |
-| Grok (xAI) | [Subscription sign-in](packages/fi/client-ui-model-signin/README.md) |
-| Antigravity | [Antigravity account setup](packages/fi/llm-antigravity/README.md) |
-| OpenCode Console | [Console sign-in, account balance, and free-tier limits](packages/fi/llm-opencode/README.md) |
-| Ollama Cloud | [Cloud account and device approval](packages/fi/llm-ollama/README.md) |
-| GitHub Copilot | [Copilot account setup](packages/fi/llm-subscriptions/README.md) |
-| Cursor | [Cursor browser sign-in](packages/fi/llm-subscriptions/README.md) |
-| Kiro | [Kiro device sign-in](packages/fi/llm-subscriptions/README.md) |
-| Cline Free / Pass | [Cline account-key setup](packages/fi/llm-subscriptions/README.md) |
-| Gemini Code Assist / Gemini CLI | [Configured Google OAuth client and eligible Code Assist account/project required](packages/fi/llm-subscriptions/README.md) |
-
-A successful sign-in or model listing does not establish inference access. Provider eligibility, policies, billing, and quotas apply. [Account setup](packages/fi/client-ui-model-signin/README.md) covers the shared workflow.
-
-### API keys and custom endpoints
-
-Use **Settings → Models → Add model provider** to configure API-key providers or custom endpoints alongside subscription connections. See the [provider guide](docs/user/guide/providers.md).
-
-## Updates
-
-Stable desktop builds check published [GitHub Releases](https://github.com/OJamals/fi/releases) for updates. Use **Check for Updates** in the app menu. Preview builds follow prereleases; drafts are ignored.
-
-## Help improve fi
-
-Try one task in a small project and [report what worked or failed](https://github.com/OJamals/fi/issues/new?template=bug.md). Include your app version, operating system, provider, and exact model ID. Remove credentials and private project content from logs. Code, documentation, and reproducible bug reports are welcome; see [contributing](.github/CONTRIBUTING.md).
+Read the [safety guide](docs/SAFETY.md) before granting tools access to local files or commands.
 
 <a id="run"></a>
 
@@ -102,14 +77,12 @@ pnpm install
 pnpm run dev:desktop
 ```
 
-For the browser app, use `pnpm run dev:web`. Configure a model before sending a message. State for the headless CLI and Web app defaults to `~/.fi`; `dsh` and `DSH_*` remain the runtime configuration interface.
+Use `pnpm run dev:web` for the browser app. The web app and headless CLI keep state in `~/.fi`; `dsh` and `DSH_*` remain the runtime configuration interface.
 
-## Development
+## Contributing
 
-The plugin runtime supports model accounts, tools, workspace controls, and UI contributions. Optional capabilities depend on the active profile and plugins.
-
-See [development](docs/development.md), [architecture](docs/architecture.md), [desktop packaging](apps/desktop/README.md), and [contributing](.github/CONTRIBUTING.md). Agents follow [AGENTS.md](AGENTS.md).
+Try one task in a small project and [report what worked or failed](https://github.com/OJamals/fi/issues/new?template=bug.md) with your app version, OS, provider, and exact model ID; remove credentials and private content from logs. Code and documentation contributions are welcome: see [contributing](.github/CONTRIBUTING.md), [development](docs/development.md), [architecture](docs/architecture.md), and [desktop packaging](apps/desktop/README.md). Agents follow [AGENTS.md](AGENTS.md).
 
 ## License
 
-[MIT](LICENSE). [Third-party notices](docs/THIRD_PARTY_NOTICES.md).
+[MIT](LICENSE) · [Third-party notices](docs/THIRD_PARTY_NOTICES.md). fi builds on [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), originally developed by DeepSeek AI, and [Cordis](https://github.com/cordiverse/cordis).
