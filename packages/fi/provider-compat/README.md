@@ -33,6 +33,8 @@ Mount the plugin after `@deepseek-ai/dsh-llm-pi-ai`. Codex uses WebSocket-first 
 
 Direct subscription HTTP clients first call pi-ai `Models.getAuth(provider)`, require `source === 'OAuth'`, and freeze that result for the request. `authorizationHeaders(auth)` keeps string-valued supplied headers and adds `Authorization: Bearer <auth.apiKey>` only when authorization is absent. Clients then call `subscriptionEndpoint(provider)` and `subscriptionHeaders(provider, model, sessionId, timeoutMs, existingHeaders)`; callers must never log the authorization record. For Anthropic, compatibility headers retain pi-ai's request-specific beta features alongside the captured Claude Code beta set and map `mid-conversation-output-config-2026-07-01` to Claude Code's `per-turn-control-2026-07-01` wire name.
 
+`subscriptionHeaders` describes Codex's host as the native CLI does, as `(Mac OS 26.6.2; arm64) iTerm.app/3.5.0`: operating system and version, architecture, then `$TERM_PROGRAM` or `$TERM`. It drops `x-client-request-id` from Claude requests, which Claude Code never sends. Inference requests then pass through `conversationHeaders(provider, headers, sessionId)`: Codex gains `thread-id` beside the `session-id` pi-ai sent, and Grok gains `x-grok-conv-id` and `x-grok-session-id`, a UUID derived from the session and the account's OAuth subject, plus a fresh `x-grok-req-id` per request. Model-listing and image requests carry none of these. `subscriptionFetch` also restates xAI's `{"code", "error": "<message>"}` failures as `{"error": {"message", "type", "code"}}`, which the OpenAI client otherwise reports as a quoted string without a type or code; API-key-shaped text is redacted and the message is bounded to 1000 characters.
+
 ### Live model discovery for Claude Code, Codex, and Grok
 
 Discovery cancels its response reader and releases its lock after success or failure, including when cancellation itself fails. Catalogs and Codex ETags are isolated by a SHA-256 digest of the resolved credential; changing accounts or refreshing credentials fetches a separate catalog. Claude discovery follows `has_more` and `last_id` through `after_id` within one deadline and rejects incomplete or repeating pagination.
@@ -105,7 +107,7 @@ None, as the package changes transport routing and provider-required headers wit
 
 #### KV Cache effect
 
-None, as request content and model parameters are unchanged.
+None, as request content and model parameters are unchanged. Grok's `x-grok-conv-id` only routes prompt-cache hits to the replica that already holds the prefix.
 
 ## Known Limitations and Deferred Work
 
@@ -115,6 +117,8 @@ None, as request content and model parameters are unchanged.
 - pi-ai does not expose its built-in OAuth scopes through a public runtime API, so automatic scope-drift diagnostics cover canonical metadata but cannot compare private SDK constants.
 - Release automation updates public release fields and release evidence. Capture-gated runtime headers remain at their recorded version until a separate fingerprint capture is reviewed and recorded canonically.
 - Live model discovery only ever lists what `llm-pi-ai` already gates it to: a full-catalog route (no `models` list) whose stored credential resolves to `OAuth`. An ambient or API-key-authenticated route, and a curated `models` list, never reach this plugin's fetchers at all — that gate lives entirely in `@deepseek-ai/dsh-llm-pi-ai`, not here.
+- This package edits headers, endpoints, WebSocket handshakes, and xAI failures; pi-ai builds every request body. Claude Code's `x-anthropic-billing-header` system block with its fingerprint, the Claude Agent SDK system prefix that the `sdk-cli` entrypoint sends, one-hour `cache_control` breakpoints on the system prompt and last message, and `metadata.user_id` are therefore not produced here: pi-ai sends its own Claude Code prefix and a five-minute breakpoint unless the caller selects long cache retention.
+- Codex model metadata (reasoning levels, verbosity, context window) is not carried by live discovery, because `PiAiLiveModel` holds only an id and a display name.
 - A live listing is cached per provider for the whole plugin instance, not per account; a deployment routing more than one account through the same provider route sees whichever account's listing last refreshed until the next TTL boundary.
 
 <a id="dev-note"></a>

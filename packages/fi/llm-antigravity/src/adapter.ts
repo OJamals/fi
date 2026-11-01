@@ -427,6 +427,9 @@ export class AntigravityAdapter extends LlmAdapter {
     })
 
     if (!response.ok || response.body === null) {
+      // The transport strips a failure to its status and the delay Google hinted,
+      // handed on as Retry-After seconds, so a retry layer can honor it.
+      const retryAfterSeconds = Number(response.headers.get('retry-after'))
       yield {
         type: 'finish',
         reason: {
@@ -435,6 +438,7 @@ export class AntigravityAdapter extends LlmAdapter {
             code: 'fi-antigravity/upstream',
             status: response.status,
             message: `Antigravity upstream answered ${response.status}`,
+            ...retryAfterSeconds > 0 ? { providerRetryAfterMs: retryAfterSeconds * 1_000 } : {},
           },
         },
       }
@@ -461,6 +465,7 @@ interface OpenAIStreamChunk {
       antigravity_native_parts?: unknown
     }
     finish_reason?: string | null
+    content_filter_reason?: string
   }[]
   usage?: {
     prompt_tokens?: number
@@ -580,11 +585,19 @@ async function* projectSseToChunks(
     for (const block of remaining) yield* closeBlock(block)
   }
 
-  const mapFinish = (raw: string): FinishReason => {
+  const mapFinish = (raw: string, filterReason: string | undefined): FinishReason => {
     if (raw === 'tool_calls') return { kind: 'tool-calls' }
     if (raw === 'length') return { kind: 'max-tokens' }
     if (raw === 'content_filter') {
-      return { kind: 'error', failure: { code: 'fi-antigravity/content-filter', message: 'Antigravity content filter stopped the response' } }
+      return {
+        kind: 'error',
+        failure: {
+          code: 'fi-antigravity/content-filter',
+          message: filterReason === undefined
+            ? 'Antigravity content filter stopped the response'
+            : `Antigravity content filter stopped the response (${filterReason})`,
+        },
+      }
     }
     return { kind: 'stop' }
   }
@@ -849,7 +862,7 @@ async function* projectSseToChunks(
     }
     if (typeof choice?.finish_reason === 'string') {
       yield* closeAll()
-      const reason = mapFinish(choice.finish_reason)
+      const reason = mapFinish(choice.finish_reason, choice.content_filter_reason)
       const replayState: ReplayEnvelope | undefined = reason.kind === 'error'
         ? undefined
         : antigravityReplayEnvelope(provider, model, replayBlocks, replayNativeParts)

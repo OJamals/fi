@@ -4,6 +4,7 @@ import {
   ANTIGRAVITY_API_BASE_URL,
   ANTIGRAVITY_USER_AGENT,
 } from './auth/compat.ts'
+import { cloudCodeFailureHeaders } from './failure-hints.ts'
 
 /** The token shape read from an Antigravity grant record. */
 export interface AntigravityTransportToken {
@@ -159,6 +160,8 @@ interface TranslatedChunk {
     readonly index: number
     delta: TranslatedDelta
     readonly finish_reason: string | null
+    /** Gemini's enum token for a `content_filter` finish: the refused-prompt reason or the policy finish reason. */
+    readonly content_filter_reason?: string
   }>
   readonly usage?: TranslatedUsage
 }
@@ -809,10 +812,8 @@ function validateOpenAIToAntigravityRequest(
   return null
 }
 
-function transformOpenAIToAntigravity(
-  openaiBody: OpenAIRequest,
-  projectId: string,
-): WireRecord {
+/** Gemini `generateContent` request fields for an OpenAI Chat request, without any endpoint envelope. */
+function openAIToGeminiRequest(openaiBody: OpenAIRequest): WireRecord {
   const validationError = validateOpenAIToAntigravityRequest(openaiBody)
   if (validationError) throw validationError
   const functions = openAIFunctions(openaiBody.tools)
@@ -942,7 +943,6 @@ function transformOpenAIToAntigravity(
   const request: Record<string, unknown> = {
     contents,
     generationConfig,
-    sessionId: randomUUID(),
   }
   if (systemText) {
     request.systemInstruction = { parts: [{ text: systemText }] }
@@ -992,7 +992,15 @@ function transformOpenAIToAntigravity(
     }
   }
 
-  return buildCloudCodeEnvelope(request, projectId, requestedModel)
+  return request
+}
+
+function transformOpenAIToAntigravity(
+  openaiBody: OpenAIRequest,
+  projectId: string,
+): WireRecord {
+  const request = { ...openAIToGeminiRequest(openaiBody), sessionId: randomUUID() }
+  return buildCloudCodeEnvelope(request, projectId, stringValue(openaiBody.model))
 }
 
 function usageFrom(data: WireRecord): TranslatedUsage | undefined {
@@ -1017,6 +1025,33 @@ function usageFrom(data: WireRecord): TranslatedUsage | undefined {
       ? { completion_tokens_details: { reasoning_tokens: reasoningTokens } }
       : {}),
   }
+}
+
+/** Gemini policy finish reasons that withhold output; an image reply with one of these and no image was refused. */
+const CONTENT_FILTER_FINISH_REASONS: ReadonlySet<string> = new Set([
+  'SAFETY',
+  'RECITATION',
+  'BLOCKLIST',
+  'PROHIBITED_CONTENT',
+  'SPII',
+  'IMAGE_SAFETY',
+  'IMAGE_PROHIBITED_CONTENT',
+  'IMAGE_RECITATION',
+])
+
+/** A Gemini enum value, or `undefined` for anything else so provider prose never reaches a diagnostic. */
+function enumToken(value: unknown): string | undefined {
+  return typeof value === 'string' && /^[A-Z][A-Z0-9_]*$/.test(value) ? value : undefined
+}
+
+/**
+ * Why Gemini refused the prompt itself, when it did.
+ * @param response - one decoded Gemini reply, already unwrapped from the Cloud Code envelope.
+ * @returns the `promptFeedback.blockReason` enum token, or `undefined` when the prompt was accepted.
+ */
+function blockedPromptReason(response: unknown): string | undefined {
+  const reason = enumToken(wireRecord(wireRecord(response)?.promptFeedback)?.blockReason)
+  return reason === 'BLOCK_REASON_UNSPECIFIED' ? undefined : reason
 }
 
 interface ToolStreamState {
@@ -1055,16 +1090,21 @@ export function transformAntigravityEvent(
   const usage = usageFrom(data)
   const candidate = wireRecord(wireArray(data.candidates)?.[0])
   if (candidate === undefined) {
-    return usage
-      ? {
-        id: requestId,
-        object: 'chat.completion.chunk',
-        created: Math.floor(Date.now() / 1000),
-        model,
-        choices: [],
-        usage,
-      }
-      : null
+    // A refused prompt is a whole event with no candidate; it ends the turn
+    // even when it is not the first event, instead of leaving a stream that
+    // never finishes.
+    const blocked = blockedPromptReason(data)
+    if (usage === undefined && blocked === undefined) return null
+    return {
+      id: requestId,
+      object: 'chat.completion.chunk',
+      created: Math.floor(Date.now() / 1000),
+      model,
+      choices: blocked === undefined
+        ? []
+        : [{ index: 0, delta: {}, finish_reason: 'content_filter', content_filter_reason: blocked }],
+      ...usage ? { usage } : {},
+    }
   }
 
   const delta: TranslatedDelta = {}
@@ -1195,12 +1235,13 @@ export function transformAntigravityEvent(
   if (nativeParts.length > 0) delta.antigravity_native_parts = nativeParts
 
   let finishReason: string | null = null
+  let filterReason: string | undefined
   if (typeof candidate.finishReason === 'string' && candidate.finishReason) {
     if (candidate.finishReason === 'MAX_TOKENS') finishReason = 'length'
-    else if (candidate.finishReason === 'SAFETY')
+    else if (candidate.finishReason !== 'STOP') {
       finishReason = 'content_filter'
-    else if (candidate.finishReason !== 'STOP') finishReason = 'content_filter'
-    else if (toolCalls.length > 0 || hasPriorToolCalls) finishReason = 'tool_calls'
+      filterReason = enumToken(candidate.finishReason)
+    } else if (toolCalls.length > 0 || hasPriorToolCalls) finishReason = 'tool_calls'
     else finishReason = 'stop'
   }
 
@@ -1209,7 +1250,12 @@ export function transformAntigravityEvent(
     object: 'chat.completion.chunk',
     created: Math.floor(Date.now() / 1000),
     model,
-    choices: [{ index: 0, delta, finish_reason: finishReason }],
+    choices: [{
+      index: 0,
+      delta,
+      finish_reason: finishReason,
+      ...filterReason === undefined ? {} : { content_filter_reason: filterReason },
+    }],
     ...(usage ? { usage } : {}),
   }
 }
@@ -1335,10 +1381,22 @@ function isEventStream(response: Response): boolean {
   return contentType?.split(';', 1)[0]?.trim().toLowerCase() === 'text/event-stream'
 }
 
+/**
+ * Text ids a user can pick directly. Gates the utility models the client calls
+ * for itself (command, search, commit message), whose lists can also name
+ * internal placeholders such as `tab_*` or `-tiered` routers.
+ */
+const DIRECT_AGY_TEXT_MODEL_RE = new RegExp(`^(?:${[
+  String.raw`gemini-(?:[2-9]|\d{2,})(?:\.\d+)?-[a-z]+(?:-lite)?(?:-(?:low|medium|high))?`,
+  String.raw`claude-(?:sonnet|opus|haiku|fable|mythos)-\d+(?:[-.]\d+)*(?:-thinking)?(?:-(?:low|medium|high))?`,
+  String.raw`gpt-oss-\d+b(?:-(?:low|medium|high))?`,
+].join('|')})$`)
+
 function selectableTextModelIds(
   models: Record<string, unknown>,
   defaultAgentModelId: unknown,
   agentModelSorts: unknown,
+  utilityModelIds: readonly unknown[],
 ): string[] {
   const candidates: unknown[] = [defaultAgentModelId]
   if (Array.isArray(agentModelSorts)) {
@@ -1355,6 +1413,11 @@ function selectableTextModelIds(
     }
   }
 
+  // The agent selector's order leads; utility models such as
+  // `gemini-3.5-flash-lite` follow, when the account's catalog lists them.
+  candidates.push(...utilityModelIds.flatMap(ids => wireArray(ids) ?? []).filter(
+    id => typeof id === 'string' && DIRECT_AGY_TEXT_MODEL_RE.test(id),
+  ))
   const projected = [...new Set(candidates)].flatMap((model) => {
     if (
       typeof model !== 'string' ||
@@ -1406,6 +1469,12 @@ async function fetchAvailableModels(
         models,
         parsed.defaultAgentModelId,
         parsed.agentModelSorts,
+        [
+          parsed.commandModelIds,
+          parsed.mqueryModelIds,
+          parsed.webSearchModelIds,
+          parsed.commitMessageModelIds,
+        ],
       ),
       imageModelIds: imageGenerationModelIds.filter(
         (model): model is string =>
@@ -1448,8 +1517,10 @@ export async function listAntigravityModels(
       )
       : undefined
 
+  // Only what the account's live catalog returns; the static list is the
+  // fallback for an unreachable catalog, never an addition to a live one.
   const textModelIds = availableModels
-    ? [...STATIC_TEXT_MODELS, ...availableModels.textModelIds]
+    ? availableModels.textModelIds
     : [...FALLBACK_TEXT_MODELS]
   const imageModelIds = availableModels?.imageModelIds ?? [
     ...FALLBACK_IMAGE_MODELS,
@@ -1664,6 +1735,29 @@ function normalizeGenerationConfig(value: unknown): unknown {
   return config
 }
 
+/**
+ * Cloud Code answers Google Search beside function declarations with HTTP 400
+ * and ignores `toolConfig.includeServerSideToolInvocations`, the flag that
+ * would allow it (live on every Gemini model, 2026-11-01). Refusing here names
+ * the cause instead of surfacing the masked upstream error. Search as its own
+ * request is the supported shape; fi's search provider sends only that.
+ * @param tools - normalized native tool entries.
+ * @throws GeminiNativeValidationError when search and function declarations are both present.
+ */
+function rejectSearchBesideFunctions(tools: readonly unknown[]): void {
+  const search = tools.some((tool) => {
+    const record = wireRecord(tool)
+    return record?.googleSearch !== undefined || record?.google_search !== undefined
+  })
+  const functions = tools.some(tool => Array.isArray(wireRecord(tool)?.functionDeclarations))
+  if (search && functions) {
+    throw new GeminiNativeValidationError(
+      'Cloud Code does not run googleSearch beside functionDeclarations, even with '
+      + 'toolConfig.includeServerSideToolInvocations; send the search as its own request',
+    )
+  }
+}
+
 function cleanNativeGeminiRequest(
   body: unknown,
   config: AntigravityTransportConfig | undefined,
@@ -1709,7 +1803,7 @@ function cleanNativeGeminiRequest(
   }
   const tools = wireArray(request.tools)
   if (tools !== undefined) {
-    request.tools = tools.map((rawTool: unknown) => {
+    const normalizedTools = tools.map((rawTool: unknown) => {
       const tool = normalizeAliases(rawTool, [['functionDeclarations', 'function_declarations']], 'Gemini tool')
       const toolRecord = wireRecord(tool)
       const functionDeclarations = wireArray(toolRecord?.functionDeclarations)
@@ -1728,6 +1822,8 @@ function cleanNativeGeminiRequest(
         }),
       }
     })
+    rejectSearchBesideFunctions(normalizedTools)
+    request.tools = normalizedTools
   }
   const maxInlineBytes = positiveBound(
     config?.native?.['max-inline-media-bytes'],
@@ -1950,7 +2046,6 @@ export async function callAntigravityGeminiNative(
   if (upstreamRequestId) responseHeaders.set('X-Upstream-Request-ID', upstreamRequestId)
 
   if (!upstream.ok) {
-    await upstream.body?.cancel().catch(() => {})
     responseHeaders.set('Content-Type', upstream.headers.get('content-type') || 'application/json')
     return Response.json(
       {
@@ -1960,7 +2055,7 @@ export async function callAntigravityGeminiNative(
           status: 'UPSTREAM_ERROR',
         },
       },
-      { status: upstream.status, headers: responseHeaders },
+      { status: upstream.status, headers: await cloudCodeFailureHeaders(upstream, responseHeaders) },
     )
   }
   if (!upstream.body) {
@@ -2122,6 +2217,17 @@ function nativeGeneratedImages(value: unknown): Array<{ mimeType: string; data: 
   return images
 }
 
+/** Why Gemini withheld an image: a refused prompt, or a policy finish reason on a candidate. */
+function imageRefusal(value: unknown): string | undefined {
+  const blocked = blockedPromptReason(value)
+  if (blocked !== undefined) return blocked
+  for (const candidate of wireArray(wireRecord(value)?.candidates) ?? []) {
+    const reason = wireRecord(candidate)?.finishReason
+    if (typeof reason === 'string' && CONTENT_FILTER_FINISH_REASONS.has(reason)) return reason
+  }
+  return undefined
+}
+
 /**
  * Generate images through the native Gemini transport and return OpenAI Images JSON.
  * @param opts - image request body, selected Antigravity account, limits, and cancellation.
@@ -2149,9 +2255,11 @@ export async function callAntigravityImageGenerations(
       ...opts.signal === undefined ? {} : { signal: opts.signal },
     })
     if (!response.ok) return response
+    let native: unknown
     let images: Array<{ mimeType: string; data: string }>
     try {
-      images = nativeGeneratedImages(await response.json())
+      native = await response.json()
+      images = nativeGeneratedImages(native)
     } catch (error) {
       /* v8 ignore next -- The native collector produces JSON; generated-image validation throws GeminiNativeValidationError. */
       if (!(error instanceof GeminiNativeValidationError)) throw error
@@ -2162,6 +2270,20 @@ export async function callAntigravityImageGenerations(
     }
     const image = images[0]
     if (image === undefined) {
+      // A refusal is the client's to fix, not an upstream failure to retry.
+      const refusal = imageRefusal(native)
+      if (refusal !== undefined) {
+        return Response.json(
+          {
+            error: {
+              message: `Image generation was blocked by Gemini safety filters (${refusal})`,
+              type: 'invalid_request_error',
+              code: 'content_filter',
+            },
+          },
+          { status: 400 },
+        )
+      }
       return Response.json(
         { error: { message: 'Antigravity returned no generated image', type: 'upstream_error' } },
         { status: 502 },
@@ -2307,10 +2429,9 @@ export async function callAntigravityChat(
   })
 
   if (!upstream.ok) {
-    await upstream.body?.cancel().catch(() => {})
     return Response.json(
       { error: { message: `Antigravity upstream answered ${upstream.status}`, type: 'upstream_error' } },
-      { status: upstream.status },
+      { status: upstream.status, headers: await cloudCodeFailureHeaders(upstream) },
     )
   }
   if (!upstream.body) {
@@ -2342,6 +2463,37 @@ export async function callAntigravityChat(
   )
 }
 
+/** Endpoint-specific parts of a Gemini SSE chat call; the shared codec owns everything else. */
+interface GeminiSseTarget {
+  /** Names the endpoint in errors. */
+  readonly label: string
+  readonly url: string
+  readonly headers: Record<string, string>
+  /** Complete JSON request body. */
+  readonly wireBody: string
+  readonly requestIdPrefix: string
+  /** Answers a non-success upstream reply, which the caller owns. */
+  readonly failure: (upstream: Response) => Response | Promise<Response>
+}
+
+/** Send a translated request to a Gemini SSE endpoint and answer in the OpenAI Chat format. */
+async function relayGeminiChat(body: OpenAIRequest, target: GeminiSseTarget, signal?: AbortSignal): Promise<Response> {
+  if (Buffer.byteLength(target.wireBody) >= MAX_CLOUD_CODE_REQUEST_BYTES) throw new Error(`${target.label} request exceeds byte limit`)
+  const upstream = await fetch(target.url, {
+    method: 'POST', redirect: 'error', signal,
+    headers: { ...target.headers, 'content-type': 'application/json' }, body: target.wireBody,
+  })
+  if (!upstream.ok) return target.failure(upstream)
+  if (!upstream.body || !isEventStream(upstream)) {
+    await upstream.body?.cancel()
+    throw new Error(`${target.label} returned no SSE stream`)
+  }
+  const model = stringValue(body.model)
+  const requestId = `${target.requestIdPrefix}${randomUUID()}`
+  if (!body.stream) return aggregateResponse(upstream, model, requestId, undefined, signal)
+  return new Response(streamAsOpenAI(upstream.body, model, requestId, undefined), { headers: { 'content-type': 'text/event-stream' } })
+}
+
 /**
  * Translate a Code Assist request using the shared Gemini message and SSE codec.
  * @param input - OpenAI-compatible request data.
@@ -2355,21 +2507,58 @@ export async function callCodeAssistChat(input: unknown, accessToken: string, pr
   const model = stringValue(body.model)
   if (!/^gemini-[A-Za-z0-9._-]+$/.test(model) || !projectId) throw new Error('Invalid Code Assist model or project')
   const request = transformOpenAIToAntigravity(body, projectId).request
-  const wireBody = JSON.stringify({ model, project: projectId, request })
-  if (Buffer.byteLength(wireBody) >= MAX_CLOUD_CODE_REQUEST_BYTES) throw new Error('Code Assist request exceeds byte limit')
-  const upstream = await fetch('https://cloudcode-pa.googleapis.com/v1internal:streamGenerateContent?alt=sse', {
-    method: 'POST', redirect: 'error', signal,
-    headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json', 'user-agent': 'fi-code-assist/0.2.0' }, body: wireBody,
-  })
-  if (!upstream.ok) {
-    await upstream.body?.cancel()
-    return Response.json({ error: { message: `Code Assist upstream answered ${upstream.status}`, type: 'upstream_error' } }, { status: upstream.status })
+  return relayGeminiChat(body, {
+    label: 'Code Assist', requestIdPrefix: 'chatcmpl-codeassist-',
+    url: 'https://cloudcode-pa.googleapis.com/v1internal:streamGenerateContent?alt=sse',
+    headers: { authorization: `Bearer ${accessToken}`, 'user-agent': 'fi-code-assist/0.2.0' },
+    wireBody: JSON.stringify({ model, project: projectId, request }),
+    failure: async (upstream) => {
+      await upstream.body?.cancel()
+      return Response.json({ error: { message: `Code Assist upstream answered ${upstream.status}`, type: 'upstream_error' } }, { status: upstream.status })
+    },
+  }, signal)
+}
+
+/** Public Gemini API endpoint and request additions for {@link callGeminiChat}. */
+export interface GeminiChatTarget {
+  /** HTTPS API root without credentials or query; the model path is appended. */
+  readonly baseUrl: string
+  /** Model id placed in the `models/{id}:streamGenerateContent` path. */
+  readonly model: string
+  /** Sent as `x-goog-api-key`. */
+  readonly apiKey: string
+  /** Identity headers the endpoint's client sends; credentials, content type, and the key are set by the helper. */
+  readonly headers?: Readonly<Record<string, string>>
+  /** Replaces the `thinkingConfig` the translation derives from the request. */
+  readonly thinkingConfig?: Readonly<Record<string, unknown>>
+  /** `generationConfig` fields the translation does not carry; translated request fields take precedence. */
+  readonly generation?: Readonly<Record<string, unknown>>
+}
+
+/**
+ * Send an OpenAI Chat request to a public Gemini `streamGenerateContent` endpoint through the shared codec.
+ * The wire body is the bare Gemini request (no Cloud Code envelope or session id), and replies are
+ * unwrapped `{candidates, usageMetadata}` events as well as the wrapped `{response}` form.
+ * @param input - OpenAI-compatible request data.
+ * @param target - endpoint, credential, identity headers, and Gemini-specific request additions.
+ * @param signal - caller cancellation and deadline.
+ * @returns the OpenAI-compatible stream or aggregate; a non-success upstream reply is returned unchanged for the caller to classify.
+ * @throws {Error} for a non-HTTPS endpoint, an oversized request, or a success reply that is not an event stream.
+ */
+export async function callGeminiChat(input: unknown, target: GeminiChatTarget, signal?: AbortSignal): Promise<Response> {
+  const root = new URL(target.baseUrl)
+  if (root.protocol !== 'https:' || root.username || root.password || root.search || root.hash) throw new Error('Invalid Gemini endpoint')
+  const body = parseOpenAIRequest(input)
+  const request = openAIToGeminiRequest(body)
+  const generationConfig = {
+    ...target.generation, ...wireRecord(request.generationConfig),
+    ...target.thinkingConfig === undefined ? {} : { thinkingConfig: target.thinkingConfig },
   }
-  if (!upstream.body || !isEventStream(upstream)) {
-    await upstream.body?.cancel()
-    throw new Error('Code Assist returned no SSE stream')
-  }
-  const requestId = `chatcmpl-codeassist-${randomUUID()}`
-  if (!body.stream) return aggregateResponse(upstream, model, requestId, undefined, signal)
-  return new Response(streamAsOpenAI(upstream.body, model, requestId, undefined), { headers: { 'content-type': 'text/event-stream' } })
+  return relayGeminiChat(body, {
+    label: 'Gemini', requestIdPrefix: 'chatcmpl-gemini-',
+    url: `${target.baseUrl.replace(/\/+$/, '')}/models/${encodeURIComponent(target.model)}:streamGenerateContent?alt=sse`,
+    headers: { ...target.headers, accept: 'text/event-stream', 'x-goog-api-key': target.apiKey },
+    wireBody: JSON.stringify({ ...request, generationConfig }),
+    failure: upstream => upstream,
+  }, signal)
 }

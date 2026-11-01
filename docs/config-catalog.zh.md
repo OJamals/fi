@@ -4587,6 +4587,12 @@ export interface ConsoleOptions {
   catalogRetryCount: number
   /** Initial catalog retry delay; doubles on each retry within the shared request deadline. */
   catalogRetryDelayMs: number
+  /** How long a prepared-call catalog is reused for the same account and organization; zero reloads it for every call. */
+  catalogCacheMs: number
+  /** How long the public model registry is reused before it is revalidated, and how long a failed revalidation keeps the held copy. */
+  registryCacheMs: number
+  /** Longest a registry copy may be reused after revalidation keeps failing. */
+  registryStaleMs: number
   /** Maximum silence between provider stream events, in milliseconds. */
   streamIdleTimeoutMs: number
   /** Rotate tokens this many milliseconds before their expiration. */

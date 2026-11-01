@@ -58,7 +58,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#fiweb-sear
 
 ### Results and failures
 
-Codex and Grok citations come from Responses URL annotations, Claude citations come from `web_search_result_location`, and Antigravity citations come from Gemini grounding chunks and supports. The provider caps returned sources to `request.maxResults` and sets `truncated` when it drops sources. It rejects incomplete provider terminals, missing search evidence, missing citation URLs, excess response bytes, and non-OAuth auth sources with machine-routable `WebError` codes. HTTP failures retain the provider status on `SubscriptionSearchError.status` without exposing the response body.
+Codex and Grok citations come from Responses URL annotations, Claude citations come from `web_search_result_location`, and Antigravity citations come from Gemini grounding chunks and supports. The provider caps returned sources to `request.maxResults` and sets `truncated` when it drops sources. It rejects incomplete provider terminals, missing search evidence, missing citation URLs, excess response bytes, and non-OAuth auth sources with machine-routable `WebError` codes. HTTP failures retain the provider status on `SubscriptionSearchError.status` without exposing the response body. An Antigravity prompt that Gemini refuses (`promptFeedback.blockReason`), or an answer withheld by a policy finish reason such as `SAFETY` or `RECITATION`, fails as `WEB_PROVIDER_CONTENT_FILTERED` and names only the enum reason, so it is not mistaken for a transient or incomplete answer. Antigravity answer text excludes the model's thought parts.
 
 -----
 
@@ -118,6 +118,7 @@ These limits prevent the package from claiming controls its subscription endpoin
 
 - Claude receives `maxUses` as native `max_uses`; Codex, Grok, and Antigravity expose no proven equivalent request field, so their responses are rejected after parsing when native action counts exceed the configured ceiling.
 - Codex rejects `max_output_tokens`, so `maxOutputTokens` is not sent on Codex requests. Grok, Claude, and Antigravity receive their native token field.
+- Antigravity receives `googleSearch` as the only tool. Cloud Code rejects Google Search beside function declarations and ignores `toolConfig.includeServerSideToolInvocations`, so this provider never sends both and a search-and-functions loop is out of scope here.
 - `request.maxResults` bounds normalized output but is not sent upstream because no common proven native result-count field exists across these four transports.
 - `available()` is a local lifecycle check. A missing or non-OAuth grant fails on the first search because refresh and auth-source selection are asynchronous.
 - All four provider families have bounded live native-search development coverage through this plugin. Model and account availability can vary; routine tests do not spend subscription quota.

@@ -24,11 +24,15 @@ export async function catalog(
       id: z.string().min(1),
       supported_endpoints: z.array(z.string()).optional(),
       capabilities: z.object({ type: z.string().optional() }).optional(),
+      policy: z.object({ state: z.string().optional() }).optional(),
     })) }).parse(await json(`${copilotBase(grant)}/models`, config, {
-      headers: copilotHeaders(grant.accessToken), signal: signal ?? null,
+      headers: copilotHeaders(grant), signal: signal ?? null,
     }))
+    // A disabled policy is refused upstream (model_not_supported). model_picker_enabled is not a
+    // filter: it is false for every model on a Free account, and picker-hidden dated aliases still answer.
     return [...new Set(data.data.filter(model =>
       model.capabilities?.type === 'chat' &&
+      model.policy?.state !== 'disabled' &&
       (model.supported_endpoints === undefined || model.supported_endpoints.includes('/chat/completions')),
     ).map(model => model.id))]
   }
@@ -48,7 +52,7 @@ export async function catalog(
         await json(
           `https://q.${kiroRegion(grant.subscriptionAuth)}.amazonaws.com/ListAvailableModels?${query}`,
           config,
-          { headers: kiroHeaders(grant), signal: deadline },
+          { headers: kiroHeaders(grant, 'runtime'), signal: deadline },
         ),
       )
       for (const model of data.models) ids.add(model.modelId)

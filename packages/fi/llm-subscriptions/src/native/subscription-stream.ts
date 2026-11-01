@@ -4,6 +4,21 @@ import { z } from 'zod'
 
 /** Maximum accepted native frame size in bytes. */
 export const MAX_NATIVE_FRAME = 8 * 1024 * 1024
+
+/**
+ * A complete native reply that failed validation. The account is healthy and an
+ * immediate retry would spend credits on the same failure, so it is reported once.
+ */
+export class NativeProtocolError extends Error {
+  /** Validation failures repeat on retry, so they are never retried. */
+  readonly retryable = false
+
+  /** @param message - fixed, locally authored diagnostic. */
+  constructor(message: string) {
+    super(message)
+    this.name = 'NativeProtocolError'
+  }
+}
 /** Normalized native stream delta, usage, or terminal reason. */
 export interface NativeEvent {
   delta?: {
@@ -13,7 +28,7 @@ export interface NativeEvent {
     tool_calls?: { index: number; id: string; type: string; function: { name: string; arguments: string } }[]
   }
   finish?: 'stop' | 'tool_calls' | 'length'
-  usage?: Record<string, number>
+  usage?: Record<string, number | Record<string, number>>
 }
 
 /**
@@ -41,7 +56,7 @@ export async function nativeChatResponse(
     let size = 0
     for await (const event of events) {
       size += Buffer.byteLength(JSON.stringify(event))
-      if (size > MAX_NATIVE_FRAME * 4) throw new Error('Native response exceeds 32 MiB')
+      if (size > MAX_NATIVE_FRAME * 4) throw new NativeProtocolError('Native response exceeds 32 MiB')
       content += event.delta?.content || ''
       reasoning += event.delta?.reasoning_content || ''
       for (const call of event.delta?.tool_calls || []) {
@@ -151,18 +166,15 @@ export function validateNativeControls(provider: 'cursor' | 'kiro', input: unkno
     'audio',
     'modalities',
   ]
-  if (provider === 'cursor') {
-    // AgentService has no output-limit field; cursor-budget enforces locally.
-    for (const name of ['max_tokens', 'max_completion_tokens']) {
-      if (
-        body[name] !== undefined &&
-        (typeof body[name] !== 'number' || !Number.isSafeInteger(body[name]) || body[name] <= 0)
-      )
-        throw new Error(`${name} must be a positive safe integer`)
-    }
-    unsupported.push('temperature', 'top_p')
+  // Neither upstream has an output-limit field; cursor-budget enforces it locally.
+  for (const name of ['max_tokens', 'max_completion_tokens']) {
+    if (
+      body[name] !== undefined &&
+      (typeof body[name] !== 'number' || !Number.isSafeInteger(body[name]) || body[name] <= 0)
+    )
+      throw new Error(`${name} must be a positive safe integer`)
   }
-  if (provider === 'kiro') unsupported.push('reasoning_effort')
+  if (provider === 'cursor') unsupported.push('temperature', 'top_p')
   const key = unsupported.find(name => body[name] !== undefined && body[name] !== null)
   if (key) throw new Error(`${provider} native adapter does not support ${key}`)
   if (body.n !== undefined && body.n !== 1) throw new Error(`${provider} supports n=1 only`)

@@ -33,6 +33,8 @@ kind: "package-reference"
 
 直接订阅 HTTP 客户端先调用 pi-ai 的 `Models.getAuth(provider)`，要求 `source === 'OAuth'`，并为本次请求冻结结果。`authorizationHeaders(auth)` 保留字符串值请求头，仅在授权头缺失时添加 `Authorization: Bearer <auth.apiKey>`。客户端随后调用 `subscriptionEndpoint(provider)` 和 `subscriptionHeaders(provider, model, sessionId, timeoutMs, existingHeaders)`；调用者绝不能记录该授权对象。对于 Anthropic，兼容请求头会在已捕获的 Claude Code beta 集合之外保留 pi-ai 按请求启用的 beta 功能，并把 `mid-conversation-output-config-2026-07-01` 映射为 Claude Code 的线上名称 `per-turn-control-2026-07-01`。
 
+`subscriptionHeaders` 以原生 CLI 的方式描述 Codex 主机，形如 `(Mac OS 26.6.2; arm64) iTerm.app/3.5.0`：操作系统及版本、架构，然后是 `$TERM_PROGRAM` 或 `$TERM`。它会从 Claude 请求中移除 `x-client-request-id`，因为 Claude Code 从不发送该请求头。推理请求随后经过 `conversationHeaders(provider, headers, sessionId)`：Codex 在 pi-ai 已发送的 `session-id` 旁增加 `thread-id`；Grok 增加 `x-grok-conv-id` 与 `x-grok-session-id`（由会话和账户 OAuth subject 派生的 UUID），并为每个请求附带新的 `x-grok-req-id`。模型列表和图像请求不携带这些请求头。`subscriptionFetch` 还会把 xAI 的 `{"code", "error": "<message>"}` 失败改写为 `{"error": {"message", "type", "code"}}`，否则 OpenAI 客户端会把它报告为带引号且没有类型和代码的字符串；形似 API key 的文本会被脱敏，消息长度限制为 1000 个字符。
+
 ### Claude Code、Codex 与 Grok 的实时模型发现
 
 无论成功或失败，模型发现都会取消响应 reader 并释放其锁，包括取消本身失败的情况。目录与 Codex ETag 按已解析凭据的 SHA-256 摘要隔离；切换账户或刷新凭据会获取独立目录。Claude 发现通过 `after_id` 遍历 `has_more` 和 `last_id`，共享一次截止时间，并拒绝不完整或重复的分页。
@@ -105,7 +107,7 @@ node scripts/fi-provider-settings-update.mjs --check
 
 #### KV Cache 影响
 
-无，因为请求内容与模型参数不变。
+无，因为请求内容与模型参数不变。Grok 的 `x-grok-conv-id` 只是把提示缓存命中路由到已持有该前缀的副本。
 
 ## 已知限制与延期工作
 
@@ -115,6 +117,8 @@ node scripts/fi-provider-settings-update.mjs --check
 - pi-ai 未通过公开运行时 API 暴露内置 OAuth scopes，因此自动 scope 漂移诊断可覆盖规范元数据，但无法比较 SDK 私有常量。
 - 发布自动化更新公开发布字段和来源。需要捕获的运行时请求头会保留其记录版本，直到单独的指纹捕获通过评审并写入规范记录。
 - 实时模型发现只会列出 `llm-pi-ai` 已经限定的范围：已存凭据解析为 `OAuth` 的完整目录路由（没有 `models` 列表）。环境或 API 密钥鉴权的路由，以及经过筛选的 `models` 列表，根本不会触达本插件的抓取逻辑——那道限制完全在 `@deepseek-ai/dsh-llm-pi-ai` 中，不在这里。
+- 本包只编辑请求头、端点、WebSocket 握手和 xAI 失败响应；每个请求体都由 pi-ai 构建。因此 Claude Code 带指纹的 `x-anthropic-billing-header` system 块、`sdk-cli` 入口点发送的 Claude Agent SDK system 前缀、system 提示与最后一条消息上的一小时 `cache_control` 断点以及 `metadata.user_id` 都不会在这里生成：除非调用方选择长缓存保留，pi-ai 会发送自己的 Claude Code 前缀和五分钟断点。
+- 实时发现不携带 Codex 模型元数据（推理级别、verbosity、上下文窗口），因为 `PiAiLiveModel` 只包含 id 和显示名称。
 - 实时列表按提供方为整个插件实例缓存，而非按账户缓存；若某部署让多个账户共用同一提供方路由，看到的会是最近一次刷新的那个账户的列表，直到下一个 TTL 边界。
 
 <a id="dev-note"></a>

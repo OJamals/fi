@@ -3,7 +3,7 @@ import { z } from 'zod'
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
 import { gzipSync } from 'node:zlib'
-import { crc32, decodeKiroFrame, kiroEvents, kiroRequest } from '../src/native/kiro-api.ts'
+import { decodeKiroFrame, kiroEvents, kiroRequest } from '../src/native/kiro-api.ts'
 import { cursorEvents, cursorRequest } from '../src/native/cursor-api.ts'
 import { CursorTurns } from '../src/native/cursor-turns.ts'
 import {
@@ -18,6 +18,7 @@ import {
 } from '../src/native/subscription-protobuf.ts'
 import { MAX_NATIVE_FRAME, nativeChatResponse } from '../src/native/subscription-stream.ts'
 import type { SubscriptionGrant } from '../src/protocol.ts'
+import { awsFrame, chunks, concat, doneFrame, iterable, textFrame } from './harness.ts'
 const responseSchema = z.object({
   choices: z.tuple([
     z.object({
@@ -36,54 +37,11 @@ const token: SubscriptionGrant = {
   expiresAt: '2099-01-01T00:00:00.000Z',
 }
 const config = { timeouts: { 'messages-ms': 1000, 'stream-messages-ms': 1000 } }
-const concat = (...values: Uint8Array[]) => Buffer.concat(values)
 const tool = {
   type: 'function' as const,
   function: { name: 'weather', parameters: { type: 'object', properties: { city: { type: 'string' } } } },
 }
-function awsFrame(type: string, payload: unknown, messageType = 'event') {
-  const headers = concat(
-    ...Object.entries({
-      ':event-type': type,
-      ':message-type': messageType,
-    }).map(([name, value]) => {
-      const key = Buffer.from(name)
-      const val = Buffer.from(value)
-      const length = Buffer.alloc(2)
-      length.writeUInt16BE(val.length)
-      return concat(Buffer.from([key.length]), key, Buffer.from([7]), length, val)
-    }),
-  )
-  const data = Buffer.from(JSON.stringify(payload))
-  const prelude = Buffer.alloc(12)
-  prelude.writeUInt32BE(16 + headers.length + data.length)
-  prelude.writeUInt32BE(headers.length, 4)
-  prelude.writeUInt32BE(crc32(prelude.subarray(0, 8)), 8)
-  const out = concat(prelude, headers, data, Buffer.alloc(4))
-  out.writeUInt32BE(crc32(out.subarray(0, -4)), out.length - 4)
-  return out
-}
-function chunks(data: Buffer, size = 3): ReadableStream<Uint8Array> {
-  let offset = 0
-  return new ReadableStream({
-    pull(controller) {
-      if (offset === data.length) {
-        controller.close()
-        return
-      }
-      const end = Math.min(data.length, offset + size)
-      controller.enqueue(data.subarray(offset, end))
-      offset = end
-    },
-  })
-}
-async function* iterable(data: Buffer, size = 2) {
-  for (let i = 0; i < data.length; i += size) yield data.subarray(i, i + size)
-}
-const textFrame = (text: string) => frame(pb(1, pb(1, pb(1, text))))
-const doneFrame = () => frame(pb(1, pb(14, Buffer.alloc(0))))
-
-test('Kiro request preserves system, alternating history, tool results, schema, and inference limits', () => {
+test('Kiro request preserves system, alternating history, tool results, and schema without an unsupported inference block', () => {
   const body = {
     model: 'kiro/claude-example',
     max_tokens: 100,
@@ -115,7 +73,8 @@ test('Kiro request preserves system, alternating history, tool results, schema, 
     payload.conversationState.currentMessage.userInputMessage?.userInputMessageContext?.toolResults?.[0]?.toolUseId,
     'call-1',
   )
-  assert.deepEqual(payload.inferenceConfig, { maxTokens: 100, temperature: 0 })
+  // GenerateAssistantResponse has no sampling or output-limit member; max_tokens is enforced locally.
+  assert.equal('inferenceConfig' in payload, false)
   assert.throws(
     () =>
       kiroRequest(
@@ -255,7 +214,6 @@ test('native adapters reject unsupported controls instead of silently changing r
   for (const field of ['temperature', 'top_p', 'response_format']) {
     assert.throws(() => cursorRequest({ ...body, [field]: 1 }), new RegExp(field))
   }
-  assert.throws(() => kiroRequest({ ...body, model: 'kiro/test', reasoning_effort: 'high' }, token), /reasoning_effort/)
   assert.throws(() => kiroRequest({ ...body, model: 'kiro/test', tool_choice: 'required' }, token), /tool_choice/)
   const cursor = new CursorTurns()
   await assert.rejects(cursor.call({

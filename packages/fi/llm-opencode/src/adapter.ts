@@ -4,16 +4,19 @@ import type { ProviderStreams } from '@earendil-works/pi-ai'
 import { anthropicMessagesApi } from '@earendil-works/pi-ai/api/anthropic-messages.lazy'
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy'
 import { openAIResponsesApi } from '@earendil-works/pi-ai/api/openai-responses.lazy'
-import { LlmAdapter, LlmError } from '@deepseek-ai/dsh-llm'
+import { LlmAdapter, LlmError, QUOTA_EXCEEDED_CODE, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type { GenerateOptions, LlmFailure, LlmModelInfo, LlmResolvedModelInfo, PreparedAdapterCall, StreamChunk } from '@deepseek-ai/dsh-llm'
 import { createModels, createProvider, toPiContext, toStreamChunks } from '@deepseek-ai/dsh-llm-pi-ai'
+import { callGeminiChat } from '@fi/llm-antigravity/transport'
 import { idleWatchdog, timeoutOf } from '@deepseek-ai/dsh-timeout'
 import { z } from 'zod'
-import { loadCatalog } from './catalog.ts'
+import { CatalogCache } from './catalog.ts'
 import type { ConsoleModel } from './catalog.ts'
 import { consoleUrl } from './protocol.ts'
 import type { ConsoleGrant, ConsoleOptions } from './protocol.ts'
 import { isCompatibilityTool, withCompatibilityTools } from './compatibility.ts'
+import { applyReasoning, geminiThinkingConfig, reasoningEfforts } from './reasoning.ts'
+import type { ConsoleReasoning } from './reasoning.ts'
 
 const apis = {
   'anthropic-messages': anthropicMessagesApi,
@@ -21,27 +24,42 @@ const apis = {
   'openai-completions': openAICompletionsApi,
 } satisfies Record<ConsoleModel['model']['api'], () => ProviderStreams>
 const payloadSchema = z.record(z.string(), z.unknown())
-const inferenceErrorSchema = z.union([
-  z.object({ _tag: z.literal('SsoRequired') }),
-  z.object({ error: z.object({ type: z.enum(['FreeTierError', 'SsoRequired']) }) }),
-])
+const inferenceErrorSchema = z.object({
+  _tag: z.string().optional(),
+  error: z.object({ type: z.string().optional(), message: z.string().optional() }).optional(),
+})
+/** The only 402 body the Console documents for an unfunded workspace. */
+const INSUFFICIENT_FUNDS = 'Upstream request failed: Insufficient account funds'
 
-/** Known Console 403 recovery replaces the SDK's generic authentication diagnosis. */
-function inferenceFailure(data: unknown): LlmFailure | undefined {
+/** Known Console failures replace the SDK's generic status diagnosis. */
+function inferenceFailure(status: number, data: unknown): LlmFailure | undefined {
   const parsed = inferenceErrorSchema.safeParse(data)
   if (!parsed.success) return undefined
-  const type = '_tag' in parsed.data ? parsed.data._tag : parsed.data.error.type
-  return type === 'SsoRequired'
-    ? { code: 'SSO_REQUIRED', status: 403, message: 'OpenCode organization requires SSO; reconnect OpenCode Console' }
-    : { code: 'POLICY_REJECTED', status: 403, message: 'OpenCode rejected free-tier access (HTTP 403); retry later or choose a model with confirmed access. The official OpenCode client may also be affected' }
+  const { _tag, error } = parsed.data
+  if (status === 402) {
+    return error?.type === 'server_error' && error.message === INSUFFICIENT_FUNDS
+      ? { code: QUOTA_EXCEEDED_CODE, status, message: 'OpenCode workspace has insufficient funds for this model; add credit in the Console or choose another organization or a free model' }
+      : undefined
+  }
+  if (status === 429) {
+    return error?.type === 'FreeUsageLimitError'
+      ? { code: QUOTA_EXCEEDED_CODE, status, message: 'OpenCode free usage limit reached; retry later or choose a paid model or another organization' }
+      : undefined
+  }
+  if (_tag === 'SsoRequired' || error?.type === 'SsoRequired') {
+    return { code: 'SSO_REQUIRED', status, message: 'OpenCode organization requires SSO; reconnect OpenCode Console' }
+  }
+  return error?.type === 'FreeTierError'
+    ? { code: 'POLICY_REJECTED', status, message: 'OpenCode rejected free-tier access (HTTP 403); retry later or choose a model with confirmed access. The official OpenCode client may also be affected' }
+    : undefined
 }
 
-/** Read recognized Console policy failures without exposing its response fields. */
+/** Read recognized Console policy and billing failures without exposing its response fields. */
 async function responseFailure(response: Response): Promise<LlmFailure | undefined> {
-  if (response.status !== 403) return undefined
+  if (![402, 403, 429].includes(response.status)) return undefined
   let data: unknown
   try { data = await response.clone().json() } catch (_invalidErrorBody) { /* The SDK handles non-JSON errors. */ }
-  return inferenceFailure(data)
+  return inferenceFailure(response.status, data)
 }
 
 /**
@@ -75,23 +93,78 @@ function nativeSessionId(seed: string, epoch: number): string {
 /** Model metadata shared by resolution and prepared-call dispatch. */
 function modelInfo(entry: ConsoleModel): LlmResolvedModelInfo {
   const model = entry.model
-  return { provider: model.provider, id: model.id, name: model.name, context: { contextWindow: model.contextWindow }, inputModalities: ['text'] }
+  const efforts = reasoningEfforts(entry.protocol, entry.reasoning)
+  return {
+    provider: model.provider, id: model.id, name: model.name, context: { contextWindow: model.contextWindow }, inputModalities: ['text'],
+    ...efforts.length === 0 ? {} : { reasoning: { efforts: efforts.map(id => ({ id: ReasoningEffortId(id), name: `${id.charAt(0).toUpperCase()}${id.slice(1)}` })) } },
+  }
+}
+
+/** A requested effort the model advertises, with the controls that encode it. */
+interface EffortSelection {
+  effort: string
+  reasoning: ConsoleReasoning
+}
+
+/**
+ * Check a requested effort against the efforts the route advertises.
+ * @param entry - frozen catalog route.
+ * @param requested - harness effort; `off` selects `none` where the model lists it and otherwise changes nothing.
+ * @returns the encoded selection, or undefined when the model default applies.
+ * @throws {LlmError} `UNSUPPORTED_REASONING_EFFORT` for an effort the model does not advertise.
+ */
+function selectEffort(entry: ConsoleModel, requested: string | undefined): EffortSelection | undefined {
+  if (requested === undefined) return undefined
+  const { reasoning } = entry
+  const efforts = reasoningEfforts(entry.protocol, reasoning)
+  const effort = requested === 'off' && efforts.includes('none') ? 'none' : requested
+  if (efforts.includes(effort) && reasoning !== undefined) return { effort, reasoning }
+  if (requested === 'off') return undefined
+  throw new LlmError(`OpenCode model "${entry.model.id}" does not support reasoning effort "${requested}"`, 'UNSUPPORTED_REASONING_EFFORT')
+}
+
+/** Catalog sampling defaults that the OpenAI Chat to Gemini translation does not carry, in `generationConfig` fields. */
+const geminiSampling: readonly (readonly [string, string])[] = [
+  ['top_k', 'topK'], ['frequency_penalty', 'frequencyPenalty'], ['presence_penalty', 'presencePenalty'],
+]
+
+/**
+ * Finish the pi-ai request body with the route's advertised defaults, wire model id, and selected reasoning effort.
+ * @param entry - frozen catalog route.
+ * @param selection - validated effort, when the caller chose one.
+ * @param payload - body built by pi-ai; Google routes receive an OpenAI Chat body that the Gemini transport translates.
+ * @returns the body sent upstream; advertised defaults fill gaps but never replace conversation fields.
+ */
+function requestPayload(
+  entry: ConsoleModel, selection: EffortSelection | undefined, payload: Record<string, unknown>,
+): Record<string, unknown> {
+  const body = { ...entry.body, ...payload, model: entry.wireId }
+  const { protocol } = entry
+  // Gemini thinking is encoded by the transport request, not as an OpenAI Chat field.
+  return selection === undefined || protocol === 'google-generative-ai' ? body
+    : applyReasoning(protocol, { wireId: entry.wireId, reasoning: selection.reasoning }, body, selection.effort)
 }
 
 /** OpenCode adapter; only authenticated, advertised text models can be dispatched. */
 export class OpenCodeAdapter extends LlmAdapter {
   private readonly sessionEpoch = Date.now()
+  private readonly catalogs: CatalogCache
   /**
    * Bind runtime settings and the canonical grant owner.
    * @param options - current validated deployment options.
    * @param grant - stored grant resolver; refresh remains credential-store owned.
    * @param profile - current route name and model-picker selection.
+   * @param warn - receives operator-facing warnings about the public model registry.
    */
   constructor(
     private readonly options: () => ConsoleOptions,
     private readonly grant: ConsoleGrantResolver,
     private readonly profile: (provider: string) => { displayName?: string; models?: readonly string[] } | undefined = () => undefined,
-  ) { super() }
+    warn?: (message: string) => void,
+  ) {
+    super()
+    this.catalogs = new CatalogCache(warn)
+  }
 
   // Each adapter applies the same picker fields to its independently discovered catalog.
   /* jscpd:ignore-start */
@@ -105,7 +178,7 @@ export class OpenCodeAdapter extends LlmAdapter {
   /* jscpd:ignore-end */
 
   /**
-   * Discover the full authenticated catalog regardless of model-picker selection.
+   * Discover the full authenticated catalog regardless of model-picker selection, bypassing any reused catalog.
    * @param provider - FI route identity.
    * @returns advertised text models, or an empty list while signed out.
    */
@@ -113,14 +186,14 @@ export class OpenCodeAdapter extends LlmAdapter {
     const config = this.options()
     const grant = await this.grant(config)
     if (grant === undefined) return []
-    return (await loadCatalog(config, grant, provider)).map(entry => ({ provider, id: entry.model.id, name: entry.model.name, inputModalities: ['text'] }))
+    return (await this.catalogs.models(config, grant, provider, undefined, true)).map(entry => ({ provider, id: entry.model.id, name: entry.model.name, inputModalities: ['text'] }))
   }
 
   private async prepare(provider: string, model: string, signal?: AbortSignal): Promise<PreparedConsole> {
     const config = this.options()
     const grant = await this.grant(config, signal)
     if (grant === undefined) throw new LlmError('OpenCode Console is not signed in; sign in from Settings → Models', 'MISSING_CREDENTIAL')
-    const entry = (await loadCatalog(config, grant, provider, signal)).find(candidate => candidate.model.id === model)
+    const entry = (await this.catalogs.models(config, grant, provider, signal)).find(candidate => candidate.model.id === model)
     if (entry === undefined) throw new LlmError('OpenCode model is not advertised for this account', 'MODEL_NOT_FOUND')
     return { config, grant, entry }
   }
@@ -141,19 +214,19 @@ export class OpenCodeAdapter extends LlmAdapter {
   private async *streamPrepared(prepared: PreparedConsole, options: GenerateOptions): AsyncIterable<StreamChunk> {
     const { entry, grant, config } = prepared
     if (options.provider !== entry.model.provider || options.model !== entry.model.id) throw new LlmError('OpenCode prepared model identity changed', 'MODEL_NOT_FOUND')
-    if (options.reasoningEffort !== undefined && options.reasoningEffort !== 'off') throw new LlmError('OpenCode reasoning effort is not configured for this model', 'UNSUPPORTED_OPTION')
+    const selection = selectEffort(entry, options.reasoningEffort)
     if (options.stop !== undefined) throw new LlmError('OpenCode stop sequences are unsupported by this adapter', 'UNSUPPORTED_OPTION')
     const consumer = new AbortController()
     const signal = AbortSignal.any([consumer.signal, ...options.signal === undefined ? [] : [options.signal]])
     using watchdog = idleWatchdog(signal, config.streamIdleTimeoutMs, 'LLM_STREAM_IDLE_TIMEOUT')
     const sessionId = nativeSessionId(options.sessionId === undefined ? randomBytes(16).toString('hex') : String(options.sessionId), this.sessionEpoch)
-    const headers = {
+    const identity = {
       ...entry.headers, 'user-agent': config.userAgent, 'x-opencode-client': 'cli',
-      'x-opencode-project': 'global', 'x-opencode-session': sessionId,
+      'x-opencode-project': 'global', 'x-opencode-session-id': sessionId, 'x-opencode-session': sessionId,
       'x-session-affinity': sessionId, 'x-session-id': sessionId,
       ...grant.orgId === undefined ? {} : { 'x-org-id': grant.orgId, 'x-opencode-org-id': grant.orgId },
-      ...entry.model.api === 'anthropic-messages' ? { 'x-api-key': grant.access } : { authorization: `Bearer ${grant.access}` },
     }
+    const headers = { ...identity, ...entry.model.api === 'anthropic-messages' ? { 'x-api-key': grant.access } : { authorization: `Bearer ${grant.access}` } }
     try {
       const tools = options.sessionId === undefined ? withCompatibilityTools(options.tools ?? []) : options.tools ?? []
       const allowed = new Set(tools.filter(tool => !isCompatibilityTool(tool)).map(tool => tool.name))
@@ -165,63 +238,72 @@ export class OpenCodeAdapter extends LlmAdapter {
         auth: { apiKey: { name: 'OpenCode Console', resolve: () => Promise.resolve({ auth: { apiKey: grant.access }, source: 'OpenCode Console' }) } },
       }))
       let failure: LlmFailure | undefined
+      const thinkingConfig = selection !== undefined && entry.protocol === 'google-generative-ai'
+        ? geminiThinkingConfig(selection.reasoning, selection.effort) : undefined
+      const generation = Object.fromEntries(geminiSampling.flatMap(([from, to]) =>
+        entry.body[from] === undefined ? [] : [[to, entry.body[from]]]))
+      const guardedFetch: typeof fetch = async (input, init) => {
+        const request = new Request(input, init)
+        const url = new URL(request.url)
+        consoleUrl(`${url.origin}${url.pathname}`)
+        // Anthropic's SDK inserts /v1; the Console catalog already supplies its versioned prefix.
+        const suffix = entry.model.api === 'anthropic-messages' ? '/v1/messages' : entry.model.api === 'openai-responses' ? '/responses' : '/chat/completions'
+        if (`${url.origin}${url.pathname}` !== `${entry.model.baseUrl}${suffix}`
+          || (url.search && !(entry.model.api === 'anthropic-messages' && url.search === '?beta=true'))) {
+          throw new Error('OpenCode transport changed the advertised endpoint')
+        }
+        const endpoint = entry.model.api === 'anthropic-messages'
+          ? `${entry.model.baseUrl}/messages${url.search}` : request.url
+        const body = payloadSchema.parse(await request.clone().json())
+        const send = (payload: Record<string, unknown>, destination = endpoint) => fetch(new Request(destination, {
+          ...init, method: request.method,
+          headers: request.headers, signal: request.signal, body: JSON.stringify(payload), redirect: 'error' }))
+        // The Gemini transport translates the OpenAI Chat body pi-ai built and sends it to the model's own path.
+        let response = entry.protocol === 'google-generative-ai'
+          ? await callGeminiChat(body, {
+            baseUrl: entry.model.baseUrl, model: entry.wireId, apiKey: grant.access, headers: identity,
+            ...thinkingConfig === undefined ? {} : { thinkingConfig }, generation,
+          }, request.signal)
+          : await fetch(new Request(endpoint, request), { redirect: 'error' })
+        failure = await responseFailure(response)
+        if (failure?.code === 'POLICY_REJECTED' && (entry.protocol === 'openai-completions' || entry.protocol === 'openai-responses')) {
+          await response.body?.cancel()
+          const responses = entry.model.api === 'openai-responses'
+          const compatible = { ...body, stream: true, store: body.store ?? false,
+            tool_choice: responses ? 'auto' : allowed.size === 0 ? 'none' : {
+              type: 'allowed_tools', allowed_tools: { mode: 'auto', tools: [...allowed].map(name => ({ type: 'function', function: { name } })) },
+            },
+            ...responses ? {} : { stream_options: { include_usage: true } },
+          }
+          response = await send(compatible)
+          if (!responses && (response.status === 400 || response.status >= 500)) {
+            await response.body?.cancel()
+            response = await send({ ...compatible, tool_choice: 'auto' })
+          }
+          failure = await responseFailure(response)
+          // The canonical chat gateway and Zen route serve the same Console model and grant.
+          if (failure?.code === 'POLICY_REJECTED' && entry.model.api === 'openai-completions'
+            && endpoint === 'https://opencode.ai/inference/openai/v1/chat/completions') {
+            await response.body?.cancel()
+            failure = undefined
+            response = await send(body, 'https://opencode.ai/zen/v1/chat/completions')
+            failure = await responseFailure(response)
+          }
+          if (response.ok && !response.headers.get('content-type')?.toLowerCase().includes('text/event-stream')) {
+            await response.body?.cancel()
+            throw new LlmError('OpenCode compatibility transport did not return SSE', 'INVALID_RESPONSE')
+          }
+        }
+        return response
+      }
       const events = models.streamSimple(entry.model, context, {
         apiKey: grant.access, headers, signal: watchdog.signal, maxRetries: 0,
         timeoutMs: config.requestTimeoutMs,
         ...options.maxTokens === undefined ? {} : { maxTokens: options.maxTokens },
         ...options.temperature === undefined ? {} : { temperature: options.temperature },
         sessionId,
-        onPayload: payload => ({ ...entry.body, ...payloadSchema.parse(payload), model: entry.wireId }),
-        fetch: async (input, init) => {
-          const request = new Request(input, init)
-          const url = new URL(request.url)
-          consoleUrl(`${url.origin}${url.pathname}`)
-          // Anthropic's SDK inserts /v1; the Console catalog already supplies its versioned prefix.
-          const suffix = entry.model.api === 'anthropic-messages' ? '/v1/messages' : entry.model.api === 'openai-responses' ? '/responses' : '/chat/completions'
-          if (`${url.origin}${url.pathname}` !== `${entry.model.baseUrl}${suffix}`
-            || (url.search && !(entry.model.api === 'anthropic-messages' && url.search === '?beta=true'))) {
-            throw new Error('OpenCode transport changed the advertised endpoint')
-          }
-          const endpoint = entry.model.api === 'anthropic-messages'
-            ? `${entry.model.baseUrl}/messages${url.search}` : request.url
-          const body = payloadSchema.parse(await request.clone().json())
-          const send = (payload: Record<string, unknown>, destination = endpoint) => fetch(new Request(destination, {
-            ...init, method: request.method,
-            headers: request.headers, signal: request.signal, body: JSON.stringify(payload), redirect: 'error' }))
-          let response = await fetch(new Request(endpoint, request), { redirect: 'error' })
-          if (response.status === 403) {
-            failure = await responseFailure(response)
-            if (failure?.code === 'POLICY_REJECTED' && entry.model.api !== 'anthropic-messages') {
-              await response.body?.cancel()
-              const responses = entry.model.api === 'openai-responses'
-              const compatible = { ...body, stream: true, store: body.store ?? false,
-                tool_choice: responses ? 'auto' : allowed.size === 0 ? 'none' : {
-                  type: 'allowed_tools', allowed_tools: { mode: 'auto', tools: [...allowed].map(name => ({ type: 'function', function: { name } })) },
-                },
-                ...responses ? {} : { stream_options: { include_usage: true } },
-              }
-              response = await send(compatible)
-              if (!responses && (response.status === 400 || response.status >= 500)) {
-                await response.body?.cancel()
-                response = await send({ ...compatible, tool_choice: 'auto' })
-              }
-              failure = await responseFailure(response)
-              // The canonical chat gateway and Zen route serve the same Console model and grant.
-              if (failure?.code === 'POLICY_REJECTED' && entry.model.api === 'openai-completions'
-                && endpoint === 'https://opencode.ai/inference/openai/v1/chat/completions') {
-                await response.body?.cancel()
-                failure = undefined
-                response = await send(body, 'https://opencode.ai/zen/v1/chat/completions')
-                failure = await responseFailure(response)
-              }
-              if (response.ok && !response.headers.get('content-type')?.toLowerCase().includes('text/event-stream')) {
-                await response.body?.cancel()
-                throw new LlmError('OpenCode compatibility transport did not return SSE', 'INVALID_RESPONSE')
-              }
-            }
-          }
-          return response
-        },
+        onPayload: payload => requestPayload(entry, selection, payloadSchema.parse(payload)),
+        fetch: guardedFetch,
       })
       const iterator = toStreamChunks(events, entry.model.contextWindow, options.signal, entry.model.id)[Symbol.asyncIterator]()
       try {

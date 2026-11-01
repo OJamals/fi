@@ -19,12 +19,14 @@ vi.mock('@deepseek-ai/dsh-llm-pi-ai', async (importOriginal) => {
 
 afterEach(() => { captured.options = undefined; vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
-it('rejects an altered SDK endpoint path or query before sending credentials', async () => {
-  const config: ConsoleOptions = { server: 'https://opencode.ai/console', clientId: 'test-client', userAgent: 'test-agent',
-    catalogRetryCount: 1, catalogRetryDelayMs: 250,
-    requestTimeoutMs: 1000, streamIdleTimeoutMs: 1000, refreshMarginMs: 1000, defaultContextWindow: 1000, defaultMaxTokens: 100 }
+const config: ConsoleOptions = { server: 'https://opencode.ai/console', clientId: 'test-client', userAgent: 'test-agent',
+  catalogRetryCount: 1, catalogRetryDelayMs: 250, catalogCacheMs: 0, registryCacheMs: 300_000, registryStaleMs: 86_400_000,
+  requestTimeoutMs: 1000, streamIdleTimeoutMs: 1000, refreshMarginMs: 1000, defaultContextWindow: 1000, defaultMaxTokens: 100 }
+
+/** Capture the SDK options of one dispatch against a catalog routed through the given Console package. */
+async function dispatch(packageName: string) {
   const fetch = vi.fn(async () => Response.json({ providers: { opencode: {
-    package: '@ai-sdk/openai-compatible', settings: { baseURL: 'https://opencode.ai/zen/v1' }, models: { fixture: {} },
+    package: packageName, settings: { baseURL: 'https://opencode.ai/zen/v1' }, models: { fixture: {} },
   } } }))
   vi.stubGlobal('fetch', fetch)
   const adapter = new OpenCodeAdapter(() => config, async () => ({ type: 'oauth', server: config.server,
@@ -34,8 +36,28 @@ it('rejects an altered SDK endpoint path or query before sending credentials', a
   }
   await expect(drain()).rejects.toThrow('SDK options captured')
   fetch.mockClear()
+  return fetch
+}
+
+it.each(['@ai-sdk/openai-compatible', '@ai-sdk/google'])('rejects an altered SDK endpoint path or query for %s before sending credentials', async (packageName) => {
+  const fetch = await dispatch(packageName)
   for (const url of ['https://opencode.ai/other', 'https://opencode.ai/zen/v1/chat/completions?changed=true']) {
     await expect(captured.options!.fetch!(url)).rejects.toThrow('changed the advertised endpoint')
   }
   expect(fetch).not.toHaveBeenCalled()
+})
+
+it('sends a Google route only to the Gemini path of its advertised endpoint, rejecting redirects', async () => {
+  const fetch = await dispatch('@ai-sdk/google')
+  fetch.mockImplementation(async () => new Response('data: {"candidates":[{"content":{"parts":[{"text":"ok"}]},"finishReason":"STOP"}]}\n\n',
+    { headers: { 'content-type': 'text/event-stream' } }))
+  const response = await captured.options!.fetch!('https://opencode.ai/zen/v1/chat/completions', {
+    method: 'POST', body: JSON.stringify({ model: 'wire', messages: [{ role: 'user', content: 'hi' }] }),
+  })
+  expect(response.ok).toBe(true)
+  expect(fetch).toHaveBeenCalledTimes(1)
+  const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
+  // The path comes from the catalog entry, not from the SDK body.
+  expect(url).toBe('https://opencode.ai/zen/v1/models/fixture:streamGenerateContent?alt=sse')
+  expect(init.redirect).toBe('error')
 })

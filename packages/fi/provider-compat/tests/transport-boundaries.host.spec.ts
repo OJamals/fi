@@ -56,17 +56,16 @@ describe('subscription request validation', () => {
   })
 
   it.each([
-    ['darwin', 'arm64', 'macos', 'MacOS', 'arm64'],
-    ['win32', 'x64', 'windows', 'Windows', 'x64'],
-    ['freebsd', 'ia32', 'linux', 'FreeBSD', 'x86'],
-    ['linux', 'x64', 'linux', 'Linux', 'x64'],
-  ])('uses %s/%s platform metadata', (platform, arch, cliOs, sdkOs, sdkArch) => {
+    ['darwin', 'arm64', 'macos', 'MacOS', 'arm64', 'arm64', 'aarch64'],
+    ['win32', 'x64', 'windows', 'Windows', 'x64', 'x86_64', 'x86_64'],
+    ['freebsd', 'ia32', 'linux', 'FreeBSD', 'x86', 'ia32', 'x86_64'],
+    ['linux', 'x64', 'linux', 'Linux', 'x64', 'x86_64', 'x86_64'],
+  ])('uses %s/%s platform metadata', (platform, arch, grokOs, sdkOs, sdkArch, codexArch, grokArch) => {
     vi.stubGlobal('process', { ...process, platform, arch })
-    for (const [provider, jwt] of [['openai-codex', codex], ['xai', grok]] as const) {
-      const headers = subscriptionHeaders(provider, 'model', 's', 1, { Authorization: `Bearer ${jwt}` })
-      const cliArch = arch === 'arm64' ? provider === 'xai' ? 'aarch64' : 'arm64' : 'x86_64'
-      expect(headers['User-Agent']).toContain(`(${cliOs}; ${cliArch})`)
-    }
+    expect(subscriptionHeaders('openai-codex', 'model', 's', 1, { Authorization: `Bearer ${codex}` })['User-Agent'])
+      .toMatch(new RegExp(`^codex_cli_rs/\\S+ \\(.+; ${codexArch}\\) \\S+$`))
+    expect(subscriptionHeaders('xai', 'model', 's', 1, { Authorization: `Bearer ${grok}` })['User-Agent'])
+      .toContain(`(${grokOs}; ${grokArch})`)
     const headers = subscriptionHeaders('anthropic', 'claude', 's', 1, { Authorization: 'Bearer sk-ant-oat-test' })
     expect(headers['X-Stainless-Os']).toBe(sdkOs)
     expect(headers['X-Stainless-Arch']).toBe(sdkArch)

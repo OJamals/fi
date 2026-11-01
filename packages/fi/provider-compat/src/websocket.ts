@@ -6,7 +6,7 @@ import { resolveHttpProxyUrlForTarget } from '@earendil-works/pi-ai/utils/node-h
 import { closeOpenAICodexWebSocketConnector } from '@earendil-works/pi-ai/api/openai-codex-responses'
 import type { PiAiRequestTransport, PiAiRequestTransportContext } from '@deepseek-ai/dsh-llm-pi-ai'
 import { subscriptionEndpoint } from './fetch.ts'
-import { HARNESS_ATTRIBUTION_HEADER, subscriptionHeaders } from './headers.ts'
+import { conversationHeaders, HARNESS_ATTRIBUTION_HEADER, subscriptionHeaders } from './headers.ts'
 import { providerSettingsFor } from './settings.ts'
 
 type Factory = NonNullable<PiAiRequestTransport['websocketFactory']>
@@ -76,9 +76,9 @@ export function subscriptionWebSocket(
     const requestId = assembled.get('x-client-request-id')
     if (!sessionId || !requestId) throw new Error('Codex subscription WebSocket lacks request identity')
     assembled.set(HARNESS_ATTRIBUTION_HEADER, request.harnessUserAgent)
-    const merged = new Headers(subscriptionHeaders(
+    const merged = new Headers(conversationHeaders('openai-codex', subscriptionHeaders(
       'openai-codex', request.model, sessionId, request.timeoutMs, Object.fromEntries(assembled),
-    ))
+    ), sessionId))
     merged.set('OpenAI-Beta', providerSettingsFor('codexCli').responsesWebsocketBeta)
     let proxyUrl: string | undefined
     try {

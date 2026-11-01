@@ -309,6 +309,29 @@ export function parseClaudeSearch(body: string, maxUses: number): WebSearchResul
   return result('Claude', text.join('') || undefined, [...sources.values()], searchUses, maxUses)
 }
 
+/** Gemini finish reasons that withhold output for policy rather than ending a turn. */
+const CONTENT_FILTER_FINISH_REASONS: ReadonlySet<string> = new Set([
+  'SAFETY',
+  'RECITATION',
+  'BLOCKLIST',
+  'PROHIBITED_CONTENT',
+  'SPII',
+  'IMAGE_SAFETY',
+  'IMAGE_PROHIBITED_CONTENT',
+  'IMAGE_RECITATION',
+])
+
+/**
+ * Why Gemini refused the prompt itself. Only an enum token is reported, never
+ * provider text.
+ */
+function blockedPromptReason(response: JsonRecord): string | undefined {
+  const reason = record(response.promptFeedback)?.blockReason
+  return typeof reason === 'string' && /^[A-Z][A-Z0-9_]*$/.test(reason) && reason !== 'BLOCK_REASON_UNSPECIFIED'
+    ? reason
+    : undefined
+}
+
 /**
  * Decode native Gemini grounding metadata returned by Antigravity.
  * @param body - complete bounded native Gemini JSON text.
@@ -327,7 +350,21 @@ export function parseAntigravitySearch(body: string, maxUses: number): WebSearch
       { cause: error },
     )
   }
+  // A refusal is the query's to change, not a transient or incomplete provider answer.
+  const blocked = blockedPromptReason(response)
+  if (blocked !== undefined) {
+    throw new SubscriptionSearchError(
+      `Antigravity refused the search prompt (${blocked})`,
+      'WEB_PROVIDER_CONTENT_FILTERED',
+    )
+  }
   const candidate = records(response.candidates)[0]
+  if (typeof candidate?.finishReason === 'string' && CONTENT_FILTER_FINISH_REASONS.has(candidate.finishReason)) {
+    throw new SubscriptionSearchError(
+      `Antigravity withheld the search answer (${candidate.finishReason})`,
+      'WEB_PROVIDER_CONTENT_FILTERED',
+    )
+  }
   if (candidate?.finishReason !== 'STOP') {
     throw new SubscriptionSearchError(
       `Antigravity returned non-terminal finish reason ${String(candidate?.finishReason)}`,
@@ -335,7 +372,11 @@ export function parseAntigravitySearch(body: string, maxUses: number): WebSearch
     )
   }
   const grounding = record(candidate.groundingMetadata)
-  const text = records(record(candidate.content)?.parts).map(part => string(part.text) ?? '').join('')
+  // The answer is the visible text; thought parts are the model's own scratch.
+  const text = records(record(candidate.content)?.parts)
+    .filter(part => part.thought !== true)
+    .map(part => string(part.text) ?? '')
+    .join('')
   const chunks = records(grounding?.groundingChunks)
   const snippets = new Map<number, string>()
   for (const support of records(grounding?.groundingSupports)) {

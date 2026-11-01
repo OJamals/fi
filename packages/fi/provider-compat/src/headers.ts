@@ -1,6 +1,8 @@
 /** Subscription-client request headers derived from canonical provider metadata. */
 
+import { createHash, randomUUID } from 'node:crypto'
 import type { AuthResult } from '@earendil-works/pi-ai'
+import { codexClientSuffix } from './codex-client.ts'
 import { providerSettingsFor } from './settings.ts'
 
 /** pi-ai provider ids whose subscription transports have captured metadata. */
@@ -37,12 +39,13 @@ function entryOf(headers: Readonly<Record<string, string>>, name: string): [stri
   return Object.entries(headers).find(([candidate]) => candidate.toLowerCase() === expected)
 }
 
-function replace(headers: Readonly<Record<string, string>>, name: string, value: string): Record<string, string> {
+function omit(headers: Readonly<Record<string, string>>, name: string): Record<string, string> {
   const expected = name.toLowerCase()
-  return {
-    ...Object.fromEntries(Object.entries(headers).filter(([candidate]) => candidate.toLowerCase() !== expected)),
-    [name]: value,
-  }
+  return Object.fromEntries(Object.entries(headers).filter(([candidate]) => candidate.toLowerCase() !== expected))
+}
+
+function replace(headers: Readonly<Record<string, string>>, name: string, value: string): Record<string, string> {
+  return { ...omit(headers, name), [name]: value }
 }
 
 function bearerToken(headers: Readonly<Record<string, string>>): string {
@@ -129,7 +132,9 @@ export function preserveHarnessHeaders(
  * Compatibility-owned names replace stale copies case-insensitively; unrelated
  * caller headers and bearer authorization survive. The function validates the
  * final OAuth authorization without logging or retaining it. Grok derives its
- * user id transiently from the access-token subject.
+ * user id transiently from the access-token subject. Codex reports its host as
+ * the native CLI does, and Claude requests drop `x-client-request-id`, which
+ * Claude Code never sends.
  * @param provider - pi-ai subscription provider id.
  * @param model - exact request model id.
  * @param sessionId - request session id sent only as provider transport metadata.
@@ -162,7 +167,7 @@ export function subscriptionHeaders(
       || typeof accountId !== 'string') {
       throw new Error('Codex subscription OAuth token lacks a ChatGPT account id')
     }
-    headers = replace(headers, 'User-Agent', `${settings.originator}/${settings.version} (${platform()}; ${process.arch === 'arm64' ? 'arm64' : 'x86_64'})`)
+    headers = replace(headers, 'User-Agent', `${settings.originator}/${settings.version} ${codexClientSuffix()}`)
     headers = replace(headers, 'originator', settings.originator)
     headers = replace(headers, 'version', settings.version)
     headers = replace(headers, 'ChatGPT-Account-ID', accountId)
@@ -190,7 +195,8 @@ export function subscriptionHeaders(
     headers = replace(headers, 'anthropic-version', '2023-06-01')
     headers = replace(headers, 'anthropic-beta', betas.join(','))
     headers = replace(headers, 'x-app', 'cli')
-    return headers
+    // The 2.1.316 capture records no `x-client-request-id` on any Claude Code request.
+    return omit(headers, 'x-client-request-id')
   }
 
   const settings = providerSettingsFor('grokCode')
@@ -206,4 +212,45 @@ export function subscriptionHeaders(
   headers = replace(headers, 'x-grok-model-override', model)
   headers = replace(headers, 'x-grok-user-id', subject)
   return headers
+}
+
+/** UUID-shaped identifier for one conversation of one account, which is how grok-shell names its conversation. */
+function conversationUuid(account: string, sessionId: string): string {
+  const digest = createHash('sha256').update(`grok-client-id\0${account}\0${sessionId}`).digest('hex')
+  const variant = ((Number.parseInt(digest.charAt(16), 16) & 3) | 8).toString(16)
+  return `${digest.slice(0, 8)}-${digest.slice(8, 12)}-5${digest.slice(13, 16)}-${variant}${digest.slice(17, 20)}-${digest.slice(20, 32)}`
+}
+
+/**
+ * Name the conversation an inference request belongs to, as the provider's
+ * native CLI does. Model-listing and image requests do not call this.
+ *
+ * Codex mirrors the `session-id` pi-ai already sent as `thread-id`; a request
+ * without `session-id` stays anonymous. Grok sends one `x-grok-conv-id` and
+ * `x-grok-session-id`, derived from the session and the OAuth subject
+ * `subscriptionHeaders` set, so one session never reuses an id across accounts,
+ * plus a fresh `x-grok-req-id` per request. The id routes prompt-cache hits to
+ * the replica that holds the prefix. Claude Code's session id is already part
+ * of `subscriptionHeaders`.
+ * @param provider - pi-ai subscription provider id.
+ * @param existingHeaders - headers returned by `subscriptionHeaders`.
+ * @param sessionId - request session id.
+ * @returns a new header record.
+ */
+export function conversationHeaders(
+  provider: SubscriptionProvider,
+  existingHeaders: Readonly<Record<string, string>>,
+  sessionId: string,
+): Readonly<Record<string, string>> {
+  if (provider === 'openai-codex') {
+    const conversation = entryOf(existingHeaders, 'session-id')?.[1]
+    return conversation === undefined ? { ...existingHeaders } : replace(existingHeaders, 'thread-id', conversation)
+  }
+  if (provider === 'xai') {
+    const conversation = conversationUuid(entryOf(existingHeaders, 'x-grok-user-id')?.[1] ?? '', sessionId)
+    let headers = replace(existingHeaders, 'x-grok-conv-id', conversation)
+    headers = replace(headers, 'x-grok-session-id', conversation)
+    return replace(headers, 'x-grok-req-id', randomUUID())
+  }
+  return { ...existingHeaders }
 }

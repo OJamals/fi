@@ -1,10 +1,11 @@
 /** Subscription Cloud text and tool streaming through maintained OpenAI conversion. */
-import type { Model } from '@earendil-works/pi-ai'
+import type { Model, ModelThinkingLevel } from '@earendil-works/pi-ai'
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy'
-import { LlmAdapter, LlmError } from '@deepseek-ai/dsh-llm'
+import { LlmAdapter, LlmError, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type {
   GenerateOptions,
   LlmModelInfo,
+  LlmModelReasoningInfo,
   LlmResolvedModelInfo,
   PreparedAdapterCall,
   StreamChunk,
@@ -14,11 +15,11 @@ import { idleWatchdog, timeoutOf } from '@deepseek-ai/dsh-timeout'
 import { callCodeAssistChat } from '@fi/llm-antigravity/transport'
 import { z } from 'zod'
 import { catalog } from './catalog.ts'
-import { copilotBase, copilotHeaders } from './copilot.ts'
+import { callCopilot } from './copilot.ts'
 import { labels } from './authorization.ts'
 import { CursorTurns } from './native/cursor-turns.ts'
-import { callKiro } from './native/kiro-api.ts'
-import { clineHeaders, providerIds, withTimeoutSignal } from './protocol.ts'
+import { callKiro, kiroThinks } from './native/kiro-api.ts'
+import { clineHeaders, providerIds, retryAfterMs, withTimeoutSignal } from './protocol.ts'
 import type { SubscriptionGrant, SubscriptionId, SubscriptionOptions } from './protocol.ts'
 
 interface PreparedSubscription {
@@ -38,14 +39,30 @@ export interface SubscriptionProfile {
 }
 /* jscpd:ignore-end */
 
-function info(model: Model<'openai-completions'>): LlmResolvedModelInfo {
+/** Efforts Kiro maps to a thinking budget, least to greatest; other routes expose none. */
+const KIRO_EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const satisfies readonly ModelThinkingLevel[]
+
+function reasoningFor(provider: string, id: string): LlmModelReasoningInfo | undefined {
+  if (provider !== 'kiro' || !kiroThinks(id)) return undefined
   return {
-    provider: model.provider,
-    id: model.id,
-    name: model.name,
-    inputModalities: ['text'],
-    context: { contextWindow: model.contextWindow },
+    efforts: KIRO_EFFORTS.map(level => ({ id: ReasoningEffortId(level), name: `${level.charAt(0).toUpperCase()}${level.slice(1)}` })),
   }
+}
+
+function resolved(provider: string, id: string, contextWindow: number): LlmResolvedModelInfo {
+  const reasoning = reasoningFor(provider, id)
+  return {
+    provider,
+    id,
+    name: id,
+    inputModalities: ['text'],
+    context: { contextWindow },
+    ...(reasoning === undefined ? {} : { reasoning }),
+  }
+}
+
+function info(model: Model<'openai-completions'>): LlmResolvedModelInfo {
+  return resolved(model.provider, model.id, model.contextWindow)
 }
 
 /** Native account-signed adapter; every prepared request captures its own device identity. */
@@ -108,6 +125,7 @@ export class SubscriptionAdapter extends LlmAdapter {
       throw new LlmError('Subscription Cloud is not signed in; sign in from Settings → Models', 'MISSING_CREDENTIAL')
     if (!(await catalog(grant, config, signal)).includes(id))
       throw new LlmError('Model is not advertised by this subscription', 'MODEL_NOT_FOUND')
+    const reasoning = reasoningFor(provider, id) !== undefined
     return {
       config,
       grant,
@@ -118,7 +136,9 @@ export class SubscriptionAdapter extends LlmAdapter {
         api: 'openai-completions',
         baseUrl: 'https://subscription.invalid/v1',
         input: ['text'],
-        reasoning: false,
+        reasoning,
+        // pi-ai offers xhigh and max only to models that map them.
+        ...(reasoning ? { thinkingLevelMap: { xhigh: 'xhigh', max: 'max' } } : {}),
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
         contextWindow: config.defaultContextWindow,
         maxTokens: config.defaultMaxTokens,
@@ -126,6 +146,7 @@ export class SubscriptionAdapter extends LlmAdapter {
           supportsStore: false,
           supportsDeveloperRole: false,
           supportsUsageInStreaming: true,
+          supportsReasoningEffort: reasoning,
           maxTokensField: 'max_tokens',
         },
       },
@@ -135,13 +156,7 @@ export class SubscriptionAdapter extends LlmAdapter {
   override resolveModel(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo> {
     signal?.throwIfAborted()
     this.id(provider)
-    return Promise.resolve({
-      provider,
-      id: model,
-      name: model,
-      inputModalities: ['text'],
-      context: { contextWindow: this.options().defaultContextWindow },
-    })
+    return Promise.resolve(resolved(provider, model, this.options().defaultContextWindow))
   }
 
   // The standard adapter entry points share one account-frozen preparation path.
@@ -160,7 +175,9 @@ export class SubscriptionAdapter extends LlmAdapter {
     const { config, grant, model } = prepared
     if (options.provider !== model.provider || options.model !== model.id)
       throw new LlmError('Subscription prepared model identity changed', 'MODEL_NOT_FOUND')
-    if (options.reasoningEffort !== undefined || options.stop !== undefined)
+    // Only Kiro's thinking models accept an effort; it becomes the thinking tag in the native request.
+    const effort = KIRO_EFFORTS.find(level => level === options.reasoningEffort)
+    if (options.stop !== undefined || (options.reasoningEffort !== undefined && (!model.reasoning || effort === undefined)))
       throw new LlmError('Subscription reasoning effort and stop overrides are not supported', 'UNSUPPORTED_OPTION')
     const consumer = new AbortController()
     const signal = AbortSignal.any([consumer.signal, ...(options.signal === undefined ? [] : [options.signal])])
@@ -181,12 +198,13 @@ export class SubscriptionAdapter extends LlmAdapter {
           },
         }),
       )
-      const responseState = { revoked: false }
+      const responseState: { revoked: boolean; retry?: { status: number; delayMs: number } | undefined } = { revoked: false }
       const events = models.streamSimple(model, toPiContext(options), {
         apiKey: 'device',
         signal: watchdog.signal,
         maxRetries: 0,
         timeoutMs: config.requestTimeoutMs,
+        ...(effort === undefined ? {} : { reasoning: effort }),
         ...(options.maxTokens === undefined ? {} : { maxTokens: options.maxTokens }),
         ...(options.temperature === undefined ? {} : { temperature: options.temperature }),
         fetch: async (input, init) => {
@@ -194,12 +212,13 @@ export class SubscriptionAdapter extends LlmAdapter {
           const body = z.record(z.string(), z.unknown()).parse(await request.json())
           // Cline's catalog omits capacity; the fallback context estimate must not reduce its output budget.
           if (grant.provider === 'cline') body.max_tokens = options.maxTokens ?? config.defaultMaxTokens
-          if (grant.provider === 'cursor') {
-            const results = new Map(options.messages.flatMap(message => message.role === 'tool'
-              ? [[message.toolCallId as string, message.isError ?? false] as const] : []))
+          if (grant.provider === 'cursor' || grant.provider === 'kiro') {
+            // The OpenAI tool role has no error flag; the native requests carry it per result.
+            const failed = new Set(options.messages.flatMap(message =>
+              message.role === 'tool' && message.isError === true ? [String(message.toolCallId)] : []))
             body.messages = z.array(z.object({ role: z.string(), tool_call_id: z.string().optional() }).loose())
               .parse(body.messages).map(message => message.role === 'tool'
-                ? { ...message, is_error: results.get(message.tool_call_id ?? '') ?? false } : message)
+                ? { ...message, is_error: failed.has(String(message.tool_call_id)) } : message)
           }
           const callSignal = withTimeoutSignal(config.streamIdleTimeoutMs, request.signal)
           const context = {
@@ -220,21 +239,29 @@ export class SubscriptionAdapter extends LlmAdapter {
                   ? await callCodeAssistChat(
                     body,
                     grant.accessToken,
+                    /* v8 ignore next -- prepare() listed the catalog, which fails without a Code Assist project. */
                     grant.subscriptionAuth?.projectId ?? '',
                     callSignal,
                   )
-                  : await fetch(grant.provider === 'copilot' ? `${copilotBase(grant)}/chat/completions` : 'https://api.cline.bot/api/v1/chat/completions', {
-                    method: 'POST',
-                    redirect: 'error',
-                    signal: callSignal,
-                    headers: grant.provider === 'copilot'
-                      ? copilotHeaders(grant.accessToken, options.messages.at(-1)?.role === 'user' ? 'user' : 'agent')
-                      : { ...clineHeaders(grant.accessToken),
+                  : grant.provider === 'copilot'
+                    ? await callCopilot(grant, body, {
+                      initiator: options.messages.at(-1)?.role === 'user' ? 'user' : 'agent',
+                      session: options.sessionId === undefined ? undefined : String(options.sessionId),
+                      signal: callSignal,
+                    })
+                    : await fetch('https://api.cline.bot/api/v1/chat/completions', {
+                      method: 'POST',
+                      redirect: 'error',
+                      signal: callSignal,
+                      headers: {
+                        ...clineHeaders(grant.accessToken),
                         ...options.sessionId === undefined ? {} : { 'x-task-id': options.sessionId },
                       },
-                    body: JSON.stringify(body),
-                  })
+                      body: JSON.stringify(body),
+                    })
           responseState.revoked = response.status === 401
+          const delayMs = response.ok ? undefined : retryAfterMs(response.headers.get('retry-after'))
+          responseState.retry = delayMs === undefined ? undefined : { status: response.status, delayMs }
           return response
         },
       })
@@ -248,9 +275,11 @@ export class SubscriptionAdapter extends LlmAdapter {
             throw new LlmError('Subscription stream idle deadline exceeded', 'TIMEOUT')
           /* jscpd:ignore-end */
           if (next.done) return
-          yield responseState.revoked && next.value.type === 'finish' && next.value.reason.kind === 'error'
-            ? {
-              ...next.value,
+          const chunk = next.value
+          if (chunk.type !== 'finish' || chunk.reason.kind !== 'error') yield chunk
+          else if (responseState.revoked)
+            yield {
+              ...chunk,
               reason: {
                 kind: 'error',
                 failure: {
@@ -260,7 +289,16 @@ export class SubscriptionAdapter extends LlmAdapter {
                 },
               },
             }
-            : next.value
+          else if (responseState.retry !== undefined)
+            // The provider's own reset hint reaches the retry policy; a monthly quota outlasts any retry.
+            yield {
+              ...chunk,
+              reason: {
+                kind: 'error',
+                failure: { ...chunk.reason.failure, status: responseState.retry.status, providerRetryAfterMs: responseState.retry.delayMs },
+              },
+            }
+          else yield chunk
         }
       } finally {
         consumer.abort('Subscription stream consumer stopped')

@@ -58,7 +58,7 @@ kind: "package-reference"
 
 ### 结果与失败
 
-Codex 和 Grok 引用来自 Responses URL annotation，Claude 引用来自 `web_search_result_location`，Antigravity 引用来自 Gemini grounding chunk 和 support。提供方把返回来源限制为 `request.maxResults`，并在丢弃来源时设置 `truncated`。它通过可机器路由的 `WebError` code 拒绝未完成的提供方终态、缺失搜索证据、缺失引用 URL、超出响应字节限制和非 OAuth 认证来源。HTTP 失败在 `SubscriptionSearchError.status` 中保留提供方状态，但不暴露响应正文。
+Codex 和 Grok 引用来自 Responses URL annotation，Claude 引用来自 `web_search_result_location`，Antigravity 引用来自 Gemini grounding chunk 和 support。提供方把返回来源限制为 `request.maxResults`，并在丢弃来源时设置 `truncated`。它通过可机器路由的 `WebError` code 拒绝未完成的提供方终态、缺失搜索证据、缺失引用 URL、超出响应字节限制和非 OAuth 认证来源。HTTP 失败在 `SubscriptionSearchError.status` 中保留提供方状态，但不暴露响应正文。Gemini 拒绝的 Antigravity 提示（`promptFeedback.blockReason`），或因 `SAFETY`、`RECITATION` 等策略结束原因而被扣留的回答，会以 `WEB_PROVIDER_CONTENT_FILTERED` 失败并只指明枚举原因，因此不会被误判为暂时性或未完成的回答。Antigravity 回答文本不包含模型的思考部件。
 
 -----
 
@@ -118,6 +118,7 @@ Codex、Grok 和 Claude 携带凭据的 fetch 会拒绝重定向。Antigravity �
 
 - Claude 把 `maxUses` 作为原生 `max_uses` 接收；Codex、Grok 和 Antigravity 没有已证明的等价请求字段，因此当原生操作计数超过配置上限时，其响应会在解析后被拒绝。
 - Codex 拒绝 `max_output_tokens`，因此 Codex 请求不发送 `maxOutputTokens`。Grok、Claude 和 Antigravity 接收各自的原生 token 字段。
+- Antigravity 只接收 `googleSearch` 这一个工具。Cloud Code 会拒绝 Google Search 与函数声明并用，并忽略 `toolConfig.includeServerSideToolInvocations`，因此本提供方从不同时发送二者，搜索加函数的循环也不在本包范围内。
 - `request.maxResults` 限制标准化输出，但不会发送到上游，因为这四种 transport 没有共同且已证明的原生结果数量字段。
 - `available()` 是本地生命周期检查。缺失或非 OAuth 授权会在首次搜索时失败，因为刷新和认证来源选择是异步操作。
 - 四个提供方系列均有通过本插件执行的有界实时原生搜索开发覆盖。模型和账户可用性可能不同；常规测试不消耗订阅配额。

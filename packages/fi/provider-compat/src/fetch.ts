@@ -2,7 +2,9 @@
 
 import { randomUUID } from 'node:crypto'
 import type { PiAiRequestTransportContext } from '@deepseek-ai/dsh-llm-pi-ai'
+import { normalizeGrokError } from './grok-error.ts'
 import {
+  conversationHeaders,
   HARNESS_ATTRIBUTION_HEADER,
   subscriptionHeaders,
   type SubscriptionProvider,
@@ -69,8 +71,9 @@ function matchesSource(provider: SubscriptionProvider, candidate: string, source
  * Only the exact inference endpoint is modified. Anthropic also accepts its
  * SDK's `beta=true` query while preserving it byte-for-byte. Other requests
  * delegate with their original input and init. Grok's exact public Responses
- * URL is replaced by the canonical CLI endpoint; Codex and Anthropic retain
- * their URL.
+ * URL is replaced by the canonical CLI endpoint, its conversation headers are
+ * added, and its failures are normalized; Codex and Anthropic retain their URL.
+ * Codex gains `thread-id` beside the `session-id` pi-ai sent.
  * @param request - non-secret request facts captured by llm-pi-ai.
  * @param delegate - underlying fetch implementation.
  * @returns a request-scoped fetch implementation.
@@ -85,14 +88,16 @@ export function subscriptionFetch(
     if (!matchesSource(request.provider, url, endpoint.source)) return delegate(input, init)
     const headers = mergedHeaders(input, init)
     headers.set(HARNESS_ATTRIBUTION_HEADER, request.harnessUserAgent)
-    const merged = subscriptionHeaders(
+    const sessionId = request.sessionId ?? randomUUID()
+    const merged = conversationHeaders(request.provider, subscriptionHeaders(
       request.provider,
       request.model,
-      request.sessionId ?? randomUUID(),
+      sessionId,
       request.timeoutMs,
       Object.fromEntries(headers.entries()),
-    )
+    ), sessionId)
     const target = request.provider === 'xai' ? endpoint.target : url
-    return delegate(replaceInput(input, target), { ...init, headers: merged, redirect: 'error' })
+    const response = await delegate(replaceInput(input, target), { ...init, headers: merged, redirect: 'error' })
+    return request.provider === 'xai' ? normalizeGrokError(response) : response
   }
 }

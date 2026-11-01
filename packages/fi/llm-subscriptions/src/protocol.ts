@@ -108,6 +108,19 @@ export function withTimeoutSignal(ms: number, signal?: AbortSignal): AbortSignal
   return AbortSignal.any([AbortSignal.timeout(ms), ...(signal ? [signal] : [])])
 }
 /**
+ * Read a Retry-After header as a delay.
+ * @param value - delta seconds or an HTTP date.
+ * @param now - current epoch milliseconds.
+ * @returns a positive delay in milliseconds, or undefined when absent or unusable.
+ */
+export function retryAfterMs(value: string | null, now = Date.now()): number | undefined {
+  if (!value) return undefined
+  const seconds = Number(value)
+  const delay = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(value) - now
+  return Number.isFinite(delay) && delay > 0 ? Math.ceil(delay) : undefined
+}
+
+/**
  * Validate a Kiro region before constructing AWS hosts.
  * @param auth - current account's region.
  * @returns validated region.

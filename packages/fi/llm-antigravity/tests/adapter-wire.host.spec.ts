@@ -46,6 +46,35 @@ it.each(['length', 'content_filter', 'stop', 'tool_calls'])('projects finish rea
   expect(chunks.at(-1)).toMatchObject({ type: 'finish', reason: { kind: { length: 'max-tokens', content_filter: 'error', stop: 'stop', tool_calls: 'tool-calls' }[reason] } })
 })
 
+it('names the content filter reason the transport reported', async () => {
+  vi.mocked(callAntigravityChat).mockResolvedValue(response([
+    { choices: [{ delta: {}, finish_reason: 'content_filter', content_filter_reason: 'RECITATION' }] },
+  ]))
+  expect((await collect(new AntigravityAdapter(grant))).at(-1)).toEqual({
+    type: 'finish',
+    reason: {
+      kind: 'error',
+      failure: { code: 'fi-antigravity/content-filter', message: 'Antigravity content filter stopped the response (RECITATION)' },
+    },
+  })
+})
+
+it.each([
+  [new Headers({ 'retry-after': '12' }), { providerRetryAfterMs: 12_000 }],
+  [new Headers({ 'retry-after': '0' }), {}],
+  [new Headers({ 'retry-after': 'soon' }), {}],
+  [new Headers(), {}],
+])('carries the transport retry hint %#', async (headers, hint) => {
+  vi.mocked(callAntigravityChat).mockResolvedValue(new Response(null, { status: 503, headers }))
+  expect(await collect(new AntigravityAdapter(grant))).toEqual([{
+    type: 'finish',
+    reason: {
+      kind: 'error',
+      failure: { code: 'fi-antigravity/upstream', status: 503, message: 'Antigravity upstream answered 503', ...hint },
+    },
+  }])
+})
+
 it.each([null, [], 'not an object'])('rejects malformed transported event %j', async (value) => {
   vi.mocked(callAntigravityChat).mockResolvedValue(response([value]))
   expect((await collect(new AntigravityAdapter(grant))).at(-1))

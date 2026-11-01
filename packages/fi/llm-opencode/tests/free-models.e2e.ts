@@ -18,7 +18,8 @@ it.skipIf(tokenFile === undefined)('generates text through Fi for every advertis
   const config: ConsoleOptions = { server: metadata.server, clientId: metadata.oauthClientId,
     userAgent: clientCapture.userAgent,
     requestTimeoutMs: 30_000, streamIdleTimeoutMs: 120_000, refreshMarginMs: 120_000,
-    catalogRetryCount: 1, catalogRetryDelayMs: 250, defaultContextWindow: 128_000, defaultMaxTokens: 8192 }
+    catalogRetryCount: 1, catalogRetryDelayMs: 250, catalogCacheMs: 0, registryCacheMs: 300_000, registryStaleMs: 86_400_000,
+    defaultContextWindow: 128_000, defaultMaxTokens: 8192 }
   const grant = { type: 'oauth' as const, server: config.server, access: token.access_token,
     refresh: token.refresh_token, expires: Date.parse(token.expired), email: '', accountId: 'live-test', orgId: token.opencode_org_id }
   expect(grant.expires).toBeGreaterThan(Date.now())
