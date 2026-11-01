@@ -2,18 +2,18 @@
   "opencodeConsole": {
     "server": "https://opencode.ai/console",
     "oauthClientId": "opencode-cli",
-    "version": "2.0.26",
+    "version": "2.2.5",
     "channel": "latest",
     "client": "cli",
     "catalogPath": "/api/v2/config",
-    "identitySourceRevision": "9b4ec5714d481559990db0a816d5dec19541a814",
-    "identitySourceUrl": "https://github.com/anomalyco/opencode/blob/9b4ec5714d481559990db0a816d5dec19541a814/packages/core/src/session/model-request.ts",
-    "sourceRevision": "9b4ec5714d481559990db0a816d5dec19541a814",
-    "sourceUrl": "https://github.com/anomalyco/opencode/blob/9b4ec5714d481559990db0a816d5dec19541a814/packages/core/src/plugin/provider/opencode.ts",
-    "transportSourceUrl": "https://github.com/anomalyco/opencode/blob/9b4ec5714d481559990db0a816d5dec19541a814/packages/core/src/session/runner/model.ts"
+    "identitySourceRevision": "9bbb8ce18c80f099e0e448775f59d965ead40a21",
+    "identitySourceUrl": "https://github.com/anomalyco/opencode/blob/9bbb8ce18c80f099e0e448775f59d965ead40a21/packages/core/src/session/model-request.ts",
+    "sourceRevision": "9bbb8ce18c80f099e0e448775f59d965ead40a21",
+    "sourceUrl": "https://github.com/anomalyco/opencode/blob/9bbb8ce18c80f099e0e448775f59d965ead40a21/packages/core/src/plugin/provider/opencode.ts",
+    "transportSourceUrl": "https://github.com/anomalyco/opencode/blob/9bbb8ce18c80f099e0e448775f59d965ead40a21/packages/core/src/session/model-resolver.ts"
   },
   "grokCode": {
-    "version": "1.0.52",
+    "version": "1.0.70",
     "releaseUrl": "https://x.ai/cli/stable",
     "oauthClientId": "b1a00492-073a-47ea-816f-4c329264a828",
     "oauthScopes": [
@@ -34,25 +34,25 @@
     "clientIdentifier": "grok-shell",
     "clientMode": "headless",
     "releaseEvidence": {
-      "version": "1.0.52",
+      "version": "1.0.70",
       "sourceUrl": "https://x.ai/cli/stable",
-      "retrievedAt": "2026-10-15T15:55:49.729Z",
-      "responseSha256": "8b8bbcf411306ea2159d36f4854cc741c47e60741aa7c6c74fa929f3d0dfedf3"
+      "retrievedAt": "2026-11-01T00:54:37.539Z",
+      "responseSha256": "f56579b5dab68a821e662fbe9c4d132a68422f1e79f6fc88cba3116017e80980"
     }
   },
   "antigravityCli": {
-    "version": "1.3.3",
-    "fingerprintCapturedVersion": "1.3.3",
+    "version": "1.4.12",
+    "fingerprintCapturedVersion": "1.4.12",
     "fingerprintEvidence": {
-      "version": "1.3.3",
-      "capturedAt": "2026-10-11T21:31:03.230Z",
+      "version": "1.4.12",
+      "capturedAt": "2026-11-01T01:08:12.535Z",
       "method": "official-binary-CLOUD_CODE_URL-loopback-forwarder",
-      "captureFile": "docs/research/antigravity-1.3.3-capture.json",
-      "binarySha256": "96dd362d5583c60485f5277fa64e43dd64c3ff02a2bf109fd683b99777da370d",
+      "captureFile": "docs/research/antigravity-1.4.12-capture.json",
+      "binarySha256": "34423fc9b0af3841e7646aa72a2d40ffeab8218b22d1cb99eac7355f9eba31e3",
       "authorizationValueRetained": false
     },
     "client": "aidev_client",
-    "build": "996823801",
+    "build": "1010700967",
     "authMethod": "consumer",
     "apiBaseUrl": "https://daily-cloudcode-pa.googleapis.com/v1internal",
     "projectDiscoveryUrl": "https://daily-cloudcode-pa.googleapis.com/v1internal:loadCodeAssist?alt=json",
@@ -70,92 +70,92 @@
     },
     "releaseUrl": "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/darwin_arm64.json",
     "corroborationUrl": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases/latest",
-    "latestReleaseVersion": "1.3.5",
+    "latestReleaseVersion": "1.4.12",
     "releaseEvidence": {
-      "version": "1.3.5",
+      "version": "1.4.12",
       "sourceUrl": "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/darwin_arm64.json",
-      "retrievedAt": "2026-10-15T15:55:49.729Z",
-      "responseSha256": "99a914c32ba70e4353cfc487ceffeeb738f874cd9fe9749e7f9bce5fe7087267",
+      "retrievedAt": "2026-11-01T00:54:37.539Z",
+      "responseSha256": "2608e478e8ecc29f70c1395c75dab67f0bae363f82e16f44736f1cacd106070f",
       "artifact": {
         "name": "cli_mac_arm64.tar.gz",
-        "url": "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.3.5-6164039479459840/darwin-arm/cli_mac_arm64.tar.gz",
-        "sha512": "8ed16057c9bd9e452b99f7bd424a4c63959faae75e5fa94b4f9b1bf20769f7c6deb8ec9c88f3c17944f09bcfaa04950b981fcb1eb6994bf65ae74772a9ffe080"
+        "url": "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.4.12-4768735748292608/darwin-arm/cli_mac_arm64.tar.gz",
+        "sha512": "e858cfc02fb5bb500a760643da270accd2847aa986b7e2973da97ad1928b99d62f62bad28c039e25b65e1ca073d27b2f30b13ed0919d0329774eb1e0ee5b4748"
       },
       "corroboration": {
         "sourceUrl": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases/latest",
-        "responseSha256": "174f4970ec386e5ab62d1c47ac8a28c5335998c7dc0965e682079f8bf2859c71",
-        "releasePageUrl": "https://github.com/google-antigravity/antigravity-cli/releases/tag/1.3.5",
-        "publishedAt": "2026-10-14T03:16:53Z",
+        "responseSha256": "4b93c1569e0a2981a231ba2c91727fd88ddd07b890179cef3a6805abf8ea13a4",
+        "releasePageUrl": "https://github.com/google-antigravity/antigravity-cli/releases/tag/1.4.12",
+        "publishedAt": "2026-10-30T21:39:59Z",
         "artifacts": [
           {
             "name": "agy_cli_linux_arm64.tar.gz",
-            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.3.5/agy_cli_linux_arm64.tar.gz",
-            "sha256": "065505ab4686ec7113b7ccd87fce87795a8fd4b7776f771da4d53940206e34cc"
+            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.12/agy_cli_linux_arm64.tar.gz",
+            "sha256": "30dd61ebe1f0a8829057ea2de29dad08c710dd972ce4c02949f51e632135a86b"
           },
           {
             "name": "agy_cli_linux_arm64_musl.tar.gz",
-            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.3.5/agy_cli_linux_arm64_musl.tar.gz",
-            "sha256": "21c959b28d4cd6d6719db71d34173481cb4b9bed9075656e74df6c65af93cd5a"
+            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.12/agy_cli_linux_arm64_musl.tar.gz",
+            "sha256": "921016ddbd89b60472eeb836c585d54e88c4e4c473542d143af98515a4cdba88"
           },
           {
             "name": "agy_cli_linux_x64.tar.gz",
-            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.3.5/agy_cli_linux_x64.tar.gz",
-            "sha256": "007a5a44dbaf1caea464c3d9848c63b2f69945b01a8bf8852c56c477a64374cf"
+            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.12/agy_cli_linux_x64.tar.gz",
+            "sha256": "3368d1923fc869f21ec8fce83252a8c96c89283aac9393958ac91fbf7a3949e4"
           },
           {
             "name": "agy_cli_linux_x64_musl.tar.gz",
-            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.3.5/agy_cli_linux_x64_musl.tar.gz",
-            "sha256": "535ce7a9ca3091e22e65b4a6ffa56570a6e2f394a2b6a44f40d4c90ec1fe13b8"
+            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.12/agy_cli_linux_x64_musl.tar.gz",
+            "sha256": "75dcaef83510105ce0152eaf5c7c738bb81ff5151130cb3f7df51a7062a3deea"
           },
           {
             "name": "agy_cli_mac_arm64.tar.gz",
-            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.3.5/agy_cli_mac_arm64.tar.gz",
-            "sha256": "60b46713d0e7217b796560ffc1c3c569f4e0b3357076ee6b60d464832d6d4105"
+            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.12/agy_cli_mac_arm64.tar.gz",
+            "sha256": "4c989b5ccf0e39c99a1ce6df82410abb628d4d83e0d3183527702df744d9c589"
           },
           {
             "name": "agy_cli_mac_x64.tar.gz",
-            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.3.5/agy_cli_mac_x64.tar.gz",
-            "sha256": "c867ca21c9d90a4e67ce8200bd4471ad3df3df2f9481005804263732da991bbc"
+            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.12/agy_cli_mac_x64.tar.gz",
+            "sha256": "624d01369df5841f64555741dd09d3ab4a6d174699a4ded896a5180c81f2c2de"
           },
           {
             "name": "agy_cli_windows_arm64.zip",
-            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.3.5/agy_cli_windows_arm64.zip",
-            "sha256": "20fe43f4197a006fd5fe4ffa79fcc0327f1aa5eed1e1f1647bf2662d15df7ddc"
+            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.12/agy_cli_windows_arm64.zip",
+            "sha256": "d0e987bc32a18aed2269f5f388b12dedb95f372870ff6f2a13397a4fa9d23f65"
           },
           {
             "name": "agy_cli_windows_x64.zip",
-            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.3.5/agy_cli_windows_x64.zip",
-            "sha256": "7ab23ad46bb11dd0eed1eff41e6b53ec9161a09d519f07e315f188f3dcbc8f7e"
+            "url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.12/agy_cli_windows_x64.zip",
+            "sha256": "1dfc617de5f9b4c5314489b0122c6f7f727a893326f361baa47a63fa86b9aec3"
           }
         ]
       },
       "verifiedArtifact": {
         "name": "cli_mac_arm64.tar.gz",
-        "url": "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.3.5-6164039479459840/darwin-arm/cli_mac_arm64.tar.gz",
-        "sha512": "8ed16057c9bd9e452b99f7bd424a4c63959faae75e5fa94b4f9b1bf20769f7c6deb8ec9c88f3c17944f09bcfaa04950b981fcb1eb6994bf65ae74772a9ffe080",
-        "sha256": "60b46713d0e7217b796560ffc1c3c569f4e0b3357076ee6b60d464832d6d4105",
-        "size": 55069121
+        "url": "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.4.12-4768735748292608/darwin-arm/cli_mac_arm64.tar.gz",
+        "sha512": "e858cfc02fb5bb500a760643da270accd2847aa986b7e2973da97ad1928b99d62f62bad28c039e25b65e1ca073d27b2f30b13ed0919d0329774eb1e0ee5b4748",
+        "sha256": "4c989b5ccf0e39c99a1ce6df82410abb628d4d83e0d3183527702df744d9c589",
+        "size": 59822635
       }
     }
   },
   "claudeCode": {
-    "version": "2.1.296",
+    "version": "2.1.316",
     "entrypoint": "sdk-cli",
-    "latestReleaseVersion": "2.1.300",
-    "fingerprintCapturedVersion": "2.1.296",
+    "latestReleaseVersion": "2.1.316",
+    "fingerprintCapturedVersion": "2.1.316",
     "fingerprintEvidence": {
-      "version": "2.1.296",
-      "capturedAt": "2026-10-11T20:29:40.041Z",
+      "version": "2.1.316",
+      "capturedAt": "2026-11-01T01:05:57.059Z",
       "method": "isolated-loopback-synthetic-oauth",
       "authorizationValueRetained": false,
       "artifact": {
-        "manifestUrl": "https://downloads.claude.ai/claude-code-releases/2.1.296/manifest.json",
-        "manifestSha256": "e50e872d91f3b7da2fb3d8d38505d709e0a90f48da1951dd51176930c8da8270",
-        "buildDate": "2026-10-09T14:46:35Z",
-        "commit": "fdb6c17a97b6e0e3cf15e3566663fca58e7c43a9",
+        "manifestUrl": "https://downloads.claude.ai/claude-code-releases/2.1.316/manifest.json",
+        "manifestSha256": "ac9d8bb6a65febbccf9e65bde2e3e4298b8d6974e96f559fbf1d740891a747db",
+        "buildDate": "2026-10-30T23:47:48Z",
+        "commit": "cd7ceb459c6864567b16a11f60101b24421475c1",
         "platform": "darwin-arm64",
-        "binarySha256": "c9b5341637becbd423ddffc5b254afb645682a3868cb708bbc6cc0e7bb419937",
-        "size": 240664432,
+        "binarySha256": "64c327e92b2c5e0f78c0a980c5a518121e1f0d140ca771ca5dd4488d1a2dcb3f",
+        "size": 310114176,
         "codeSignatureIdentifier": "com.anthropic.claude-code",
         "codeSignatureTeamIdentifier": "Q6L2SF6YDW"
       },
@@ -172,19 +172,19 @@
           "claude-sonnet-5-5/structured-output",
           "claude-sonnet-5-5/forced-tool-search"
         ],
-        "captureFile": "docs/research/claude-code-2.1.296-capture.json"
+        "captureFile": "docs/research/claude-code-2.1.316-capture.json"
       },
       "countTokens": {
         "route": "/v1/messages/count_tokens?beta=true",
-        "verification": "exact-artifact-static-inspection",
+        "verification": "isolated-loopback-synthetic-oauth",
+        "captureFile": "docs/research/claude-code-2.1.316-capture.json",
         "allowedBetas": [
           "claude-code-20250219",
+          "oauth-2025-04-20",
           "interleaved-thinking-2025-05-14",
-          "context-management-2025-06-27",
-          "oauth-2025-04-20"
+          "context-management-2025-06-27"
         ],
-        "sdkAppendedBeta": "token-counting-2024-11-01",
-        "staticEvidence": "Exact 2.1.296 artifact: WOt allowlist [$Ot,aen,exe,dbe], filtered before beta.messages.countTokens; SDK appends token-counting-2024-11-01."
+        "sdkAppendedBeta": "token-counting-2024-11-01"
       }
     },
     "releaseUrl": "https://registry.npmjs.org/@anthropic-ai/claude-code/latest",
@@ -205,27 +205,23 @@
     "stainless": {
       "packageVersion": "0.128.0",
       "runtime": "node",
-      "runtimeVersion": "v26.3.0"
+      "runtimeVersion": "v26.12.1"
     },
     "messageBetas": [
       "claude-code-20250219",
       "oauth-2025-04-20",
       "interleaved-thinking-2025-05-14",
-      "thinking-token-count-2026-05-13",
       "context-management-2025-06-27",
-      "prompt-caching-scope-2026-01-05",
+      "thinking-token-count-2026-05-13",
       "effort-2025-11-24",
-      "dangerous-tool-use-2026-09-03",
-      "afk-mode-2026-01-31",
       "extended-cache-ttl-2025-04-11"
     ],
     "haikuMessageBetas": [
       "oauth-2025-04-20",
       "interleaved-thinking-2025-05-14",
-      "thinking-token-count-2026-05-13",
       "context-management-2025-06-27",
-      "prompt-caching-scope-2026-01-05",
       "claude-code-20250219",
+      "thinking-token-count-2026-05-13",
       "extended-cache-ttl-2025-04-11"
     ],
     "countTokensBetas": [
@@ -242,88 +238,77 @@
       "token-counting-2024-11-01"
     ],
     "releaseEvidence": {
-      "version": "2.1.300",
+      "version": "2.1.316",
       "sourceUrl": "https://registry.npmjs.org/@anthropic-ai/claude-code/latest",
-      "retrievedAt": "2026-10-15T15:55:49.729Z",
-      "responseSha256": "630e3ee28546fc0c7d26dfb5b6be344419d678c259b128aea4d2fd9690d97d0d"
+      "retrievedAt": "2026-11-01T00:54:37.539Z",
+      "responseSha256": "1f27e10988b52e19aec962e848d96f4d35f03591954775d6fbf5d9171b680fe1"
     },
     "modelMessageBetas": {
       "claude-sonnet-5-5": [
         "claude-code-20250219",
         "oauth-2025-04-20",
         "interleaved-thinking-2025-05-14",
-        "thinking-token-count-2026-05-13",
         "context-management-2025-06-27",
-        "prompt-caching-scope-2026-01-05",
-        "mid-conversation-system-2026-04-07",
         "per-turn-control-2026-07-01",
         "mid-conversation-tool-changes-2026-07-01",
-        "effort-2025-11-24",
-        "dangerous-tool-use-2026-09-03",
-        "afk-mode-2026-01-31",
-        "extended-cache-ttl-2025-04-11"
-      ],
-      "claude-opus-5": [
-        "claude-code-20250219",
-        "oauth-2025-04-20",
-        "interleaved-thinking-2025-05-14",
         "thinking-token-count-2026-05-13",
-        "context-management-2025-06-27",
-        "prompt-caching-scope-2026-01-05",
-        "mid-conversation-system-2026-04-07",
-        "mid-conversation-tool-changes-2026-07-01",
         "effort-2025-11-24",
-        "dangerous-tool-use-2026-09-03",
-        "afk-mode-2026-01-31",
         "extended-cache-ttl-2025-04-11"
       ],
       "claude-opus-5-5": [
         "claude-code-20250219",
         "oauth-2025-04-20",
         "interleaved-thinking-2025-05-14",
-        "thinking-token-count-2026-05-13",
         "context-management-2025-06-27",
-        "prompt-caching-scope-2026-01-05",
-        "mid-conversation-system-2026-04-07",
         "per-turn-control-2026-07-01",
         "mid-conversation-tool-changes-2026-07-01",
+        "thinking-token-count-2026-05-13",
         "effort-2025-11-24",
-        "dangerous-tool-use-2026-09-03",
-        "afk-mode-2026-01-31",
         "extended-cache-ttl-2025-04-11"
       ],
       "claude-fable-5-1": [
         "claude-code-20250219",
         "oauth-2025-04-20",
         "interleaved-thinking-2025-05-14",
-        "thinking-token-count-2026-05-13",
         "context-management-2025-06-27",
-        "prompt-caching-scope-2026-01-05",
-        "mid-conversation-system-2026-04-07",
         "per-turn-control-2026-07-01",
         "mid-conversation-tool-changes-2026-07-01",
+        "thinking-token-count-2026-05-13",
         "effort-2025-11-24",
-        "dangerous-tool-use-2026-09-03",
-        "afk-mode-2026-01-31",
         "extended-cache-ttl-2025-04-11"
       ],
       "claude-sonnet-5": [
         "claude-code-20250219",
         "oauth-2025-04-20",
         "interleaved-thinking-2025-05-14",
-        "thinking-token-count-2026-05-13",
         "context-management-2025-06-27",
-        "prompt-caching-scope-2026-01-05",
-        "mid-conversation-system-2026-04-07",
+        "thinking-token-count-2026-05-13",
         "effort-2025-11-24",
-        "dangerous-tool-use-2026-09-03",
-        "afk-mode-2026-01-31",
+        "extended-cache-ttl-2025-04-11"
+      ],
+      "claude-opus-5": [
+        "claude-code-20250219",
+        "oauth-2025-04-20",
+        "interleaved-thinking-2025-05-14",
+        "context-management-2025-06-27",
+        "mid-conversation-tool-changes-2026-07-01",
+        "thinking-token-count-2026-05-13",
+        "effort-2025-11-24",
+        "extended-cache-ttl-2025-04-11"
+      ],
+      "claude-sonnet-4-6": [
+        "claude-code-20250219",
+        "oauth-2025-04-20",
+        "interleaved-thinking-2025-05-14",
+        "context-management-2025-06-27",
+        "thinking-token-count-2026-05-13",
+        "effort-2025-11-24",
         "extended-cache-ttl-2025-04-11"
       ]
     }
   },
   "codexCli": {
-    "version": "0.162.1",
+    "version": "0.166.0",
     "releaseUrl": "https://registry.npmjs.org/@openai/codex/latest",
     "baseUrl": "https://chatgpt.com/backend-api",
     "responsesPath": "/codex/responses",
@@ -345,10 +330,10 @@
       ]
     },
     "releaseEvidence": {
-      "version": "0.162.1",
+      "version": "0.166.0",
       "sourceUrl": "https://registry.npmjs.org/@openai/codex/latest",
-      "retrievedAt": "2026-10-11T20:21:38.327Z",
-      "responseSha256": "ac06ce4280ce0f783b1d6ec111a9a243d98bd48e4fddaab12be19826cb84a1b2"
+      "retrievedAt": "2026-11-01T00:54:37.539Z",
+      "responseSha256": "12c1f3bb84f0235e52ccea4f26811e4671257e80b3c870da429674d29ca6b50d"
     }
   }
 }

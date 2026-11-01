@@ -1,7 +1,7 @@
 {
-  "userAgent": "opencode/latest/2.0.20/cli",
-  "capturedAt": "2026-10-14",
-  "sourceRevision": "84c9be93a56304a108f1a22df0c5d62c26d5b6ca",
-  "sourceUrl": "https://github.com/anomalyco/opencode/blob/84c9be93a56304a108f1a22df0c5d62c26d5b6ca/packages/core/src/session/model-request.ts",
-  "verification": "Installed CLI request capture and authenticated zero-cost Big Pickle generation; release-only identities 2.0.26 and 2.0.29 rejected the same request."
+  "userAgent": "opencode/latest/2.2.5/cli",
+  "capturedAt": "2026-11-01",
+  "sourceRevision": "9bbb8ce18c80f099e0e448775f59d965ead40a21",
+  "sourceUrl": "https://github.com/anomalyco/opencode/blob/9bbb8ce18c80f099e0e448775f59d965ead40a21/packages/core/src/session/model-request.ts",
+  "verification": "Official OpenCode 2.2.5 native request-hook capture and source review; current FreeUsageLimitError also reproduces in the unmodified CLI."
 }

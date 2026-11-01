@@ -9,7 +9,7 @@ import { createUserMessage, ToolCallId, StreamChunk  } from '@deepseek-ai/dsh-ll
 import SessionStore, { SessionEvent, SessionId, TOOL_NOT_STARTED, TOOL_OUTCOME_UNKNOWN } from '@deepseek-ai/dsh-session'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import LlmRuntime from '@deepseek-ai/dsh-llm'
-import type { ContextFormed } from '@deepseek-ai/dsh-llm'
+import type { ContextFormed, ToolCallBlock } from '@deepseek-ai/dsh-llm'
 import ToolRuntime, { defineContentToolFixture, TOOL_ABORTED_BEFORE_DISPATCH, TOOL_RUNTIME_SCHEDULER, type PostToolDecision, type PreToolDecision } from '@deepseek-ai/dsh-tools'
 import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
@@ -17,6 +17,7 @@ import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import { MockAdapter, textResponse } from './mock-adapter.ts'
 import { PtcRuntime } from '@deepseek-ai/dsh-ptc-runtime'
 import type { PtcRunRequest, PtcRunResult } from '@deepseek-ai/dsh-ptc-runtime'
+import { executeToolCalls } from '../src/tool-calls.ts'
 
 declare module '@deepseek-ai/dsh-llm' {
   interface MessageSourceMap {
@@ -456,6 +457,53 @@ describe('tool-call scheduler: ordered middleware and additional contexts', () =
 })
 
 describe('tool-call scheduler: abort handling', () => {
+  it('records every pre-cancelled call as skipped without querying a disposed registry', async () => {
+    const ctx = await harness(new MockAdapter([]))
+    onTestFinished(() => ctx.fiber.dispose())
+    const agent = await ctx.agentLoop.create(SessionId('pre-cancelled'), { provider: 'mock', model: 'mock' })
+    const calls: ToolCallBlock[] = [
+      { type: 'tool-call', id: ToolCallId('c3'), name: 'read', arguments: '{"path":"first"}' },
+      { type: 'tool-call', id: ToolCallId('c1'), name: 'write', arguments: '{invalid JSON' },
+      { type: 'tool-call', id: ToolCallId('c2'), name: 'read', arguments: '' },
+    ]
+    let classifications = 0
+    let dispatches = 0
+    ctx.tools.executionMode = () => {
+      classifications++
+      throw new Error('tool registry was disposed')
+    }
+    ctx.tools[TOOL_RUNTIME_SCHEDULER].dispatch = async () => {
+      dispatches++
+      throw new Error('cancelled tool reached dispatch')
+    }
+    const controller = new AbortController()
+    controller.abort()
+    const acceptedContexts: unknown[] = []
+    const result = await ctx.agents.withInitiator(agent, () => executeToolCalls(
+      ctx, 1, 1, calls, controller.signal, (context) => { acceptedContexts.push(context) },
+    ))
+
+    expect(result).toEqual({ concluded: false })
+    expect(classifications).toBe(0)
+    expect(dispatches).toBe(0)
+    expect(acceptedContexts).toEqual([])
+    expect(events(agent).filter(event => event.type === 'tool/call').map(event => ({
+      callId: event.data.callId,
+      arguments: event.data.arguments,
+    }))).toEqual(calls.map(call => ({ callId: call.id, arguments: call.arguments })))
+    expect(events(agent).filter(event => event.type === 'tool/result').map(event => ({
+      callId: event.data.message.source.callId,
+      isError: event.data.message.isError,
+      content: event.data.message.content,
+      error: event.data.error,
+    }))).toEqual(calls.map(call => ({
+      callId: call.id,
+      isError: true,
+      content: [{ type: 'text', text: 'Error: tool call aborted before dispatch' }],
+      error: { name: 'AbortError', code: TOOL_ABORTED_BEFORE_DISPATCH },
+    })))
+  })
+
   it('starts no calls when the signal is already aborted before a parallel group', async () => {
     const adapter = new MockAdapter([
       multiCall([{ id: 'c1', name: 'p', args: { id: '1' } }, { id: 'c2', name: 'p', args: { id: '2' } }]),

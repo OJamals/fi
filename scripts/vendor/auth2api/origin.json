@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "sourceRepository": "https://github.com/OJamals/auth2api.git",
-  "sourceCommit": "7fc76cd5aba6984dfaaaa14fd6b59e7cde728631",
+  "sourceCommit": "aa4d296899aa087f757b4afd2263244631bb9ca3",
   "dirtyBaseline": false,
   "sourceUpdaterPath": "tools/update-provider-settings.mjs",
   "sourceSettingsPath": "src/provider-settings.json",
   "sourceUpdaterSha256": "f57d966f186830baaddc325e297fe6dd52d94602ac47d9603c4b2925a1606b3f",
-  "sourceSettingsSha256": "9b7a5bfd1903cb797e3b26d4f9d455274e53081bdcd127c7a35400d3958d042a",
+  "sourceSettingsSha256": "6725abe749eea69335ad9c41e919bb73b9a49da5bef40faae867833f89af80b6",
   "vendoredUpdaterSha256": "f57d966f186830baaddc325e297fe6dd52d94602ac47d9603c4b2925a1606b3f"
 }

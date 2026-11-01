@@ -107,15 +107,15 @@ describe('live model discovery', () => {
   it('never calls the hook for a route pi-ai does not mark as a subscription', async () => {
     const resolveLiveModels = vi.fn(() => Promise.resolve([{ id: 'gpt-9-preview' }]))
     const adapter = new PiAiAdapter({
-      profiles: () => resolveProfiles({ openai: { apiKeyEnv: 'PI_TEST_KEY_OPENAI' } }),
+      profiles: () => resolveProfiles({ deepseek: { apiKeyEnv: 'PI_TEST_KEY_OPENAI' } }),
       resolveApiKey: () => Promise.resolve('test-key'),
       // A raw OAuth-shaped record is harmless here: this route's installed
       // provider declares no `auth.oauth` at all, so the adapter never asks.
-      auth: memoryAuth({ openai: OAUTH_GRANT }),
+      auth: memoryAuth({ deepseek: OAUTH_GRANT }),
       resolveLiveModels,
     })
 
-    await adapter.listModels('openai')
+    await adapter.listModels('deepseek')
 
     expect(resolveLiveModels).not.toHaveBeenCalled()
   })

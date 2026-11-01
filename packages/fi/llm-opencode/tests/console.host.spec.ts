@@ -26,7 +26,7 @@ vi.mock('node:timers/promises', () => ({ setTimeout: vi.fn((ms: number, _value: 
 }) }))
 
 const config: ConsoleOptions = {
-  server: 'https://opencode.ai/console', clientId: 'opencode-cli', userAgent: 'opencode/latest/2.0.20/cli',
+  server: 'https://opencode.ai/console', clientId: 'opencode-cli', userAgent: 'opencode/latest/2.2.5/cli',
   requestTimeoutMs: 1000, streamIdleTimeoutMs: 1000, refreshMarginMs: 120_000,
   catalogRetryCount: 1, catalogRetryDelayMs: 250,
   defaultContextWindow: 128_000, defaultMaxTokens: 8192,
@@ -522,7 +522,7 @@ describe('OpenCode model routing', () => {
     await ctx.credentials.modifyRecord(OPENCODE_KEY, async () => ({ kind: 'grant', payload: seed }))
     script((request) => {
       expect(request.headers.get('x-org-id')).toBe(seed.orgId)
-      expect(request.headers.get('user-agent')).toBe('opencode/latest/2.0.20/cli')
+      expect(request.headers.get('user-agent')).toBe('opencode/latest/2.2.5/cli')
       return json(catalog())
     })
     expect(await ctx.llm.discoverModels('fi-opencode', { provider: 'opencode-console' })).toEqual([{ id: 'friendly', name: 'Friendly' }])
