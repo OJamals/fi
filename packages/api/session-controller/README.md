@@ -84,6 +84,8 @@ GUI model selection and prompt admission require the exact provider/model pair i
 
 A successful `selectModel` response acknowledges the Session-local selection without waiting for the default profile setting to save. Default saves run in the background in submission order; a failure logs a warning and leaves the Session selection intact. New Sessions read the last successfully saved default.
 
+Omitting `reasoningEffort` in `selectModel` preserves Automatic in both the Session selection and saved default. Provider defaults are validated for the request without becoming an explicit saved effort.
+
 -----
 
 <a id="configuration"></a>
