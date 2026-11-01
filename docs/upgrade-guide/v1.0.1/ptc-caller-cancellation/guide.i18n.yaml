@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v1.0.1/ptc-caller-cancellation/guide.md
+/:
+  en: 6deb73f8bd3b1b2a
+  zh: 8bafa6e8c6277923
+/ptc-caller-cancellation-uses-the-standard-tool-error-code:
+  en: 329da7b0a19c691b
+  zh: 895e714afda5edc4
+/ptc-caller-cancellation-uses-the-standard-tool-error-code/change:
+  en: 07b692fdde470b40
+  zh: e0fc6bab1e2f1994
+/ptc-caller-cancellation-uses-the-standard-tool-error-code/migration:
+  en: e3bbbebda24059c0
+  zh: 926e91f3ce5a8a72
