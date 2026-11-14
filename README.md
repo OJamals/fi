@@ -4,7 +4,7 @@
 
 <img src="apps/web/public/fi-logo.png" alt="fi" width="88">
 
-**Your AI subscriptions, together in one coding workspace.**
+**Your AI subscriptions, together in one agentic workspace.**
 
 Sign in with the AI plans you already have (Claude, ChatGPT/Codex, Grok, GitHub Copilot, Cursor, and more) and choose the model for each conversation in one open-source coding app.
 
