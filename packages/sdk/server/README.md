@@ -1,5 +1,5 @@
 ---
-description: "The stdio JSON-RPC serving plugin for deployments that let out-of-process SDK clients open sessions and drive agents in a DeepSeek Harness runtime."
+description: "The stdio JSON-RPC serving plugin for deployments that let out-of-process SDK clients open sessions and drive agents in a fi runtime."
 kind: "package-reference"
 ---
 
@@ -94,7 +94,7 @@ Read these pages when the plugin contract is not enough. They move from the wire
 
 - [SDK wire protocol](../protocol/README.md) — the methods and payload shapes this plugin serves.
 - [TypeScript SDK client](../client/README.md) — the client that drives this plugin.
-- [SDK application bundle](../../bundle/sdk-app/README.md) — the `dsh --profile sdk` application that boots this plugin.
+- [SDK application bundle](../../bundle/sdk-app/README.md) — the `fi-cli --profile sdk` application that boots this plugin.
 - [Python SDK](../../../python/README.md) — the Python client that drives the same server.
 - [SDK runtime distribution decision](../../../.agents/notes/implemented/architecture/2026-07-10-single-file-executable-sdk-runtime-distribution.md) — why the packaged runtime serves a closed plugin tree.
 

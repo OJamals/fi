@@ -67,12 +67,12 @@ function manifestOf(ctx: Context, name: string, parentURL: string): object | und
  * @param ctx Context carrying launcher-owned profile facts; non-profile contexts retain their rows.
  * @param entries Complete effective entry list, after patch composition.
  * @param parentURL Resolution base of the tree that will import these rows.
- * @param binName Diagnostic prefix for a denied row; defaults to `dsh`.
+ * @param binName Diagnostic prefix for a denied row; defaults to `fi-cli`.
  * @returns Detached rows with incompatible entries denied; reads the profile compatibility file once.
  * @throws For malformed compatibility permissions or a profile composition without a resolution base.
  */
 export function prepareProfileEntries(
-  ctx: Context, entries: readonly EntryOptions[], parentURL: string | undefined, binName = 'dsh',
+  ctx: Context, entries: readonly EntryOptions[], parentURL: string | undefined, binName = 'fi-cli',
 ): EntryOptions[] {
   // Admission runs before the composed tree mounts, so no plugin-owned logger exporter exists yet;
   // composition-stage diagnostics go to stderr like the profile launcher's skipped-bundle report.
@@ -174,11 +174,11 @@ function preflight(
  * @param ctx Profile context prepared by the launcher.
  * @param patches Original ordered profile patches; these remain unchanged.
  * @param parentURL Root Include's resolution base.
- * @param binName Diagnostic prefix for a denied row; defaults to `dsh`.
+ * @param binName Diagnostic prefix for a denied row; defaults to `fi-cli`.
  * @returns One prepared insertion patch for profiles, or the original patches for non-profile callers.
  */
 export function prepareProfilePatches(
-  ctx: Context, patches: PatchOptions[], parentURL: string, binName = 'dsh',
+  ctx: Context, patches: PatchOptions[], parentURL: string, binName = 'fi-cli',
 ): PatchOptions[] {
   if (ctx.get('profileContext') === undefined) return patches
   const entries = applyEntryPatches([], patches, patchWarning(ctx))

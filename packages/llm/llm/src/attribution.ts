@@ -27,8 +27,8 @@ export interface AppIdentity {
   product: string
   /** Product version; sourced from package metadata, never hand-copied. */
   version: string
-  /** Repository home URL of the app, used as the `User-Agent` comment. */
-  url: string
+  /** Optional home URL of the app, rendered as the `User-Agent` comment when present. */
+  url?: string
 }
 
 /**
@@ -38,20 +38,20 @@ export interface AppIdentity {
  * can suppress attribution entirely.
  */
 export const APP_IDENTITY: AppIdentity = {
-  product: 'deepseek-harness',
+  product: 'fi',
   version,
-  url: 'https://github.com/deepseek-ai/deepseek-harness',
 }
 
 /**
- * The standard `User-Agent` value: `product/version (+url)`. The
- * parenthesized `+url` comment is the conventional self-identification form
- * (RFC 9110 §10.1.5 product + comment syntax).
+ * The standard `User-Agent` value: `product/version`, followed by the
+ * conventional `(+url)` comment (RFC 9110 §10.1.5 product + comment syntax)
+ * only when the identity carries a URL.
  * @param identity - the identity to render; defaults to {@link APP_IDENTITY}.
  * @returns the ready-to-send header value.
  */
 export function userAgent(identity: AppIdentity = APP_IDENTITY): string {
-  return `${identity.product}/${identity.version} (+${identity.url})`
+  const token = `${identity.product}/${identity.version}`
+  return identity.url === undefined ? token : `${token} (+${identity.url})`
 }
 
 /**

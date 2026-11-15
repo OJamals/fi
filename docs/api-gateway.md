@@ -146,7 +146,7 @@ Web development runs one command, which builds current Host, Client, and Web art
 pnpm run dev:web
 ```
 
-`dsh` starts the Host source through tsx, so the Host can use the SRC fallback; the `dev:web` watchers rebuild the client-face type emit, Client plugin and library bundles, and the Web shell on source edits. They do not analyze Host decorators or generate Remote Client DTS; only the complete build that `dev:web` runs first (or `pnpm run build`) does.
+`fi-cli` starts the Host source through tsx, so the Host can use the SRC fallback; the `dev:web` watchers rebuild the client-face type emit, Client plugin and library bundles, and the Web shell on source edits. They do not analyze Host decorators or generate Remote Client DTS; only the complete build that `dev:web` runs first (or `pnpm run build`) does.
 
 Changing only a Remote method's implementation body without changing its contract does not require regenerating the Typert files. After adding or removing a decorator or changing an export name, namespace, parameter, return value, lookup, Context, or cancellation signature, rerun the ordered lib build so the Host generates the strict contract before the Client compiles and bundles the new contribution:
 

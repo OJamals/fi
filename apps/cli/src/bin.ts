@@ -6,6 +6,7 @@
 
 /* v8 ignore file -- built-bin acceptance exercises this self-executing dispatch. */
 
+import './fi-environment.ts'
 import { getDshRuntimeVersion, loadLayeredEnv, StartupError } from '@deepseek-ai/dsh-app-boot'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { parseDshArgs } from './args.ts'
@@ -33,7 +34,7 @@ export async function runCli(options: RunCliOptions = {}): Promise<void> {
       const { runProfile } = await import('./profile-boot.ts')
       try {
         await runProfile({
-          environment: loadLayeredEnv('dsh'),
+          environment: loadLayeredEnv('fi-cli'),
           profile: invocation.profile,
           fromDefaultProfile: invocation.fromDefaultProfile,
           patchFiles: invocation.patches,
@@ -69,7 +70,7 @@ export async function runCli(options: RunCliOptions = {}): Promise<void> {
     }
     default:
       invocation satisfies never
-      throw new Error(`dsh: unhandled invocation mode ${JSON.stringify(invocation)}`)
+      throw new Error(`fi-cli: unhandled invocation mode ${JSON.stringify(invocation)}`)
   }
 }
 

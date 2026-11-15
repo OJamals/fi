@@ -1,5 +1,5 @@
 ---
-description: "dsh Web 客户端的「内置插件」设置分区：设置导航项与供功能插件注册标签页的标签行。"
+description: "fi Web 客户端的「内置插件」设置分区：设置导航项与供功能插件注册标签页的标签行。"
 kind: "package-reference"
 ---
 

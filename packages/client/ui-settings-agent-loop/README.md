@@ -1,5 +1,5 @@
 ---
-description: "The agent loop's settings page on the dsh web client's Plugins page: the parallel tool-call cap of the agent-loop namespace."
+description: "The agent loop's settings page on the fi web client's Plugins page: the parallel tool-call cap of the agent-loop namespace."
 kind: "package-reference"
 ---
 

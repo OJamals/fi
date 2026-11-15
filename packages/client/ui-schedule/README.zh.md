@@ -53,7 +53,7 @@ kind: "package-reference"
 
 ### 时区数据来源
 
-时区清单与本地化完全离线。`Intl` 读取浏览器运行时内嵌的 ICU/CLDR 表，DSH 运行时不会获取或下载时区数据。没有需要刷新的爬虫；第三方语言包提供 `time.locale`，并仅翻译选择器自身的 UI 文案。
+时区清单与本地化完全离线。`Intl` 读取浏览器运行时内嵌的 ICU/CLDR 表，fi 运行时不会获取或下载时区数据。没有需要刷新的爬虫；第三方语言包提供 `time.locale`，并仅翻译选择器自身的 UI 文案。
 
 <a id="understand-the-implementation"></a>
 ## 理解实现

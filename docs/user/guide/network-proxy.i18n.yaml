@@ -2,24 +2,24 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/user/guide/network-proxy.md
-/run-dsh-behind-a-network-proxy:
-  en: 7659888fbb3e2e0d
-  zh: 96c019583f5bf7ab
-/run-dsh-behind-a-network-proxy/export-the-variables:
-  en: c7466309c0686375
-  zh: a59151edc7dee28a
-/run-dsh-behind-a-network-proxy/why-your-browser-is-proxied-but-your-terminal-is-not:
-  en: d565b202923482a1
-  zh: 7eb5a36a3d7504d7
-/run-dsh-behind-a-network-proxy/choose-what-stays-direct:
-  en: 307f5b01e6e09661
-  zh: 39eccb0287afc128
-/run-dsh-behind-a-network-proxy/limits-worth-knowing:
-  en: d0defd7e52100d1f
-  zh: 50f38176e16f55e4
-/run-dsh-behind-a-network-proxy/what-stays-direct:
-  en: 34b04f98af3e09ae
-  zh: 4c530b755b552942
-/run-dsh-behind-a-network-proxy/check-that-it-worked:
-  en: d7455972489f79a8
-  zh: 1e7295e10a211769
+/run-fi-behind-a-network-proxy:
+  en: d3d9992694084811
+  zh: 507463d566044d08
+/run-fi-behind-a-network-proxy/export-the-variables:
+  en: 53e462c4b343310a
+  zh: 2289f068a4370dd8
+/run-fi-behind-a-network-proxy/why-your-browser-is-proxied-but-your-terminal-is-not:
+  en: fca929bf7337f7aa
+  zh: 074b66adb421ec0f
+/run-fi-behind-a-network-proxy/choose-what-stays-direct:
+  en: 9fecf4ab38a99033
+  zh: 442165db481262c4
+/run-fi-behind-a-network-proxy/limits-worth-knowing:
+  en: aa8d04062c4b1e8c
+  zh: 215d0aed09573f65
+/run-fi-behind-a-network-proxy/what-stays-direct:
+  en: e13cc551ab808523
+  zh: 0681e59d92ba9661
+/run-fi-behind-a-network-proxy/check-that-it-worked:
+  en: ae9cf6cde1160468
+  zh: ae6f5ea403349269

@@ -53,7 +53,7 @@ The Sidebar's Session rows mark scheduled Sessions: while a row is idle, unarchi
 
 ### Time-zone data source
 
-Time-zone inventory and localization are offline. `Intl` reads ICU/CLDR tables embedded in the browser runtime and never fetches or downloads zone data while DSH runs. There is no crawler to refresh; a third-party locale supplies `time.locale` and translates only the selector's own UI copy.
+Time-zone inventory and localization are offline. `Intl` reads ICU/CLDR tables embedded in the browser runtime and never fetches or downloads zone data while fi runs. There is no crawler to refresh; a third-party locale supplies `time.locale` and translates only the selector's own UI copy.
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation

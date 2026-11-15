@@ -1,5 +1,5 @@
 ---
-description: "dsh Web 客户端插件页上的 DeepSeek 网页搜索提供方设置页：API Key、接口地址与单次请求的搜索次数上限。"
+description: "fi Web 客户端插件页上的 DeepSeek 网页搜索提供方设置页：API Key、接口地址与单次请求的搜索次数上限。"
 kind: "package-reference"
 ---
 

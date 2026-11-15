@@ -119,7 +119,7 @@ git diff --check
 <a id="v4-corpus-trial"></a>
 ### Developer V4 corpus trial
 
-Use the one-time [migration script](../../scripts/migrate-sessions-to-v4.ts) from an installed contributor checkout whose writer is V4. Stop DSH processes using the target root before starting so writer locks and changing child logs do not prevent migration. Run from the repository root:
+Use the one-time [migration script](../../scripts/migrate-sessions-to-v4.ts) from an installed contributor checkout whose writer is V4. Stop fi processes using the target root before starting so writer locks and changing child logs do not prevent migration. Run from the repository root:
 
 ```sh
 pnpm run migrate:sessions-to-v4

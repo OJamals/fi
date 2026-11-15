@@ -1084,6 +1084,7 @@ import sys
 json.dump({
     "argv": sys.argv[1:],
     "DSH_HOME": os.environ.get("DSH_HOME"),
+    "FI_HOME": os.environ.get("FI_HOME"),
     "DSH_CORDIS_CONFIG": os.environ.get("DSH_CORDIS_CONFIG"),
 }, open(os.environ["ENV_DUMP"], "w"))
 for line in sys.stdin:
@@ -1119,6 +1120,7 @@ def test_client_default_launch_uses_bundled_dsh_sdk_profile_and_explicit_home(
     _install_fake_bundled_dsh(tmp_path, monkeypatch)
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("DSH_HOME", str(tmp_path / "ambient-home"))
+    monkeypatch.delenv("FI_HOME", raising=False)
     monkeypatch.delenv("DSH_CORDIS_CONFIG", raising=False)
 
     with HarnessClient(HarnessConfig(
@@ -1133,6 +1135,7 @@ def test_client_default_launch_uses_bundled_dsh_sdk_profile_and_explicit_home(
     assert json.loads(env_dump.read_text()) == {
         "argv": ["--profile", "sdk", "--patch", str(patch)],
         "DSH_HOME": str(home),
+        "FI_HOME": None,
         "DSH_CORDIS_CONFIG": None,
     }
 
@@ -1143,6 +1146,7 @@ def test_client_accepts_explicit_environment_dsh_home(
     env_dump = tmp_path / "env.json"
     home = tmp_path / "environment-home"
     _install_fake_bundled_dsh(tmp_path, monkeypatch)
+    monkeypatch.delenv("FI_HOME", raising=False)
 
     with HarnessClient(
         HarnessConfig(profile="custom", env={"ENV_DUMP": str(env_dump), "DSH_HOME": str(home)})
@@ -1152,8 +1156,46 @@ def test_client_accepts_explicit_environment_dsh_home(
     assert json.loads(env_dump.read_text()) == {
         "argv": ["--profile", "custom"],
         "DSH_HOME": str(home),
+        "FI_HOME": None,
         "DSH_CORDIS_CONFIG": None,
     }
+
+
+def test_client_maps_fi_environment_names_over_dsh_names(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    env_dump = tmp_path / "env.json"
+    home = tmp_path / "fi-home"
+    _install_fake_bundled_dsh(tmp_path, monkeypatch)
+    monkeypatch.setenv("DSH_HOME", str(tmp_path / "dsh-home"))
+
+    with HarnessClient(
+        HarnessConfig(profile="custom", env={"ENV_DUMP": str(env_dump), "FI_HOME": str(home)})
+    ) as client:
+        client.initialize(provider="deepseek-official", cwd="/workspace", model="deepseek-v4-pro")
+
+    assert json.loads(env_dump.read_text())["DSH_HOME"] == str(home)
+
+
+@pytest.mark.parametrize("source", ["dsh_home", "env"])
+def test_client_explicit_dsh_home_removes_an_ambient_fi_home(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source: str
+) -> None:
+    env_dump = tmp_path / "env.json"
+    home = tmp_path / "explicit-home"
+    _install_fake_bundled_dsh(tmp_path, monkeypatch)
+    monkeypatch.setenv("FI_HOME", str(tmp_path / "ambient-fi-home"))
+    config = (
+        HarnessConfig(profile="custom", dsh_home=str(home), env={"ENV_DUMP": str(env_dump)})
+        if source == "dsh_home"
+        else HarnessConfig(profile="custom", env={"ENV_DUMP": str(env_dump), "DSH_HOME": str(home)})
+    )
+
+    with HarnessClient(config) as client:
+        client.initialize(provider="deepseek-official", cwd="/workspace", model="deepseek-v4-pro")
+
+    dumped = json.loads(env_dump.read_text())
+    assert (dumped["DSH_HOME"], dumped["FI_HOME"]) == (str(home), None)
 
 
 def test_client_rejects_an_implicit_default_dsh_home(
@@ -1162,7 +1204,7 @@ def test_client_rejects_an_implicit_default_dsh_home(
     _install_fake_bundled_dsh(tmp_path, monkeypatch)
     monkeypatch.delenv("DSH_HOME", raising=False)
 
-    with pytest.raises(ValueError, match="explicit dsh_home or non-empty DSH_HOME"):
+    with pytest.raises(ValueError, match="explicit dsh_home or non-empty FI_HOME"):
         HarnessClient(HarnessConfig(env={})).start()
 
 
@@ -1172,3 +1214,21 @@ def test_client_reports_missing_bundled_runtime_dependency(monkeypatch: pytest.M
 
     with pytest.raises(FileNotFoundError, match="Install deepseek-harness-runtime-bin"):
         HarnessClient(HarnessConfig(dsh_home="/explicit/home")).start()
+
+
+def test_client_fi_environment_aliases_alias_only_listed_names() -> None:
+    from deepseek_harness.client import _fi_environment_aliases
+
+    assert _fi_environment_aliases({"FI_HOME": "/fi", "FI_TOOLS_MODE": "", "FI_FOO": "1", "FI_SHELL": "x"}) == {
+        "DSH_HOME": "/fi",
+        "DSH_TOOLS_MODE": "",
+    }
+
+
+def test_client_set_dsh_environment_keeps_an_unlisted_fi_name() -> None:
+    from deepseek_harness.client import _set_dsh_environment
+
+    env = {"FI_HOME": "/ambient", "FI_FOO": "kept"}
+    _set_dsh_environment(env, "DSH_HOME", "/explicit")
+    _set_dsh_environment(env, "DSH_FOO", "set")
+    assert env == {"DSH_HOME": "/explicit", "FI_FOO": "kept", "DSH_FOO": "set"}

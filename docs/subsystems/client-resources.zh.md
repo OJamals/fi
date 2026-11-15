@@ -14,7 +14,7 @@
 |---|---|---|
 | `dsh-resource://file/session/s1/notes/a.md` | `file` | 会话 `s1` 工作区根下 `notes/a.md` 的元数据（`file` 提供方已注册时） |
 | `dsh-resource://file/absolute/home/me/notes.md` | `file` | 可解析，但没有授权 Session，以 `workspace-file/unknown-workspace` 失败；不借用当前或 Tab Session |
-| `DSH-RESOURCE://File/session/s1/a` | `file` | 另一份记录：地址按字符串比较，`openResource` 只接受 `fileAddressFor` 生成的规范小写拼写 |
+| `fi-RESOURCE://File/session/s1/a` | `file` | 另一份记录：地址按字符串比较，`openResource` 只接受 `fileAddressFor` 生成的规范小写拼写 |
 | `dsh-resource://subagentchat/session/c1?parent=p1&mode=continuable` | `subagentchat` | 已寻址的 subagent Conversation；其值持有一个 `SessionReference`，直到资源关闭 |
 | `sidebar://guide` | — | `none`：导航地址 |
 | `/home/me/notes.md` | — | `none`：不是 URL |

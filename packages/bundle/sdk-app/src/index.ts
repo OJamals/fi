@@ -37,12 +37,12 @@ export const Config: z<Config> = z.object({
  */
 function sdkCommand(profile: string): Command {
   return new Command()
-    .name(`dsh --profile ${profile}`)
-    .description('Serve DeepSeek Harness SDK clients over stdio JSON-RPC.')
+    .name(`fi-cli --profile ${profile}`)
+    .description('Serve fi SDK clients over stdio JSON-RPC.')
     .helpOption('-h, --help', 'show this help')
     .addHelpText('after', `
 Example:
-  dsh --profile ${profile}     serve one SDK runtime until its client disconnects
+  fi-cli --profile ${profile}  serve one SDK runtime until its client disconnects
 `)
 }
 

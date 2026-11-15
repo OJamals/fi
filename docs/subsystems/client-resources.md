@@ -14,7 +14,7 @@ A resource address is a `dsh-resource://<type>/…` URL. The host names the prot
 |---|---|---|
 | `dsh-resource://file/session/s1/notes/a.md` | `file` | the metadata of `notes/a.md` under session `s1`'s workspace root, when the `file` provider is registered |
 | `dsh-resource://file/absolute/home/me/notes.md` | `file` | parseable but fails with `workspace-file/unknown-workspace`: no authorizing Session, and neither current nor Tab Session is borrowed |
-| `DSH-RESOURCE://File/session/s1/a` | `file` | a distinct record: addresses compare as strings, and `openResource` accepts only the canonical lower-case spelling that `fileAddressFor` emits |
+| `fi-RESOURCE://File/session/s1/a` | `file` | a distinct record: addresses compare as strings, and `openResource` accepts only the canonical lower-case spelling that `fileAddressFor` emits |
 | `dsh-resource://subagentchat/session/c1?parent=p1&mode=continuable` | `subagentchat` | an addressed subagent Conversation whose value owns a `SessionReference` until the resource closes |
 | `sidebar://guide` | — | `none`: a navigation address |
 | `/home/me/notes.md` | — | `none`: not a URL |

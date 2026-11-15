@@ -3,29 +3,29 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/user/develop/basic/publish.md
 /package-and-install-a-plugin:
-  en: 0defb429515d6294
-  zh: 5bfea36f0ac32e1d
+  en: 0ef23d53991690df
+  zh: 0fb01ba6eb2aa04f
 /package-and-install-a-plugin/two-concepts-two-manifests:
-  en: 341c334cee646f58
-  zh: 1ac8f40609a71123
+  en: 8d7949f5941bd857
+  zh: c6de8642c742cfa0
 /package-and-install-a-plugin/two-concepts-two-manifests/the-bundle-manifest:
-  en: 1c59ba70e2d643ea
-  zh: 403667f567bcc77c
+  en: be154952b66be6e7
+  zh: 28ecf7f844da1370
 /package-and-install-a-plugin/two-concepts-two-manifests/the-profile-manifest:
-  en: e2bd00d8de99da67
-  zh: e70b17787bdb53a5
+  en: 93fb16807f6b4971
+  zh: 2e7069ee63a4e682
 /package-and-install-a-plugin/install-into-a-profile:
-  en: 78baf6471bd6e82b
-  zh: 0453a7d35fd57399
+  en: 38703c1a1b56c1fa
+  zh: 70b10b1fb68b063c
 /package-and-install-a-plugin/the-loading-order:
-  en: 41ea3455ac8c7635
-  zh: 7fabf467485898a5
+  en: 3bd946d66b326ba9
+  zh: f365bc53174c7bd2
 /package-and-install-a-plugin/give-a-surface-bundle-its-own-command-line:
   en: cda660c66cef28a6
   zh: 0dcad683c4521f50
 /package-and-install-a-plugin/installing-from-github-the-build-script-catch:
-  en: 974a37cd652bdfc0
-  zh: db9dd766c8ad7182
+  en: 841839b5ae79a69e
+  zh: 057155a58df01755
 /package-and-install-a-plugin/next-steps:
   en: 1914c4c5eeb1d913
   zh: 6f20168ebc196239

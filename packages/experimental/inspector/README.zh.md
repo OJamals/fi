@@ -9,9 +9,9 @@ kind: "package-bundle"
 
 ## 概述
 
-在 Chrome DevTools 中检查一个运行中的 dsh Host 及其浏览器 Client：Host 与 Client Console context、Host Sources 与调试、Host fetch 采集和共享 Cordis 树，全部 CDP 状态都在 Worker 中。
+在 Chrome DevTools 中检查一个运行中的 fi Host 及其浏览器 Client：Host 与 Client Console context、Host Sources 与调试、Host fetch 采集和共享 Cordis 树，全部 CDP 状态都在 Worker 中。
 
-Inspector 不在默认插件列表中显示。使用 `dsh plugin --profile web add @deepseek-ai/dsh-experimental-inspector` 显式安装其 bundle。其 [`cordis.patch.yml`](cordis.patch.yml) 挂载已安装的包；`pnpm run demo:inspector` 则挂载源码树。Host 行需要 Web 服务器。Worker 不访问实时 Cordis 对象；共享 collector 会在传输前把它们投影成已验证快照。
+Inspector 不在默认插件列表中显示。使用 `fi-cli plugin --profile web add @deepseek-ai/dsh-experimental-inspector` 显式安装其 bundle。其 [`cordis.patch.yml`](cordis.patch.yml) 挂载已安装的包；`pnpm run demo:inspector` 则挂载源码树。Host 行需要 Web 服务器。Worker 不访问实时 Cordis 对象；共享 collector 会在传输前把它们投影成已验证快照。
 
 ## 目录
 

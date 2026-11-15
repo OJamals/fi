@@ -21,7 +21,10 @@ export function configureInstalledUpdateIdentity(app, run, metadata, environment
   for (const directory of [paths.userData, paths.harnessHome, paths.journals]) mkdirSync(directory, { recursive: true })
   app.setPath('userData', paths.userData)
   app.setPath('sessionData', paths.userData)
+  // The production main entry maps each FI_<NAME> over DSH_<NAME>, so each assigned DSH_<NAME> clears its FI_ alias.
   environment.DSH_HOME = paths.harnessHome
+  delete environment.FI_HOME
   environment.DSH_DESKTOP_UPDATE_JOURNAL_DIR = paths.journals
+  delete environment.FI_DESKTOP_UPDATE_JOURNAL_DIR
   return paths
 }

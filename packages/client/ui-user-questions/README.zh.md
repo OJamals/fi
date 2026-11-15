@@ -1,5 +1,5 @@
 ---
-description: "dsh Web 客户端的 ask_user_question 功能：附着式提问卡片、计时等待、草稿、迟到回复与 plan-review 审批卡片。"
+description: "fi Web 客户端的 ask_user_question 功能：附着式提问卡片、计时等待、草稿、迟到回复与 plan-review 审批卡片。"
 kind: "package-reference"
 ---
 

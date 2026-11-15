@@ -19,18 +19,15 @@ describe('APP_IDENTITY', () => {
 
   it('carries only static public product facts', () => {
     expect(APP_IDENTITY).toEqual({
-      product: 'deepseek-harness',
+      product: 'fi',
       version: manifest.version,
-      url: 'https://github.com/deepseek-ai/deepseek-harness',
     })
   })
 })
 
 describe('userAgent', () => {
-  it('renders product/version with the +url comment', () => {
-    expect(userAgent()).toBe(
-      `deepseek-harness/${manifest.version} (+https://github.com/deepseek-ai/deepseek-harness)`,
-    )
+  it('renders product/version without a comment when the identity has no url', () => {
+    expect(userAgent()).toBe(`fi/${manifest.version}`)
   })
 
   it('renders a custom identity', () => {

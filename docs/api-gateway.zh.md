@@ -146,7 +146,7 @@ Web 开发只需一条命令：它先构建当前 Host、Client 与 Web 产物�
 pnpm run dev:web
 ```
 
-`dsh` 通过 tsx 启动 Host 源码，所以 Host 可以使用 SRC 回退；`dev:web` 的 watcher 会在源码修改时重建 client 侧类型输出、Client 插件与库 bundle 以及 Web 壳层。它们不会分析 Host decorator，也不会生成 Remote Client DTS；只有 `dev:web` 首先执行的完整构建（或 `pnpm run build`）才会。
+`fi-cli` 通过 tsx 启动 Host 源码，所以 Host 可以使用 SRC 回退；`dev:web` 的 watcher 会在源码修改时重建 client 侧类型输出、Client 插件与库 bundle 以及 Web 壳层。它们不会分析 Host decorator，也不会生成 Remote Client DTS；只有 `dev:web` 首先执行的完整构建（或 `pnpm run build`）才会。
 
 只修改 Remote 方法实现体而不改变约定时，无需重新生成 Typert 文件。新增或删除 decorator、修改导出名、namespace、参数、返回值、lookup、Context 或取消签名时，重新执行有序 lib 构建，让 Host 先生成严格约定，再让 Client 编译并打包新的贡献：
 

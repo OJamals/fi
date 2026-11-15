@@ -102,7 +102,7 @@ The integration retains the pinned server's browser and tool restrictions.
 - Attachment exclusivity is local to this provider instance. Other processes and browser users can still modify the same pages.
 - The shared resource-server inventory can show inherited server names; it does not grant access to another Session's browser.
 - Cancellation does not undo navigation, clicks, or other actions already delivered to the browser.
-- Tool schemas follow the pinned experimental dependency and carry no DSH stability promise.
+- Tool schemas follow the pinned experimental dependency and carry no fi stability promise.
 
 <a id="dev-note"></a>
 ### Dev Note

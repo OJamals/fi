@@ -51,7 +51,7 @@ A removed provider or model blocks prompt admission with `session/model-unavaila
 
 ### Selection failures
 
-When another writer owns the Session, model-selection failures tell the user to quit other running DSH instances and retry.
+When another writer owns the Session, model-selection failures tell the user to quit other running fi instances and retry.
 
 -----
 

@@ -1,5 +1,5 @@
 ---
-description: "The shell executor's settings page on the dsh web client's Plugins page: the command timeout and the per-stream output cap of the shell namespace."
+description: "The shell executor's settings page on the fi web client's Plugins page: the command timeout and the per-stream output cap of the shell namespace."
 kind: "package-reference"
 ---
 

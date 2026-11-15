@@ -1,2 +1,2 @@
-dsh: reasoning:
+fi-cli: reasoning:
 Inspecting the task before the tool call.

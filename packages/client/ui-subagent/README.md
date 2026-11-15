@@ -1,5 +1,5 @@
 ---
-description: "Subagent conversation catalog, continuation routing UI, and '@' reference source for the dsh web client."
+description: "Subagent conversation catalog, continuation routing UI, and '@' reference source for the fi web client."
 kind: "package-reference"
 ---
 

@@ -23,7 +23,7 @@ function objectOf(value: unknown, field: string): Record<string, unknown> {
 
 function runtimeVersionOf(value: unknown): string {
   if (typeof value !== 'string' || semver.valid(value) === null) {
-    throw new Error(`Invalid dsh runtime version: ${JSON.stringify(value)}; expected a semantic version`)
+    throw new Error(`Invalid fi runtime version: ${JSON.stringify(value)}; expected a semantic version`)
   }
   return value
 }
@@ -31,7 +31,7 @@ function runtimeVersionOf(value: unknown): string {
 function identityField(manifest: Record<string, unknown>, field: 'name' | 'version'): string {
   const value = Object.hasOwn(manifest, field) ? manifest[field] : undefined
   if (typeof value !== 'string' || value.trim() === '') {
-    throw new Error(`Plugin manifest ${field} must be a non-empty string when dsh peers are incompatible`)
+    throw new Error(`Plugin manifest ${field} must be a non-empty string when fi peers are incompatible`)
   }
   return value
 }
@@ -95,9 +95,9 @@ export function evaluatePluginCompatibility(
  */
 export function pluginCompatibilityWarning(issue: PluginCompatibility): string {
   const key = `${issue.name}@${issue.version}`
-  return `Plugin ${key} is incompatible with dsh ${issue.runtimeVersion}: peerDependencies ${JSON.stringify(issue.peers)}. `
+  return `Plugin ${key} is incompatible with fi ${issue.runtimeVersion}: peerDependencies ${JSON.stringify(issue.peers)}. `
     + 'Running it may cause crashes or data loss. '
-    + 'Update the plugin or install a plugin version compatible with this dsh runtime. '
-    + `To accept this risk explicitly, grant the exact-version exemption for ${key} on dsh ${issue.runtimeVersion} with \`dsh plugin allow-version\` or the plugin manager, then retry the installation or restart dsh. `
+    + 'Update the plugin or install a plugin version compatible with this fi runtime. '
+    + `To accept this risk explicitly, grant the exact-version exemption for ${key} on fi ${issue.runtimeVersion} with \`fi-cli plugin allow-version\` or the plugin manager, then retry the installation or restart fi. `
     + `Exact-version exemption: ${issue.exempted ? 'active' : 'not active'}.`
 }

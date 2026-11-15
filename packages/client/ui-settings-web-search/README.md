@@ -1,5 +1,5 @@
 ---
-description: "The DeepSeek web-search provider's settings page on the dsh web client's Plugins page: its API key, endpoint, and per-request search budget."
+description: "The DeepSeek web-search provider's settings page on the fi web client's Plugins page: its API key, endpoint, and per-request search budget."
 kind: "package-reference"
 ---
 

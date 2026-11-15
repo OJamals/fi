@@ -6,6 +6,7 @@
   disabled: true
 
 - id: llm-deepseek
+  disabled: false
   config:
     baseURL: !!js process.env.DSH_SNAPSHOT_BASE_URL
     thinking: enabled

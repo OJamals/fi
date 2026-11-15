@@ -1615,7 +1615,7 @@ describe('desktop main startup', () => {
     await vi.waitFor(() => {
       expect(harness.dialog.showMessageBox).toHaveBeenCalledWith(expect.objectContaining({
         message: en.updateAvailable,
-        detail: 'fi 1.0.1-nightly.1\n\nThis release includes its matching dsh version. The application will restart after installation.',
+        detail: 'fi 1.0.1-nightly.1\n\nThis release includes the matching runtime. The application will restart after installation.',
       }))
     })
   })
@@ -2105,7 +2105,7 @@ describe('desktop main startup', () => {
       level: 'error', message: 'client-modules: bundle script plugins/??a/client.js&rev=1 failed to load',
       sourceId: 'dsh-app://app/assets/entry.js', lineNumber: 12,
     })
-    host.onFailure!(new Error('dsh desktop host exited with 1: fatal uncaught exception: ENOENT'))
+    host.onFailure!(new Error('fi desktop host exited with 1: fatal uncaught exception: ENOENT'))
     await host.stopping.promise
     expect(writeCrashReport).toHaveBeenCalledOnce()
     const [directory, report] = vi.mocked(writeCrashReport).mock.calls[0]!

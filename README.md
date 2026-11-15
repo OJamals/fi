@@ -77,7 +77,7 @@ pnpm install
 pnpm run dev:desktop
 ```
 
-Use `pnpm run dev:web` for the browser app. The web app and headless CLI keep state in `~/.fi`; `dsh` and `DSH_*` remain the runtime configuration interface.
+Use `pnpm run dev:web` for the browser app. The web app and headless CLI keep state in `~/.fi`; the CLI is `fi-cli`, and runtime configuration uses `FI_*` environment variables.
 
 ## Contributing
 

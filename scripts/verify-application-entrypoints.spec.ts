@@ -29,6 +29,18 @@ describe('application entrypoints', () => {
     expect(applicationEntrypointViolations(resolve(import.meta.dirname, '..'))).toEqual([])
   })
 
+  it.each([
+    ['missing fi-cli', { dsh: 'lib/bin.js' }],
+    ['fi-cli pointing elsewhere', { 'fi-cli': 'lib/other.js', dsh: 'lib/bin.js' }],
+  ])('rejects a CLI bin map with %s', (_label, bin) => {
+    const root = fixture()
+    write(root, 'apps/cli/package.json', JSON.stringify({ bin }))
+
+    expect(applicationEntrypointViolations(root)).toEqual([
+      `apps/cli/package.json: classified bin must remain {"fi-cli":"lib/bin.js","dsh":"lib/bin.js"}, got ${JSON.stringify(bin)}`,
+    ])
+  })
+
   it('rejects a package-level application bin', () => {
     const root = fixture()
     write(root, 'packages/example/app/package.json', JSON.stringify({ bin: { app: 'lib/bin.js' } }))

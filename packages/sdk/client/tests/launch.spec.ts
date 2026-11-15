@@ -46,7 +46,7 @@ describe('SDK dsh launch resolution', () => {
         '--patch', resolve(bin, '..', '..', 'src/sdk-source.cordis.patch.yml'),
       ])
     expect(launch.initializeTimeoutMs).toBe(DEFAULT_INITIALIZE_TIMEOUT_MS)
-    expect(launch.description).toBe('dsh profile "sdk"')
+    expect(launch.description).toBe('fi profile "sdk"')
   })
 
   it('makes every filesystem input absolute before spawn and preserves patch order', () => {
@@ -73,7 +73,7 @@ describe('SDK dsh launch resolution', () => {
         '--patch', resolve(caller, '../second.yml'),
       ],
       cwd: join(caller, 'worker'),
-      description: 'dsh profile "custom-sdk"',
+      description: 'fi profile "custom-sdk"',
       initializeTimeoutMs: 123,
       requestTimeoutMs: 456,
       shutdownTimeoutMs: 789,
@@ -149,7 +149,7 @@ describe('SDK dsh launch resolution', () => {
     (version) => {
       const pair = manifestPair({ version, bin: 'bin.js' }, { version: '1.0.0' })
       expect(() => resolveDshBinFromManifests(pair.dshUrl, pair.clientUrl))
-        .toThrow(`requires the same dsh version, got ${String(version)}`)
+        .toThrow(`requires the same fi version, got ${String(version)}`)
     },
   )
 

@@ -15,7 +15,7 @@ import { Context, type FiberState } from '@deepseek-ai/cordis'
 import Loader, { type Entry, type EntryOptions } from '@deepseek-ai/cordis-plugin-loader'
 import Include, { applyEntryPatches, entryListSchema, type PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import Group from '@deepseek-ai/cordis-plugin-group'
-import { dshHomePath, resolveDshHome } from '@deepseek-ai/dsh-home-paths'
+import { dshHomePath, fiEnvironmentAliases, isFiRuntimeEnvironmentName, resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { createLaunchEnvironmentSnapshot, type LaunchEnvironmentSnapshot } from '@deepseek-ai/dsh-launch-environment'
 export { readProfilePatches, resolveTelemetryPatch, type ProfileContext, type ProfilePnpmInvocation } from './profile-context.ts'
 export { sanitizeProfile } from './profile-sanitize.ts'
@@ -166,7 +166,9 @@ const HOME_LAYER_PROXY_NAMES = new Set(['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY'
 
 /**
  * Whether a variable may come only from the inherited process environment
- * because it changes process, runtime, VCS, or network bootstrap. The Harness-home
+ * because it changes process, runtime, VCS, or network bootstrap. The `FI_` spelling of a
+ * runtime variable (`isFiRuntimeEnvironmentName`) counts too, because a child process aliases
+ * it to the refused `DSH_` name; other `FI_*` names are ordinary. The Harness-home
  * file is additionally allowed {@link HOME_LAYER_PROXY_NAMES}.
  * @param name - the variable name.
  * @returns true when only the inherited environment may supply it.
@@ -174,6 +176,7 @@ const HOME_LAYER_PROXY_NAMES = new Set(['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY'
 function isBootstrapOnly(name: string): boolean {
   const upper = name.toUpperCase()
   return BOOTSTRAP_NAMES.has(upper) || BOOTSTRAP_PREFIXES.some(prefix => upper.startsWith(prefix))
+    || isFiRuntimeEnvironmentName(upper)
 }
 
 /**
@@ -225,6 +228,9 @@ function readEnvLayer(
  * `.env` snapshot. The Harness home resolves before either file; both files
  * are checked before either is applied, and accepted values are materialized
  * without replacing inherited ones. The snapshot preserves which layer supplied each value.
+ * In the inherited layer only, each runtime `FI_<NAME>` entry also supplies `DSH_<NAME>` through
+ * `fiEnvironmentAliases`. `.env` entries are never aliased: runtime `FI_*` names and `DSH_*`
+ * names are bootstrap-only, and any other `FI_*` name in a file stays an ordinary variable.
  * @param binName - the diagnostic prefix on the diagnostics.
  * @param cwd - the invoking directory whose `.env` is the project layer.
  * @param warn - sink for the one-line misconfiguration diagnostics.
@@ -235,8 +241,8 @@ export function loadLayeredEnv(
   binName: string, cwd: string = process.cwd(),
   warn: (line: string) => void = line => void process.stderr.write(line),
 ): LaunchEnvironmentSnapshot {
-  const home = resolveDshHome()
-  const inherited = { ...process.env } as Record<string, string>
+  const inherited = { ...process.env, ...fiEnvironmentAliases(process.env) } as Record<string, string>
+  const home = resolveDshHome(undefined, inherited)
   // Parse both layers first: a rejection must not leave one file applied.
   const project = readEnvLayer(binName, cwd, warn, home)
   const user = home === resolve(cwd) ? undefined : readEnvLayer(binName, home, warn, home)
@@ -530,7 +536,7 @@ function groupedDump(
  * @param patches - initial app and user patches, applied in order.
  * @param bareModuleBaseUrl - optional installed-host base for bare package
  * names; relative names continue to resolve beside the configuration file.
- * @param binName - diagnostic prefix for a profile plugin denied by compatibility policy; defaults to `dsh`.
+ * @param binName - diagnostic prefix for a profile plugin denied by compatibility policy; defaults to `fi-cli`.
  * @returns the created root Include entry, or `undefined` when a surface
  * disposed the whole tree (taking the Loader service with it) while the
  * entry creation was in flight.
@@ -540,7 +546,7 @@ export async function mountRootInclude(
   absoluteConfigPath: string,
   patches: readonly PatchOptions[] = [],
   bareModuleBaseUrl?: string,
-  binName = 'dsh',
+  binName = 'fi-cli',
 ): Promise<Entry | undefined> {
   ctx.loader.builtins.include = bareModuleBaseUrl === undefined
     ? Include

@@ -17,6 +17,95 @@ export const DEFAULT_DSH_HOME_DISPLAY = `~/${DSH_HOME_DIR_NAME}`
 /** Environment variable that overrides the default fi home. */
 export const DSH_HOME_ENV = 'DSH_HOME'
 
+/** Prefix of the user-facing runtime environment variables. */
+const FI_ENV_PREFIX = 'FI_'
+
+/** Prefix of the runtime environment variables the harness reads. */
+const DSH_ENV_PREFIX = 'DSH_'
+
+/**
+ * Base names of the runtime `DSH_<NAME>` variables that users may also give as
+ * `FI_<NAME>`. Only these names are aliased by {@link fiEnvironmentAliases}, and
+ * a `.env` file may set neither spelling of them, because a child process
+ * would promote a `FI_<NAME>` written into its inherited environment to
+ * `DSH_<NAME>`. Every other `FI_*` name is an ordinary variable. The Python
+ * SDK and SDK runtime keep copies of this list; `tests/runtime-environment-names.spec.ts`
+ * compares them and requires every runtime `DSH_*` read to be listed here or excluded there.
+ */
+export const FI_RUNTIME_ENVIRONMENT_NAMES: readonly string[] = Object.freeze([
+  'AGENTS_HOME',
+  'BUNDLED_PRIMARY_RUNTIME',
+  'BUNDLED_SKILL_DIR',
+  'CONTEXT_WINDOW',
+  'DESKTOP_DSH_DIR',
+  'DESKTOP_HOST_INSPECT_PORT',
+  'DESKTOP_LOGIN_SHELL_TIMEOUT_MS',
+  'DESKTOP_MANDATORY_UPDATE_CONFIG',
+  'DESKTOP_OPEN_DEVTOOLS',
+  'DESKTOP_PRIMARY_RUNTIME_DIR',
+  'DESKTOP_UPDATE_CHECK_INTERVAL_MS',
+  'DESKTOP_UPDATE_CHECK_JITTER',
+  'DESKTOP_UPDATE_CHECK_MAX_BACKOFF_MS',
+  'DESKTOP_UPDATE_HTTP_IDLE_TIMEOUT_MS',
+  'DESKTOP_UPDATE_JOURNAL_DIR',
+  'GITHUB_REVIEW_WORKSPACE',
+  'GITHUB_WEBHOOK_PORT',
+  'GITHUB_WEBHOOK_SECRET',
+  'HOME',
+  'MAX_TOKENS_AS_SUCCESS',
+  'MODEL',
+  'PERMISSION_MODE',
+  'PLATFORM_ALLOW_LOOPBACK_HTTP',
+  'PLATFORM_COOKIE',
+  'PLATFORM_ORIGIN',
+  'PRIMARY_RUNTIME',
+  'PRODUCT_ANALYTICS_OTLP_URL',
+  'RUNTIME_MODE',
+  'SYSTEM_PROMPT',
+  'TELEMETRY_DISABLED',
+  'TELEMETRY_MODE',
+  'TELEMETRY_OTLP_URL',
+  'TOOLS_MODE',
+  'WEB_FETCH_PROVIDER',
+  'WEB_SEARCH_PROVIDER',
+])
+
+const FI_RUNTIME_ENVIRONMENT_NAME_SET: ReadonlySet<string> = new Set(FI_RUNTIME_ENVIRONMENT_NAMES)
+
+/**
+ * Whether `name` is the `FI_` spelling of a {@link FI_RUNTIME_ENVIRONMENT_NAMES} member.
+ * Matching ignores case, so a `.env` check also refuses `fi_home`; aliasing additionally
+ * requires the exact uppercase spelling.
+ * @param name - the variable name.
+ * @returns true when `name` is `FI_<NAME>` for a listed `<NAME>`, in any case.
+ */
+export function isFiRuntimeEnvironmentName(name: string): boolean {
+  const upper = name.toUpperCase()
+  return upper.startsWith(FI_ENV_PREFIX) && FI_RUNTIME_ENVIRONMENT_NAME_SET.has(upper.slice(FI_ENV_PREFIX.length))
+}
+
+/**
+ * Derive the `DSH_<NAME>` entries that the user-facing `FI_<NAME>` entries of
+ * the inherited process environment imply. Every defined `FI_<NAME>` whose `<NAME>`
+ * is in {@link FI_RUNTIME_ENVIRONMENT_NAMES} yields `DSH_<NAME>` with the same value,
+ * including an empty value; when both spellings are present the `FI_` value wins.
+ * Names match the uppercase `FI_` spelling exactly; other `FI_*` names yield nothing.
+ * Callers merge the result over the same environment, so `DSH_*` readers observe
+ * `FI_*` settings without renaming any read site. Parsed `.env` files are never
+ * passed here: a `.env` cannot set `DSH_*` names or the listed `FI_*` names.
+ * @param values - the inherited process environment, such as `process.env`.
+ * @returns the `DSH_*` entries to assign over `values`; empty when no listed `FI_*` entry is defined.
+ */
+export function fiEnvironmentAliases(values: Readonly<Record<string, string | undefined>>): Record<string, string> {
+  const aliases: Record<string, string> = {}
+  for (const [name, value] of Object.entries(values)) {
+    if (value === undefined || !name.startsWith(FI_ENV_PREFIX)) continue
+    const base = name.slice(FI_ENV_PREFIX.length)
+    if (FI_RUNTIME_ENVIRONMENT_NAME_SET.has(base)) aliases[DSH_ENV_PREFIX + base] = value
+  }
+  return aliases
+}
+
 /**
  * Give a native filesystem watcher one canonical spelling of a path, even
  * when its final components do not exist yet. The deepest existing ancestor

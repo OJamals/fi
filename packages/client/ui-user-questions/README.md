@@ -1,5 +1,5 @@
 ---
-description: "Web ask_user_question feature for the dsh web client: the attached question card, timed wait, drafts, late replies, and the plan-review approval card."
+description: "Web ask_user_question feature for the fi web client: the attached question card, timed wait, drafts, late replies, and the plan-review approval card."
 kind: "package-reference"
 ---
 

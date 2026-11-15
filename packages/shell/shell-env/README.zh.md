@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 每次 shell 调用都会收到什么
 
-每次调用都会收到 `DSH_HOME`（Harness 主目录的绝对路径）、`DSH_SHELL=1`，agent 调用还会收到 `DSH_SESSION_ID`（调用方会话的 id）。启动器提供了 profile 上下文时，每次调用还会收到 `DSH_PROFILE`（profile 名）与 `DSH_PROFILE_DIR`（其绝对目录；其 `node_modules` 只存放 profile 自行安装的包，harness 自带的组合包从 dsh 安装目录解析）；不带 profile 启动的组合则两者都没有。
+每次调用都会收到 `DSH_HOME`（Harness 主目录的绝对路径）、`DSH_SHELL=1`，agent 调用还会收到 `DSH_SESSION_ID`（调用方会话的 id）。启动器提供了 profile 上下文时，每次调用还会收到 `DSH_PROFILE`（profile 名）与 `DSH_PROFILE_DIR`（其绝对目录；其 `node_modules` 只存放 profile 自行安装的包，harness 自带的组合包从 fi 安装目录解析）；不带 profile 启动的组合则两者都没有。
 
 ### 添加你自己的环境事实
 
@@ -54,11 +54,11 @@ contributor 必须声明它返回的每个键；返回未声明或非字符串�
 
 ### 选择 Harness 主目录
 
-唯一配置字段决定暴露为 `DSH_HOME` 的主目录；默认解析顺序为 `dshHome` 配置、环境变量 `$DSH_HOME`，然后是 `~/.fi`。
+唯一配置字段决定暴露为 `FI_HOME` 的主目录；默认解析顺序为 `dshHome` 配置、环境变量 `$FI_HOME`，然后是 `~/.fi`。
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `dshHome` | `$DSH_HOME`，然后 `~/.fi` | 暴露为 `DSH_HOME` 的 Harness 主目录绝对路径 |
+| `dshHome` | `$FI_HOME`，然后 `~/.fi` | 暴露为 `FI_HOME` 的 Harness 主目录绝对路径 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-shell-env)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
@@ -106,7 +106,7 @@ contributor 必须声明它返回的每个键；返回未声明或非字符串�
 - [Bash 执行器子系统](../../../docs/subsystems/shell.zh.md)——工具执行所经由的 `ctx.shell` seam。
 - [tool-bash](../tool-bash/README.zh.md)——消费本环境的 bash 工具。
 - [tool-pwsh](../tool-pwsh/README.zh.md)——消费本环境的 pwsh 工具。
-- [home paths 包](../../util/home-paths/README.zh.md)——`DSH_HOME` 如何解析。
+- [home paths 包](../../util/home-paths/README.zh.md)——`FI_HOME` 如何解析。
 - [生成的配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-shell-env)——每个受支持配置字段及其源声明。
 
 -----
