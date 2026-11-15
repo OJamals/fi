@@ -750,7 +750,7 @@
   flex: none;
   margin-right: 6px;
   color: var(--dsw-alias-label-tertiary);
-  font-weight: 600;
+  font-weight: 500;
   user-select: none;
 }
 
@@ -1376,7 +1376,7 @@
 
 .programError::first-line {
   color: var(--dsw-alias-state-error-primary);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .overviewPreview .jsonPreview > :first-child,

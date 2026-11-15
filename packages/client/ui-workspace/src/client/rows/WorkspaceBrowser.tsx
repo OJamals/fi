@@ -21,7 +21,7 @@ import {
   IconChevronsUpDownOutlineRegular, IconClockOutlineRegular, IconCloseFillRegular,
   IconFlatListOutlineRegular, IconFolderCloseRegular, IconProjectAddOutlineRegular,
   IconQueueOutlineRegular, IconSearchOutlineRegular, IconSlidersTwoOutlineRegular,
-  IconWorkspaceTreeOutlineRegular, Menu, Modal, Toast, Tooltip,
+  IconWorkspaceTreeOutlineRegular, Menu, Modal, StateDot, Toast, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
   SessionListState, SessionSearchResultItem,
@@ -299,6 +299,28 @@ type SessionTreeProps = Pick<
   onSessionRevealed: (sessionId: SessionId) => void
 }
 
+/** One placeholder row; `compact` follows the 32px Session row, otherwise the 48px search result row. */
+function SkeletonRow({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={clsx(css.skeletonRow, compact && css.skeletonRowCompact)} aria-hidden="true">
+      <span className={css.skeletonDot} />
+      <span className={css.skeletonBars}>
+        <span className={css.skeletonBar} />
+        {!compact && <span className={clsx(css.skeletonBar, css.skeletonBarWide)} />}
+      </span>
+    </div>
+  )
+}
+
+/** Session list placeholder while no list pull has landed (`phase: 'pending'`). */
+function LoadingSessions({ t }: Pick<SessionTreeProps, 't'>) {
+  return (
+    <div role="status" aria-label={t('loading')} data-row-key="loading">
+      {[0, 1, 2].map(i => <SkeletonRow key={i} compact />)}
+    </div>
+  )
+}
+
 /** The list-empty placeholder — a glyph over the text; the archived-only view names its filter and offers the way back. */
 function EmptySessions({ rowState, onLeaveArchivedOnly, t }: Pick<SessionTreeProps, 'rowState' | 'onLeaveArchivedOnly' | 't'>) {
   const archivedOnly = rowState.archivedFilter === 'only'
@@ -473,7 +495,8 @@ function SessionTree({
     && workspaceDrag?.over?.id === rootGroups[0].workspaceId
     && workspaceDrag.over.half === 'before'
 
-  const rowKeys: string[] = groups.length === 0 ? ['empty'] : []
+  const loading = list.phase !== 'ready'
+  const rowKeys: string[] = groups.length === 0 ? [loading ? 'loading' : 'empty'] : []
   const renderGroup = (group: GroupNode, depth: number): ReactNode => {
     const workspaceId = group.workspaceId
     const children = childrenByParent.get(group.key) ?? []
@@ -678,12 +701,13 @@ function SessionTree({
         className={clsx(css.list, workspaceDropAtListStart && css.listTopDropActive)}
         label={t('section.sessions')}
         rowKeys={rowKeys}
-        ready={list.phase === 'ready' && workspaceReady && !nativeDragActive}
+        ready={!loading && workspaceReady && !nativeDragActive}
+        busy={loading}
         resetKey={JSON.stringify([animationResetKey, watermarkMotionKey])}
       >
-        {groups.length === 0 && (
-          <EmptySessions rowState={rowState} onLeaveArchivedOnly={onLeaveArchivedOnly} t={t} />
-        )}
+        {groups.length === 0 && (loading
+          ? <LoadingSessions t={t} />
+          : <EmptySessions rowState={rowState} onLeaveArchivedOnly={onLeaveArchivedOnly} t={t} />)}
         {groupRows}
       </AnimatedRows>
       <span className={css.fade} />
@@ -735,18 +759,20 @@ function FlatList({
     if (nextOrder !== undefined) setSessionOrder(FLAT_SESSION_ORDER_KEY, nextOrder)
   }
   const now = Date.now()
+  const loading = list.phase !== 'ready'
   return (
     <div className={clsx(css.treeBody, css.wide)}>
       <AnimatedRows
         className={clsx(css.list, css.flatList)}
         label={t('section.sessions')}
-        rowKeys={rows.length === 0 ? ['empty'] : rows.map(row => `session:${row.id}`)}
-        ready={list.phase === 'ready' && workspaceReady && drag === null}
+        rowKeys={rows.length === 0 ? [loading ? 'loading' : 'empty'] : rows.map(row => `session:${row.id}`)}
+        ready={!loading && workspaceReady && drag === null}
+        busy={loading}
         resetKey={animationResetKey}
       >
-        {rows.length === 0 && (
-          <EmptySessions rowState={rowState} onLeaveArchivedOnly={onLeaveArchivedOnly} t={t} />
-        )}
+        {rows.length === 0 && (loading
+          ? <LoadingSessions t={t} />
+          : <EmptySessions rowState={rowState} onLeaveArchivedOnly={onLeaveArchivedOnly} t={t} />)}
         {rows.map((node) => {
           const active = drag !== null && drag.pinned === node.pinned
           const normalizeHalf = (half: 'before' | 'after'): 'before' | 'after' =>
@@ -812,6 +838,7 @@ function SearchResults({
   archivedFilter,
   query,
   remote,
+  onRetry,
   resultLimit,
   usePanelInfo,
   t,
@@ -824,6 +851,8 @@ function SearchResults({
   onUnarchive: (id: SessionNode['id']) => void
   query: string
   remote: RemoteSearchState
+  /** Reissue the content search for the current query after a failure. */
+  onRetry: () => void
   resultLimit: number
 }) {
   const panelActive = usePanelInfo(info => info.activePanelId !== null)
@@ -853,7 +882,7 @@ function SearchResults({
   return (
     <div className={clsx(css.treeBody, css.wide)}>
       <div className={css.list}>
-        <div className={css.searchTree} role="tree" aria-label={t('search.results.aria')}>
+        <div className={css.searchTree} role="tree" aria-label={t('search.results.aria')} aria-busy={pending}>
           {results.items.map(result => (
             <SearchResultItem
               key={result.id}
@@ -870,17 +899,30 @@ function SearchResults({
              show and only the content hits are outstanding. */
           <div role="status" aria-label={t('search.pending')}>
             {(results.items.length === 0 ? [0, 1] : [0]).map(i => (
-              <div key={i} className={css.skeletonRow} aria-hidden="true">
-                <span className={css.skeletonDot} />
-                <span className={css.skeletonBars}>
-                  <span className={css.skeletonBar} />
-                  <span className={clsx(css.skeletonBar, css.skeletonBarWide)} />
-                </span>
-              </div>
+              <SkeletonRow key={i} />
             ))}
           </div>
         )}
-        {!pending && results.items.length === 0 && (
+        {/* A failed content search keeps any local matches above and trails
+            them with a compact notice; Retry reissues the same query. */}
+        {currentRemote.status === 'error' && (
+          <div className={css.searchFailure}>
+            <p className={css.searchFailureText} role="alert">
+              <StateDot state="error" />{t('search.failed')}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(event) => {
+                event.stopPropagation()
+                onRetry()
+              }}
+            >
+              {t('retry')}
+            </Button>
+          </div>
+        )}
+        {currentRemote.status === 'ready' && results.items.length === 0 && (
           <div className={css.empty}>{t('search.noMatches')}</div>
         )}
         {results.hasMore && (
@@ -1090,6 +1132,8 @@ export function WorkspaceBrowser({
     items: [],
     hasMore: false,
   })
+  // Bumped by Retry so the search effect reissues an unchanged query.
+  const [searchAttempt, setSearchAttempt] = useState(0)
   const searchRoot = useRef<HTMLDivElement | null>(null)
   const searchInput = useRef<HTMLInputElement | null>(null)
   // Section-header ＋ opens the picker menu (same popover in wide and rail
@@ -1194,7 +1238,13 @@ export function WorkspaceBrowser({
       window.clearTimeout(timer)
       controller.abort()
     }
-  }, [normalizedQuery, searchSessions])
+  }, [normalizedQuery, searchSessions, searchAttempt])
+  // The Retry button unmounts once the reissued search starts, so keyboard
+  // focus returns to the query it retried.
+  const retrySearch = (): void => {
+    setSearchAttempt(attempt => attempt + 1)
+    searchInput.current?.focus({ preventScroll: true })
+  }
 
   // Rename dialog (browser-owned so it outlives row unmounts during collapse).
   // The stored title decides whether confirming is a real rename; the draft is
@@ -1477,6 +1527,7 @@ export function WorkspaceBrowser({
               archivedFilter={archivedFilter}
               query={normalizedQuery}
               remote={remoteSearch}
+              onRetry={retrySearch}
               resultLimit={searchResultLimit}
               t={t}
             />

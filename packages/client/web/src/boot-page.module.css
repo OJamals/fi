@@ -82,7 +82,7 @@
 .failedTitle {
   font-size: 14px;
   line-height: 22px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--dsw-alias-label-primary, var(--dsh-boot-label-primary));
 }
 

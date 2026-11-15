@@ -358,7 +358,7 @@
 .hoverTitle {
   font-size: 14px;
   line-height: 20px;
-  color: #FFFFFF;
+  color: var(--dsw-static-neutral-bluish-00);
   overflow-wrap: break-word;
 }
 

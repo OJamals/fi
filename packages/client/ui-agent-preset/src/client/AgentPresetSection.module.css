@@ -9,7 +9,7 @@
 .title {
   margin: 0;
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .intro {
@@ -35,7 +35,7 @@
 .groupHead {
   margin: 0;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: .06em;
   text-transform: uppercase;
   color: var(--dsw-alias-label-tertiary);
@@ -203,7 +203,7 @@
 .cardName {
   min-width: 0;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
