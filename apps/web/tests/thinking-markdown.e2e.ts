@@ -158,7 +158,8 @@ describe('web e2e: secondary Thinking Markdown', () => {
     expect(await markdown.locator('pre code').textContent()).toContain('const value = "reasoning code"')
     expect(await markdown.locator('hr').count()).toBe(1)
     expect(await markdown.locator('table').count()).toBe(1)
-    expect(await markdown.locator('.katex').count()).toBe(7)
+    // KaTeX loads on the first math render, so formulas settle after the headings.
+    await expect.poll(() => markdown.locator('.katex').count(), { timeout: 10_000 }).toBe(7)
     await scrollIntoView(markdown.locator('pre'))
     await expect.poll(() => markdown.locator('pre.shiki').count(), { timeout: 15_000 }).toBe(1)
     const snapshot = (await captureStableAria(page, '[data-variant="think"][data-expanded]', scaffold.workspaceCwd))

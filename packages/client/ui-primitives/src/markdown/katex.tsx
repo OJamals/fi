@@ -13,11 +13,47 @@
  * hast-util-to-jsx-runtime pipeline. The visual arm is the `.katex-html`
  * span tree; the MathML arm serves assistive technology, which reads it by
  * tag name regardless of namespace.
+ *
+ * KaTeX itself loads on the first math render rather than with the initial
+ * bundle. Until it resolves, each formula renders its TeX source as text in
+ * one `span[data-tex-pending]`; {@link loadKatex} then notifies every mounted
+ * formula, which re-renders with the KaTeX tree. Once loaded, later formulas
+ * render the KaTeX tree synchronously on first render.
  */
 
-import { createElement } from 'react'
+import { createElement, useEffect, useSyncExternalStore } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
-import katex from 'katex'
+
+type Katex = typeof import('katex')['default']
+
+let loadedModule: Katex | undefined
+let loading: Promise<void> | undefined
+const listeners = new Set<() => void>()
+
+/**
+ * Import KaTeX once and notify mounted formulas when it is available.
+ * A rejected import is not kept: the next call starts a new import.
+ * @returns a promise settled when KaTeX is loaded; calls while an import is pending or after it succeeded share it.
+ */
+export function loadKatex(): Promise<void> {
+  loading ??= import('katex').then((module) => {
+    loadedModule = module.default
+    for (const listener of listeners) listener()
+  }, (error: unknown) => {
+    loading = undefined
+    throw error
+  })
+  return loading
+}
+
+function subscribeKatex(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => { listeners.delete(listener) }
+}
+
+function loadedKatex(): Katex | undefined {
+  return loadedModule
+}
 
 /**
  * Convert one inline `style` attribute string into React's style object.
@@ -56,14 +92,31 @@ function domToReact(node: ChildNode, key: number): ReactNode {
 }
 
 /**
- * Render TeX source to React elements through KaTeX.
+ * Render TeX source to React elements through KaTeX, loading KaTeX on first use.
  * @param value - The TeX source (math node value; fenced `math` blocks append
  * their trailing newline to match the replaced pipeline's text extraction).
  * @param displayMode - Display (block) versus inline rendering.
- * @returns KaTeX's element tree, or the error span when the source does not
+ * @returns a formula element that renders the TeX source while KaTeX loads,
+ * then KaTeX's element tree, or the error span when the source does not
  * parse (colored with KaTeX's stock `errorColor`, matching rehype-katex).
  */
 export function renderTexToReact(value: string, displayMode: boolean): ReactNode {
+  return <TexFormula value={value} displayMode={displayMode} />
+}
+
+/** One formula subscribed to the KaTeX load; adds no element of its own around the KaTeX tree. */
+function TexFormula({ value, displayMode }: { value: string; displayMode: boolean }): ReactNode {
+  const loaded = useSyncExternalStore(subscribeKatex, loadedKatex, loadedKatex)
+  useEffect(() => {
+    // A failed import leaves the formula rendering its TeX source; the rejection stays handled here.
+    if (loaded === undefined) loadKatex().catch(() => undefined)
+  }, [loaded])
+  if (loaded === undefined) return <span data-tex-pending="">{value}</span>
+  return renderWithKatex(loaded, value, displayMode)
+}
+
+/** The rehype-katex error chain over a loaded KaTeX. */
+function renderWithKatex(katex: Katex, value: string, displayMode: boolean): ReactNode {
   let html: string
   try {
     html = katex.renderToString(value, { displayMode, throwOnError: true })

@@ -133,7 +133,9 @@ vendor manifest 守卫检查 `vendor/*/src` 下的改动是否连同对应的 `v
 
 keyless [CI 工作流](../.github/workflows/ci.yml) 将独立门禁分组到若干宽粒度 lane，并在受支持的 Node 版本上运行一组较小的兼容性检查。产物消费方在各自 lane 内等待一次 build。必需 benchmark 在标准 GitHub 托管 Linux 上独立运行；[benchmark 运行器决策](../.agents/notes/implemented/testing/2026-09-06-standard-hosted-benchmark-runner.zh.md)拥有路由及 job 超时。单独的真实 API 工作流按其配置的 worker 上限运行 `pnpm run test:e2e`。当前门禁和 job 清单以 [scripts/run-gates.ts](../scripts/run-gates.ts) 和工作流文件为准。
 
-不带凭据的 dsh 依赖布局检查与 dsh/vendor 打包演练仅在 `DSH_CI_FAILOVER_LINUX=selfhosted`，且事件为受信任的 master 推送或同仓库、非 fork、非 Dependabot 拉取请求时使用现有 Linux 自托管池。其余情况（包括手动触发）均使用 `ubuntu-24.04`；手动发布仍使用托管运行器。持久化存储隔离与回退限制见[发布演练运行器决策](../.agents/notes/implemented/process/2026-09-06-release-rehearsal-selfhosted.zh.md)。
+`pnpm run verify-web-size-budget` 将构建后的 Web 客户端与 [scripts/web-size-budget.json](../scripts/web-size-budget.json) 中的 gzip 字节上限比较。`initialJsGzipBytes` 限制 `apps/web/dist/index.html` 引用的模块入口脚本与 `modulepreload` 链接的总大小；`clientPluginJsGzipBytes` 限制所有 `packages/client/*/lib/client.js` 的总大小。按需加载的 chunk 不计入任一上限。该脚本读取构建输出，因此需先运行 `pnpm run build`；它会打印每项实测大小及其上限，任一总和超过上限即失败。CI 在 primary、artifact 与 consumer lane 中运行它，`pnpm run check:all` 也包含它。若要接受体积增长，在同一改动中只提高超出的那项上限，并在拉取请求中说明实测大小及增长原因。
+
+不带凭据的 fi 依赖布局检查与 dsh/vendor 打包演练仅在 `DSH_CI_FAILOVER_LINUX=selfhosted`，且事件为受信任的 master 推送或同仓库、非 fork、非 Dependabot 拉取请求时使用现有 Linux 自托管池。其余情况（包括手动触发）均使用 `ubuntu-24.04`；手动发布仍使用托管运行器。持久化存储隔离与回退限制见[发布演练运行器决策](../.agents/notes/implemented/process/2026-09-06-release-rehearsal-selfhosted.zh.md)。
 
 ### 日常命令
 
@@ -150,7 +152,7 @@ pnpm run build
 单次运行的 Headless coding agent 需要环境变量或仓库根目录 `.env` 中的 `DEEPSEEK_API_KEY`：
 
 ```sh
-pnpm dsh --profile headless "summarize this workspace"
+pnpm fi --profile headless "summarize this workspace"
 ```
 
 PTC mode 演示启用代码式工具展示，并运行同一个 headless profile：
@@ -164,13 +166,13 @@ pnpm run demo:ptc -- "summarize this workspace"
 Web 与 Desktop 共用同一对命令。`start:*` 启动上一次 `pnpm run build` 的产物；`dev:*` 先执行该构建再启动。Web 还会在源码修改时持续重建 client bundle，因为它的 Host 从源码运行，而浏览器加载的是构建产物：
 
 ```sh
-pnpm run start:web       # serve built Web artifacts through the source launcher (the same launch as pnpm dsh web)
+pnpm run start:web       # serve built Web artifacts through the source launcher (the same launch as pnpm fi web)
 pnpm run dev:web         # build, serve, and rebuild Web client bundles on source edits
 pnpm run start:desktop   # launch built Desktop artifacts
 pnpm run dev:desktop     # build, then launch Desktop
 ```
 
-Web 命令后面的参数会传给 `dsh web`，例如 `pnpm run dev:web --no-open --port 3081`；`dev:web` 还接受 `--skip-build` 复用现有产物树，以及 `--no-serve` 只运行重建 watcher、配合别处启动的服务器。两个 Web 命令使用正常的 Harness home，而 Desktop 命令使用 [Desktop README](../apps/desktop/README.zh.md) 描述的隔离开发 home。根目录 `Makefile` 以 `make web`、`make dev-web`、`make desktop`、`make dev-desktop` 和 `make build` 命名同一套命令；`ARGS='--no-open'` 用于转发参数。
+Web 命令后面的参数会传给 `fi-cli web`，例如 `pnpm run dev:web --no-open --port 3081`；`dev:web` 还接受 `--skip-build` 复用现有产物树，以及 `--no-serve` 只运行重建 watcher、配合别处启动的服务器。两个 Web 命令使用正常的 Harness home，而 Desktop 命令使用 [Desktop README](../apps/desktop/README.zh.md) 描述的隔离开发 home。根目录 `Makefile` 以 `make web`、`make dev-web`、`make desktop`、`make dev-desktop` 和 `make build` 命名同一套命令；`ARGS='--no-open'` 用于转发参数。
 
 ### TODO 标记
 

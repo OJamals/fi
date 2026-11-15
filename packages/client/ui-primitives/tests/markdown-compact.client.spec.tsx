@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 import { cleanup, render } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { MarkdownText } from './markdown-test-components.tsx'
+import { loadKatex } from '../src/markdown/katex.tsx'
+
+// KaTeX loads on the first math render; preloading keeps settled-math assertions synchronous.
+beforeAll(async () => { await loadKatex() })
 
 afterEach(cleanup)
 

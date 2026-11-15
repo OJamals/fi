@@ -33,14 +33,19 @@ it('omits development artifacts while preserving executable modules, assets and 
     '@deepseek-ai/libreoffice-kit-wasm/assets/soffice.data',
     '@deepseek-ai/libreoffice-kit-darwin-arm64/bin/libreoffice-kit',
     '.modules.yaml', '.pnpm-workspace-state-v1.json', '.bin/tool', '.pnpm/cache',
+    'example/source.ts', 'example/src/entry.mts', 'example/src/legacy.cts', 'zod/src/index.ts', 'zod/src/v4/core/api.ts',
+    'example/README.md', 'example/docs/api.MD', 'outer/node_modules/@scope/example/CHANGELOG.md',
   ]
   const retained = [
     '@deepseek-ai/dsh/lib/profile-boot.js', '@deepseek-ai/dsh/lib/shared-chunk.js',
     '@deepseek-ai/dsh-desktop-host/lib/index.js',
     'example/index.js', 'example/index.cjs', 'example/index.mjs', 'example/worker.js',
-    'example/source.ts', 'example/src/entry.ts', 'example/test/runtime-fixture.json',
+    'example/test/runtime-fixture.json', 'example/LICENSE.md', 'other/license.md', 'example/NOTICE.md',
+    '@deepseek-ai/dsh-agent-preset/skills/example/SKILL.md', '@deepseek-ai/dsh-agent-preset/skills/example/references/packages.md',
+    '@deepseek-ai/dsh-example/README.md', '@deepseek-ai/dsh-example/README.zh.md', '@deepseek-ai/cordis/src/index.ts',
+    '@fi/example/README.md', '@fi/example/src/index.ts',
     'example/locale.json', 'example/data.map', 'example/module.wasm',
-    'example/package.json', 'example/LICENSE', 'example/NOTICE', 'example/README.md',
+    'example/package.json', 'example/LICENSE', 'example/NOTICE',
     'example/native.lib', 'example/native.obj', 'example/symbols.pdb',
     'fs-ext/build/Release/fs_ext.node', 'fs-ext/build/Release/runtime.dll',
     'node-pty/prebuilds/win32-x64/conpty.node',
@@ -50,7 +55,7 @@ it('omits development artifacts while preserving executable modules, assets and 
     'node-pty/third_party/conpty/win10-x64/OpenConsole.exe',
     '@koromix/koffi-win32-x64/win32_x64/koffi.node',
     '@mixmark-io/domino/lib/HTMLParser.js', '@mixmark-io/domino/lib/EntityParser.js',
-    'zod/src/index.ts', 'zod/src/v4/core/api.ts', 'gaxios/build/esm/src/index.js',
+    'zod/src/index.js', 'gaxios/build/esm/src/index.js',
     'gaxios/build/cjs/src/index.js', 'fast-uri/index.js',
     '@img/sharp-win32-x64/lib/libvips-42.dll',
     '@deepseek-ai/libreoffice-kit-win32-x64/bin/libreoffice-kit.exe',
@@ -83,6 +88,12 @@ it('applies package-specific rules inside scoped and nested dependency container
   expect(desktopRuntimeFileExclusion('outer\\node_modules\\node-pty\\prebuilds\\win32-arm64\\conpty.node', windows, 'win32-x64')).toBeDefined()
   expect(desktopRuntimeFileExclusion('outer/node_modules/unrelated/test/data.html', windows, 'win32-x64')).toBeUndefined()
   expect(desktopRuntimeFileExclusion('outer/fs-ext/build/Release/fs_ext.lib', windows, 'win32-x64')).toBeUndefined()
+  expect(desktopRuntimeFileExclusion('@deepseek-ai/dsh-host/node_modules/koffi/doc/index.md', windows, 'win32-x64'))
+    .toBe('third-party Markdown documentation')
+  expect(desktopRuntimeFileExclusion('outer/node_modules/@deepseek-ai/dsh-skill-office/assets/office-docx/SKILL.md', windows, 'win32-x64'))
+    .toBeUndefined()
+  expect(desktopRuntimeFileExclusion('@deepseek-ai/dsh-host/node_modules/openai/src/index.ts', windows, 'win32-x64'))
+    .toBe('third-party TypeScript source')
 })
 
 it('retains native prebuilds for the selected macOS architecture', () => {

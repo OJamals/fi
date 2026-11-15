@@ -4,11 +4,15 @@
 // mount of the same prefix shows, while reusing the frozen blocks' DOM nodes
 // instead of remounting them.
 import { cleanup, render } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import type { Root, RootContent } from 'mdast'
 import { MarkdownText } from './markdown-test-components.tsx'
 import { IncrementalMarkdownParser } from '../src/markdown/incremental.ts'
 import { parseGfm } from '../src/markdown/parse.ts'
+import { loadKatex } from '../src/markdown/katex.tsx'
+
+// KaTeX loads on the first math render; preloading keeps settled-math assertions synchronous.
+beforeAll(async () => { await loadKatex() })
 
 afterEach(cleanup)
 

@@ -9,9 +9,9 @@ import { productWebBundleIsolation } from './product-isolation.ts'
 
 const src = (rel: string): string => fileURLToPath(new URL(rel, import.meta.url))
 const STANDALONE_ERROR = 'apps/web is not a standalone application: bare Vite cannot inject window.__DSH_BOOT__. '
-  + 'From a repository checkout, run `pnpm dsh web`; an installed package uses `dsh web`. '
-  + 'For client-plugin HMR, run `pnpm run dev:web`, which starts `dsh web` and the rebuild watchers together.'
-const DEFAULT_CLIENT_TITLE = 'DSH Local Build'
+  + 'From a repository checkout, run `pnpm fi web`; an installed package uses `fi-cli web`. '
+  + 'For client-plugin HMR, run `pnpm run dev:web`, which starts `fi-cli web` and the rebuild watchers together.'
+const DEFAULT_CLIENT_TITLE = 'fi Local Build'
 
 /** Escape build-time text before placing it in the HTML title element. */
 function escapeHtmlText(value: string): string {
@@ -24,7 +24,7 @@ function clientDocumentTitle(): Plugin {
   return {
     name: 'dsh-client-document-title',
     transformIndexHtml(html) {
-      return html.replace('<title>DSH Local Build</title>', `<title>${title}</title>`)
+      return html.replace('<title>fi Local Build</title>', `<title>${title}</title>`)
     },
   }
 }
@@ -39,6 +39,44 @@ function brandFontLicense(): Plugin {
         fileName: 'assets/fonts/Montserrat-OFL.txt',
         source: await readFile(src('../../packages/client/ui-theme/src/styles/Montserrat-OFL.txt')),
       })
+    },
+  }
+}
+
+/**
+ * KaTeX's stylesheet lists woff2, woff, and ttf sources for each face. Every
+ * browser the client supports, Electron included, loads woff2, so the woff and
+ * ttf fallbacks are removed before Vite resolves the URLs and are never emitted.
+ */
+const KATEX_STYLESHEET = /\/katex\/dist\/katex(?:\.min)?\.css$/
+const KATEX_LEGACY_FONT_SOURCE = /,\s*url\([^)]+\.(?:woff|ttf)\)\s*format\("(?:woff|truetype)"\)/g
+
+/** Keep only the woff2 source in KaTeX's `@font-face` rules. */
+function katexWoff2Only(): Plugin {
+  return {
+    name: 'dsh-katex-woff2-only',
+    enforce: 'pre',
+    transform(code, id) {
+      if (!KATEX_STYLESHEET.test(id.replaceAll('\\', '/'))) return null
+      const stripped = code.replace(KATEX_LEGACY_FONT_SOURCE, '')
+      if (/\.(?:woff|ttf)\)/.test(stripped)) throw new Error(`vite: ${id} still references a woff or ttf font after stripping`)
+      return { code: stripped, map: null }
+    },
+  }
+}
+
+/**
+ * KaTeX's package declares no `sideEffects`, so rollup keeps it whenever any
+ * module imports it, including micromark-extension-math's unused HTML half.
+ * Its top-level code only fills module-local tables, so marking it free of
+ * side effects drops those dead static imports and leaves ui-primitives'
+ * first-math-render import as the only edge to the katex chunk.
+ */
+function katexLazyChunk(): Plugin {
+  return {
+    name: 'dsh-katex-lazy-chunk',
+    transform(_code, id) {
+      return /\/node_modules\/katex\/dist\/katex\.m?js$/.test(id.replaceAll('\\', '/')) ? { moduleSideEffects: false } : null
     },
   }
 }
@@ -115,8 +153,8 @@ function emitPreviewPage(): Plugin {
  * rides index.
  */
 const VENDOR_PACKAGES: ReadonlySet<string> = new Set([
-  // math
-  'katex',
+  // katex is absent: ui-primitives imports it on the first math render, and
+  // manualChunks gives it its own on-demand chunk.
   // syntax highlight (@shikijs/langs is handled separately below —
   // lazy grammars must not land here)
   'shiki',
@@ -149,8 +187,8 @@ const BOOT_GRAMMAR_FILES: readonly string[] = [
   'dist/json.mjs',
 ]
 
-/** Font asset extensions routed to assets/fonts/ (KaTeX's woff2/woff/ttf faces). */
-const FONT_EXTENSIONS: readonly string[] = ['.woff2', '.woff', '.ttf']
+/** Font asset extensions routed to assets/fonts/ (KaTeX and brand faces; {@link katexWoff2Only} drops the others). */
+const FONT_EXTENSIONS: readonly string[] = ['.woff2']
 
 /**
  * npm package name of a resolved module id: the segment after the last
@@ -170,7 +208,7 @@ export default defineConfig({
   // directory, and the served index resolves identically from the site root.
   base: './',
   plugins: [
-    rejectStandaloneServe(), clientDocumentTitle(), brandFontLicense(), react(), emitPreviewPage(),
+    rejectStandaloneServe(), clientDocumentTitle(), brandFontLicense(), katexWoff2Only(), katexLazyChunk(), react(), emitPreviewPage(),
     productWebBundleIsolation(src('../..'), src('.')),
   ],
   build: {
@@ -195,7 +233,7 @@ export default defineConfig({
         },
         // Output layout: the two main chunks stay at assets/ root; lazy
         // @shikijs/langs grammar chunks group under assets/langs/; fonts
-        // (all KaTeX faces referenced by vendor.css) group under
+        // (the woff2 KaTeX faces its stylesheet references) group under
         // assets/fonts/. Sourcemaps need no arrangement: rollup writes each
         // .map next to its js and references it by bare relative filename.
         chunkFileNames(chunk): string {
@@ -219,6 +257,11 @@ export default defineConfig({
           if (pkg === '@shikijs/langs') {
             return BOOT_GRAMMAR_FILES.some(file => id.endsWith(`/${file}`)) ? 'vendor' : undefined
           }
+          // micromark-extension-math's unused HTML half imports katex; left
+          // unassigned, rollup would pull katex into vendor as that member's
+          // dependency instead of keeping the lazy import on its own chunk. The
+          // stylesheet is imported statically, so it stays with its importer.
+          if (pkg === 'katex') return id.endsWith('.css') ? undefined : 'katex'
           return VENDOR_PACKAGES.has(pkg) ? 'vendor' : undefined
         },
       },
