@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-使用本包可通过现有 Codex、Grok 或 Antigravity 订阅登录，从文本生成一张栅格图像或按顺序编辑工作区图像。部署会显式启用每个提供方和图像模型。调用绝不使用 API key 计费或回退到其他提供方；认证仅在工具运行时解析，因此未登录启动仍然安全。
+使用本包可通过现有 Codex、Grok 或 Antigravity 订阅登录，从文本生成一至四张栅格图像或按顺序编辑工作区图像。部署会显式启用每个提供方和图像模型。调用绝不使用 API key 计费或回退到其他提供方；认证仅在工具运行时解析，因此未登录启动仍然安全。
 
 ## 目录
 
@@ -47,11 +47,11 @@ kind: "package-reference"
 | `defaultProvider` | 必填 | 工具调用省略 `provider` 时使用的已配置提供方 |
 | `targets` | 必填 | 将 `codex`、`grok` 或 `antigravity` 映射到显式 `imageModel` 的非空映射 |
 | `timeoutMs` | `180000` | 整个操作的超时；1 至 600000 毫秒的整数 |
-| `maxOutputBytes` | `33554432` | 生成图像的最大解码字节数；1 至 67108864 的整数 |
+| `maxOutputBytes` | `33554432` | 一次调用生成的全部图像合计的最大解码字节数；1 至 67108864 的整数 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#fitool-image-generation)是已接受字段及其 JSDoc 的完整来源。
 
-`image_gen` 接受必填的非空 prompt、仅限已配置目标的可选提供方，以及可选且有序的 PNG、JPEG 或 WebP 工作区路径。Codex 和 Grok 接受一至五个引用；Antigravity 接受一至三个。本包会在访问文件系统、凭据或网络之前拒绝超量引用。它不发送 size 或 quality 字段，因此所选提供方保留其原生默认值。
+`image_gen` 接受必填的非空 prompt、仅限已配置目标的可选提供方、可选且有序的 PNG、JPEG 或 WebP 工作区路径，以及可选的 `size`、`quality` 和 `count`。Codex 和 Grok 接受一至五个引用；Antigravity 接受一至三个。`size` 为 `1024x1024`、`1536x1024`、`1024x1536`、`1792x1024` 或 `1024x1792` 之一；`quality` 只接受 `high`；`count` 为 1 至 4，默认为 1。Codex 只接受 `1024x1024`、`1536x1024` 和 `1024x1536`，并以 `IMAGE_INVALID_ARGUMENT` 拒绝 `1792x1024` 和 `1024x1792`；它原样发送 `size`、`quality: "high"` 和 `n`。Grok 生成按上述顺序把尺寸映射为 `aspect_ratio` `1:1`、`3:2`、`2:3`、`16:9` 和 `9:16`，并把 `high` 映射为 `resolution: "2k"`；Grok 编辑以 `IMAGE_INVALID_ARGUMENT` 拒绝 `size` 和 `quality`。Antigravity 把 `size` 映射为相同的 `aspectRatio` 值，把 `high` 映射为 `imageSize: "2K"`，并为每张请求的图像发起一次上游调用。本包会在访问文件系统、凭据或网络之前拒绝超量引用、Codex 不支持的尺寸和 Grok 不支持的编辑选项。调用省略 size 或 quality 时，Codex 和 Grok 不会收到对应字段，保留其原生默认值；省略 `size` 时 Antigravity 发送 `aspectRatio: "1:1"`。
 
 -----
 
@@ -63,7 +63,7 @@ kind: "package-reference"
 
 插件为 Codex 和 Grok 创建一个 pi-ai 凭据适配器，并使用 Antigravity 包的授权解析器和原生图像 transport。每次调用解析一个所选目标，通过执行环境文件系统读取已接受的引用，并在发送前通过 attachment 服务存储标准化输入。
 
-响应读取器只接受一张 base64 图像，在分配前限制 JSON 与解码字节数，根据字节识别 PNG、JPEG 或 WebP，拒绝声明媒体类型不匹配的响应，并把完整栅格验证委托给 attachment 服务。成功结果包含安全 JSON 和一个持久 `ImageBlock`，且排除原始图像数据。HTTP 失败会保留状态但不保留响应正文；结果不明确的 POST 失败不会重试；插件卸载会中止并等待活动任务。
+响应读取器只接受恰好 `count` 张 base64 图像，在分配前限制 JSON 与全部图像合计的解码字节数，根据字节识别 PNG、JPEG 或 WebP，拒绝声明媒体类型不匹配的响应，并把完整栅格验证委托给 attachment 服务。成功结果包含带 `images` 数组的安全 JSON（每个条目各自带可选的 `generationId`），以及每张图像一个持久 `ImageBlock`，且排除原始图像数据。HTTP 失败会保留状态但不保留响应正文；结果不明确的 POST 失败不会重试；插件卸载会中止并等待活动任务。
 
 配置 schema 在构造工具前提供操作限制，工具参数 schema 只允许已配置的提供方。有界正文读取完成后，格式错误的 UTF-8 或 JSON 会报告 `IMAGE_INVALID_RESPONSE`；调用方取消状态在解码前及成功解码后检查。
 
@@ -98,11 +98,11 @@ kind: "package-reference"
 
 #### 模型看到的内容
 
-生成的 [`image_gen` schema](../../../docs/tool-catalog.zh.md#fitool-image-generation)仅公开已配置的提供方。成功结果包含所选提供方与模型、标准输入和输出引用、可选的安全 generation id、简洁文本和一个持久输出图像。
+生成的 [`image_gen` schema](../../../docs/tool-catalog.zh.md#fitool-image-generation)仅公开已配置的提供方。成功结果包含所选提供方与模型、标准输入引用、输出引用组成的 `images` 数组（每项带可选的安全 `generationId`）、一个简洁文本块，以及每张生成图像一个持久图像块。
 
 #### Token 影响
 
-插件可见时，工具 schema 会添加固定 token。每次调用会附加有界 JSON、简洁结果文本和一个图像 block；输入路径影响调用 token，提供方生成的栅格字节遵循所选适配器的图像 token 计量。
+插件可见时，工具 schema 会添加固定 token。每次调用会附加有界 JSON、一个简洁结果文本 block，以及每张生成图像一个图像 block；输入路径影响调用 token，提供方生成的栅格字节遵循所选适配器的图像 token 计量。
 
 #### KV Cache 影响
 

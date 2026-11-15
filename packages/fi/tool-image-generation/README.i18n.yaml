@@ -9,8 +9,8 @@
   en: 40e69ebc11a1fa3d
   zh: c5a8dde793040e6a
 /fi-tool-image-generation/summary:
-  en: 21a2d0aa1535bb26
-  zh: f64e74e6847da63a
+  en: 864791cbbb6c4f23
+  zh: 32ef66f5b17b8b0e
 /fi-tool-image-generation/table-of-contents:
   en: d152484eb41ac6b4
   zh: 09388d293f9be9cb
@@ -21,11 +21,11 @@
   en: 363954833ce3c0c2
   zh: 36e8469385ccf031
 /fi-tool-image-generation/use-this-package/minimal-configuration:
-  en: eefc13559c447941
-  zh: fd44c1a7b99e3a47
+  en: 0cf5a3b46c5bd493
+  zh: 37f88509c48af674
 /fi-tool-image-generation/understand-the-implementation:
-  en: a8dc2372b2999a52
-  zh: c929058f21ca0c4a
+  en: d3ac3d40f4c21c58
+  zh: 944a18112bac93cc
 /fi-tool-image-generation/further-exploration:
   en: 57da0381742b6257
   zh: 9f023774294377fc
@@ -36,11 +36,11 @@
   en: 2ebdce50de18a50d
   zh: 0c20792ec4e767c7
 /fi-tool-image-generation/model-experience/image-generation-tool/what-the-model-sees:
-  en: 7993eadcdb8ab5ab
-  zh: 5155241a3cc29faa
+  en: f105c0505df60cbd
+  zh: 7d08377cae30d2f0
 /fi-tool-image-generation/model-experience/image-generation-tool/token-effect:
-  en: 7864eb60cb7045e6
-  zh: 459dbefe0fb3c76a
+  en: 47e0d3832d2796e0
+  zh: a2e68e5d079c5539
 /fi-tool-image-generation/model-experience/image-generation-tool/kv-cache-effect:
   en: a7e23438b9e4ed82
   zh: d4be231583b57a70

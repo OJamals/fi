@@ -90,7 +90,7 @@ describe('OpenCode catalog completion from the public registry', () => {
     expect(byId(models, 'big-pickle')).toMatchObject({
       wireId: 'big-pickle', headers: { 'x-safe': 'yes' },
       reasoning: { supported: true, effort: ['low', 'high'] },
-      model: { name: 'big-pickle', contextWindow: 200_000, maxTokens: 32_000, input: ['text'] },
+      model: { name: 'big-pickle', contextWindow: 200_000, maxTokens: 32_000, input: ['text', 'image'] },
     })
     expect(byId(models, 'gpt').reasoning).toEqual({ supported: false })
     expect(byId(models, 'claude').reasoning).toEqual({ supported: true })

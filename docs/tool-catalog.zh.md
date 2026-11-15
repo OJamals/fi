@@ -58,7 +58,7 @@
 
 ### `image_gen`
 
-根据提示词生成一张栅格图片，或编辑有序的 PNG/JPEG/WebP 工作区图片（Codex/Grok 最多五张，Antigravity 最多三张）。选择一个已配置的订阅提供方（codex、grok、antigravity）；省略时使用 codex。不会发生提供方回退。
+根据提示词生成栅格图片，或编辑有序的 PNG/JPEG/WebP 工作区图片（Codex/Grok 最多五张，Antigravity 最多三张）。选择一个已配置的订阅提供方（codex、grok、antigravity）；省略时使用 codex。不会发生提供方回退。
 
 ```json
 {
@@ -83,6 +83,34 @@
       "items": {
         "type": "string"
       }
+    },
+    "size": {
+      "type": "string",
+      "description": "Optional output size in pixels. Codex accepts 1024x1024, 1536x1024, or 1024x1536. Grok and Antigravity accept every listed size and use its aspect ratio; Grok accepts it only without referenced_image_paths. Omit for the provider default.",
+      "enum": [
+        "1024x1024",
+        "1536x1024",
+        "1024x1536",
+        "1792x1024",
+        "1024x1792"
+      ]
+    },
+    "quality": {
+      "type": "string",
+      "description": "Optional higher-detail output. Grok accepts it only without referenced_image_paths. Omit for the provider default.",
+      "enum": [
+        "high"
+      ]
+    },
+    "count": {
+      "type": "integer",
+      "description": "Optional number of images to return. Omit for one.",
+      "enum": [
+        1,
+        2,
+        3,
+        4
+      ]
     }
   },
   "required": [

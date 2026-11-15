@@ -12,9 +12,9 @@ import {
   type NativeEvent,
   NativeProtocolError,
   nativeChatResponse,
-  textContent,
   validateNativeControls,
 } from './subscription-stream.ts'
+import { inlineParts } from '../images.ts'
 
 // Wire contract researched from decolua/9router; see research/third-party notices.
 // Request shape: the AWS CodeWhisperer streaming model in aws/amazon-q-developer-cli
@@ -102,10 +102,12 @@ export function kiroThinkingBudget(
 
 type ToolResult = { toolUseId: string; content: { text: string }[]; status: string }
 type ToolUse = { toolUseId: string; name: string; input: object }
+type KiroImage = { format: string; source: { bytes: string } }
 type UserMessage = {
   content: string
   modelId: string
   origin: string
+  images?: KiroImage[]
   userInputMessageContext?: {
     toolResults?: ToolResult[]
     tools?: { toolSpecification: { name: string; description: string; inputSchema: { json: Record<string, unknown> } } }[]
@@ -117,11 +119,32 @@ interface KiroRequest {
   profileArn?: string
 }
 
+/** Kiro ImageBlock format of each accepted media type. */
+const IMAGE_FORMATS = new Map([
+  ['image/png', 'png'],
+  ['image/jpeg', 'jpeg'],
+  ['image/jpg', 'jpeg'],
+  ['image/gif', 'gif'],
+  ['image/webp', 'webp'],
+])
+
+/** Text and ImageBlocks of one message; inlineParts admits only the media types listed above. */
+function kiroContent(content: unknown): { text: string; images: KiroImage[] } {
+  const parts = inlineParts('kiro', content)
+  return {
+    text: parts.flatMap(part => part.type === 'text' ? [part.text] : []).join('\n'),
+    images: parts.flatMap(part => part.type === 'image'
+      ? [{ format: IMAGE_FORMATS.get(part.image.mimeType) as string, source: { bytes: part.image.data } }]
+      : []),
+  }
+}
+
 /**
- * Encode conversation history, declared tools, and the thinking switch for Kiro.
+ * Encode conversation history, user images, declared tools, and the thinking switch for Kiro.
  * @param input - OpenAI request validated during encoding.
  * @param token - account profile and region.
  * @returns AWS inference request.
+ * @throws {Error} for unsupported content, roles, or tool sequences, and for images outside user turns or Kiro's limits.
  */
 export function kiroRequest(input: unknown, token: TokenData): KiroRequest {
   validateNativeControls('kiro', input)
@@ -145,10 +168,11 @@ export function kiroRequest(input: unknown, token: TokenData): KiroRequest {
       },
     }
   })
-  const user = (content: string, toolResults?: ToolResult[]) => {
+  const user = (content: string, toolResults?: ToolResult[], images: KiroImage[] = []) => {
     const last = turns.at(-1)?.userInputMessage
     if (last) {
       last.content += `${last.content && content ? '\n\n' : ''}${content}`
+      if (images.length) last.images = [...last.images ?? [], ...images]
       if (toolResults) {
         /* v8 ignore next -- a user turn receiving a tool result already carries tool results. */
         const previous = last.userInputMessageContext?.toolResults ?? []
@@ -160,12 +184,15 @@ export function kiroRequest(input: unknown, token: TokenData): KiroRequest {
           content,
           modelId: model,
           origin: 'AI_EDITOR',
+          ...(images.length ? { images } : {}),
           userInputMessageContext: { ...(toolResults ? { toolResults } : {}) },
         },
       })
   }
   for (const msg of body.messages) {
-    const content = textContent(msg.content)
+    const { text: content, images } = kiroContent(msg.content)
+    // Kiro carries images on user turns only; pi-ai moves tool-result images into a following user turn.
+    if (images.length && msg.role !== 'user') throw new Error('Kiro accepts images in user turns only')
     if (msg.role === 'system' || msg.role === 'developer') {
       system.push(content)
       continue
@@ -182,7 +209,7 @@ export function kiroRequest(input: unknown, token: TokenData): KiroRequest {
       ])
     } else if (msg.role === 'user') {
       if (pendingTools.size) throw new Error('Kiro conversation has unresolved tool calls')
-      user(content)
+      user(content, undefined, images)
     } else if (msg.role === 'assistant') {
       if (pendingTools.size) throw new Error('Kiro conversation has unresolved tool calls')
       const toolUses = (msg.tool_calls || []).map((call) => {

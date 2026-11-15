@@ -94,6 +94,7 @@ async function fixtureBase64(): Promise<string> {
 
 interface ImageToolTestValue {
   readonly operation: string
+  readonly images: Record<string, unknown>[]
   readonly image: Record<string, unknown>
   readonly references: unknown[]
 }
@@ -103,14 +104,21 @@ function imageToolValue(value: unknown): ImageToolTestValue {
     throw new Error('expected image_gen object value')
   }
   const record = value as Record<string, unknown>
-  const image = record['image']
+  const images = record['images']
   const references = record['references']
   if (typeof record['operation'] !== 'string'
-    || image === null || typeof image !== 'object' || Array.isArray(image)
+    || !Array.isArray(images) || images.length === 0
+    || images.some(image => image === null || typeof image !== 'object' || Array.isArray(image))
     || !Array.isArray(references)) {
     throw new Error('expected image_gen result fields')
   }
-  return { operation: record['operation'], image: image as Record<string, unknown>, references }
+  const typed = images as Record<string, unknown>[]
+  return { operation: record['operation'], images: typed, image: typed[0] as Record<string, unknown>, references }
+}
+
+function imageBlock(image: Record<string, unknown>): { type: 'image'; attachment: Record<string, unknown> } {
+  const { generationId: _generationId, ...attachment } = image
+  return { type: 'image', attachment }
 }
 
 function requestUrl(input: RequestInfo | URL): string {
@@ -189,10 +197,10 @@ describe('image generation tool composition', () => {
     const { ctx } = await composition(config())
     const encoded = 'UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA'
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ data: [{ b64_json: encoded }] })))
-    const save = ctx.attachments.saveImage.bind(ctx.attachments)
-    vi.spyOn(ctx.attachments, 'saveImage').mockImplementation(async (input) => {
-      const { name: _name, ...ref } = await save(input)
-      return { ...ref, originalDimensions: { width: 2, height: 2 } }
+    const save = ctx.attachments.saveImages.bind(ctx.attachments)
+    vi.spyOn(ctx.attachments, 'saveImages').mockImplementation(async (inputs) => {
+      const refs = await save(inputs)
+      return refs.map(({ name: _name, ...ref }) => ({ ...ref, originalDimensions: { width: 2, height: 2 } }))
     })
     const result = await ctx.tools.execute({ signal: new AbortController().signal,
       callId: ToolCallId('webp-image'), name: 'image_gen', arguments: { prompt: 'image' } })
@@ -289,6 +297,13 @@ describe('image generation tool composition', () => {
           prompt: { type: 'string' },
           provider: { type: 'string', enum: ['codex', 'grok', 'antigravity'] },
           referenced_image_paths: { type: 'array', items: { type: 'string' } },
+          size: {
+            type: 'string',
+            enum: ['1024x1024', '1536x1024', '1024x1536', '1792x1024', '1024x1792'],
+            description: 'Optional output size in pixels. Codex accepts 1024x1024, 1536x1024, or 1024x1536. Grok and Antigravity accept every listed size and use its aspect ratio; Grok accepts it only without referenced_image_paths. Omit for the provider default.',
+          },
+          quality: { type: 'string', enum: ['high'] },
+          count: { type: 'integer', enum: [1, 2, 3, 4] },
         },
         required: ['prompt'],
       },
@@ -308,7 +323,7 @@ describe('image generation tool composition', () => {
     expect(result.meta).toBeUndefined()
     expect(result.content).toEqual([
       { type: 'text', text: 'Generated one image with codex model gpt-image-2.' },
-      { type: 'image', attachment: value.image },
+      imageBlock(value.image),
     ])
     expect(fetch).toHaveBeenCalledOnce()
   })
@@ -352,7 +367,7 @@ describe('image generation tool composition', () => {
     const value = imageToolValue(result.value)
     expect(value.operation).toBe('edit')
     expect(value.references).toHaveLength(2)
-    expect(result.content[1]).toEqual({ type: 'image', attachment: value.image })
+    expect(result.content[1]).toEqual(imageBlock(value.image))
     expect(fetch).toHaveBeenCalledOnce()
   })
 
@@ -527,11 +542,11 @@ describe('image generation tool composition', () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ data: [{ b64_json: encoded }] }))))
     const { ctx } = await composition(config())
     const controller = new AbortController()
-    const save = ctx.attachments.saveImage.bind(ctx.attachments)
-    vi.spyOn(ctx.attachments, 'saveImage').mockImplementation(async (input) => {
-      const ref = await save(input)
+    const save = ctx.attachments.saveImages.bind(ctx.attachments)
+    vi.spyOn(ctx.attachments, 'saveImages').mockImplementation(async (inputs) => {
+      const refs = await save(inputs)
       controller.abort(new Error('cancelled while persisting'))
-      return ref
+      return refs
     })
 
     const result = await ctx.tools.execute({
@@ -561,6 +576,106 @@ describe('image generation tool composition', () => {
     expect(ctx.tools.schemas().some(schema => schema.name === 'image_gen')).toBe(false)
     await ctx.plugin(LocalCredentialProvider, { path: join(root, '.credentials.yaml'), watch: false })
     await vi.waitFor(() => { expect(ctx.tools.schemas().some(schema => schema.name === 'image_gen')).toBe(true) })
+  })
+
+  it('sends Codex size, quality, and count verbatim and persists every returned image in order', async () => {
+    const encoded = await fixtureBase64()
+    const fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(requestJson(init)).toEqual({ model: 'gpt-image-2', prompt: 'two pixels', n: 2, size: '1536x1024', quality: 'high' })
+      return Response.json({ data: [{ b64_json: encoded, generation_id: 'first' }, { b64_json: JPEG_BASE64 }] })
+    })
+    vi.stubGlobal('fetch', fetch)
+    const { ctx } = await composition(config())
+
+    const result = await ctx.tools.execute({ signal: new AbortController().signal,
+      callId: ToolCallId('codex-image-options'), name: 'image_gen',
+      arguments: { prompt: 'two pixels', size: '1536x1024', quality: 'high', count: 2 } })
+
+    expect(result.isError).toBe(false)
+    const value = imageToolValue(result.value)
+    expect(value.images).toHaveLength(2)
+    expect(value.images[0]).toMatchObject({ mediaType: 'image/png', name: 'generated-image-1.png', generationId: 'first' })
+    expect(value.images[1]).toMatchObject({ mediaType: 'image/jpeg', name: 'generated-image-2.jpg' })
+    expect(value.images[1]).not.toHaveProperty('generationId')
+    expect(result.content).toEqual([
+      { type: 'text', text: 'Generated 2 images with codex model gpt-image-2.' },
+      imageBlock(value.images[0] as Record<string, unknown>),
+      imageBlock(value.images[1] as Record<string, unknown>),
+    ])
+  })
+
+  it('maps size and quality to Grok generation aspect_ratio and resolution', async () => {
+    const fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(requestJson(init)).toEqual({
+        model: 'grok-imagine-image-2.0', prompt: 'wide', n: 1, response_format: 'b64_json', aspect_ratio: '16:9', resolution: '2k',
+      })
+      return Response.json({ data: [{ b64_json: JPEG_BASE64 }] })
+    })
+    vi.stubGlobal('fetch', fetch)
+    const { ctx } = await composition(config())
+
+    const result = await ctx.tools.execute({ signal: new AbortController().signal,
+      callId: ToolCallId('grok-image-options'), name: 'image_gen',
+      arguments: { prompt: 'wide', provider: 'grok', size: '1792x1024', quality: 'high', count: 1 } })
+
+    expect(result.isError).toBe(false)
+    expect(fetch).toHaveBeenCalledOnce()
+  })
+
+  it.each([
+    [undefined, '1792x1024'],
+    [['one.png'], '1024x1792'],
+  ])('rejects Codex size %s %s before filesystem, credential, or network access', async (paths, size) => {
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
+    const { ctx } = await composition(config())
+    const resolve = vi.spyOn(ctx.fs, 'resolve')
+
+    const result = await ctx.tools.execute({ signal: new AbortController().signal,
+      callId: ToolCallId('codex-size'), name: 'image_gen',
+      arguments: { prompt: 'wide', provider: 'codex', size, ...paths === undefined ? {} : { referenced_image_paths: paths } } })
+
+    expect(result.error?.info).toMatchObject({ code: 'IMAGE_INVALID_ARGUMENT' })
+    expect(firstResultText(result)).toContain(`codex does not support size ${size}; use 1024x1024, 1536x1024, or 1024x1536`)
+    expect(resolve).not.toHaveBeenCalled()
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    [{ size: '1024x1024' }, 'size'],
+    [{ quality: 'high' }, 'quality'],
+  ])('rejects Grok edit option %j before filesystem, credential, or network access', async (option, name) => {
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
+    const { ctx } = await composition(config())
+    const resolve = vi.spyOn(ctx.fs, 'resolve')
+
+    const result = await ctx.tools.execute({ signal: new AbortController().signal,
+      callId: ToolCallId('grok-edit-option'), name: 'image_gen',
+      arguments: { prompt: 'edit', provider: 'grok', referenced_image_paths: ['one.png'], ...option } })
+
+    expect(result.error?.info).toMatchObject({ code: 'IMAGE_INVALID_ARGUMENT' })
+    expect(firstResultText(result)).toContain(`grok image editing does not support ${name}`)
+    expect(resolve).not.toHaveBeenCalled()
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    [{ size: '512x512' }, 'size'],
+    [{ quality: 'low' }, 'quality'],
+    [{ count: 5 }, 'count'],
+  ])('rejects an output option outside the fixed set %j', async (option, name) => {
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
+    const { ctx } = await composition(config())
+
+    const result = await ctx.tools.execute({ signal: new AbortController().signal,
+      callId: ToolCallId('unknown-image-option'), name: 'image_gen',
+      arguments: { prompt: 'image', ...option } })
+
+    expect(result.isError).toBe(true)
+    expect(firstResultText(result)).toContain(name)
+    expect(fetch).not.toHaveBeenCalled()
   })
 
   it.each([

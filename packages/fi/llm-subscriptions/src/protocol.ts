@@ -59,7 +59,7 @@ export interface NativeCallContext {
   config: { timeouts: { 'messages-ms': number; 'stream-messages-ms': number } }
   signal?: AbortSignal
 }
-/** OpenAI text and function-tool fields accepted by the native encoders. */
+/** OpenAI message, content, and function-tool fields accepted by the native encoders; each encoder validates content parts. */
 export const nativeRequestSchema = z
   .object({
     model: z.string().min(1),

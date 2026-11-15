@@ -24,6 +24,9 @@
       "path": "../../credentials/credentials"
     },
     {
+      "path": "../../fs/fs"
+    },
+    {
       "path": "../../llm/llm"
     },
     {

@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包为 FI 用户提供一个首选搜索设置，同时保留 DeepSeek Harness 的 `WebSearchProvider`、`WebRuntime` 和 `web_search` 接口。稳定的 `fi-preferred-search` 注册项为每个新调用取得当前设置快照，创建所选提供方，并返回其标准化结果，不执行回退。进行中的调用继续使用其原始提供方和选项。
+本包为 FI 用户提供一个首选搜索设置，同时保留 fi 的 `WebSearchProvider`、`WebRuntime` 和 `web_search` 接口。稳定的 `fi-preferred-search` 注册项为每个新调用取得当前设置快照，创建所选提供方，并返回其标准化结果，不执行回退。进行中的调用继续使用其原始提供方和选项。
 
 ## 目录
 

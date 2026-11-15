@@ -115,6 +115,11 @@ export class CursorTurns {
       delete turn.pending
       turn.prefix = digest(body.messages)
     } else {
+      // Tool results with images end in a user turn, so a new Run replays them; the suspended Run is abandoned.
+      for (const message of body.messages) {
+        const stale = message.role === 'tool' && message.tool_call_id !== undefined ? this.pending.get(message.tool_call_id) : undefined
+        if (stale !== undefined && stale.owner === owner) this.close(stale)
+      }
       const controller = new AbortController()
       const signal = AbortSignal.any([controller.signal, ...(opts.signal ? [opts.signal] : [])])
       const connecting = connectCursor(opts.account.token, '/agent.v1.AgentService/Run', cursorRequest(body),

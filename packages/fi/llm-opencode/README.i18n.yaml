@@ -3,8 +3,8 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/fi/llm-opencode/README.md
 /:
-  en: 8ef0937d5b89e884
-  zh: 40e694ecda9f3a90
+  en: 44f190db3888e4aa
+  zh: 8d41bf6bba8ab570
 /fi-llm-opencode:
   en: 5f85adccf686aae5
   zh: c43aaaaed45e1034
@@ -21,8 +21,8 @@
   en: 31b37d8165503b4e
   zh: 71f92edddcafb367
 /fi-llm-opencode/protocol-sources:
-  en: d694e77bdc0e9d6a
-  zh: 4825b304dcf640ae
+  en: 38a669658c71d7b2
+  zh: 61a9cb8ebee5937d
 /fi-llm-opencode/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
@@ -30,8 +30,8 @@
   en: 80554050e6f8755c
   zh: 80554050e6f8755c
 /fi-llm-opencode/model-experience/console-model-request-and-response/what-the-model-sees:
-  en: 5a327f4544bf5a4b
-  zh: 127c9913cc852b13
+  en: cc6d907fef422a4d
+  zh: 3972237fbd892009
 /fi-llm-opencode/model-experience/console-model-request-and-response/token-effect:
   en: d7e8ef9c2ef162a0
   zh: 7d8a357009b0e810
@@ -39,8 +39,8 @@
   en: 3841ed7779f5f8cf
   zh: ea6752ff213ca273
 /fi-llm-opencode/known-limitations-and-deferred-work:
-  en: 82013169b2ab4ef2
-  zh: 4674e76a9011bd23
+  en: ff6ddbb5114bfd08
+  zh: 934472803f2b0257
 /fi-llm-opencode/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: 1499f90e25f08424

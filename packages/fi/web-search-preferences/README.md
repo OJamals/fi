@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package gives FI users one preferred-search setting while preserving DeepSeek Harness's `WebSearchProvider`, `WebRuntime`, and `web_search` interfaces. The stable `fi-preferred-search` registry entry snapshots the current settings for each new call, creates the selected provider, and returns its normalized result without fallback. An in-flight call keeps its original provider and options.
+This package gives FI users one preferred-search setting while preserving fi's `WebSearchProvider`, `WebRuntime`, and `web_search` interfaces. The stable `fi-preferred-search` registry entry snapshots the current settings for each new call, creates the selected provider, and returns its normalized result without fallback. An in-flight call keeps its original provider and options.
 
 ## Table of Contents
 

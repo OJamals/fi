@@ -1,6 +1,7 @@
 /** Copilot chat transport; pi-ai retains ownership of device login and token refresh. */
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
+import { checkRequestImages } from './images.ts'
 import { withTimeoutSignal } from './protocol.ts'
 import type { SubscriptionGrant } from './protocol.ts'
 
@@ -256,17 +257,23 @@ export async function annotateQuotaFailure(
  * @param body - OpenAI chat request.
  * @param request - conversation-start flag, durable session id, and cancellation.
  * @returns the upstream response, with quota exhaustion annotated.
+ * @throws {Error} before sending when an inline image is remote, unsupported, or oversized.
  */
 export async function callCopilot(
   grant: SubscriptionGrant,
   body: unknown,
   request: { initiator: 'user' | 'agent'; session?: string | undefined; signal: AbortSignal },
 ): Promise<Response> {
+  // The Copilot Chat client marks every request that carries image parts with this header.
+  const vision = checkRequestImages('copilot', body)
   const response = await fetch(`${copilotBase(grant)}/chat/completions`, {
     method: 'POST',
     redirect: 'error',
     signal: request.signal,
-    headers: copilotHeaders(grant, request.initiator, request.session),
+    headers: {
+      ...copilotHeaders(grant, request.initiator, request.session),
+      ...vision ? { 'copilot-vision-request': 'true' } : {},
+    },
     body: JSON.stringify(body),
   })
   return annotateQuotaFailure(response, grant, request.signal)

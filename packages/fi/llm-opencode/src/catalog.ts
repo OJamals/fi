@@ -139,7 +139,7 @@ async function completeCatalog(catalog: Catalog, registry: ModelRegistry, config
   return { ...catalog, providers }
 }
 
-/** Keep enabled supported text models of a validated, completed catalog. */
+/** Keep enabled supported text-output models of a validated, completed catalog, with their advertised input modalities. */
 function project(catalog: Catalog, provider: string, config: ConsoleOptions): ConsoleModel[] {
   const result: ConsoleModel[] = []
   for (const [providerId, source] of Object.entries(catalog.providers)) {
@@ -166,7 +166,8 @@ function project(catalog: Catalog, provider: string, config: ConsoleOptions): Co
         ...reasoning === undefined ? {} : { reasoning },
         model: {
           provider, id: selectedId, name: entry.name ?? id, api, baseUrl,
-          reasoning: false, input: ['text'],
+          // Images are accepted only where the Console or registry lists them; an absent list means text only.
+          reasoning: false, input: entry.capabilities?.input?.includes('image') === true ? ['text', 'image'] : ['text'],
           cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
           contextWindow: entry.limit?.context ?? config.defaultContextWindow,
           maxTokens: entry.limit?.output ?? config.defaultMaxTokens,
@@ -178,7 +179,7 @@ function project(catalog: Catalog, provider: string, config: ConsoleOptions): Co
 }
 
 /**
- * Validate a remote catalog and retain supported enabled text models.
+ * Validate a remote catalog and retain supported enabled text-output models.
  * @param data - untrusted, already completed Console v2 JSON.
  * @param provider - FI route identity used in durable replay.
  * @param config - fallback capacity values from validated deployment configuration.

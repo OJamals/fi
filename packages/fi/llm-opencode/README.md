@@ -1,5 +1,5 @@
 ---
-description: "OpenCode Console device authorization, organization-scoped grants, authenticated text-model discovery, and transport."
+description: "OpenCode Console device authorization, organization-scoped grants, authenticated discovery of text-output models with their image input, and transport."
 kind: "package-reference"
 ---
 
@@ -38,7 +38,7 @@ A local auth2api server with `OPENCODE_NATIVE_BINARY` can serve existing `openco
 
 The canonical [provider metadata](../provider-compat/src/provider-settings.json) pins the OpenCode Console plugin and model-request source references for device tokens, organization scope, and client/session headers. Auth2api's adapter supplies the local reference for v2 catalog projection and protocol selection.
 
-Authenticated `/api/v2/config` supplies enabled models supporting text input and output, endpoint URLs, protocol, wire identifiers, capacity, and reasoning controls. Models omitting modality metadata use text defaults. Supported packages use Anthropic Messages, OpenAI Responses, OpenAI chat completions, or Google Gemini `streamGenerateContent`. A provider-qualified selection id remains distinct from the wire model id in durable replay. Prepared calls freeze the catalog entry, account, organization, and options together. Discovery errors do not fall back to public models or another account.
+Authenticated `/api/v2/config` supplies enabled models, endpoint URLs, protocol, wire identifiers, capacity, and reasoning controls; a model whose listed input or output modalities omit text is dropped. Input modalities come from Console `capabilities.input`, otherwise from registry `modalities.input`; a model accepts images only when that list includes `image`, and a model without a list accepts text only. Supported packages use Anthropic Messages, OpenAI Responses, OpenAI chat completions, or Google Gemini `streamGenerateContent`. A provider-qualified selection id remains distinct from the wire model id in durable replay. Prepared calls freeze the catalog entry, account, organization, and options together. Discovery errors do not fall back to public models or another account.
 
 When the Console returns a workspace overlay that omits packages, endpoints, or models, the public registry at `https://models.opencode.ai/api.json` completes it. Only providers the authenticated Console lists are admitted, Console fields win, `disabled` entries stay hidden, and registry routes outside `opencode.ai` are dropped. Registry `modalities`, `limit`, `status`, `reasoning`, and `reasoning_options` fill fields the Console omits. The registry request carries no credentials or organization headers and rejects redirects; its copy is revalidated with ETag and Last-Modified, shared by concurrent readers, and capped at 32 MiB. A provider the registry lacks is logged and omitted without discarding the others.
 
@@ -55,7 +55,7 @@ OpenAI-compatible inference retries `403 FreeTierError` with auth2api-compatible
 
 #### What the model sees
 
-The model receives FI's recorded system prompt, conversation, and actual tool declarations from `GenerateOptions` through shared pi-ai conversion. Advertised request defaults accept only numeric sampling fields and cannot replace credentials, system messages, tools, or conversation input. Requests include the Console organization's authentication and native session-routing headers: `x-opencode-session-id` plus the session, affinity, and session-id names carrying the same value. A selected reasoning effort adds the route's native reasoning fields. pi-ai projects text, reasoning, tool calls, usage, finish reasons, and replay metadata into the existing session protocol; consumer cancellation and idle deadlines abort the transport.
+The model receives FI's recorded system prompt, conversation, and actual tool declarations from `GenerateOptions` through shared pi-ai conversion. Advertised request defaults accept only numeric sampling fields and cannot replace credentials, system messages, tools, or conversation input. Requests include the Console organization's authentication and native session-routing headers: `x-opencode-session-id` plus the session, affinity, and session-id names carrying the same value. A selected reasoning effort adds the route's native reasoning fields. On a model that accepts images, conversation images are sent in the route's own format: chat completions `image_url` data URLs, Responses `input_image`, Anthropic base64 `image` blocks, and Gemini `inlineData`. Each image is prepared within the attachment store's pixel and byte limits and at most 20 MiB; only JPEG, PNG, GIF, and WebP are sent. Images on a text-only model, without a mounted attachment service, of another media type, or above 20 MiB fail with `UNSUPPORTED_CONTENT` before the request is sent. pi-ai projects text, reasoning, tool calls, usage, finish reasons, and replay metadata into the existing session protocol; consumer cancellation and idle deadlines abort the transport.
 
 #### Token effect
 
@@ -69,7 +69,7 @@ Replay preserves ordered conversation blocks and supported native signatures. Se
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- This adapter serves text input/output. Images, native search, parent-session routing, and remote MCP/policy installation are not offered, and reasoning is limited to efforts the Console or registry lists. Free-tier quotas, model availability, and Console balance remain provider-owned; catalog visibility alone does not establish inference availability.
+- This adapter returns text output and accepts image input only on models whose catalog lists it. Native search, parent-session routing, and remote MCP/policy installation are not offered, and reasoning is limited to efforts the Console or registry lists. Free-tier quotas, model availability, and Console balance remain provider-owned; catalog visibility alone does not establish inference availability.
 
 **Runtime invariant:** No companion is published. The credential store owns grant serialization; each prepared call retains one immutable catalog/credential generation without an independent registration mirror.
 

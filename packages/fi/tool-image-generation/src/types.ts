@@ -5,6 +5,15 @@ import { HarnessError } from '@deepseek-ai/dsh-llm'
 /** Subscription backends with a native raster generation transport. */
 export type ImageGenerationProvider = 'codex' | 'grok' | 'antigravity'
 
+/** Output pixel dimensions a call may request; each provider maps them to its native field. */
+export type ImageGenerationSize = '1024x1024' | '1536x1024' | '1024x1536' | '1792x1024' | '1024x1792'
+
+/** Output quality a call may request; each provider maps it to its native field. */
+export type ImageGenerationQuality = 'high'
+
+/** Number of images one call may request. */
+export type ImageGenerationCount = 1 | 2 | 3 | 4
+
 /** Explicit model selection for one configured subscription backend. */
 export interface ImageGenerationTarget {
   /** Exact provider image model id. */
