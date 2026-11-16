@@ -62,11 +62,14 @@ try {
         [IO.File]::WriteAllText((Join-Path $cachePath 'download.txt'), 'update')
         Copy-Item -LiteralPath (Join-Path $installPath ('Uninstall ' + $ProductName + '.exe')) -Destination $uninstaller -Force
         $arguments = '_?=' + $installPath
-        if ($mode -in @('silent', 'home-inside')) { $arguments = '/S ' + $arguments }
+        if ($mode -in @('silent', 'home-inside', 'fi-home-inside')) { $arguments = '/S ' + $arguments }
         # electron-builder's installUtil.nsh runs an older uninstaller with exactly these flags when replacing it.
         if ($mode -eq 'upgrade') { $arguments = '/S /KEEP_APP_DATA --updated /currentuser ' + $arguments }
         if ($mode -eq 'replaced') { $arguments = '/S /KEEP_APP_DATA /currentuser ' + $arguments }
         if ($mode -eq 'home-inside') { $env:DSH_HOME = Join-Path $userDataPath 'home' } else { Remove-Item Env:DSH_HOME -ErrorAction SilentlyContinue }
+        Remove-Item Env:FI_HOME -ErrorAction SilentlyContinue
+        # FI_HOME wins over DSH_HOME, matching the runtime's alias rule.
+        if ($mode -eq 'fi-home-inside') { $env:FI_HOME = Join-Path $userDataPath 'home'; $env:DSH_HOME = $homePath }
         $process = Start-Process -FilePath $uninstaller -ArgumentList $arguments -PassThru -WindowStyle ($(if ($mode -eq 'interactive') { 'Normal' } else { 'Hidden' }))
         if ($mode -eq 'interactive') {
             $welcomeText = if ($Language -eq 'ENGLISH') { 'Welcome' } else { -join [char[]]@(0x6B22, 0x8FCE) }
@@ -80,8 +83,8 @@ try {
         }
         Wait-Exit
         $retained = $mode -in @('upgrade', 'replaced')
-        # A DSH_HOME inside the Electron directory protects that directory (and its scope) but not the other roots.
-        $userDataRetained = $retained -or $mode -eq 'home-inside'
+        # A Harness home inside the Electron directory protects that directory (and its scope) but not the other roots.
+        $userDataRetained = $retained -or $mode -in @('home-inside', 'fi-home-inside')
         if ([IO.File]::ReadAllText((Join-Path $externalPath 'keep.txt')) -ne 'outside data root') { throw 'Cleanup followed a junction into a project' }
         if (-not (Test-Path (Join-Path $homePath 'session.txt'))) { throw "Harness home retention failed: $mode" }
         if ((Test-Path (Join-Path $productDataPath 'state.txt')) -ne $retained) { throw "Product data retention failed: $mode" }
@@ -92,6 +95,7 @@ try {
     }
 } finally {
     Remove-Item Env:DSH_HOME -ErrorAction SilentlyContinue
+    Remove-Item Env:FI_HOME -ErrorAction SilentlyContinue
     if ($process) { if (-not $process.HasExited) { $process.Kill(); $process.WaitForExit() }; $process.Dispose() }
     # Only unique test identities below known application-data parents are removed.
     foreach ($pair in @(@($productDataPath, $roaming), @($scopePath, $roaming), @($cachePath, $local))) {

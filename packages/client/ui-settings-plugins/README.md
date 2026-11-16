@@ -1,5 +1,5 @@
 ---
-description: "Built-in plugins settings section for the dsh web client: the Settings navigation entry and the tab chrome that feature-owned tabs register into."
+description: "Built-in plugins settings section for the fi web client: the Settings navigation entry and the tab chrome that feature-owned tabs register into."
 kind: "package-reference"
 ---
 

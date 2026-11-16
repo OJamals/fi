@@ -1,5 +1,5 @@
 ---
-description: "dsh Web 客户端共享的 React UI 原子组件：控件、图标、Markdown 与数学公式渲染，以及终端/读取/差异/搜索/网页输出卡片（零 Cordis）。"
+description: "fi Web 客户端共享的 React UI 原子组件：控件、图标、Markdown 与数学公式渲染，以及终端/读取/差异/搜索/网页输出卡片（零 Cordis）。"
 kind: "package-library"
 ---
 
@@ -96,6 +96,8 @@ kind: "package-library"
 
 `MarkdownText` 默认为 `variant="body"`。次级内容使用 `variant="compact"`：其 13px 字号与 20px 行高跟随内容字号设置，各级标题保持同一字号并使用 600 字重，段落与列表采用更紧凑的间距。正文、链接和代码均保持 tertiary 颜色，以点状下划线区分链接。代码标题栏随代码块滚动。表格和公式仍然启用，使用周围文字的字号，并在可用宽度内横向滚动。两个变体共享解析器与流式缓存。
 
+KaTeX 在首次渲染公式时通过动态导入加载，不进入初始包。加载完成前，每个公式在一个 `span[data-tex-pending]` 中以文本形式渲染其 TeX 源码；加载完成后，所有已挂载的公式改用 KaTeX 元素树重新渲染，之后的公式在首次渲染时直接得到该元素树。导入失败时，已挂载的公式保留其 TeX 源码，下一次公式渲染会重新发起导入。导入失败时，公式在本次页面会话的剩余时间内保持 TeX 源码。Web 构建将 KaTeX 置于独立 chunk，且只发布其 `.woff2` 字体（[vite.config.ts](../../../apps/web/vite.config.ts)）。
+
 `CodeBlock.toolbarLabels` 启用共享代码卡片的标题栏和间距。`ReadBlock` 与 `DiffBlock` 使用相同的标题栏：tertiary 色的语言名称与文件名、secondary 色的复制与换行图标，以及悬停或键盘聚焦时的提示。语言缺失或不受支持时显示调用方提供的本地化代码块标题；混合语言的 Diff 也使用该标题。代码卡片共用字体和内容内边距；在两种主题下，标题栏和正文都使用相同背景。读取卡片的行号栏容纳返回窗口中的最大行号，Diff 底色覆盖完整可滚动行。换行按钮保留固定的无障碍名称，以 `aria-pressed` 表达状态；提示文本说明下一步操作。换行设置仅属于当前挂载的卡片，不改变复制的文本；代码围栏默认换行，读取和差异卡片则在启用换行前保留源码列位置。紧凑 Markdown 共用此工具栏、间距和代码字体排版，同时保留单色文本。源码预览传入 `toolbarLabels` 后，可用 `wrap` 跟随所属视图的换行设置，仅显示语言和复制图标；所属视图的 CSS 保留源码布局。
 
 `DiffBlock` 按行比较新旧内容。它显示实际增删行及两侧最多三行中性上下文，用 `⋯` 分隔远距离改动，工具摘要的统计不计入共享上下文。卡片在差异正文后结束。若一个片段需要超过 256 次行新增或删除，则停止精确比较；该片段按完整新旧内容显示和统计为粗粒度替换，包含共享行。复制包含完整显示 diff 及其前缀。末尾换行视为行终止符；仅末尾换行不同不会显示为改动。
@@ -140,6 +142,7 @@ kind: "package-library"
 | [`src/ReadBlock.tsx`](src/ReadBlock.tsx) / [`src/DiffBlock.tsx`](src/DiffBlock.tsx) | 读取与差异卡片 |
 | [`src/SearchBlock.tsx`](src/SearchBlock.tsx) / [`src/WebBlock.tsx`](src/WebBlock.tsx) | 搜索与网页检索卡片 |
 | [`src/icons/`](src/icons/) | 与尺寸无关的 `Regular` 和 `Medium` 产品图标组件 |
+| [`src/SiteGlyph.tsx`](src/SiteGlyph.tsx) | 知名站点标志，绘制自本地的 `simple-icons` 路径数据表；测试将每一项与固定版本的软件包比对 |
 | [`src/code-highlighting.ts`](src/code-highlighting.ts) | 共享的文件名 grammar 选择与惰性逐行高亮 |
 | [`src/input-modality.ts`](src/input-modality.ts) | 全文档输入模态，发布到 `<html>` |
 | [`src/plugin-artwork.tsx`](src/plugin-artwork.tsx) | 固定配色插件插画，SVG def id 按实例生成 |

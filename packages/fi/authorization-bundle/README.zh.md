@@ -1,5 +1,5 @@
 ---
-description: "为 dsh --profile 表层添加提供方订阅登录能力的 fi 组合包层，面向组合或定制 profile 的用户。"
+description: "为 fi-cli --profile 表层添加提供方订阅登录能力的 fi 组合包层，面向组合或定制 profile 的用户。"
 kind: "package-bundle"
 ---
 
@@ -42,8 +42,8 @@ FI Desktop 在本地包集和固定内置 profile 中提供这个私有层，不
 标准的层路径同样适用：
 
 ```text
-dsh plugin --profile <name> add @fi/authorization-bundle
-dsh plugin --profile <name> remove @fi/authorization-bundle
+fi-cli plugin --profile <name> add @fi/authorization-bundle
+fi-cli plugin --profile <name> remove @fi/authorization-bundle
 ```
 
 add 命令会对 profile 做协调并激活该层；它通过 profile 的包管理器解析包名，该解析会访问 npm registry，未注册的 `@fi/*` 名称会在那里因拉取错误而失败，且不改动 profile。在源码检出中，请如上把该层列入 `dsh.profile.bundles`，并让它保持为 profile 的 workspace 依赖。

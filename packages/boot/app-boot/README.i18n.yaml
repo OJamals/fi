@@ -3,14 +3,14 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/boot/app-boot/README.md
 /:
-  en: 822ef8977098c703
-  zh: c0673e854310840f
+  en: 53d48e125e688d35
+  zh: 2c8824e84ac6ebde
 /deepseek-ai-dsh-app-boot:
   en: fdb73259898590a5
   zh: aee057cd436da2e2
 /deepseek-ai-dsh-app-boot/summary:
-  en: e5db70f7cdcdbe9c
-  zh: 6852efb61109a349
+  en: a41d3c0beb841801
+  zh: 1627e2cde858b920
 /deepseek-ai-dsh-app-boot/table-of-contents:
   en: d152484eb41ac6b4
   zh: 09388d293f9be9cb
@@ -18,14 +18,14 @@
   en: 78080516183d3252
   zh: 64c8a3fc5df99ff3
 /deepseek-ai-dsh-app-boot/use-this-package/when-to-use-it:
-  en: 2fdfe02f2ed4a258
-  zh: d748228ece579c4a
+  en: a03c128dc776f6af
+  zh: dacba52a632302a5
 /deepseek-ai-dsh-app-boot/use-this-package/starting-the-app:
   en: 1099528bde0e2aee
   zh: b68772bdb9bb7856
 /deepseek-ai-dsh-app-boot/use-this-package/profiles:
-  en: d50b0fdaf62353dd
-  zh: 0fccb6968602e5de
+  en: bc0854937ed3d62a
+  zh: dc3cc01b2827b332
 /deepseek-ai-dsh-app-boot/use-this-package/previewing-the-effective-configuration:
   en: 646a0ccdd7881ad1
   zh: e3696acb1573dd7b
@@ -39,14 +39,14 @@
   en: 09890e218ab49c84
   zh: e3d86597e7fb1adb
 /deepseek-ai-dsh-app-boot/use-this-package/telling-the-agent-where-the-harness-lives:
-  en: 07c459f26f4f8517
-  zh: 210f1e4894731b1a
+  en: 241087112287c7ee
+  zh: e5a0e09d300cb58d
 /deepseek-ai-dsh-app-boot/understand-the-implementation:
   en: f4a2695cb4c8a570
   zh: 89837235d2f376cf
 /deepseek-ai-dsh-app-boot/understand-the-implementation/design-notes:
-  en: 4ac0c33806b5a5b2
-  zh: cdb56f3adfcb4364
+  en: 9d333fef0daaf583
+  zh: cb3d3f49aa793bd3
 /deepseek-ai-dsh-app-boot/understand-the-implementation/helper-behavior:
   en: f7bc3a8dd4b00bdd
   zh: 30098428aa769ad0
@@ -54,8 +54,8 @@
   en: 25602fd8eb9b2907
   zh: 870a33dd34a52c32
 /deepseek-ai-dsh-app-boot/further-exploration:
-  en: ffd10e94443a10ca
-  zh: cd11495bae751bdd
+  en: b72502e9aa04b55e
+  zh: 14aecb0cf6ddd69c
 /deepseek-ai-dsh-app-boot/model-experience:
   en: 769777f1cb1a9408
   zh: f02b2834179df50d

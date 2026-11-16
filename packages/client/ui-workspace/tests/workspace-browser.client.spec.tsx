@@ -1737,7 +1737,7 @@ describe('WorkspaceBrowser', () => {
     }
   })
 
-  it('keeps local matches without a warning when Host search fails', async () => {
+  it('keeps local matches above a compact failure notice when Host search fails', async () => {
     vi.useFakeTimers()
     try {
       const searchSessions = vi.fn(async () => { throw new Error('index unavailable') })
@@ -1754,11 +1754,59 @@ describe('WorkspaceBrowser', () => {
       expect(screen.getByText('Needle title')).toBeTruthy()
       await act(async () => { await vi.advanceTimersByTimeAsync(250) })
       expect(screen.getByText('Needle title')).toBeTruthy()
-      expect(screen.queryByText('内容搜索暂不可用，仅显示名称匹配。')).toBeNull()
+      expect(screen.getByRole('alert').textContent).toBe('无法搜索会话历史')
+      expect(screen.getByRole('button', { name: '重试' })).toBeTruthy()
       expect(screen.queryByText('无匹配会话')).toBeNull()
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it.each([{ messages: en, common: commonEn }, { messages: zh, common: commonZh }])('shows a failed search with Retry instead of no matches, and Retry reissues the query', async ({ messages, common }) => {
+    vi.useFakeTimers()
+    try {
+      const searchSessions = vi.fn()
+        .mockRejectedValueOnce(new Error('index unavailable'))
+        .mockResolvedValueOnce({ items: [], hasMore: false })
+      mount({ searchSessions, t: makeTranslate(messages, common) })
+      const input = screen.getByPlaceholderText<HTMLInputElement>(messages['search.placeholder'])
+      fireEvent.change(input, { target: { value: 'needle' } })
+      await act(async () => { await vi.advanceTimersByTimeAsync(250) })
+
+      expect(screen.getByRole('alert').textContent).toBe(messages['search.failed'])
+      expect(screen.queryByText(messages['search.noMatches'])).toBeNull()
+      expect(screen.getByRole('tree', { name: messages['search.results.aria'] }).getAttribute('aria-busy')).toBe('false')
+      const retry = screen.getByRole('button', { name: common.retry })
+      retry.focus()
+      fireEvent.click(retry)
+
+      // The reissued request shows the pending skeleton and keeps focus on the query.
+      expect(screen.queryByRole('alert')).toBeNull()
+      expect(screen.getByRole('status', { name: messages['search.pending'] })).toBeTruthy()
+      expect(screen.getByRole('tree', { name: messages['search.results.aria'] }).getAttribute('aria-busy')).toBe('true')
+      expect(document.activeElement).toBe(input)
+      expect(input.value).toBe('needle')
+      await act(async () => { await vi.advanceTimersByTimeAsync(250) })
+      expect(searchSessions).toHaveBeenCalledTimes(2)
+      expect(searchSessions).toHaveBeenLastCalledWith('needle', expect.any(AbortSignal))
+      expect(screen.getByText(messages['search.noMatches'])).toBeTruthy()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it.each(['workspace', 'flat'] as const)('shows the %s list skeleton, not the empty state, until the first list pull lands', (groupBy) => {
+    const b = mount({ useSessions: hook(sessionState([], { phase: 'pending' })) })
+    act(() => { b.store.actions.setGroupBy(groupBy) })
+    const tree = screen.getByRole('tree', { name: '会话' })
+    expect(within(tree).getByRole('status', { name: '加载中…' })).toBeTruthy()
+    expect(tree.getAttribute('aria-busy')).toBe('true')
+    expect(screen.queryByText('暂无会话')).toBeNull()
+
+    rerender(b, { useSessions: hook(sessionState([])) })
+    expect(screen.queryByRole('status', { name: '加载中…' })).toBeNull()
+    expect(screen.getByRole('tree', { name: '会话' }).getAttribute('aria-busy')).toBe('false')
+    expect(screen.getByText('暂无会话')).toBeTruthy()
   })
 
   it('aborts a superseded request and ignores its stale result', async () => {
@@ -1828,7 +1876,7 @@ describe('WorkspaceBrowser', () => {
         rejectFirst(new Error('stale failure'))
         await Promise.resolve()
       })
-      expect(screen.queryByText('内容搜索暂不可用，仅显示名称匹配。')).toBeNull()
+      expect(screen.queryByRole('alert')).toBeNull()
     } finally {
       vi.useRealTimers()
     }

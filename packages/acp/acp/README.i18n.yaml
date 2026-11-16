@@ -3,14 +3,14 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/acp/acp/README.md
 /:
-  en: c2dc875f178f219b
-  zh: e1ebac19bf1c696d
+  en: fdedda472408a4ac
+  zh: 5bd251211ca5aa0a
 /deepseek-ai-dsh-acp:
   en: 5e36bdb5bef5842c
   zh: 486621193ef243a8
 /deepseek-ai-dsh-acp/summary:
-  en: 59aff9dea7a075b1
-  zh: c0f5734c5fd09126
+  en: 568d7c0a327dd2fa
+  zh: 28dd15d1c7259388
 /deepseek-ai-dsh-acp/table-of-contents:
   en: d152484eb41ac6b4
   zh: 09388d293f9be9cb
@@ -18,14 +18,14 @@
   en: 014a5573a8c05663
   zh: e45302786655eea5
 /deepseek-ai-dsh-acp/use-this-package/when-to-choose-it:
-  en: c3f5f144daf83157
-  zh: a65a64842fd35bef
+  en: 765479afcd30f107
+  zh: f0ae2a3154bb559e
 /deepseek-ai-dsh-acp/use-this-package/minimal-configuration:
   en: ae36ae349d45b8a8
   zh: 4da84cc14b87f66e
 /deepseek-ai-dsh-acp/use-this-package/start-a-server:
-  en: 4ed8e37834267edb
-  zh: a32d5dedb4e8e919
+  en: 062af220a9649948
+  zh: 63457265e145cea1
 /deepseek-ai-dsh-acp/use-this-package/protocol-contract:
   en: 804b87d8ebed9f8d
   zh: 1b0c1c7269cdf040
@@ -33,8 +33,8 @@
   en: ea8afe89dbdd1934
   zh: 6567979f92f34afd
 /deepseek-ai-dsh-acp/understand-the-implementation/design-philosophy:
-  en: ad90a93d87b6caa4
-  zh: d7e90af3ea7a678c
+  en: a1b70be59ab27303
+  zh: 5449dad589635b94
 /deepseek-ai-dsh-acp/understand-the-implementation/source-map:
   en: 837330574e01d196
   zh: 46f29717d175f7bb
@@ -75,8 +75,8 @@
   en: 83120763a07c4b72
   zh: 6a1a181dc4da869d
 /deepseek-ai-dsh-acp/known-limitations-and-deferred-work:
-  en: da83c6d3b9604f74
-  zh: d93d6f6d418bebdc
+  en: 6bcca3f37461a664
+  zh: 8917ff085898350b
 /deepseek-ai-dsh-acp/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: 3bb0c20c93f16f98

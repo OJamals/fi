@@ -321,6 +321,7 @@ export function gatesForMode(selected: Mode): Gate[] {
         expectedOutputGate(),
         pnpmScript('build', 'build'),
         pnpmScript('build:web', 'build:web'),
+        webSizeBudgetGate(['build', 'build:web']),
         ...hygieneLeafGates({ artifactNeeds: ['build'] }),
         ...docSyncLeafGates({
           docTypecheckNeeds: ['build'],
@@ -399,6 +400,7 @@ function ciPrimaryGates(): Gate[] {
     }),
     builtPackageInvariantsGate(['build']),
     builtBinSmokeGate(),
+    webSizeBudgetGate(['build']),
   ]
 }
 
@@ -506,6 +508,7 @@ function ciArtifactGates(): Gate[] {
     }),
     builtPackageInvariantsGate(['build']),
     builtBinSmokeGate(),
+    webSizeBudgetGate(['build']),
   ]
 }
 
@@ -523,6 +526,7 @@ function ciConsumerGates(): Gate[] {
     'doc-typecheck',
     'node-next-types',
     'built-bin-smoke',
+    'web-size-budget',
   ]
   return [
     ciBuildGate(),
@@ -548,7 +552,13 @@ function ciConsumerGates(): Gate[] {
       needs: validatedBuild,
     }),
     builtBinSmokeGate(validatedBuild),
+    webSizeBudgetGate(validatedBuild),
   ]
+}
+
+/** Gzip byte budgets over the built Web startup JavaScript and client plugin bundles. */
+function webSizeBudgetGate(needs: string[]): Gate {
+  return pnpmScript('web-size-budget', 'verify-web-size-budget', { label: 'web size budget', needs })
 }
 
 function webSnapshotGate(needs: string[], after?: string[]): Gate {

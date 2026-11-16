@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use this package to generate one raster image from text or edit ordered workspace images through an existing Codex, Grok, or Antigravity subscription login. The deployment explicitly enables each provider and image model. Calls never use API-key billing or fall back to another provider, and unsigned startup remains safe because authentication is resolved only when the tool runs.
+Use this package to generate one to four raster images from text or edit ordered workspace images through an existing Codex, Grok, or Antigravity subscription login. The deployment explicitly enables each provider and image model. Calls never use API-key billing or fall back to another provider, and unsigned startup remains safe because authentication is resolved only when the tool runs.
 
 ## Table of Contents
 
@@ -47,11 +47,11 @@ Choose this package when a deployment stores subscription OAuth and needs model-
 | `defaultProvider` | required | Configured provider used when a tool call omits `provider` |
 | `targets` | required | Non-empty map of `codex`, `grok`, or `antigravity` to an explicit `imageModel` |
 | `timeoutMs` | `180000` | Whole-operation timeout; integer from 1 through 600000 milliseconds |
-| `maxOutputBytes` | `33554432` | Maximum decoded generated-image bytes; integer from 1 through 67108864 |
+| `maxOutputBytes` | `33554432` | Maximum decoded bytes of all images one call generates, together; integer from 1 through 67108864 |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#fitool-image-generation) is the exhaustive source for accepted fields and JSDoc.
 
-`image_gen` accepts a required non-empty prompt, an optional provider restricted to configured targets, and optional ordered PNG, JPEG, or WebP workspace paths. Codex and Grok accept one to five references; Antigravity accepts one to three. The package rejects an excessive count before filesystem, credential, or network access. It sends no size or quality field, so the selected provider keeps its native defaults.
+`image_gen` accepts a required non-empty prompt, an optional provider restricted to configured targets, optional ordered PNG, JPEG, or WebP workspace paths, and optional `size`, `quality`, and `count`. Codex and Grok accept one to five references; Antigravity accepts one to three. `size` is one of `1024x1024`, `1536x1024`, `1024x1536`, `1792x1024`, or `1024x1792`; `quality` accepts only `high`; `count` is 1 through 4 and defaults to 1. Codex accepts only `1024x1024`, `1536x1024`, and `1024x1536` and rejects `1792x1024` and `1024x1792` with `IMAGE_INVALID_ARGUMENT`; it sends `size`, `quality: "high"`, and `n` unchanged. Grok generation maps those sizes, in that order, to `aspect_ratio` `1:1`, `3:2`, `2:3`, `16:9`, and `9:16`, and maps `high` to `resolution: "2k"`; Grok editing rejects `size` and `quality` with `IMAGE_INVALID_ARGUMENT`. Antigravity maps `size` to the same `aspectRatio` values and `high` to `imageSize: "2K"`, and makes one upstream call per requested image. The package rejects an excessive reference count, unsupported Codex sizes, and unsupported Grok edit options before filesystem, credential, or network access. Codex and Grok receive no size or quality field when the call omits it and keep their native defaults; Antigravity sends `aspectRatio: "1:1"` when `size` is omitted.
 
 -----
 
@@ -63,7 +63,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#fitool-ima
 
 The plugin creates one pi-ai credential adapter for Codex and Grok and uses the Antigravity package's grant resolver and native image transport. Each call resolves one selected target, reads accepted references through the execution-world filesystem, and stores normalized inputs through the attachment service before dispatch.
 
-The response reader accepts exactly one base64 image, bounds JSON and decoded bytes before allocation, identifies PNG, JPEG, or WebP from bytes, rejects a declared-media mismatch, and delegates complete raster validation to the attachment service. A successful result contains safe JSON and one durable `ImageBlock`; it excludes raw image data. HTTP failures retain status without response bodies, ambiguous POST failures are not retried, and plugin disposal aborts and awaits active work.
+The response reader accepts exactly `count` base64 images, bounds JSON and the decoded bytes of all images together before allocation, identifies PNG, JPEG, or WebP from bytes, rejects a declared-media mismatch, and delegates complete raster validation to the attachment service. A successful result contains safe JSON with an `images` array, each entry carrying its own optional `generationId`, and one durable `ImageBlock` per image; it excludes raw image data. HTTP failures retain status without response bodies, ambiguous POST failures are not retried, and plugin disposal aborts and awaits active work.
 
 The configuration schema supplies operation limits before tool construction, and the tool argument schema permits only configured providers. After bounded body reading completes, malformed UTF-8 or JSON reports `IMAGE_INVALID_RESPONSE`; caller cancellation is checked before decoding and after a valid decoded value.
 
@@ -98,11 +98,11 @@ The configuration schema supplies operation limits before tool construction, and
 
 #### What the model sees
 
-The generated [`image_gen` schema](../../../docs/tool-catalog.md#fitool-image-generation) exposes only configured providers. Successful results contain the selected provider and model, canonical input and output references, optional safe generation id, concise text, and one durable output image.
+The generated [`image_gen` schema](../../../docs/tool-catalog.md#fitool-image-generation) exposes only configured providers. Successful results contain the selected provider and model, canonical input references, an `images` array of output references that each carry an optional safe `generationId`, one concise text block, and one durable image block per generated image.
 
 #### Token effect
 
-The tool schema adds fixed tokens while the plugin is visible. Each call appends bounded JSON, concise result text, and one image block; input paths affect call tokens, and provider-generated raster bytes follow the selected adapter's image-token accounting.
+The tool schema adds fixed tokens while the plugin is visible. Each call appends bounded JSON, one concise result text block, and one image block per generated image; input paths affect call tokens, and provider-generated raster bytes follow the selected adapter's image-token accounting.
 
 #### KV Cache effect
 

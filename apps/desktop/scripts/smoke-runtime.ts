@@ -27,7 +27,10 @@ export async function smokeDesktopRuntime(
   const home = mkdtempSync(join(tmpdir(), 'dsh-desktop-smoke-'))
   const profile = join(home, 'profiles', 'desktop')
   const primary = await prepareDesktopPrimaryRuntime(join(resourcesRuntime, 'primary-runtime'), home)
-  const host = new DesktopHostProcess(node, root, profile, undefined, { ...environment, DSH_HOME: home },
+  const hostEnvironment: NodeJS.ProcessEnv = { ...environment, DSH_HOME: home }
+  // The host maps an inherited FI_HOME over DSH_HOME.
+  delete hostEnvironment.FI_HOME
+  const host = new DesktopHostProcess(node, root, profile, undefined, hostEnvironment,
     undefined, join(resourcesRuntime, 'primary-runtime'),
     { pnpm: join(primary, 'dependencies', 'pnpm', 'bin', 'pnpm.mjs'), nodeBin: join(resourcesRuntime, 'bin') })
   let timer: ReturnType<typeof setTimeout> | undefined

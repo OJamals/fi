@@ -1,5 +1,5 @@
 ---
-description: "The fi bundle layer that adds provider subscription sign-ins to a dsh --profile surface, for users composing or customizing a profile."
+description: "The fi bundle layer that adds provider subscription sign-ins to a fi-cli --profile surface, for users composing or customizing a profile."
 kind: "package-bundle"
 ---
 
@@ -42,8 +42,8 @@ FI Desktop ships this private layer in its local package set and fixed built-in 
 The standard layer path also applies:
 
 ```text
-dsh plugin --profile <name> add @fi/authorization-bundle
-dsh plugin --profile <name> remove @fi/authorization-bundle
+fi-cli plugin --profile <name> add @fi/authorization-bundle
+fi-cli plugin --profile <name> remove @fi/authorization-bundle
 ```
 
 The add command reconciles the profile and activates the layer; it resolves the package name through the profile's package manager, which reaches the npm registry — an unregistered `@fi/*` name fails there with a fetch error and leaves the profile untouched. In a source checkout, name the layer in `dsh.profile.bundles` as above and keep it as a workspace dependency of the profile instead.

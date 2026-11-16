@@ -26,7 +26,7 @@ Desktop 初始化时安装核心依赖图，会重复发布构建器已经完成
 
 [桌面文件规则](../../../../apps/desktop/scripts/runtime-file-policy.ts)在生产 npm 依赖安装之后、原生签名或描述文件生成之前执行。npm 发布列表服务于库的使用者，可以包含声明、map、测试和原生构建输入，不能直接表示桌面进程需要哪些文件。桌面副本排除声明和已识别的 source map，因为 Host 执行 JavaScript 和生成的 Typert 产物。Host 继承用户环境。已发布的 npm 包和外部插件目录保留各自的文件。源码调试导航由开发包提供。
 
-包专用排除项包括 Domino 测试、fs-ext 编译产物、Koffi 的 Windows 导入库，以及非目标平台的 node-pty 预构建文件和调试符号。规则保留原生可执行依赖、node-pty 的 ConPTY 源分发内容、许可证和未知资源；宽泛排除 `src`、`test`、`.ts` 或 `.map` 可能移除可执行代码或运行时数据。复制测试保留哨兵资源并封存过滤后的清单；Electron 的[产物 smoke](../../../../apps/desktop/tests/fixtures/runtime-payload-smoke.mjs)验证 PTY 输出、原生文件定位、FFI、图像转换和 HTML 解析。运行时准备仍会验证每个保留字节，并携带外部插件启动完整 Host。
+包专用排除项包括 Domino 测试、fs-ext 编译产物、Koffi 的 Windows 导入库，以及非目标平台的 node-pty 预构建文件和调试符号。规则保留原生可执行依赖、node-pty 的 ConPTY 源分发内容、许可证和未知资源；宽泛排除 `src`、`test` 或 `.map` 可能移除可执行代码或运行时数据。规则只在第三方包内排除 `.ts` 和 `LICENSE*`、`NOTICE*`、`COPYING*`、`AUTHORS*` 以外的 Markdown，这些包的 `package.json` 中指向 `.ts` 的目标位于 Node 不使用的条件下。复制测试保留哨兵资源并封存过滤后的清单；Electron 的[产物 smoke](../../../../apps/desktop/tests/fixtures/runtime-payload-smoke.mjs)验证 PTY 输出、原生文件定位、FFI、图像转换和 HTML 解析。运行时准备仍会验证每个保留字节，并携带外部插件启动完整 Host。
 
 dsh、私有 Host 与私有 FI authorization-bundle 生产闭包中的每个第一方包都共享。公开 dsh 发布不依赖 FI；Desktop 打包目标单独打包 FI 闭包，并要求其根包出现在本地包集描述文件中。共享 profile runner 通过 runtime resolution 补全安装包与选中 bundle 缺失的依赖。pnpm 安装的包优先。运行时解析委托给所选包路径，因此 Host 与插件导入同一导出时共享其模块实例。不同的 ESM 与 CommonJS 条件导出仍是不同入口；运行时解析不会合并包的双重实现。
 

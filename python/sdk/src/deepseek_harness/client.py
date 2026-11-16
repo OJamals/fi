@@ -21,6 +21,66 @@ ModelT = TypeVar("ModelT", bound=BaseModel)
 NotificationFilter: TypeAlias = Callable[[Notification], bool]
 
 
+#: Base names of the runtime ``DSH_<NAME>`` variables that may also be given as
+#: ``FI_<NAME>``; a copy of ``FI_RUNTIME_ENVIRONMENT_NAMES`` in ``@deepseek-ai/dsh-home-paths``,
+#: which a test in that package compares with this tuple.
+_FI_RUNTIME_ENVIRONMENT_NAMES: tuple[str, ...] = (
+    "AGENTS_HOME",
+    "BUNDLED_PRIMARY_RUNTIME",
+    "BUNDLED_SKILL_DIR",
+    "CONTEXT_WINDOW",
+    "DESKTOP_DSH_DIR",
+    "DESKTOP_HOST_INSPECT_PORT",
+    "DESKTOP_LOGIN_SHELL_TIMEOUT_MS",
+    "DESKTOP_MANDATORY_UPDATE_CONFIG",
+    "DESKTOP_OPEN_DEVTOOLS",
+    "DESKTOP_PRIMARY_RUNTIME_DIR",
+    "DESKTOP_UPDATE_CHECK_INTERVAL_MS",
+    "DESKTOP_UPDATE_CHECK_JITTER",
+    "DESKTOP_UPDATE_CHECK_MAX_BACKOFF_MS",
+    "DESKTOP_UPDATE_HTTP_IDLE_TIMEOUT_MS",
+    "DESKTOP_UPDATE_JOURNAL_DIR",
+    "GITHUB_REVIEW_WORKSPACE",
+    "GITHUB_WEBHOOK_PORT",
+    "GITHUB_WEBHOOK_SECRET",
+    "HOME",
+    "MAX_TOKENS_AS_SUCCESS",
+    "MODEL",
+    "PERMISSION_MODE",
+    "PLATFORM_ALLOW_LOOPBACK_HTTP",
+    "PLATFORM_COOKIE",
+    "PLATFORM_ORIGIN",
+    "PRIMARY_RUNTIME",
+    "PRODUCT_ANALYTICS_OTLP_URL",
+    "RUNTIME_MODE",
+    "SYSTEM_PROMPT",
+    "TELEMETRY_DISABLED",
+    "TELEMETRY_MODE",
+    "TELEMETRY_OTLP_URL",
+    "TOOLS_MODE",
+    "WEB_FETCH_PROVIDER",
+    "WEB_SEARCH_PROVIDER",
+)
+
+
+def _fi_environment_aliases(values: dict[str, str]) -> dict[str, str]:
+    """The ``DSH_<NAME>`` entries implied by the runtime ``FI_<NAME>`` entries of ``values``; ``FI_`` wins once merged.
+
+    Only names in ``_FI_RUNTIME_ENVIRONMENT_NAMES`` are aliased; other ``FI_*`` names yield nothing.
+    """
+    return {
+        "DSH_" + name[len("FI_"):]: value
+        for name, value in values.items()
+        if name.startswith("FI_") and name[len("FI_"):] in _FI_RUNTIME_ENVIRONMENT_NAMES
+    }
+
+
+def _set_dsh_environment(env: dict[str, str], name: str, value: str) -> None:
+    """Set ``DSH_<NAME>`` in ``env`` and drop its runtime ``FI_<NAME>`` alias, which the child's alias step would map over it."""
+    env[name] = value
+    if name[len("DSH_"):] in _FI_RUNTIME_ENVIRONMENT_NAMES:
+        env.pop("FI_" + name[len("DSH_"):], None)
+
 @dataclass(slots=True)
 class HarnessConfig:
     """Configuration for launching the local DeepSeek Harness SDK runtime."""
@@ -74,8 +134,12 @@ class HarnessClient:
         with self._lock:
             self._session_parents.clear()
         env = os.environ.copy()
-        if self.config.env:
-            env.update(self.config.env)
+        for name, value in (self.config.env or {}).items():
+            if name.startswith("DSH_") and "FI_" + name[len("DSH_"):] not in self.config.env:
+                _set_dsh_environment(env, name, value)
+            else:
+                env[name] = value
+        env.update(_fi_environment_aliases(env))
         args = list(self._launch_args or self._default_launch_args(env))
         self._proc = subprocess.Popen(
             args,
@@ -124,7 +188,7 @@ class HarnessClient:
                 proc.kill()
                 proc.wait()
         self._proc = None
-        self._fail_waiters(self._runtime_closed_error("DeepSeek Harness runtime closed"))
+        self._fail_waiters(self._runtime_closed_error("fi runtime closed"))
         if self._reader_thread and self._reader_thread.is_alive():
             self._reader_thread.join(timeout=0.5)
         if self._stderr_thread and self._stderr_thread.is_alive():
@@ -308,7 +372,7 @@ class HarnessClient:
                         diagnostics = self._runtime_diagnostics()
                         suffix = f"\n{diagnostics}" if diagnostics else ""
                         raise TimeoutError(
-                            f"{method} timed out waiting for DeepSeek Harness runtime{suffix}"
+                            f"{method} timed out waiting for fi runtime{suffix}"
                         )
                     wait_timeout = remaining if wait_timeout is None else min(wait_timeout, remaining)
                 try:
@@ -334,14 +398,14 @@ class HarnessClient:
     def _write_message(self, message: JsonObject) -> None:
         proc = self._proc
         if proc is None or proc.stdin is None:
-            raise TransportClosedError("DeepSeek Harness runtime is not running")
+            raise TransportClosedError("fi runtime is not running")
         try:
             payload = json.dumps(message, separators=(",", ":")) + "\n"
             with self._write_lock:
                 proc.stdin.write(payload)
                 proc.stdin.flush()
         except Exception as exc:
-            raise self._runtime_closed_error("Failed to write to DeepSeek Harness runtime") from exc
+            raise self._runtime_closed_error("Failed to write to fi runtime") from exc
 
     def _start_reader_thread(self) -> None:
         self._reader_thread = threading.Thread(target=self._reader_loop, name="dsh-runtime-reader", daemon=True)
@@ -367,7 +431,7 @@ class HarnessClient:
         except BaseException as exc:
             self._fail_waiters(exc)
         finally:
-            self._fail_waiters(self._runtime_closed_error("DeepSeek Harness runtime stdout closed"))
+            self._fail_waiters(self._runtime_closed_error("fi runtime stdout closed"))
 
     def _stderr_loop(self) -> None:
         proc = self._proc
@@ -463,7 +527,7 @@ class HarnessClient:
                 from deepseek_harness_runtime import resolve_bundled_launch_args
             except ImportError as exc:
                 raise FileNotFoundError(
-                    "Unable to locate the bundled DeepSeek Harness dsh runtime. "
+                    "Unable to locate the bundled fi runtime. "
                     "Install deepseek-harness-runtime-bin."
                 ) from exc
             base = resolve_bundled_launch_args()
@@ -473,10 +537,10 @@ class HarnessClient:
         if self.config.dsh_home is not None:
             if not self.config.dsh_home.strip():
                 raise ValueError("HarnessConfig requires a non-empty dsh_home")
-            env["DSH_HOME"] = str(Path(self.config.dsh_home).expanduser().resolve())
+            _set_dsh_environment(env, "DSH_HOME", str(Path(self.config.dsh_home).expanduser().resolve()))
         elif not env.get("DSH_HOME", "").strip():
             raise ValueError(
-                "HarnessConfig requires an explicit dsh_home or non-empty DSH_HOME; "
+                "HarnessConfig requires an explicit dsh_home or non-empty FI_HOME; "
                 "the Python SDK never uses ~/.fi implicitly"
             )
 

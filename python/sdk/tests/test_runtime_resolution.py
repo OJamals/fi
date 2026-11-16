@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import zipfile
@@ -225,7 +226,7 @@ def test_python_dsh_command_requires_explicit_home(
         main()
 
     assert excinfo.value.code == 2
-    assert "explicit DSH_HOME" in capsys.readouterr().err
+    assert "explicit FI_HOME" in capsys.readouterr().err
 
 
 def test_python_dsh_command_executes_the_bundled_cli(
@@ -248,6 +249,55 @@ def test_python_dsh_command_executes_the_bundled_cli(
         "args": ("/runtime", "plugin", "--profile", "sdk", "list"),
         "home": "/explicit/home",
     }
+
+
+def test_python_dsh_command_accepts_fi_home_over_dsh_home(
+    monkeypatch: pytest.MonkeyPatch
+) -> None:
+    called: dict[str, object] = {}
+    monkeypatch.setenv("DSH_HOME", "/dsh/home")
+    monkeypatch.setenv("FI_HOME", "/fi/home")
+    monkeypatch.setattr(runtime, "resolve_bundled_launch_args", lambda: ("/runtime",))
+    monkeypatch.setattr(runtime, "sys", SimpleNamespace(platform="linux", argv=["fi-cli"]))
+    monkeypatch.setattr(runtime.os, "execvpe", lambda file, args, env: called.update(home=env.get("DSH_HOME")))
+
+    main()
+
+    assert called == {"home": "/fi/home"}
+
+
+def test_fi_environment_aliases_map_fi_names_and_skip_the_bare_prefix() -> None:
+    assert runtime.fi_environment_aliases(
+        {"FI_HOME": "/fi", "FI_RUNTIME_MODE": "", "FI_": "x", "PATH": "/bin", "DSH_MODEL": "m"}
+    ) == {"DSH_HOME": "/fi", "DSH_RUNTIME_MODE": ""}
+
+
+def test_fi_environment_aliases_skip_unlisted_fi_names() -> None:
+    assert runtime.fi_environment_aliases({"FI_FOO": "1", "FI_SHELL": "x", "fi_home": "x"}) == {}
+
+
+def test_fi_environment_aliases_cover_every_listed_name() -> None:
+    values = {"FI_" + name: name for name in runtime.FI_RUNTIME_ENVIRONMENT_NAMES}
+    assert runtime.fi_environment_aliases(values) == {"DSH_" + name: name for name in runtime.FI_RUNTIME_ENVIRONMENT_NAMES}
+
+
+def test_fi_runtime_environment_names_match_the_typescript_list() -> None:
+    from deepseek_harness import client
+
+    source = (Path(__file__).resolve().parents[3] / "packages/util/home-paths/src/index.ts").read_text(encoding="utf-8")
+    body = re.search(r"FI_RUNTIME_ENVIRONMENT_NAMES: readonly string\[\] = Object\.freeze\(\[([^\]]*)\]\)", source)
+    assert body is not None
+    typescript = tuple(re.findall(r"'([A-Z0-9_]+)'", body.group(1)))
+    assert runtime.FI_RUNTIME_ENVIRONMENT_NAMES == typescript
+    assert client._FI_RUNTIME_ENVIRONMENT_NAMES == typescript
+
+
+def test_fi_runtime_mode_selects_the_carrier(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DSH_RUNTIME_MODE", "exe")
+    monkeypatch.setenv("FI_RUNTIME_MODE", "bogus")
+
+    with pytest.raises(ValueError, match=r"\$FI_RUNTIME_MODE"):
+        resolve_bundled_launch_args()
 
 
 @pytest.mark.parametrize("returncode", [0, 37, 513])

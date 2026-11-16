@@ -1,5 +1,5 @@
 ---
-description: "Models settings and product-onboarding plugin for the dsh web client: provider rows, API-key management, model lists, and the model-universal first-run steps."
+description: "Models settings and product-onboarding plugin for the fi web client: provider rows, API-key management, model lists, and the model-universal first-run steps."
 kind: "package-reference"
 ---
 
@@ -11,7 +11,7 @@ Desktop product events use the optional [product analytics service](../product-a
 
 ## Summary
 
-`dsh-client-ui-settings-models` is the Models settings page of the dsh web client: users configure API keys (stored write-only under the profile's credential reference), edit each provider's model list, and hand-declare custom pi-ai routes, showing one editor card at a time. The page joins the provider directory, the settings document, and the credential descriptions into one shared snapshot, so a row's state stays consistent across all three. It walks first-run users through two ordered dialogs — a versioned welcome notice and a model-universal setup step that routes a provider-less user to this page instead of collecting any one vendor's credential.
+`dsh-client-ui-settings-models` is the Models settings page of the fi web client: users configure API keys (stored write-only under the profile's credential reference), edit each provider's model list, and hand-declare custom pi-ai routes, showing one editor card at a time. The page joins the provider directory, the settings document, and the credential descriptions into one shared snapshot, so a row's state stays consistent across all three. It walks first-run users through two ordered dialogs — a versioned welcome notice and a model-universal setup step that routes a provider-less user to this page instead of collecting any one vendor's credential.
 
 ## Table of Contents
 

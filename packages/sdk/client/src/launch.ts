@@ -56,7 +56,7 @@ export function resolveDshBinFromManifests(dshManifestUrl: string, clientManifes
   const dshManifest = manifest(dshManifestUrl)
   const clientManifest = manifest(clientManifestUrl)
   if (typeof dshManifest.version !== 'string' || dshManifest.version !== clientManifest.version) {
-    throw new Error(`dsh SDK client ${String(clientManifest.version)} requires the same dsh version, got ${String(dshManifest.version)}`)
+    throw new Error(`fi SDK client ${String(clientManifest.version)} requires the same fi version, got ${String(dshManifest.version)}`)
   }
   const bin = typeof dshManifest.bin === 'object' && dshManifest.bin !== null
     ? (dshManifest.bin as Record<string, unknown>).dsh
@@ -147,7 +147,7 @@ export function resolveDshLaunch(
       ...dshLaunch.environment,
       ...dshHome === undefined ? {} : { DSH_HOME: dshHome },
     }),
-    description: `dsh profile ${JSON.stringify(profile)}`,
+    description: `fi profile ${JSON.stringify(profile)}`,
     initializeTimeoutMs: options.initializeTimeoutMs ?? DEFAULT_INITIALIZE_TIMEOUT_MS,
     ...options.requestTimeoutMs === undefined ? {} : { requestTimeoutMs: options.requestTimeoutMs },
     ...options.shutdownTimeoutMs === undefined ? {} : { shutdownTimeoutMs: options.shutdownTimeoutMs },

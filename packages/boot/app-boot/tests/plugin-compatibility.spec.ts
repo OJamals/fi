@@ -28,7 +28,7 @@ describe('dsh runtime version', () => {
   it.each([{}, { version: null }, { version: 1 }, { version: '' }, { version: 'not-semver' }])(
     'rejects an invalid or absent package version: %j', (manifest) => {
       vi.spyOn(fs, 'readFileSync').mockReturnValueOnce(JSON.stringify(manifest))
-      expect(() => getDshRuntimeVersion()).toThrow('Invalid dsh runtime version')
+      expect(() => getDshRuntimeVersion()).toThrow('Invalid fi runtime version')
     },
   )
 
@@ -120,7 +120,7 @@ describe('plugin compatibility', () => {
   })
 
   it('rejects an invalid explicit runtime even when no peers are declared', () => {
-    expect(() => evaluatePluginCompatibility({}, {}, 'invalid')).toThrow('Invalid dsh runtime version')
+    expect(() => evaluatePluginCompatibility({}, {}, 'invalid')).toThrow('Invalid fi runtime version')
   })
 
   it('rejects array plugin manifests', () => {
@@ -166,12 +166,12 @@ describe('compatibility warning', () => {
       ...identity, runtimeVersion: runtime,
       peers: { '@deepseek-ai/dsh': '^0.2.0', '@deepseek-ai/dsh-session': 'broken' }, exempted,
     })).toBe(
-      'Plugin @example/plugin@2.0.0 is incompatible with dsh 0.1.7-alpha.1: '
+      'Plugin @example/plugin@2.0.0 is incompatible with fi 0.1.7-alpha.1: '
       + 'peerDependencies {"@deepseek-ai/dsh":"^0.2.0","@deepseek-ai/dsh-session":"broken"}. '
       + 'Running it may cause crashes or data loss. '
-      + 'Update the plugin or install a plugin version compatible with this dsh runtime. '
-      + 'To accept this risk explicitly, grant the exact-version exemption for @example/plugin@2.0.0 on dsh 0.1.7-alpha.1 '
-      + 'with `dsh plugin allow-version` or the plugin manager, then retry the installation or restart dsh. '
+      + 'Update the plugin or install a plugin version compatible with this fi runtime. '
+      + 'To accept this risk explicitly, grant the exact-version exemption for @example/plugin@2.0.0 on fi 0.1.7-alpha.1 '
+      + 'with `fi-cli plugin allow-version` or the plugin manager, then retry the installation or restart fi. '
       + `Exact-version exemption: ${exempted ? 'active' : 'not active'}.`,
     )
   })

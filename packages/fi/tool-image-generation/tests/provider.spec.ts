@@ -1,6 +1,6 @@
 /** Native image admission validates wire bytes before storing an attachment. */
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { callNativeImage, type NativeImageTransportOptions, type NativeImageTarget } from '../src/provider.ts'
+import { callNativeImage, type NativeImageRequest, type NativeImageTransportOptions, type NativeImageTarget } from '../src/provider.ts'
 import { sniffRasterMediaType } from '../src/raster.ts'
 
 const native = vi.hoisted(() => ({ generate: vi.fn(), edit: vi.fn() }))
@@ -20,9 +20,14 @@ function options(response: Response, overrides: Partial<NativeImageTransportOpti
     resolveAntigravityGrant: async () => ({ accessToken: 'fixture', projectId: 'project' }), ...overrides }
 }
 
-function call(response: Response, overrides: Partial<NativeImageTransportOptions> = {}, signal = new AbortController().signal) {
+function call(
+  response: Response,
+  overrides: Partial<NativeImageTransportOptions> = {},
+  signal = new AbortController().signal,
+  request: Partial<NativeImageRequest> = {},
+) {
   return callNativeImage(options(response, overrides), { provider: 'grok', imageModel: 'image-model' },
-    { prompt: 'image', references: [] }, signal)
+    { prompt: 'image', references: [], count: 1, ...request }, signal)
 }
 
 afterEach(() => { vi.clearAllMocks() })
@@ -46,7 +51,7 @@ describe('native image responses', () => {
     { bytes: png, mime: 'image/png' },
   ])('accepts canonical $mime raster bytes with optional identifiers', async ({ bytes, mime }) => {
     await expect(call(Response.json({ data: [{ b64_json: bytes.toString('base64'), mime_type: mime, generation_id: 'id' }] })))
-      .resolves.toMatchObject({ mediaType: mime, generationId: 'id' })
+      .resolves.toMatchObject([{ mediaType: mime, generationId: 'id' }])
     expect(sniffRasterMediaType(Buffer.from('RIFF0000WAVE', 'ascii'))).toBeUndefined()
   })
 
@@ -100,7 +105,7 @@ describe('native image requests', () => {
   it('projects ordered references into the Codex edits endpoint', async () => {
     const fetch = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => Response.json(payload()))
     await callNativeImage(options(new Response(null), { fetch }), { provider: 'codex', imageModel: 'image-model' },
-      { prompt: 'edit', references: [{ mediaType: 'image/png', data: png }] }, new AbortController().signal)
+      { prompt: 'edit', references: [{ mediaType: 'image/png', data: png }], count: 1 }, new AbortController().signal)
     expect(fetch.mock.calls[0]?.[0]).toEqual(expect.stringContaining('/codex/images/edits'))
     const body = fetch.mock.calls[0]?.[1]?.body
     if (typeof body !== 'string') throw new Error('expected JSON request body')
@@ -115,7 +120,7 @@ describe('native image requests', () => {
     const target: NativeImageTarget = { provider: 'antigravity', imageModel: 'image-model' }
     await callNativeImage(options(new Response(null), {
       resolveAntigravityGrant: async () => ({ accessToken: 'token', projectId: editing ? undefined : 'project' }),
-    }), target, { prompt: 'image', references: editing ? [{ mediaType: 'image/png', data: png }] : [] }, new AbortController().signal)
+    }), target, { prompt: 'image', references: editing ? [{ mediaType: 'image/png', data: png }] : [], count: 1 }, new AbortController().signal)
     expect(invoke).toHaveBeenCalledOnce()
     expect(invoke.mock.calls[0]?.[0]).toMatchObject({ account: { token: {
       accessToken: 'token', ...editing ? {} : { antigravityProjectId: 'project' },
@@ -124,8 +129,57 @@ describe('native image requests', () => {
 
   it('refuses Antigravity generation while signed out', async () => {
     await expect(callNativeImage(options(new Response(null), { resolveAntigravityGrant: async () => undefined }),
-      { provider: 'antigravity', imageModel: 'image-model' }, { prompt: 'image', references: [] }, new AbortController().signal))
+      { provider: 'antigravity', imageModel: 'image-model' }, { prompt: 'image', references: [], count: 1 }, new AbortController().signal))
       .rejects.toMatchObject({ code: 'IMAGE_SUBSCRIPTION_OAUTH_REQUIRED' })
     expect(native.generate).not.toHaveBeenCalled()
+  })
+
+  it('passes Antigravity size, quality, and count to the native transport and scales its response bound', async () => {
+    native.edit.mockResolvedValue(Response.json({ data: [{ b64_json: png.toString('base64') }, { b64_json: png.toString('base64') }] }))
+    const results = await callNativeImage(options(new Response(null)), { provider: 'antigravity', imageModel: 'image-model' },
+      { prompt: 'edit', references: [{ mediaType: 'image/png', data: png }], size: '1024x1536', quality: 'high', count: 2 },
+      new AbortController().signal)
+    expect(results).toHaveLength(2)
+    expect(native.edit.mock.calls[0]?.[0]).toMatchObject({
+      body: { model: 'image-model', prompt: 'edit', n: 2, size: '1024x1536', quality: 'high' },
+      config: { native: { 'max-inline-media-bytes': 100, 'max-response-bytes': 136 + 1024 * 1024 } },
+    })
+  })
+
+  it('omits every output option field when the request carries none', async () => {
+    native.generate.mockResolvedValue(Response.json(payload()))
+    await callNativeImage(options(new Response(null)), { provider: 'antigravity', imageModel: 'image-model' },
+      { prompt: 'image', references: [], count: 1 }, new AbortController().signal)
+    expect(native.generate.mock.calls[0]?.[0]).toHaveProperty('body',{ model: 'image-model', prompt: 'image', n: 1, response_format: 'b64_json' })
+  })
+
+  it.each([{ size: '1024x1024' as const }, { quality: 'high' as const }])
+  ('refuses a Grok edit option %j before resolving credentials', async (option) => {
+    const resolveOAuth = vi.fn()
+    await expect(callNativeImage(options(new Response(null), { resolveOAuth }), { provider: 'grok', imageModel: 'image-model' },
+      { prompt: 'edit', references: [{ mediaType: 'image/png', data: png }], count: 1, ...option }, new AbortController().signal))
+      .rejects.toMatchObject({ code: 'IMAGE_INVALID_ARGUMENT' })
+    expect(resolveOAuth).not.toHaveBeenCalled()
+  })
+
+  it.each(['1792x1024' as const, '1024x1792' as const])('refuses Codex size %s before resolving credentials', async (size) => {
+    const resolveOAuth = vi.fn()
+    await expect(callNativeImage(options(new Response(null), { resolveOAuth }), { provider: 'codex', imageModel: 'image-model' },
+      { prompt: 'image', references: [], count: 1, size }, new AbortController().signal))
+      .rejects.toMatchObject({ code: 'IMAGE_INVALID_ARGUMENT' })
+    expect(resolveOAuth).not.toHaveBeenCalled()
+  })
+
+  it('requires exactly the requested image count', async () => {
+    await expect(call(Response.json(payload()), {}, undefined, { count: 2 }))
+      .rejects.toThrow('image provider must return exactly 2 images')
+  })
+
+  it('bounds the decoded bytes of all returned images together', async () => {
+    const two = Response.json({ data: [{ b64_json: png.toString('base64') }, { b64_json: png.toString('base64') }] })
+    await expect(call(two, { maxOutputBytes: png.byteLength * 2 }, undefined, { count: 2 })).resolves.toHaveLength(2)
+    const over = Response.json({ data: [{ b64_json: png.toString('base64') }, { b64_json: png.toString('base64') }] })
+    await expect(call(over, { maxOutputBytes: png.byteLength * 2 - 1 }, undefined, { count: 2 }))
+      .rejects.toMatchObject({ code: 'IMAGE_OUTPUT_TOO_LARGE' })
   })
 })

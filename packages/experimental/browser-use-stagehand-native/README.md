@@ -88,9 +88,9 @@ env -u NODE_USE_ENV_PROXY DSH_STAGEHAND_E2E=1 pnpm exec vitest run --config scri
 
 [SessionResources](../browser-use-runtime/README.md) owns lazy acquisition, serialization, and teardown for each exact live Agent. The provider retains the browser-use registration until cleanup settles. The [native provider](src/index.ts) registers its tools through the existing MCP result adapter, which saves screenshots as durable attachments.
 
-The host owns each launched Chromium process and its temporary profile before waiting for CDP readiness. Chromium receives the standard scrubbed child environment, preserving paths, locale, and proxy settings while excluding credential-shaped variables and DSH identity. Both modes connect the SDK inside a dedicated Worker. The Worker receives no ambient environment except the explicit source TypeScript configuration path, so its CDP connection does not inherit host proxy settings. SDK close waits for active operations. Cleanup terminates the connection Worker after the configured SDK grace; launch also kills and awaits its owned Chromium process before removing the profile. Attached external browsers remain open. Cleanup failures follow the [ownership limits](#known-limitations-and-deferred-work) below.
+The host owns each launched Chromium process and its temporary profile before waiting for CDP readiness. Chromium receives the standard scrubbed child environment, preserving paths, locale, and proxy settings while excluding credential-shaped variables and fi identity. Both modes connect the SDK inside a dedicated Worker. The Worker receives no ambient environment except the explicit source TypeScript configuration path, so its CDP connection does not inherit host proxy settings. SDK close waits for active operations. Cleanup terminates the connection Worker after the configured SDK grace; launch also kills and awaits its owned Chromium process before removing the profile. Attached external browsers remain open. Cleanup failures follow the [ownership limits](#known-limitations-and-deferred-work) below.
 
-The [native runtime](src/native.ts) passes the explicit model configuration to Stagehand's public initialization API. Stagehand owns the model requests, response validation, and token accounting inside its browser extension. DSH records browser tool inputs and returned data, including SDK result metadata, through the existing Session log. Underlying inference request/response capture and integration into DSH Session usage accounting are deferred.
+The [native runtime](src/native.ts) passes the explicit model configuration to Stagehand's public initialization API. Stagehand owns the model requests, response validation, and token accounting inside its browser extension. fi records browser tool inputs and returned data, including SDK result metadata, through the existing Session log. Underlying inference request/response capture and integration into fi Session usage accounting are deferred.
 
 No invariant companion is published: every browser operation uses the resource owner's single acquired handle, with no separately maintained browser relationship to compare.
 
@@ -140,7 +140,7 @@ The [`stagehand_` tool catalog](../../../docs/tool-catalog.md#deepseek-aidsh-exp
 
 #### Token effect
 
-Tool schemas and results add main-conversation context. Stagehand's native model requests consume additional tokens outside DSH Session usage accounting.
+Tool schemas and results add main-conversation context. Stagehand's native model requests consume additional tokens outside fi Session usage accounting.
 
 #### KV Cache effect
 
@@ -156,9 +156,9 @@ The provider inherits the pinned Stagehand SDK's browser and extension requireme
 - **Live browser state** — Session replay restores recorded conversation data, not a browser process, cookies, or tab handles.
 - **Native models** — model names are limited to the pinned SDK catalog for OpenAI, Anthropic, Google, Groq, and Cerebras. DeepSeek endpoints, `baseURL` overrides, autonomous agents, and per-call model selection are unsupported.
 - **Cancellation** — native inference has no abort signal. SDK close waits for active work; successful cleanup permits reconnection on the next tool call while retaining the browser. Cancellation does not undo browser input or guarantee that a native model request stops.
-- **Existing browser access** — an attached browser can also be changed by its user; the reservation coordinates DSH Sessions only.
+- **Existing browser access** — an attached browser can also be changed by its user; the reservation coordinates fi Sessions only.
 - **Cleanup failure** — failed SDK drain retains an attached-browser reservation because native extension work may continue. Final cleanup of a launched browser can release its reservation after both Chromium and its Worker terminate, even if SDK drain failed. Worker, owned-process, or profile cleanup failure retains the reservation; restart the host before selecting another provider.
-- **DSH model integration** — Session model routing, DSH credential reuse, underlying inference request/response capture, and integration into DSH Session usage accounting are deferred. Returned tool data and SDK metadata remain replayable.
+- **fi model integration** — Session model routing, fi credential reuse, underlying inference request/response capture, and integration into fi Session usage accounting are deferred. Returned tool data and SDK metadata remain replayable.
 
 <a id="dev-note"></a>
 ### Dev Note

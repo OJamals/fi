@@ -207,7 +207,7 @@ it('starts with no exemptions and a warning when the permission file is unparsab
   writeFileSync(join(f.dir, PROFILE_COMPATIBILITY_FILENAME), '{ not json')
   expect(await f.run(insert('denied-plugin'))).toEqual([])
   expect(f.warnings.join('\n')).toContain('is not valid JSON')
-  expect(f.warnings.join('\n')).toContain('is incompatible with dsh')
+  expect(f.warnings.join('\n')).toContain('is incompatible with fi')
 })
 
 describe('manifest resolution', () => {
@@ -298,8 +298,8 @@ describe('manifest resolution', () => {
     // A preset declaration may omit the id that the Loader type requires.
     prepareProfileEntries(context(f), [{ name: 'denied-plugin' } as EntryOptions], base)
     expect(f.warnings).toEqual([
-      expect.stringMatching(/^dsh: disabling profile plugin row "row": Plugin denied-plugin@1\.0\.0 /),
-      expect.stringMatching(/^dsh: disabling profile plugin denied-plugin: Plugin denied-plugin@1\.0\.0 /),
+      expect.stringMatching(/^fi-cli: disabling profile plugin row "row": Plugin denied-plugin@1\.0\.0 /),
+      expect.stringMatching(/^fi-cli: disabling profile plugin denied-plugin: Plugin denied-plugin@1\.0\.0 /),
     ])
   })
 

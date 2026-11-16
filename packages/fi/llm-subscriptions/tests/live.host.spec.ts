@@ -2,12 +2,13 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { crc32, deflateSync } from 'node:zlib'
 import { expect, it, onTestFinished } from 'vitest'
 import { z } from 'zod'
 import { BlockAssembler, createToolResultMessage } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { SubscriptionAdapter } from '../src/adapter.ts'
-import { catalog } from '../src/catalog.ts'
+import { catalog, catalogModels } from '../src/catalog.ts'
 import { discoverProject } from '../src/gemini-auth.ts'
 import { grantSchema } from '../src/protocol.ts'
 import type { SubscriptionId, SubscriptionOptions } from '../src/protocol.ts'
@@ -164,3 +165,59 @@ it.skipIf(!directory)(
   },
   90_000,
 )
+
+/** Solid red 16x16 RGB PNG. */
+function redPng(): Buffer {
+  const chunk = (type: string, data: Buffer) => {
+    const body = Buffer.concat([Buffer.from(type), data])
+    const length = Buffer.alloc(4), crc = Buffer.alloc(4)
+    length.writeUInt32BE(data.length)
+    crc.writeUInt32BE(crc32(body))
+    return Buffer.concat([length, body, crc])
+  }
+  const header = Buffer.alloc(13)
+  header.writeUInt32BE(16, 0)
+  header.writeUInt32BE(16, 4)
+  header.set([8, 2, 0, 0, 0], 8)
+  const row = Buffer.concat([Buffer.of(0), Buffer.alloc(16 * 3, Buffer.of(255, 0, 0))])
+  return Buffer.concat([
+    Buffer.from('89504e470d0a1a0a', 'hex'),
+    chunk('IHDR', header),
+    chunk('IDAT', deflateSync(Buffer.concat(Array.from({ length: 16 }, () => row)))),
+    chunk('IEND', Buffer.alloc(0)),
+  ])
+}
+
+it.skipIf(!directory).each(['copilot', 'cursor', 'kiro', 'gemini-cli'] as const)('live %s image round trip', async (provider) => {
+  const stored = await account(provider)
+  const project = provider === 'gemini-cli' && !stored.subscriptionAuth?.projectId
+    ? await discoverProject(stored.accessToken, config, AbortSignal.timeout(60_000))
+    : undefined
+  const grant = project === undefined ? stored : { ...stored, subscriptionAuth: { ...stored.subscriptionAuth, projectId: project } }
+  const vision = (await catalogModels(grant, config)).filter(model => model.vision).map(model => model.id)
+  const model = vision.find(id => /gpt-4\.1|sonnet|composer|flash/.test(id)) ?? vision[0]
+  if (!model) throw new Error(`${provider} advertises no image model`)
+  const png = redPng()
+  const attachment = { attachmentId: `sha256:${'f'.repeat(64)}` as never, mediaType: 'image/png' as const, bytes: png.length, width: 16, height: 16 }
+  const attachments = {
+    imageHostPath: () => undefined,
+    readImageRequest: () => Promise.resolve({
+      variantId: `sha256:${'e'.repeat(64)}`, attachment, data: Uint8Array.from(png), mediaType: 'image/png',
+      bytes: png.length, width: 16, height: 16, depth: 'uchar', space: 'srgb', hasAlpha: false,
+    }),
+  } as never
+  const images = { attachments: () => attachments, access: () => () => undefined }
+  const adapter = new SubscriptionAdapter(() => config, async () => grant, () => ({}), images)
+  onTestFinished(() => adapter.dispose())
+  const chunks = []
+  for await (const chunk of adapter.stream({
+    provider, model, maxTokens: 128, signal: AbortSignal.timeout(60_000),
+    messages: [{ role: 'user', content: [
+      { type: 'text', text: 'Name the single color filling this image in one lowercase word.' },
+      { type: 'image', attachment },
+    ] }],
+  })) chunks.push(chunk)
+  expect(chunks.at(-1)).toMatchObject({ type: 'finish', reason: { kind: 'stop' } })
+  expect(chunks.flatMap(chunk => chunk.type === 'text-delta' ? [chunk.text] : []).join('').toLowerCase()).toContain('red')
+  process.stdout.write(`${provider} ${model}: image round trip passed\n`)
+}, 90_000)

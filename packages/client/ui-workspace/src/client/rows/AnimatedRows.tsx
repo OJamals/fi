@@ -12,6 +12,8 @@ interface AnimatedRowsProps {
   /** Unique DOM-order keys matching the rendered data-row-key attributes. */
   rowKeys: readonly string[]
   ready: boolean
+  /** Marks the tree `aria-busy` while its rows are still arriving. */
+  busy?: boolean
   /** Changes that replace the view or reveal hidden rows settle immediately. */
   resetKey: string
 }
@@ -172,6 +174,7 @@ export class AnimatedRows extends Component<AnimatedRowsProps> {
         className={this.props.className}
         role="tree"
         aria-label={this.props.label}
+        aria-busy={this.props.busy === true}
         onPointerDownCapture={() => { this.armed = true }}
         onKeyDownCapture={() => { this.armed = true }}
       >

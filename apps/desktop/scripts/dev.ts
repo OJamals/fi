@@ -27,8 +27,30 @@ function packageVersion(path: string, subject: string): string {
   return manifest.version
 }
 
+/**
+ * Read one inherited setting under the runtime's alias rule.
+ * @param name - `DSH_<NAME>` spelling of the setting.
+ * @returns the `FI_<NAME>` value when defined, otherwise the `DSH_<NAME>` value.
+ */
+function setting(name: string): string | undefined {
+  return process.env[`FI_${name.slice('DSH_'.length)}`] ?? process.env[name]
+}
+
+/**
+ * Build a child environment whose explicit `DSH_<NAME>` values survive the child's alias step.
+ * @param overrides - settings the child must observe; each `DSH_<NAME>` key also removes `FI_<NAME>`.
+ * @returns the inherited environment with `overrides` applied.
+ */
+function childEnvironment(overrides: Readonly<Record<string, string>>): NodeJS.ProcessEnv {
+  const environment: NodeJS.ProcessEnv = { ...process.env, ...overrides }
+  for (const name of Object.keys(overrides)) {
+    if (name.startsWith('DSH_')) delete environment[`FI_${name.slice('DSH_'.length)}`]
+  }
+  return environment
+}
+
 function debugPort(name: string, fallback: number): number {
-  const value = process.env[name]
+  const value = setting(name)
   if (value === undefined || value === '') return fallback
   const port = Number(value)
   if (!Number.isSafeInteger(port) || port < 1 || port > 65_535) {
@@ -63,16 +85,15 @@ async function launchElectron(): Promise<void> {
   const mainPort = debugPort('DSH_DESKTOP_MAIN_INSPECT_PORT', 9229)
   const rendererPort = debugPort('DSH_DESKTOP_RENDERER_DEBUG_PORT', 9222)
   const hostPort = debugPort('DSH_DESKTOP_HOST_INSPECT_PORT', 9230)
-  const home = resolve(process.env.DSH_HOME ?? join(DEVELOPMENT_ROOT, 'home'))
-  const userData = resolve(process.env.DSH_DESKTOP_USER_DATA_DIR ?? join(DEVELOPMENT_ROOT, 'electron-user-data'))
-  const environment: NodeJS.ProcessEnv = {
-    ...process.env,
+  const home = resolve(setting('DSH_HOME') ?? join(DEVELOPMENT_ROOT, 'home'))
+  const userData = resolve(setting('DSH_DESKTOP_USER_DATA_DIR') ?? join(DEVELOPMENT_ROOT, 'electron-user-data'))
+  const environment = childEnvironment({
     DSH_HOME: home,
-    DSH_DESKTOP_PRIMARY_RUNTIME_DIR: process.env.DSH_DESKTOP_PRIMARY_RUNTIME_DIR ?? developmentRuntimeDirectory(),
+    DSH_DESKTOP_PRIMARY_RUNTIME_DIR: setting('DSH_DESKTOP_PRIMARY_RUNTIME_DIR') ?? developmentRuntimeDirectory(),
     DSH_DESKTOP_HOST_INSPECT_PORT: String(hostPort),
-    DSH_DESKTOP_OPEN_DEVTOOLS: process.env.DSH_DESKTOP_OPEN_DEVTOOLS ?? '1',
+    DSH_DESKTOP_OPEN_DEVTOOLS: setting('DSH_DESKTOP_OPEN_DEVTOOLS') ?? '1',
     ELECTRON_ENABLE_LOGGING: process.env.ELECTRON_ENABLE_LOGGING ?? '1',
-  }
+  })
   console.log(`desktop development: DSH_HOME=${home}`)
   console.log(`desktop development: userData=${userData}`)
   console.log(`desktop development: inspectors main=${String(mainPort)}, renderer=${String(rendererPort)}, host=${String(hostPort)}`)

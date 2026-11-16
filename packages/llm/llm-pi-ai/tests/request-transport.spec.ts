@@ -83,7 +83,7 @@ describe('pi-ai authenticated request transport', () => {
       timeoutMs: 600_000,
       harnessUserAgent: request?.harnessUserAgent,
     })
-    expect(request?.harnessUserAgent).toMatch(/^deepseek-harness\//)
+    expect(request?.harnessUserAgent).toMatch(/^fi\//)
     expect(transformHeaders).toHaveBeenCalledOnce()
     expect(fetch).toHaveBeenCalledOnce()
   })

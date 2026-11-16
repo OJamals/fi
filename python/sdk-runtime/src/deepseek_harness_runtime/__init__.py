@@ -28,11 +28,69 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import Mapping
 from ._resources import validate_resources
 
 PACKAGE_METADATA_FILENAME = "deepseek-harness-runtime.json"
 
 RUNTIME_MODE_ENV_VAR = "DSH_RUNTIME_MODE"
+
+
+#: Base names of the runtime ``DSH_<NAME>`` variables that may also be given as
+#: ``FI_<NAME>``; a copy of ``FI_RUNTIME_ENVIRONMENT_NAMES`` in ``@deepseek-ai/dsh-home-paths``,
+#: which a test in that package compares with this tuple.
+FI_RUNTIME_ENVIRONMENT_NAMES: tuple[str, ...] = (
+    "AGENTS_HOME",
+    "BUNDLED_PRIMARY_RUNTIME",
+    "BUNDLED_SKILL_DIR",
+    "CONTEXT_WINDOW",
+    "DESKTOP_DSH_DIR",
+    "DESKTOP_HOST_INSPECT_PORT",
+    "DESKTOP_LOGIN_SHELL_TIMEOUT_MS",
+    "DESKTOP_MANDATORY_UPDATE_CONFIG",
+    "DESKTOP_OPEN_DEVTOOLS",
+    "DESKTOP_PRIMARY_RUNTIME_DIR",
+    "DESKTOP_UPDATE_CHECK_INTERVAL_MS",
+    "DESKTOP_UPDATE_CHECK_JITTER",
+    "DESKTOP_UPDATE_CHECK_MAX_BACKOFF_MS",
+    "DESKTOP_UPDATE_HTTP_IDLE_TIMEOUT_MS",
+    "DESKTOP_UPDATE_JOURNAL_DIR",
+    "GITHUB_REVIEW_WORKSPACE",
+    "GITHUB_WEBHOOK_PORT",
+    "GITHUB_WEBHOOK_SECRET",
+    "HOME",
+    "MAX_TOKENS_AS_SUCCESS",
+    "MODEL",
+    "PERMISSION_MODE",
+    "PLATFORM_ALLOW_LOOPBACK_HTTP",
+    "PLATFORM_COOKIE",
+    "PLATFORM_ORIGIN",
+    "PRIMARY_RUNTIME",
+    "PRODUCT_ANALYTICS_OTLP_URL",
+    "RUNTIME_MODE",
+    "SYSTEM_PROMPT",
+    "TELEMETRY_DISABLED",
+    "TELEMETRY_MODE",
+    "TELEMETRY_OTLP_URL",
+    "TOOLS_MODE",
+    "WEB_FETCH_PROVIDER",
+    "WEB_SEARCH_PROVIDER",
+)
+
+
+def fi_environment_aliases(values: Mapping[str, str]) -> dict[str, str]:
+    """The ``DSH_<NAME>`` entries implied by the runtime ``FI_<NAME>`` entries of ``values``.
+
+    Every ``FI_<NAME>`` whose ``<NAME>`` is in ``FI_RUNTIME_ENVIRONMENT_NAMES`` yields
+    ``DSH_<NAME>`` with the same value, including an empty value; other ``FI_*`` names
+    yield nothing. Merging the result over ``values`` makes the ``FI_`` spelling win
+    when both are present.
+    """
+    return {
+        "DSH_" + name[len("FI_"):]: value
+        for name, value in values.items()
+        if name.startswith("FI_") and name[len("FI_"):] in FI_RUNTIME_ENVIRONMENT_NAMES
+    }
 
 _PLATFORM_TAGS = {"linux": "linux", "darwin": "macos", "win32": "win"}
 _ARCH_TAGS = {"x86_64": "x64", "amd64": "x64", "arm64": "arm64", "aarch64": "arm64"}
@@ -123,14 +181,15 @@ def resolve_bundled_launch_args(mode: str | None = None) -> tuple[str, ...]:
     raises FileNotFoundError when the selected carrier is unavailable and
     ValueError for an unknown mode value.
     """
-    selected = mode if mode is not None else os.environ.get(RUNTIME_MODE_ENV_VAR)
+    environment = {**os.environ, **fi_environment_aliases(os.environ)}
+    selected = mode if mode is not None else environment.get(RUNTIME_MODE_ENV_VAR)
     if selected is None or selected == "exe":
         return (str(bundled_runtime_path()),)
     if selected == "node":
         return _node_launch_args()
     raise ValueError(
-        f"unsupported DeepSeek Harness runtime mode {selected!r}: expected 'exe' or 'node' "
-        f"(explicit argument or ${RUNTIME_MODE_ENV_VAR})"
+        f"unsupported fi runtime mode {selected!r}: expected 'exe' or 'node' "
+        "(explicit argument or $FI_RUNTIME_MODE)"
     )
 
 
@@ -143,7 +202,7 @@ def _current_platform_tag() -> str:
         or (plat == "win" and arch != "x64")
     ):
         raise FileNotFoundError(
-            "no bundled DeepSeek Harness SDK runtime exists for this platform "
+            "no bundled fi SDK runtime exists for this platform "
             f"(sys.platform={sys.platform!r}, machine={platform.machine()!r}); supported: "
             "Linux x64/arm64, macOS x64/arm64, and Windows x64. " + _EXE_ACQUISITION_HINT
         )
@@ -177,10 +236,11 @@ def _node_launch_args() -> tuple[str, str]:
 
 
 def main() -> None:
-    """Launch the CLI with explicit DSH_HOME; wait on Windows, replace the process on POSIX."""
+    """Launch the CLI with explicit FI_HOME or DSH_HOME; wait on Windows, replace the process on POSIX."""
+    os.environ.update(fi_environment_aliases(os.environ))
     if not os.environ.get("DSH_HOME", "").strip():
         print(
-            "dsh: the Python runtime command requires an explicit DSH_HOME; "
+            "fi-cli: the Python runtime command requires an explicit FI_HOME; "
             "it never uses ~/.fi implicitly",
             file=sys.stderr,
         )
@@ -197,6 +257,8 @@ __all__ = [
     "RUNTIME_MODE_ENV_VAR",
     "bundled_package_dir",
     "bundled_runtime_path",
+    "FI_RUNTIME_ENVIRONMENT_NAMES",
+    "fi_environment_aliases",
     "main",
     "resolve_bundled_launch_args",
 ]

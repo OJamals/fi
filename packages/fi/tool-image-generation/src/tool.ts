@@ -6,12 +6,28 @@ import { AttachmentId, type ImageAttachmentRef, type ImageMediaType } from '@dee
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
-import { callNativeImage, type NativeImageRequest, type NativeImageTransportOptions } from './provider.ts'
+import {
+  assertImageOptionsSupported,
+  callNativeImage,
+  type NativeImageRequest,
+  type NativeImageResult,
+  type NativeImageTransportOptions,
+} from './provider.ts'
 import { sniffRasterMediaType } from './raster.ts'
-import { ImageGenerationError, type ImageGenerationProvider, type ImageGenerationTarget } from './types.ts'
+import {
+  ImageGenerationError,
+  type ImageGenerationCount,
+  type ImageGenerationProvider,
+  type ImageGenerationQuality,
+  type ImageGenerationSize,
+  type ImageGenerationTarget,
+} from './types.ts'
 
 const MAX_REFERENCES = 5
 const ANTIGRAVITY_MAX_REFERENCES = 3
+const IMAGE_SIZES = ['1024x1024', '1536x1024', '1024x1536', '1792x1024', '1024x1792'] as const satisfies readonly ImageGenerationSize[]
+const IMAGE_QUALITIES = ['high'] as const satisfies readonly ImageGenerationQuality[]
+const IMAGE_COUNTS = [1, 2, 3, 4] as const satisfies readonly ImageGenerationCount[]
 
 const REQUIRED_STRING_SCHEMA = { type: 'string', required: true } as const
 const REQUIRED_INTEGER_SCHEMA = { type: 'integer', required: true } as const
@@ -31,6 +47,11 @@ const IMAGE_VALUE_SCHEMA = objectSchema({
     width: { ...REQUIRED_INTEGER_SCHEMA },
     height: { ...REQUIRED_INTEGER_SCHEMA },
   }),
+})
+
+const GENERATED_IMAGE_VALUE_SCHEMA = objectSchema({
+  ...IMAGE_VALUE_SCHEMA.properties,
+  generationId: { type: 'string' as const },
 })
 
 /** Fully resolved configuration used by one image tool owner. */
@@ -59,13 +80,40 @@ interface SerializedImageRef {
   readonly originalDimensions?: { readonly width: number; readonly height: number }
 }
 
+interface GeneratedImageRef extends SerializedImageRef {
+  readonly generationId?: string
+}
+
 interface ImageToolValue {
   readonly operation: 'generate' | 'edit'
   readonly provider: ImageGenerationProvider
   readonly model: string
-  readonly image: SerializedImageRef
+  readonly images: GeneratedImageRef[]
   readonly references: SerializedImageRef[]
-  readonly generationId?: string
+}
+
+interface ImageToolArguments {
+  readonly prompt: string
+  readonly provider?: ImageGenerationProvider
+  readonly referenced_image_paths?: string[]
+  readonly size?: ImageGenerationSize
+  readonly quality?: ImageGenerationQuality
+  readonly count?: ImageGenerationCount
+}
+
+/** One call after provider, references, and output options are resolved and admitted. */
+interface ImageToolSpec {
+  readonly provider: ImageGenerationProvider
+  readonly target: ImageGenerationTarget
+  readonly operation: 'generate' | 'edit'
+  readonly paths: readonly string[]
+  readonly size?: ImageGenerationSize
+  readonly quality?: ImageGenerationQuality
+  readonly count: ImageGenerationCount
+}
+
+function extension(mediaType: NativeImageResult['mediaType']): string {
+  return mediaType === 'image/png' ? 'png' : mediaType === 'image/jpeg' ? 'jpg' : 'webp'
 }
 
 function outputImage(ref: ImageAttachmentRef): SerializedImageRef {
@@ -171,7 +219,7 @@ export class ImageToolOwner {
     const configuredProviders = [...this.options.targets.keys()]
     this.ctx.tools.register(defineTool({
       name: 'image_gen',
-      description: `Generate one raster image from a prompt, or edit ordered PNG/JPEG/WebP workspace images (up to five for Codex/Grok and three for Antigravity). Choose one configured subscription provider (${configuredProviders.join(', ')}); omission uses ${this.options.defaultProvider}. No provider fallback occurs.`,
+      description: `Generate raster images from a prompt, or edit ordered PNG/JPEG/WebP workspace images (up to five for Codex/Grok and three for Antigravity). Choose one configured subscription provider (${configuredProviders.join(', ')}); omission uses ${this.options.defaultProvider}. No provider fallback occurs.`,
       parameters: {
         prompt: { type: 'string', required: true, description: 'Complete image-generation or editing instruction.' },
         provider: {
@@ -184,6 +232,21 @@ export class ImageToolOwner {
           items: { type: 'string' },
           description: 'Optional ordered readable PNG/JPEG/WebP paths: one to five for Codex/Grok or one to three for Antigravity. Omit for text-to-image generation.',
         },
+        size: {
+          type: 'string',
+          enum: IMAGE_SIZES,
+          description: 'Optional output size in pixels. Codex accepts 1024x1024, 1536x1024, or 1024x1536. Grok and Antigravity accept every listed size and use its aspect ratio; Grok accepts it only without referenced_image_paths. Omit for the provider default.',
+        },
+        quality: {
+          type: 'string',
+          enum: IMAGE_QUALITIES,
+          description: 'Optional higher-detail output. Grok accepts it only without referenced_image_paths. Omit for the provider default.',
+        },
+        count: {
+          type: 'integer',
+          enum: IMAGE_COUNTS,
+          description: 'Optional number of images to return. Omit for one.',
+        },
       },
       output: {
         schema: {
@@ -193,17 +256,16 @@ export class ImageToolOwner {
             operation: { type: 'string', enum: ['generate', 'edit'], required: true },
             provider: { type: 'string', enum: ['codex', 'grok', 'antigravity'], required: true },
             model: { type: 'string', required: true },
-            image: { ...IMAGE_VALUE_SCHEMA, required: true },
+            images: { type: 'array', items: GENERATED_IMAGE_VALUE_SCHEMA, required: true },
             references: { type: 'array', items: IMAGE_VALUE_SCHEMA, required: true },
-            generationId: { type: 'string' },
           },
         },
         render: (_args, value): ContentBlock[] => [
           {
             type: 'text',
-            text: `${value.operation === 'edit' ? 'Edited' : 'Generated'} one image with ${value.provider} model ${value.model}.`,
+            text: `${value.operation === 'edit' ? 'Edited' : 'Generated'} ${value.images.length === 1 ? 'one image' : `${value.images.length} images`} with ${value.provider} model ${value.model}.`,
           },
-          { type: 'image', attachment: imageRef(value.image) },
+          ...value.images.map(({ generationId: _generationId, ...image }): ContentBlock => ({ type: 'image', attachment: imageRef(image) })),
         ],
       },
       timeoutMs: this.options.timeoutMs,
@@ -219,10 +281,7 @@ export class ImageToolOwner {
     await Promise.allSettled([...this.active])
   }
 
-  private execute(
-    args: { prompt: string; provider?: ImageGenerationProvider; referenced_image_paths?: string[] },
-    exec: ToolRunContext,
-  ): Promise<ImageToolValue> {
+  private execute(args: ImageToolArguments, exec: ToolRunContext): Promise<ImageToolValue> {
     if (this.disposed) return Promise.reject(new ImageGenerationError('image generation plugin is disposed', 'IMAGE_ABORTED'))
     const operation = this.run(args, exec)
     this.active.add(operation)
@@ -230,10 +289,8 @@ export class ImageToolOwner {
     return operation
   }
 
-  private async run(
-    args: { prompt: string; provider?: ImageGenerationProvider; referenced_image_paths?: string[] },
-    exec: ToolRunContext,
-  ): Promise<ImageToolValue> {
+  /** Resolve omitted arguments and admit the call before any filesystem, credential, or network access. */
+  private resolve(args: ImageToolArguments): ImageToolSpec {
     if (args.prompt.trim().length === 0) throw new ImageGenerationError('prompt must be a non-empty string', 'IMAGE_INVALID_ARGUMENT')
     const paths = args.referenced_image_paths ?? []
     if (args.referenced_image_paths !== undefined && paths.length === 0) {
@@ -248,28 +305,44 @@ export class ImageToolOwner {
         'IMAGE_INVALID_ARGUMENT',
       )
     }
+    const operation = paths.length === 0 ? 'generate' : 'edit'
+    const options = {
+      ...args.size === undefined ? {} : { size: args.size },
+      ...args.quality === undefined ? {} : { quality: args.quality },
+    }
+    assertImageOptionsSupported(provider, operation, options)
+    return { provider, target, operation, paths, ...options, count: args.count ?? 1 }
+  }
+
+  private async run(args: ImageToolArguments, exec: ToolRunContext): Promise<ImageToolValue> {
+    const spec = this.resolve(args)
     const operation = operationSignal(exec.signal, this.lifecycle.signal, this.options.timeoutMs)
     try {
-      const references = await referenceRequest(this.ctx, paths, exec, operation.signal)
+      const references = await referenceRequest(this.ctx, spec.paths, exec, operation.signal)
       operation.signal.throwIfAborted()
-      const generated = await callNativeImage(this.options, { provider, imageModel: target.imageModel }, {
+      const generated = await callNativeImage(this.options, { provider: spec.provider, imageModel: spec.target.imageModel }, {
         prompt: args.prompt,
         references: references.request,
+        ...spec.size === undefined ? {} : { size: spec.size },
+        ...spec.quality === undefined ? {} : { quality: spec.quality },
+        count: spec.count,
       }, operation.signal)
       operation.signal.throwIfAborted()
-      const ref = await this.ctx.attachments.saveImage({
-        data: generated.data,
-        mediaType: generated.mediaType,
-        name: `generated-image.${generated.mediaType === 'image/png' ? 'png' : generated.mediaType === 'image/jpeg' ? 'jpg' : 'webp'}`,
-      })
+      const refs = await this.ctx.attachments.saveImages(generated.map((image, index) => ({
+        data: image.data,
+        mediaType: image.mediaType,
+        name: `generated-image${generated.length === 1 ? '' : `-${index + 1}`}.${extension(image.mediaType)}`,
+      })))
       operation.signal.throwIfAborted()
       return {
-        operation: paths.length === 0 ? 'generate' : 'edit',
-        provider,
-        model: target.imageModel,
-        image: outputImage(ref),
+        operation: spec.operation,
+        provider: spec.provider,
+        model: spec.target.imageModel,
+        images: refs.map((ref, index) => {
+          const { generationId } = generated[index] as NativeImageResult
+          return { ...outputImage(ref), ...generationId === undefined ? {} : { generationId } }
+        }),
         references: references.refs.map(outputImage),
-        ...generated.generationId === undefined ? {} : { generationId: generated.generationId },
       }
     } catch (error) {
       if (operation.timedOut()) {

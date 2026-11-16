@@ -400,6 +400,15 @@
   padding: 6px 8px 7px;
 }
 
+/* Pending Session list: Session row metrics (32px, 8px inset, 16px status
+   slot, 4px title gap) with one title bar. */
+.skeletonRowCompact {
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0 8px;
+}
+
 .skeletonDot {
   flex: none;
   width: 16px;
@@ -516,6 +525,26 @@
 .sessionOverflowButton:hover {
   background: transparent;
   color: var(--dsw-alias-label-secondary);
+}
+
+/* Failed content search: sits in the no-matches slot, after any local
+   matches, with the error dot and an outline Retry. */
+.searchFailure {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.searchFailureText {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-tertiary);
 }
 
 .empty {

@@ -2,7 +2,9 @@
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { Volatile } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/cordis-plugin-loader'
+import type {} from '@deepseek-ai/dsh-fs'
 import type {} from '@deepseek-ai/dsh-settings'
+import { resolveImageAttachmentAccess } from '@deepseek-ai/dsh-llm'
 import type { AdapterRegistrationHandle } from '@deepseek-ai/dsh-llm'
 import z from '@deepseek-ai/schemastery'
 import { SubscriptionAdapter } from './adapter.ts'
@@ -60,6 +62,14 @@ export default class SubscriptionService extends Service {
       options,
       (id, signal) => resolveGrant(this.ctx, id, options(), signal),
       provider => config.providers.get()[provider],
+      {
+        attachments: () => this.ctx.get('attachments'),
+        access: attachments => ref => resolveImageAttachmentAccess(
+          attachments,
+          hostPath => this.ctx.get('fs')?.processPathFromHostPath(hostPath),
+          ref,
+        ),
+      },
     )
     this.ctx.effect(() => () => adapter.dispose())
     let registration: AdapterRegistrationHandle | undefined
@@ -86,7 +96,11 @@ export default class SubscriptionService extends Service {
     })
     this.ctx.llm.registerModelDiscovery(settingsNs, async (request) => {
       if (!request.provider) throw new Error('Subscription discovery requires a provider')
-      return (await adapter.discoverModels(request.provider)).map(model => ({ id: model.id, name: model.name }))
+      return (await adapter.discoverModels(request.provider)).map(model => ({
+        id: model.id,
+        name: model.name,
+        inputModalities: model.inputModalities,
+      }))
     })
   }
 }

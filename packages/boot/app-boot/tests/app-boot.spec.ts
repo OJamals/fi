@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url'
 import { inspect } from 'node:util'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
+import { FI_RUNTIME_ENVIRONMENT_NAMES } from '@deepseek-ai/dsh-home-paths'
 import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
 import {
   addHarnessSourceSection, auditStartupEntries, boot, StartupError,
@@ -141,6 +142,7 @@ describe('loadLayeredEnv', () => {
     ['the executable search path', 'PATH=/tmp/evil\n'],
     ['a module preload', 'NODE_OPTIONS=--require /tmp/evil.js\n'],
     ['a skill root', 'DSH_AGENTS_HOME=/tmp/injected\n'],
+    ['the home', 'DSH_HOME=/tmp/injected\n'],
     ['a network proxy', 'HTTPS_PROXY=http://attacker.example\n'],
     ['a lowercase network proxy', 'https_proxy=http://attacker.example\n'],
     ['a browser command', 'BROWSER=./script\n'],
@@ -153,6 +155,105 @@ describe('loadLayeredEnv', () => {
     try {
       expect(() => loadLayeredEnv(NAME, project, vi.fn())).toThrow(/only the launching environment may set/)
       expect(process.env[NAMES[1]]).toBeUndefined()
+    } finally {
+      clear()
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('keeps a FI_ name in a .env as an ordinary variable without a DSH_ alias', () => {
+    const home = tmp()
+    const project = tmp()
+    writeFileSync(join(project, '.env'), 'FI_APP_BOOT_LAYERED_OWN=1\n')
+    writeFileSync(join(home, '.env'), 'FI_APP_BOOT_LAYERED_HOME_OWN=2\n')
+    clear()
+    vi.stubEnv('DSH_HOME', home)
+    try {
+      const environment = loadLayeredEnv(NAME, project, vi.fn())
+      expect(process.env['FI_APP_BOOT_LAYERED_OWN']).toBe('1')
+      expect(process.env['DSH_APP_BOOT_LAYERED_OWN']).toBeUndefined()
+      expect(environment.get('FI_APP_BOOT_LAYERED_OWN')).toEqual({ value: '1', source: 'project-env', path: join(project, '.env') })
+      expect(environment.get('DSH_APP_BOOT_LAYERED_OWN')).toBeUndefined()
+      expect(environment.get('FI_APP_BOOT_LAYERED_HOME_OWN')).toEqual({ value: '2', source: 'user-env', path: join(home, '.env') })
+      expect(process.env['DSH_APP_BOOT_LAYERED_HOME_OWN']).toBeUndefined()
+    } finally {
+      Reflect.deleteProperty(process.env, 'FI_APP_BOOT_LAYERED_OWN')
+      Reflect.deleteProperty(process.env, 'FI_APP_BOOT_LAYERED_HOME_OWN')
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it.each([
+    ['the invoking directory', 'project'],
+    ['the Harness home', 'home'],
+  ] as const)('refuses a runtime FI_ name in the %s .env with the export remedy', (_case, layer) => {
+    for (const assignment of ['FI_HOME=/tmp/injected', 'FI_PERMISSION_MODE=danger-full-access', 'FI_AGENTS_HOME=/tmp/injected', 'fi_tools_mode=x']) {
+      const home = tmp()
+      const project = tmp()
+      const name = assignment.slice(0, assignment.indexOf('='))
+      writeFileSync(join(layer === 'project' ? project : home, '.env'), `${NAMES[1]}=applied-anyway\n${assignment}\n`)
+      clear()
+      vi.stubEnv('DSH_HOME', home)
+      vi.stubEnv('FI_HOME', undefined)
+      try {
+        expect(() => loadLayeredEnv(NAME, project, vi.fn()))
+          .toThrow(`only the launching environment may set (it decides how this process starts, where its code and instructions load from, or how it reaches the network); export ${name} instead of putting it in a .env file`)
+        expect(process.env[NAMES[1]]).toBeUndefined()
+      } finally {
+        clear()
+        vi.unstubAllEnvs()
+      }
+    }
+  })
+
+  it('refuses every runtime FI_ name in either .env', () => {
+    for (const base of FI_RUNTIME_ENVIRONMENT_NAMES) {
+      for (const layer of ['project', 'home'] as const) {
+        const home = tmp()
+        const project = tmp()
+        writeFileSync(join(layer === 'project' ? project : home, '.env'), `FI_${base}=x\n`)
+        vi.stubEnv('DSH_HOME', home)
+        vi.stubEnv('FI_HOME', undefined)
+        try {
+          expect(() => loadLayeredEnv(NAME, project, vi.fn())).toThrow(`export FI_${base} instead of putting it in a .env file`)
+        } finally {
+          vi.unstubAllEnvs()
+        }
+      }
+    }
+  })
+
+  it('refuses DSH_HOME in the Harness-home .env', () => {
+    const home = tmp()
+    const project = tmp()
+    writeFileSync(join(home, '.env'), 'DSH_HOME=/tmp/injected\n')
+    vi.stubEnv('DSH_HOME', home)
+    try {
+      expect(() => loadLayeredEnv(NAME, project, vi.fn())).toThrow('export DSH_HOME instead of putting it in a .env file')
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('resolves the home through an exported FI_HOME, which wins over an exported DSH_HOME, and aliases no unlisted FI_ name', () => {
+    const fiHome = tmp()
+    const dshHome = tmp()
+    const project = tmp()
+    writeFileSync(join(fiHome, '.env'), `${NAMES[1]}=from-fi-home\n`)
+    writeFileSync(join(dshHome, '.env'), `${NAMES[1]}=from-dsh-home\n`)
+    clear()
+    vi.stubEnv('FI_HOME', fiHome)
+    vi.stubEnv('DSH_HOME', dshHome)
+    vi.stubEnv('FI_PERMISSION_MODE', 'read-only')
+    vi.stubEnv('FI_APP_BOOT_LAYERED', 'fi')
+    try {
+      const environment = loadLayeredEnv(NAME, project, vi.fn())
+      expect(process.env[NAMES[1]]).toBe('from-fi-home')
+      expect(environment.get('DSH_HOME')).toEqual({ value: fiHome, source: 'process' })
+      expect(environment.get('DSH_PERMISSION_MODE')).toEqual({ value: 'read-only', source: 'process' })
+      expect(environment.get('FI_APP_BOOT_LAYERED')).toEqual({ value: 'fi', source: 'process' })
+      expect(environment.get('DSH_APP_BOOT_LAYERED')).toBeUndefined()
+      expect(process.env['DSH_APP_BOOT_LAYERED']).toBeUndefined()
     } finally {
       clear()
       vi.unstubAllEnvs()

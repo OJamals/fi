@@ -24,6 +24,14 @@ export function desktopRuntimeFileExclusion(
   const nameParts = packageParts[0]?.startsWith('@') ? 2 : 1
   const name = packageParts.slice(0, nameParts).join('/')
   const entry = packageParts.slice(nameParts).join('/')
+  // Product packages keep Markdown and sources: skills, references, and READMEs that Config inspection points the model at.
+  const thirdParty = !name.startsWith('@deepseek-ai/') && !name.startsWith('@fi/')
+  if (thirdParty && /\.md$/iu.test(file) && !/^(?:licen[cs]e|notice|copying|authors)/iu.test(file)) {
+    return 'third-party Markdown documentation'
+  }
+  // Third-party manifests name .ts files only under the non-Node conditions source, @zod/source,
+  // standard-schema-spec, types, and the browser field; the Host resolves JavaScript.
+  if (thirdParty && /\.[cm]?ts$/u.test(file)) return 'third-party TypeScript source'
   if (name === '@mixmark-io/domino' && (entry === '.yarn' || entry.startsWith('.yarn/'))) return 'Domino build tooling'
   if (name === 'zod' && /^src\/.*\/(?:tests|__tests__)(?:\/|$)/u.test(entry)) return 'Zod test sources'
   if (name === 'gaxios' && /^build\/(?:cjs|esm)\/test(?:\/|$)/u.test(entry)) return 'Gaxios test fixtures'

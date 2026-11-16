@@ -20,8 +20,11 @@ Function un.CleanData
   ${IfNot} ${Errors}
     Return
   ${EndIf}
-  ; Only a DSH_HOME published as a Windows environment variable is visible here.
-  ReadEnvStr $UnHome DSH_HOME
+  ; Only a FI_HOME or DSH_HOME published as a Windows environment variable is visible here; FI_HOME wins.
+  ReadEnvStr $UnHome FI_HOME
+  ${If} $UnHome == ""
+    ReadEnvStr $UnHome DSH_HOME
+  ${EndIf}
   ClearErrors
   StrCpy $UnTarget "$APPDATA\${PRODUCT_FILENAME}"
   Call un.RemoveData

@@ -37,6 +37,8 @@ export interface DesktopElectronBuilderConfig {
     ...{ readonly from: string, readonly to: 'tray.ico' }[],
   ]
   readonly mac: {
+    /** Electron Framework `.lproj` basenames electron-builder retains; every other locale resource is removed. */
+    readonly electronLanguages: readonly string[]
     readonly extendInfo: {
       readonly CFBundleLocalizations: readonly string[]
       readonly NSMicrophoneUsageDescription: string

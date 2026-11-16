@@ -130,7 +130,7 @@ describe('startup diagnostic files', () => {
     }, (text) => { chunks.push(text) })
     const output = chunks.join('')
     expect(output).toContain('dsh: startup failed:')
-    expect(output).toContain('dsh: warning: could not write startup diagnostics:')
+    expect(output).toContain('fi-cli: warning: could not write startup diagnostics:')
     expect(output).toContain('Full diagnostics:\n')
     expect(output).toContain('original details')
     expect(output).toContain('CUSTOM')

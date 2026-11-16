@@ -4564,7 +4564,7 @@ export interface OllamaProfile {
 
 - `inject`: `authorization` · `credentials` · `llm`
 - `refs`: `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/fi/llm-opencode/src/index.ts:32`](../packages/fi/llm-opencode/src/index.ts)
+- `source`: [`packages/fi/llm-opencode/src/index.ts:36`](../packages/fi/llm-opencode/src/index.ts)
 
 ```ts config-catalog
 /** Loader configuration; credentials remain exclusively in the credential store. */
@@ -4620,7 +4620,7 @@ interface OpenCodeProfile {
 
 - `inject`: `authorization` · `credentials` · `llm`
 - `refs`: `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/fi/llm-subscriptions/src/index.ts:15`](../packages/fi/llm-subscriptions/src/index.ts)
+- `source`: [`packages/fi/llm-subscriptions/src/index.ts:17`](../packages/fi/llm-subscriptions/src/index.ts)
 
 ```ts config-catalog
 /** Deployment settings and canonical provider selections. */

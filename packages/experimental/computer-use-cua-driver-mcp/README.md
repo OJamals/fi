@@ -25,7 +25,7 @@ Let the model operate the local desktop through an already installed Cua Driver.
 <a id="use-this-package"></a>
 ## Use this package
 
-Choose this provider when Cua Driver is already installed and configured on the same machine as DSH. The [upstream installation and permissions guide](https://github.com/trycua/cua/blob/cua-driver-rs-v0.28.0/libs/cua-driver/README.md) owns platform setup.
+Choose this provider when Cua Driver is already installed and configured on the same machine as fi. The [upstream installation and permissions guide](https://github.com/trycua/cua/blob/cua-driver-rs-v0.28.0/libs/cua-driver/README.md) owns platform setup.
 
 ### Minimal configuration
 
@@ -52,7 +52,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 The provider registers as `cua-driver-mcp` before connecting. A second computer-use provider fails activation, including another instance of this package. Failed initialization or initial tool discovery rejects this entry and releases its registration after cleanup. Later disconnects retain the registration while the MCP client reconnects or exhausts its attempt budget; unload the entry to release it.
 
-The model sees tools under the fixed `mcp__cua-driver-mcp__` namespace. Tool names, descriptions, input schemas, canonical results, and image admission follow the existing [MCP bridge](../../mcp/mcp-client/README.md). There is no additional DSH action catalog or provider-selection tool.
+The model sees tools under the fixed `mcp__cua-driver-mcp__` namespace. Tool names, descriptions, input schemas, canonical results, and image admission follow the existing [MCP bridge](../../mcp/mcp-client/README.md). There is no additional fi action catalog or provider-selection tool.
 
 -----
 
@@ -114,7 +114,7 @@ This provider relies on the installed driver and the MCP bridge's supported capa
 
 - Desktop access requires upstream installation and platform permissions; plugin activation alone does not prove that every desktop action is permitted.
 - Sessions share one desktop. Run one computer-use workflow at a time or coordinate them externally; the registration does not serialize Session actions.
-- Driver upgrades can change the discovered catalog. The provider has no runtime driver switching, dedicated desktop permission UI, or DSH action abstraction.
+- Driver upgrades can change the discovered catalog. The provider has no runtime driver switching, dedicated desktop permission UI, or fi action abstraction.
 - Startup deadlines and rich-result restrictions follow the [MCP client's limitations](../../mcp/mcp-client/README.md#known-limitations-and-deferred-work).
 
 <a id="dev-note"></a>

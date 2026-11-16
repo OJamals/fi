@@ -334,7 +334,7 @@ describe('DeepSeekHarness', () => {
       const failure = await harness.start().catch((error: unknown) => error)
       expect(failure).toBeInstanceOf(AggregateError)
       expect((failure as AggregateError).errors).toEqual([initializeError, cleanupError])
-      expect((failure as Error).message).toBe('DeepSeek Harness initialization and cleanup failed')
+      expect((failure as Error).message).toBe('fi initialization and cleanup failed')
       expect(harness.client).toBe(failedClient)
     } finally {
       start.mockRestore()
@@ -409,7 +409,7 @@ describe('HarnessClient', () => {
     const client = processClient(fakeLaunch(
       { FAKE_HANG_INIT: '1' },
       {
-        description: 'dsh profile "profile-without-sdk-server"',
+        description: 'fi profile "profile-without-sdk-server"',
         initializeTimeoutMs: 50,
         disposeEofGraceMs: 100,
         // Wide SIGKILL confirmation: the hang-init child may still be
@@ -420,7 +420,7 @@ describe('HarnessClient', () => {
     ))
     cleanups.push(() => client.close())
     await expect(client.initialize({ cwd: process.cwd(), provider: 'p', model: 'm' }))
-      .rejects.toThrow(/initialize timed out after 50ms waiting for dsh profile "profile-without-sdk-server"/)
+      .rejects.toThrow(/initialize timed out after 50ms waiting for fi profile "profile-without-sdk-server"/)
     await client.close()
   })
 

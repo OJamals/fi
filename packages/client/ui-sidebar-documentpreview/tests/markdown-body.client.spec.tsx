@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /** Markdown preview uses one accumulated document across page arrivals and EOF. */
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render } from '@testing-library/react'
+import { cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { MarkdownBody, type MarkdownBodyProps } from '../src/client/markdown/MarkdownBody.tsx'
 import { en, zh } from '../src/client/markdown/locales.ts'
@@ -105,7 +105,7 @@ describe('MarkdownBody', () => {
     expect(code?.querySelector('.line')).toBe(firstLine)
   })
 
-  it('resolves cross-page references and math when the cumulative text reaches EOF', () => {
+  it('resolves cross-page references and math when the cumulative text reaches EOF', async () => {
     const first = 'Read [the guide][guide].\n\nFirst.\n\nSecond.\n\nThird.\n\nFourth.'
     const second = '\n[guide]: https://example.test/guide\n\nValue $x^2$.'
     const view = render(<MarkdownBody {...props(content([first], false))} />)
@@ -113,7 +113,8 @@ describe('MarkdownBody', () => {
     expect(view.container.querySelector('.katex')).toBeNull()
     view.rerender(<MarkdownBody {...props(content([first, second], true))} />)
     expect(view.container.querySelector('a[href="https://example.test/guide"]')?.textContent).toBe('the guide')
-    expect(view.container.querySelector('.katex')).not.toBeNull()
+    // KaTeX loads on the first math render, so the formula settles asynchronously.
+    await waitFor(() => { expect(view.container.querySelector('.katex')).not.toBeNull() })
   })
 
   it('updates labels when translations change without replacing the translation function', () => {

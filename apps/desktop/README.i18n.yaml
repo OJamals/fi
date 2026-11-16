@@ -3,8 +3,8 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write apps/desktop/README.md
 /fi-desktop:
-  en: 611f67e25aa33496
-  zh: 5ed20556db1838cd
+  en: ee5a1dd8f441ab47
+  zh: 51e09c251b917057
 /fi-desktop/terminal-command:
   en: 20c575b23d2456fe
   zh: a411ceeae5e5fdbe
@@ -12,23 +12,23 @@
   en: 1b6c6f683a2f3c5b
   zh: 593565b0fbc22de0
 /fi-desktop/key-technical-decisions:
-  en: b13240940dd63af6
-  zh: 0249f6cd227d07fe
+  en: c5bb0b0e3a4fed10
+  zh: e872aa4d72320285
 /fi-desktop/key-technical-decisions/bundled-workspace-dependencies:
-  en: c3d8cf9d9b9a38e2
-  zh: 06cee20cd84b42e8
+  en: d8aac24271fdbe19
+  zh: 01e9edd36793d806
 /fi-desktop/installation-ownership:
-  en: 838d38e18d6b0fd1
-  zh: 0ca0cf54efc0cf27
+  en: 702e77222c0f0761
+  zh: 39d3e48bed978651
 /fi-desktop/installation-ownership/runtime-and-plugin-activation:
   en: cfa5bf2a5fd4da29
   zh: 1d67ec97e5b6e976
 /fi-desktop/installation-ownership/host-environment:
-  en: 84a9cc7ca9455aa8
-  zh: 4091b8aa8231b74a
+  en: 5cb1310ec118d25d
+  zh: 322bee80efb78249
 /fi-desktop/develop:
-  en: 32a880b7c7185dee
-  zh: b5dc4175691f5426
+  en: 4101f11ebf873c70
+  zh: d3c5f3294bb9bc68
 /fi-desktop/develop/startup-onboarding:
   en: 2b65815d3734a392
   zh: 63c5e6d23d3259b1
@@ -36,11 +36,11 @@
   en: 4cd8a8da6977928d
   zh: 9f624855a2edac37
 /fi-desktop/package/release-versions:
-  en: d9eec71465a55d15
-  zh: 0223335ee2f1aec1
+  en: 4b3bff5777f87b4f
+  zh: 4a3a560077c42651
 /fi-desktop/package/runtime-file-selection:
-  en: b138a13c124da0dc
-  zh: 686ecb74c3c0cc4d
+  en: d983ee9d48cded4d
+  zh: 0b98bfb948bd7468
 /fi-desktop/package/publish-updates:
   en: f76e01dd3bcb860c
   zh: 231abc3460d51d3f
@@ -54,23 +54,23 @@
   en: efebd4545dc098a9
   zh: e0bf7ffb1d1e61bb
 /fi-desktop/package/windows-installer-interface:
-  en: f176a8b1c7de3064
-  zh: 6ea2dbe6bb808c34
+  en: 5087d5f352f30fa9
+  zh: ed4591b490a3dc4e
 /fi-desktop/package/windows-ev-signing:
-  en: b4d5baebf7af9602
-  zh: ed654159e2019aa6
+  en: 36f8c138a2166975
+  zh: d5f56bbf64cd69dc
 /fi-desktop/updates:
-  en: b18dc999b15e1371
-  zh: 4c867da39c9e9628
+  en: 33ac8d4f6aa816b2
+  zh: 7cbd4a8c353f5280
 /fi-desktop/updates/mandatory-update-policy:
-  en: 2f789a4949fafb12
-  zh: d8b28c01cfee11b7
+  en: 558038faf1099291
+  zh: ba8bd9e1bc7f6ce7
 /fi-desktop/updates/local-updater-qualification:
-  en: bc50fd8a4d96c227
-  zh: fb0a6ce80c31cda6
+  en: 169ae33041b764cd
+  zh: 2c73c3db2f6331fe
 /fi-desktop/low-level-development-overrides:
-  en: 0b225f914142ef0b
-  zh: 9ffd07768d37824e
+  en: 7ab58497af7d6a57
+  zh: 01b928efc511b961
 /fi-desktop/known-limitations:
-  en: 9d212f31539742dd
-  zh: 3f3bdf57bdc837ab
+  en: 58820b37e0df367c
+  zh: f69ca00eac12a05d

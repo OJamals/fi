@@ -883,7 +883,7 @@ label.registryOption {
   background: none;
   font: inherit;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--dsw-alias-label-primary);
   cursor: pointer;
 }
@@ -937,7 +937,7 @@ label.registryOption {
   margin: 0;
   font-size: 18px;
   line-height: 26px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .wizardSub {
@@ -963,7 +963,7 @@ label.registryOption {
   margin: 0;
   font-size: 15px;
   line-height: 22px;
-  font-weight: 600;
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 
@@ -1077,7 +1077,7 @@ label.registryOption {
 .approvalTitle {
   margin: 0;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--dsw-alias-label-primary);
 }
 

@@ -40,7 +40,7 @@ export function prepareDevelopmentApp(options: DevelopmentAppOptions): string {
       CFBundleName: 'Harness Dev',
       CFBundleDisplayName: 'Harness Dev',
       CFBundleExecutable: 'HarnessDev',
-      CFBundleURLTypes: [{ CFBundleURLName: 'DeepSeek Harness', CFBundleURLSchemes: ['dsh'], CFBundleTypeRole: 'Viewer' }],
+      CFBundleURLTypes: [{ CFBundleURLName: 'fi', CFBundleURLSchemes: ['dsh'], CFBundleTypeRole: 'Viewer' }],
     }
     for (const [key, value] of Object.entries(values)) {
       execFileSync('/usr/bin/plutil', ['-replace', key, '-json', JSON.stringify(value), plist])
@@ -77,6 +77,8 @@ export function developmentLauncher(options: DevelopmentAppOptions, bundle: stri
   return [
     '#!/bin/sh',
     ...Object.entries(environment).map(([key, value]) => `export ${key}=${quote(value)}`),
+    // The runtime maps each inherited FI_<NAME> over DSH_<NAME>, so an exported DSH_<NAME> clears its FI_ alias.
+    `unset ${Object.keys(environment).filter(key => key.startsWith('DSH_')).map(key => `FI_${key.slice('DSH_'.length)}`).join(' ')}`,
     `cd ${quote(options.appRoot)}`,
     `exec ${args.map(quote).join(' ')} "$@"`,
     '',

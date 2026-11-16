@@ -291,7 +291,7 @@
 .turnErrorTitle {
   margin-right: 6px;
   color: var(--dsw-alias-state-error-primary);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .turnErrorMessage {
@@ -306,7 +306,7 @@
 .maxTokensTitle {
   margin-right: 6px;
   color: var(--dsw-alias-state-warn-primary);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .attachmentRow {

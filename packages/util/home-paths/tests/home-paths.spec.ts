@@ -11,6 +11,9 @@ import {
   dshHomeDisplay,
   dshHomePath,
   expandHomePath,
+  FI_RUNTIME_ENVIRONMENT_NAMES,
+  fiEnvironmentAliases,
+  isFiRuntimeEnvironmentName,
   resolveDshHome,
 } from '@deepseek-ai/dsh-home-paths'
 
@@ -101,6 +104,49 @@ describe('dsh path helpers', () => {
       await expect(canonicalizeWatchPath(join(file, 'child'))).rejects.toMatchObject({ code: 'ENOTDIR' })
     } finally {
       await rm(root, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('fiEnvironmentAliases', () => {
+  it('maps each defined listed FI_<NAME> to DSH_<NAME>, including empty values', () => {
+    expect(fiEnvironmentAliases({ FI_HOME: '/tmp/fi', FI_MODEL: '', PATH: '/bin', FI_TOOLS_MODE: undefined }))
+      .toEqual({ DSH_HOME: '/tmp/fi', DSH_MODEL: '' })
+  })
+
+  it('aliases every listed name', () => {
+    const values = Object.fromEntries(FI_RUNTIME_ENVIRONMENT_NAMES.map(name => [`FI_${name}`, name]))
+    expect(fiEnvironmentAliases(values))
+      .toEqual(Object.fromEntries(FI_RUNTIME_ENVIRONMENT_NAMES.map(name => [`DSH_${name}`, name])))
+  })
+
+  it('creates no DSH_ twin for an unlisted FI_ name', () => {
+    expect(fiEnvironmentAliases({ FI_FOO: '1', FI_SHELL: 'x', FI_SESSION_ID: 'x', FI_TEST_ANYTHING: 'x' })).toEqual({})
+  })
+
+  it('lets FI_<NAME> win over an existing DSH_<NAME> once merged over the layer', () => {
+    const layer = { FI_HOME: '/tmp/fi', DSH_HOME: '/tmp/dsh', DSH_MODEL: 'kept' }
+    expect({ ...layer, ...fiEnvironmentAliases(layer) }).toEqual({ FI_HOME: '/tmp/fi', DSH_HOME: '/tmp/fi', DSH_MODEL: 'kept' })
+  })
+
+  it('leaves a DSH_-only layer unchanged', () => {
+    expect(fiEnvironmentAliases({ DSH_HOME: '/tmp/dsh' })).toEqual({})
+  })
+
+  it('ignores the bare prefix and names that only resemble it', () => {
+    expect(fiEnvironmentAliases({ FI_: 'x', fi_home: 'x', FIX_HOME: 'x', XFI_HOME: 'x' })).toEqual({})
+  })
+})
+
+describe('isFiRuntimeEnvironmentName', () => {
+  it('matches the FI_ spelling of listed names in any case', () => {
+    expect(isFiRuntimeEnvironmentName('FI_HOME')).toBe(true)
+    expect(isFiRuntimeEnvironmentName('fi_permission_mode')).toBe(true)
+  })
+
+  it('rejects unlisted, bare, DSH_, and look-alike names', () => {
+    for (const name of ['FI_FOO', 'FI_', 'DSH_HOME', 'HOME', 'FIX_HOME', 'XFI_HOME']) {
+      expect(isFiRuntimeEnvironmentName(name)).toBe(false)
     }
   })
 })

@@ -49,11 +49,11 @@ Cline 发送调用方的 `maxTokens`，省略时使用 `defaultMaxTokens`，不�
 
 #### 模型看到的内容
 
-模型接收已记录的 `GenerateOptions.system` 提示、对话和函数工具。Kiro 的 Claude 和 `auto` 模型接受推理强度，Kiro 将其作为思考预算接收（minimal 为 1,024 个 token，xhigh 和 max 为 32,000 个）；其推理以推理块返回。Cursor 协议握手公布这些工具；原生 shell 请求被拒绝，不会绕过 FI 执行。工具结果通过常规会话记录重放。授权令牌不会进入模型输入。
+模型接收已记录的 `GenerateOptions.system` 提示、对话和函数工具。Kiro 的 Claude 和 `auto` 模型接受推理强度，Kiro 将其作为思考预算接收（minimal 为 1,024 个 token，xhigh 和 max 为 32,000 个）；其推理以推理块返回。Cursor 协议握手公布这些工具；原生 shell 请求被拒绝，不会绕过 FI 执行。工具结果通过常规会话记录重放。授权令牌不会进入模型输入。Cursor、Kiro、Copilot 和 Gemini CLI 转发内联 base64 图像；Cline 只接受文本。所有 Cursor 和 Gemini CLI 模型都接受图像。Copilot 模型仅在其目录项含有不带 `vision: true` 的 `capabilities.supports` 对象时拒绝图像，Kiro 模型仅在其目录 `supportedInputTypes` 数组不含 `IMAGE` 时拒绝图像；两者都未声明的目录项接受图像，与 auth2api 一致。Cursor、Kiro 和 Copilot 接受 PNG、JPEG、GIF 和 WebP，Kiro 另接受 `image/jpg`；Gemini CLI 接受 PNG、JPEG、WebP、HEIC 和 HEIF。每张图像解码后上限为 20 MiB。Cursor 每个请求最多接受 10 张图像、解码后共 16 MiB 图像数据；Gemini CLI 将序列化请求（含文本）限制为 20 MiB。保留的历史超过 Cursor 图像数量或 Cursor、Gemini CLI 字节上限时，调用以 `IMAGE_OFFLOAD_REQUIRED` 失败，并指明必须卸载多少张最旧的图像。媒体类型不被该路由接受的用户或工具结果图像（如 Gemini CLI 上的 GIF）会在请求中替换为文本 `[image omitted: <media type> is not supported by <provider>]`。发送给不支持图像输入的模型，或缺少持久化附件服务时，图像在发出任何请求前以 `UNSUPPORTED_CONTENT` 失败。仍携带远程或非 base64 图像 URL、不支持的媒体类型或超出上限的图像集合的请求会得到带可读消息的 HTTP 400 `unsupported_media_for_provider` 响应，不会到达上游。文档不会转发。
 
 #### Token 影响
 
-Cursor 在启动原生运行时序列化已记录的历史，随后在同一流中以原生 MCP 结果发送工具输出。Cursor 和 Kiro 使用本地 BPE 预算限制文本、推理和完整工具调用，因为两种协议都没有输出限制字段；它不是提供方的计费 tokenizer。离线 `o200k_base` tokenizer 与其 MIT 许可证一起打包为私有延迟加载模块；无限额调用和其他提供方不会加载它。其他传输转发输出限制。提供方返回用量时予以保留：Cursor 的轮次总量及缓存和推理明细，以及 Kiro 的 token 用量和积分。
+Cursor 在启动原生运行时序列化已记录的历史，随后在同一流中以原生 MCP 结果发送文本工具输出。包含图像的工具结果会作为其后的用户轮次重放，因此 Cursor 为其启动新的 Run，并关闭挂起的 Run。Cursor 和 Kiro 使用本地 BPE 预算限制文本、推理和完整工具调用，因为两种协议都没有输出限制字段；它不是提供方的计费 tokenizer。离线 `o200k_base` tokenizer 与其 MIT 许可证一起打包为私有延迟加载模块；无限额调用和其他提供方不会加载它。其他传输转发输出限制。提供方返回用量时予以保留：Cursor 的轮次总量及缓存和推理明细，以及 Kiro 的 token 用量和积分。
 
 #### KV Cache 影响
 
@@ -64,7 +64,7 @@ Cursor 在启动原生运行时序列化已记录的历史，随后在同一流�
 
 缺少 Google OAuth 客户端配置只会阻止 Google 授权和令牌刷新；其他订阅提供方仍然可用。
 
-- 仅暴露文本输入和函数工具；图像和文档不会转发。不支持停止序列覆盖，推理强度只有 Kiro 的 Claude 和 `auto` 模型接受；Cursor 还拒绝协议无法表达的采样控制，Kiro 接受 `temperature` 和 `top_p` 但不产生效果。目录存在不保证配额或资格。Copilot 仅列出 chat-completions 模型。重启或过期后不能继续待处理的 Cursor 结果。仅限 Cline 产品界面的模型仍不能被外部客户端使用。Google 可能以 `UNSUPPORTED_CLIENT` 拒绝消费者账户；仅有 Cloud 项目并不提供 Code Assist 许可，配额接口可能返回 `SUBSCRIPTION_REQUIRED`。免费层注册省略配置的项目元数据。
+- 仅暴露函数工具；Cline 只接受文本，且没有路由转发文档。不支持停止序列覆盖，推理强度只有 Kiro 的 Claude 和 `auto` 模型接受；Cursor 还拒绝协议无法表达的采样控制，Kiro 接受 `temperature` 和 `top_p` 但不产生效果。目录存在不保证配额或资格。Copilot 仅列出 chat-completions 模型。重启或过期后不能继续待处理的 Cursor 结果。仅限 Cline 产品界面的模型仍不能被外部客户端使用。Google 可能以 `UNSUPPORTED_CLIENT` 拒绝消费者账户；仅有 Cloud 项目并不提供 Code Assist 许可，配额接口可能返回 `SUBSCRIPTION_REQUIRED`。免费层注册省略配置的项目元数据。
 
 **运行时不变量：** 不发布 companion。凭据存储串行处理自身变更，准备后的请求保留其账户，不维护独立身份镜像。
 

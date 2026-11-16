@@ -811,6 +811,7 @@ describe('Node 24 lane ownership', () => {
       'doc-typecheck',
       'node-next-types',
       'built-bin-smoke',
+      'web-size-budget',
     ])
     expect(subject.find(item => item.id === 'publint')?.needs).toEqual(['build'])
     expect(subject.find(item => item.id === 'build')?.env).toEqual({
@@ -828,6 +829,7 @@ describe('Node 24 lane ownership', () => {
       'doc-typecheck',
       'node-next-types',
       'built-bin-smoke',
+      'web-size-budget',
     ]) {
       expect(subject.find(item => item.id === id)?.needs).toEqual(['built-package-invariants'])
     }
@@ -858,6 +860,7 @@ describe('Node 24 lane ownership', () => {
         'doc-typecheck',
         'node-next-types',
         'built-bin-smoke',
+        'web-size-budget',
       ],
     })
   })

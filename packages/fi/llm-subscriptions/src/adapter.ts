@@ -1,21 +1,25 @@
-/** Subscription Cloud text and tool streaming through maintained OpenAI conversion. */
+/** Subscription Cloud text, image, and tool streaming through maintained OpenAI conversion. */
 import type { Model, ModelThinkingLevel } from '@earendil-works/pi-ai'
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy'
-import { LlmAdapter, LlmError, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
+import { contentHasImage, IMAGE_OFFLOAD_REQUIRED_CODE, LlmAdapter, LlmError, ReasoningEffortId, requiredImageOffload } from '@deepseek-ai/dsh-llm'
 import type {
   GenerateOptions,
+  ImageAttachmentAccessResolver,
   LlmModelInfo,
   LlmModelReasoningInfo,
   LlmResolvedModelInfo,
+  ModelModality,
   PreparedAdapterCall,
+  resolveImageAttachmentAccess,
   StreamChunk,
 } from '@deepseek-ai/dsh-llm'
 import { createModels, createProvider, toPiContext, toStreamChunks } from '@deepseek-ai/dsh-llm-pi-ai'
 import { idleWatchdog, timeoutOf } from '@deepseek-ai/dsh-timeout'
 import { callCodeAssistChat } from '@fi/llm-antigravity/transport'
 import { z } from 'zod'
-import { catalog } from './catalog.ts'
+import { catalogModels } from './catalog.ts'
 import { callCopilot } from './copilot.ts'
+import { checkRequestImages, omitUnsupportedImages, requestImageBudget, requestImageCount, requestImageRebudget } from './images.ts'
 import { labels } from './authorization.ts'
 import { CursorTurns } from './native/cursor-turns.ts'
 import { callKiro, kiroThinks } from './native/kiro-api.ts'
@@ -39,6 +43,24 @@ export interface SubscriptionProfile {
 }
 /* jscpd:ignore-end */
 
+/** Durable attachment store that resolves request-image bytes. */
+export type SubscriptionAttachments = Parameters<typeof resolveImageAttachmentAccess>[0]
+
+/** Attachment access for image input; a composition without it sends text only. */
+export interface SubscriptionImageAccess {
+  /**
+   * Read the current attachment service.
+   * @returns the store, or undefined when the composition has none.
+   */
+  attachments: () => SubscriptionAttachments | undefined
+  /**
+   * Bind the read-only execution-world path lookup named in each image's handle text.
+   * @param attachments - store that owns the images.
+   * @returns the per-image path resolver.
+   */
+  access: (attachments: SubscriptionAttachments) => ImageAttachmentAccessResolver
+}
+
 /** Efforts Kiro maps to a thinking budget, least to greatest; other routes expose none. */
 const KIRO_EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const satisfies readonly ModelThinkingLevel[]
 
@@ -49,20 +71,25 @@ function reasoningFor(provider: string, id: string): LlmModelReasoningInfo | und
   }
 }
 
-function resolved(provider: string, id: string, contextWindow: number): LlmResolvedModelInfo {
+/** Offer image input unless the catalog states the model refuses it; an unstated capability stays allowed, as upstream. */
+function modalities(vision: boolean | undefined): ModelModality[] {
+  return vision === false ? ['text'] : ['text', 'image']
+}
+
+function resolved(provider: string, id: string, contextWindow: number, input: readonly ModelModality[] | undefined): LlmResolvedModelInfo {
   const reasoning = reasoningFor(provider, id)
   return {
     provider,
     id,
     name: id,
-    inputModalities: ['text'],
+    ...(input === undefined ? {} : { inputModalities: input }),
     context: { contextWindow },
     ...(reasoning === undefined ? {} : { reasoning }),
   }
 }
 
 function info(model: Model<'openai-completions'>): LlmResolvedModelInfo {
-  return resolved(model.provider, model.id, model.contextWindow)
+  return resolved(model.provider, model.id, model.contextWindow, model.input)
 }
 
 /** Native account-signed adapter; every prepared request captures its own device identity. */
@@ -78,11 +105,13 @@ export class SubscriptionAdapter extends LlmAdapter {
    * @param options - current validated deployment configuration.
    * @param grant - canonical device credential resolver.
    * @param profile - route presentation and picker selection.
+   * @param images - attachment access for image input; omission refuses requests that carry images.
    */
   constructor(
     private readonly options: () => SubscriptionOptions,
     private readonly grant: (id: SubscriptionId, signal?: AbortSignal) => Promise<SubscriptionGrant | undefined>,
     private readonly profile: (provider: string) => SubscriptionProfile | undefined,
+    private readonly images?: SubscriptionImageAccess,
   ) {
     super()
   }
@@ -103,13 +132,14 @@ export class SubscriptionAdapter extends LlmAdapter {
   /**
    * Discover advertised completion models regardless of picker selection.
    * @param provider - FI route identity.
-   * @returns text models; signed-out accounts expose no models.
+   * @returns models with their accepted input; signed-out accounts expose no models.
    */
-  async discoverModels(provider: string): Promise<readonly LlmModelInfo[]> {
+  async discoverModels(provider: string): Promise<readonly (LlmModelInfo & { inputModalities: readonly ModelModality[] })[]> {
     const config = this.options()
     const grant = await this.grant(this.id(provider))
     if (grant === undefined) return []
-    return (await catalog(grant, config)).map(id => ({ provider, id, name: id, inputModalities: ['text'] }))
+    return (await catalogModels(grant, config)).map(model =>
+      ({ provider, id: model.id, name: model.id, inputModalities: modalities(model.vision) }))
   }
 
   private id(provider: string): SubscriptionId {
@@ -123,7 +153,8 @@ export class SubscriptionAdapter extends LlmAdapter {
     const grant = await this.grant(this.id(provider), signal)
     if (grant === undefined)
       throw new LlmError('Subscription Cloud is not signed in; sign in from Settings → Models', 'MISSING_CREDENTIAL')
-    if (!(await catalog(grant, config, signal)).includes(id))
+    const entry = (await catalogModels(grant, config, signal)).find(model => model.id === id)
+    if (entry === undefined)
       throw new LlmError('Model is not advertised by this subscription', 'MODEL_NOT_FOUND')
     const reasoning = reasoningFor(provider, id) !== undefined
     return {
@@ -135,7 +166,7 @@ export class SubscriptionAdapter extends LlmAdapter {
         name: id,
         api: 'openai-completions',
         baseUrl: 'https://subscription.invalid/v1',
-        input: ['text'],
+        input: modalities(entry.vision),
         reasoning,
         // pi-ai offers xhigh and max only to models that map them.
         ...(reasoning ? { thinkingLevelMap: { xhigh: 'xhigh', max: 'max' } } : {}),
@@ -155,8 +186,10 @@ export class SubscriptionAdapter extends LlmAdapter {
 
   override resolveModel(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo> {
     signal?.throwIfAborted()
-    this.id(provider)
-    return Promise.resolve(resolved(provider, model, this.options().defaultContextWindow))
+    const id = this.id(provider)
+    // Copilot and Kiro image support is per catalog entry, so this catalog-free lookup leaves it unknown.
+    const input = id === 'cline' ? modalities(false) : id === 'cursor' || id === 'gemini-cli' ? modalities(true) : undefined
+    return Promise.resolve(resolved(provider, model, this.options().defaultContextWindow, input))
   }
 
   // The standard adapter entry points share one account-frozen preparation path.
@@ -179,10 +212,41 @@ export class SubscriptionAdapter extends LlmAdapter {
     const effort = KIRO_EFFORTS.find(level => level === options.reasoningEffort)
     if (options.stop !== undefined || (options.reasoningEffort !== undefined && (!model.reasoning || effort === undefined)))
       throw new LlmError('Subscription reasoning effort and stop overrides are not supported', 'UNSUPPORTED_OPTION')
+    const containsImage = options.messages.some(message => contentHasImage(message.content))
+    if (containsImage && !model.input.includes('image'))
+      throw new LlmError(`Subscription model "${model.id}" does not accept image input`, 'UNSUPPORTED_CONTENT')
+    let imageRequest: { attachments: SubscriptionAttachments; resolveImageAccess: ImageAttachmentAccessResolver } | undefined
+    if (containsImage) {
+      const attachments = this.images?.attachments()
+      if (this.images === undefined || attachments === undefined)
+        throw new LlmError('Subscription image input requires the durable attachment service', 'UNSUPPORTED_CONTENT')
+      const maxImages = requestImageCount(grant.provider)
+      const offloadImages = maxImages === undefined ? 0 : requiredImageOffload(options.messages, { representation: 'raw', maxImages }, () => 0)
+      if (offloadImages > 0)
+        throw new LlmError(
+          `Subscription route accepts at most ${maxImages} request images; ${offloadImages} more oldest occurrence(s) must be offloaded.`,
+          IMAGE_OFFLOAD_REQUIRED_CODE,
+          { offloadImages },
+        )
+      imageRequest = { attachments, resolveImageAccess: this.images.access(attachments) }
+    }
     const consumer = new AbortController()
     const signal = AbortSignal.any([consumer.signal, ...(options.signal === undefined ? [] : [options.signal])])
     using watchdog = idleWatchdog(signal, config.streamIdleTimeoutMs, 'LLM_STREAM_IDLE_TIMEOUT')
     try {
+      const request = imageRequest
+      // Retained images beyond the route's request bound fail with IMAGE_OFFLOAD_REQUIRED, which offloads the oldest.
+      const convert = async (maxRequestImageBytes: number | undefined) => request === undefined
+        ? toPiContext(options)
+        : omitUnsupportedImages(grant.provider, await toPiContext(
+          { ...options, signal: watchdog.signal },
+          { ...request, ...(maxRequestImageBytes === undefined ? {} : { maxRequestImageBytes }) },
+        ))
+      let context = await convert(requestImageBudget(grant.provider))
+      // A request over the byte bound with its text counted repeats the conversion under the image budget left beside
+      // that text; the retained images exceed it, so the conversion fails with IMAGE_OFFLOAD_REQUIRED.
+      const reduced = requestImageRebudget(grant.provider, context)
+      if (reduced !== undefined) context = await convert(reduced)
       const models = createModels()
       models.setProvider(
         createProvider({
@@ -199,7 +263,7 @@ export class SubscriptionAdapter extends LlmAdapter {
         }),
       )
       const responseState: { revoked: boolean; retry?: { status: number; delayMs: number } | undefined } = { revoked: false }
-      const events = models.streamSimple(model, toPiContext(options), {
+      const events = models.streamSimple(model, context, {
         apiKey: 'device',
         signal: watchdog.signal,
         maxRetries: 0,
@@ -219,6 +283,19 @@ export class SubscriptionAdapter extends LlmAdapter {
             body.messages = z.array(z.object({ role: z.string(), tool_call_id: z.string().optional() }).loose())
               .parse(body.messages).map(message => message.role === 'tool'
                 ? { ...message, is_error: failed.has(String(message.tool_call_id)) } : message)
+          }
+          // Refuse images the upstream would reject with a readable 400; a thrown error would surface as a connection failure.
+          if (grant.provider !== 'cline') {
+            try {
+              checkRequestImages(grant.provider, body)
+            } catch (error) {
+              return Response.json({ error: {
+                type: 'invalid_request_error',
+                code: 'unsupported_media_for_provider',
+                /* v8 ignore next -- the image checks throw only Error instances. */
+                message: error instanceof Error ? error.message : String(error),
+              } }, { status: 400 })
+            }
           }
           const callSignal = withTimeoutSignal(config.streamIdleTimeoutMs, request.signal)
           const context = {

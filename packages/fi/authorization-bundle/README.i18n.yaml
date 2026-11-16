@@ -3,8 +3,8 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/fi/authorization-bundle/README.md
 /:
-  en: e500e0d358acf6ae
-  zh: 051b9874c7c2aa5d
+  en: 24b0ed41da96bea5
+  zh: b11bff43782e7a93
 /fi-authorization-bundle:
   en: 782fab1f76c43ea3
   zh: c412e4c1d0221ddf

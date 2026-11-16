@@ -6,10 +6,10 @@ import type { SubscriptionGrant as TokenData } from '../protocol.ts'
 import type { NativeRequest } from '../protocol.ts'
 import { CursorRun } from './cursor-run.ts'
 import { concat, cursorToolDefinition } from './cursor-wire.ts'
+import { checkImageSet, inlineParts, type InlineImage } from '../images.ts'
 import {
   MAX_NATIVE_FRAME,
   type NativeEvent,
-  textContent,
   validateNativeControls,
 } from './subscription-stream.ts'
 import { decodeProto, frame, pb, str } from './subscription-protobuf.ts'
@@ -72,9 +72,12 @@ export function cursorHeaders(token: TokenData): Record<string, string> {
 }
 
 /**
- * Encode text history and caller tools without executing native tools locally.
+ * Encode history, inline images, and caller tools without executing native tools locally.
+ * Images become UserMessage.selected_context.selected_images; in a multi-message
+ * transcript each one is referenced in the text as `[image N]`.
  * @param input - OpenAI request validated during encoding.
  * @returns AgentService protobuf request.
+ * @throws {Error} for unsupported content, roles, or controls, and for images outside Cursor's limits.
  */
 export function cursorRequest(input: unknown): Buffer {
   validateNativeControls('cursor', input)
@@ -82,14 +85,23 @@ export function cursorRequest(input: unknown): Buffer {
   const model = body.model.replace(/^cursor\//i, '')
   const system: string[] = []
   const messages: (NativeRequest['messages'][number] & { content: string })[] = []
+  const images: InlineImage[] = []
+  const turns = body.messages.filter(message => message.role !== 'system' && message.role !== 'developer')
+  // A bare final user message is sent as is; a longer transcript references its images by number.
+  const mark = turns.length > 1 || turns.at(-1)?.role === 'tool'
   for (const message of body.messages) {
-    const text = textContent(message.content)
+    const text = inlineParts('cursor', message.content).map((part) => {
+      if (part.type === 'text') return part.text
+      images.push(part.image)
+      return mark ? `[image ${images.length}]` : ''
+    }).filter(Boolean).join('\n')
     if (message.role === 'system' || message.role === 'developer') system.push(text)
     else if (['user', 'assistant', 'tool'].includes(message.role)) messages.push({ ...message, content: text })
     else throw new Error('Unsupported Cursor message role')
   }
   const current = messages.pop()
   if (!current || current.role === 'assistant') throw new Error('Cursor requires a final user message or tool result')
+  checkImageSet('cursor', images)
   // AgentService consumes one action. Encode recorded roles and completed calls
   // together so a tool result is not mistaken for an unrelated new user turn.
   const render = (message: NativeRequest['messages'][number] & { content: string }) =>
@@ -106,7 +118,9 @@ export function cursorRequest(input: unknown): Buffer {
         ? `Completed tool call ${current.tool_call_id}. Result:\n${current.content}\n\nContinue from this recorded tool result.`
         : current.content].filter(Boolean).join('\n\n') || 'Continue.'),
     pb(2, randomUUID()),
-    pb(3, Buffer.alloc(0)),
+    // SelectedContext.selected_images: SelectedImage { uuid = 2, mime_type = 7, data = 8 }.
+    pb(3, concat(...images.map(image =>
+      pb(1, concat(pb(2, randomUUID()), pb(7, image.mimeType), pb(8, Buffer.from(image.data, 'base64'))))))),
     pb(4, 1),
   )
   const action = pb(1, pb(1, user))

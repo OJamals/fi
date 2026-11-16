@@ -157,7 +157,7 @@ describe('Codex subscription WebSocket wire', () => {
     expect(headers?.['openai-beta']).toBe(settings.responsesWebsocketBeta)
     expect(headers?.['session-id']).toBe(id)
     expect(headers?.['x-client-request-id']).toBe(id)
-    expect(headers?.['x-deepseek-harness-user-agent']).toMatch(/^deepseek-harness\//)
+    expect(headers?.['x-deepseek-harness-user-agent']).toMatch(/^fi\/\d/)
     expect(headers?.authorization).toMatch(/^Bearer header\./)
   })
 

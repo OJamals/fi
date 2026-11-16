@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh",
-  "description": "dsh CLI: profile launch, plugin management, and configuration inspection",
+  "description": "fi-cli: profile launch, plugin management, and configuration inspection",
   "version": "1.0.1",
   "publishConfig": {
     "access": "public"
@@ -12,6 +12,7 @@
   },
   "type": "module",
   "bin": {
+    "fi-cli": "lib/bin.js",
     "dsh": "lib/bin.js"
   },
   "files": [

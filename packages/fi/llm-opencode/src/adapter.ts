@@ -1,11 +1,14 @@
-/** OpenCode Console text inference through maintained pi-ai wire implementations. */
+/** OpenCode Console text and image-input inference through maintained pi-ai wire implementations. */
 import { createHash, randomBytes } from 'node:crypto'
-import type { ProviderStreams } from '@earendil-works/pi-ai'
+import type { Context as PiContext, ProviderStreams } from '@earendil-works/pi-ai'
 import { anthropicMessagesApi } from '@earendil-works/pi-ai/api/anthropic-messages.lazy'
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy'
 import { openAIResponsesApi } from '@earendil-works/pi-ai/api/openai-responses.lazy'
-import { LlmAdapter, LlmError, QUOTA_EXCEEDED_CODE, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
-import type { GenerateOptions, LlmFailure, LlmModelInfo, LlmResolvedModelInfo, PreparedAdapterCall, StreamChunk } from '@deepseek-ai/dsh-llm'
+import { contentHasImage, LlmAdapter, LlmError, QUOTA_EXCEEDED_CODE, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
+import type {
+  GenerateOptions, ImageAttachmentAccess, LlmFailure, LlmModelInfo, LlmResolvedModelInfo, PreparedAdapterCall, StreamChunk,
+} from '@deepseek-ai/dsh-llm'
+import type { AttachmentStore, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import { createModels, createProvider, toPiContext, toStreamChunks } from '@deepseek-ai/dsh-llm-pi-ai'
 import { callGeminiChat } from '@fi/llm-antigravity/transport'
 import { idleWatchdog, timeoutOf } from '@deepseek-ai/dsh-timeout'
@@ -30,6 +33,10 @@ const inferenceErrorSchema = z.object({
 })
 /** The only 402 body the Console documents for an unfunded workspace. */
 const INSUFFICIENT_FUNDS = 'Upstream request failed: Insufficient account funds'
+/** OpenCode Go's 403 for a workspace without an active subscription. */
+const GO_SUBSCRIPTION_REQUIRED = 'Upstream request failed: An active OpenCode Go subscription is required to use Go models.'
+/** OpenCode Go's 429 once any of its rolling usage limits is spent; it covers every Go model. */
+const GO_USAGE_LIMIT = 'Go usage limit exceeded'
 
 /** Known Console failures replace the SDK's generic status diagnosis. */
 function inferenceFailure(status: number, data: unknown): LlmFailure | undefined {
@@ -42,12 +49,19 @@ function inferenceFailure(status: number, data: unknown): LlmFailure | undefined
       : undefined
   }
   if (status === 429) {
+    if (error?.message === GO_USAGE_LIMIT) {
+      return { code: QUOTA_EXCEEDED_CODE, status, message: 'OpenCode Go usage limit reached; retry after it resets, add Zen balance in the Console, or choose another organization' }
+    }
     return error?.type === 'FreeUsageLimitError'
       ? { code: QUOTA_EXCEEDED_CODE, status, message: 'OpenCode free usage limit reached; retry later or choose a paid model or another organization' }
       : undefined
   }
   if (_tag === 'SsoRequired' || error?.type === 'SsoRequired') {
     return { code: 'SSO_REQUIRED', status, message: 'OpenCode organization requires SSO; reconnect OpenCode Console' }
+  }
+  if (error?.type === 'server_error' && error.message === GO_SUBSCRIPTION_REQUIRED) {
+    // Not AUTH: the credential is valid, and reconnecting cannot grant a subscription.
+    return { code: 'SUBSCRIPTION_REQUIRED', status, message: 'OpenCode Go is not active in this workspace; subscribe in the Console or choose another organization or a Zen model' }
   }
   return error?.type === 'FreeTierError'
     ? { code: 'POLICY_REJECTED', status, message: 'OpenCode rejected free-tier access (HTTP 403); retry later or choose a model with confirmed access. The official OpenCode client may also be affected' }
@@ -69,6 +83,48 @@ async function responseFailure(response: Response): Promise<LlmFailure | undefin
  * @returns grant, or undefined after sign-out.
  */
 export type ConsoleGrantResolver = (config: ConsoleOptions, signal?: AbortSignal) => Promise<ConsoleGrant | undefined>
+
+/** Durable image services; image requests fail without a mounted attachment store. */
+export interface ConsoleImageServices {
+  /**
+   * Resolve the mounted attachment store at request time.
+   * @returns the store, or undefined when no attachment service is mounted.
+   */
+  attachments: () => AttachmentStore | undefined
+  /**
+   * Map one stored image into the current tool execution world for its text handle.
+   * @param attachments - the store resolved for this request.
+   * @param ref - durable image reference.
+   * @returns a read-only path, or undefined when tools cannot reach the image.
+   */
+  access: (attachments: AttachmentStore, ref: ImageAttachmentRef) => ImageAttachmentAccess | undefined
+}
+
+/** Image media types that every OpenCode route (Anthropic, OpenAI, Google) accepts, per auth2api's OpenCode media policy. */
+const IMAGE_MEDIA_TYPES: ReadonlySet<string> = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
+/** One structured content part of any pi-ai message role. */
+type PiContentPart = Exclude<PiContext['messages'][number]['content'], string>[number]
+/** Decoded-byte ceiling auth2api applies to each OpenCode image. */
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024
+
+/**
+ * Refuse a converted request carrying an image the OpenCode routes reject.
+ * @param model - selected model id for diagnostics.
+ * @param context - the complete pi-ai context about to be serialized.
+ * @throws {LlmError} `UNSUPPORTED_CONTENT` for an unaccepted media type or an image above {@link MAX_IMAGE_BYTES} decoded bytes.
+ */
+function assertImageLimits(model: string, context: PiContext): void {
+  const images = context.messages.flatMap<string | PiContentPart>(message => message.content).filter(part => typeof part !== 'string' && part.type === 'image')
+  for (const image of images) {
+    if (!IMAGE_MEDIA_TYPES.has(image.mimeType)) {
+      throw new LlmError(`OpenCode model "${model}" does not accept ${image.mimeType} images; use JPEG, PNG, GIF, or WebP`, 'UNSUPPORTED_CONTENT')
+    }
+    const bytes = Buffer.byteLength(image.data, 'base64')
+    if (bytes > MAX_IMAGE_BYTES) {
+      throw new LlmError(`OpenCode image is ${bytes} bytes; OpenCode accepts at most ${MAX_IMAGE_BYTES} bytes per image`, 'UNSUPPORTED_CONTENT')
+    }
+  }
+}
 
 /** Account and catalog generation frozen for one prepared call. */
 interface PreparedConsole {
@@ -95,7 +151,7 @@ function modelInfo(entry: ConsoleModel): LlmResolvedModelInfo {
   const model = entry.model
   const efforts = reasoningEfforts(entry.protocol, entry.reasoning)
   return {
-    provider: model.provider, id: model.id, name: model.name, context: { contextWindow: model.contextWindow }, inputModalities: ['text'],
+    provider: model.provider, id: model.id, name: model.name, context: { contextWindow: model.contextWindow }, inputModalities: model.input,
     ...efforts.length === 0 ? {} : { reasoning: { efforts: efforts.map(id => ({ id: ReasoningEffortId(id), name: `${id.charAt(0).toUpperCase()}${id.slice(1)}` })) } },
   }
 }
@@ -145,7 +201,7 @@ function requestPayload(
     : applyReasoning(protocol, { wireId: entry.wireId, reasoning: selection.reasoning }, body, selection.effort)
 }
 
-/** OpenCode adapter; only authenticated, advertised text models can be dispatched. */
+/** OpenCode adapter; only authenticated, advertised text-output models can be dispatched, with images only where advertised. */
 export class OpenCodeAdapter extends LlmAdapter {
   private readonly sessionEpoch = Date.now()
   private readonly catalogs: CatalogCache
@@ -155,12 +211,14 @@ export class OpenCodeAdapter extends LlmAdapter {
    * @param grant - stored grant resolver; refresh remains credential-store owned.
    * @param profile - current route name and model-picker selection.
    * @param warn - receives operator-facing warnings about the public model registry.
+   * @param images - durable image services; omission makes every image request fail with `UNSUPPORTED_CONTENT`.
    */
   constructor(
     private readonly options: () => ConsoleOptions,
     private readonly grant: ConsoleGrantResolver,
     private readonly profile: (provider: string) => { displayName?: string; models?: readonly string[] } | undefined = () => undefined,
     warn?: (message: string) => void,
+    private readonly images?: ConsoleImageServices,
   ) {
     super()
     this.catalogs = new CatalogCache(warn)
@@ -180,13 +238,37 @@ export class OpenCodeAdapter extends LlmAdapter {
   /**
    * Discover the full authenticated catalog regardless of model-picker selection, bypassing any reused catalog.
    * @param provider - FI route identity.
-   * @returns advertised text models, or an empty list while signed out.
+   * @returns advertised text-output models with their input modalities, or an empty list while signed out.
    */
   async discoverModels(provider: string): Promise<readonly LlmModelInfo[]> {
     const config = this.options()
     const grant = await this.grant(config)
     if (grant === undefined) return []
-    return (await this.catalogs.models(config, grant, provider, undefined, true)).map(entry => ({ provider, id: entry.model.id, name: entry.model.name, inputModalities: ['text'] }))
+    return (await this.catalogs.models(config, grant, provider, undefined, true))
+      .map(entry => ({ provider, id: entry.model.id, name: entry.model.name, inputModalities: entry.model.input }))
+  }
+
+  /**
+   * Convert the request history, resolving durable images only when the history carries one.
+   * @param entry - frozen catalog route.
+   * @param options - the request with its effective tools and watchdog signal.
+   * @returns the pi-ai context; pi-ai serializes its images in the route's own wire format.
+   * @throws {LlmError} `UNSUPPORTED_CONTENT` for images on a text-only model, without an attachment service, or beyond OpenCode's limits.
+   */
+  private async requestContext(entry: ConsoleModel, options: GenerateOptions): Promise<PiContext> {
+    if (!options.messages.some(message => contentHasImage(message.content))) return toPiContext(options)
+    if (!entry.model.input.includes('image')) throw new LlmError(`OpenCode model "${entry.model.id}" does not accept image input`, 'UNSUPPORTED_CONTENT')
+    const services = this.images
+    const attachments = services?.attachments()
+    if (services === undefined || attachments === undefined) throw new LlmError('OpenCode image input requires the durable attachment service', 'UNSUPPORTED_CONTENT')
+    const { maxImagePixels, maxImageBytes } = attachments.imageLimits
+    const context = await toPiContext(options, {
+      attachments,
+      resolveImageAccess: ref => services.access(attachments, ref),
+      requestImagePolicy: { maxPixels: maxImagePixels, maxBytes: Math.min(maxImageBytes, MAX_IMAGE_BYTES) },
+    })
+    assertImageLimits(entry.model.id, context)
+    return context
   }
 
   private async prepare(provider: string, model: string, signal?: AbortSignal): Promise<PreparedConsole> {
@@ -230,7 +312,7 @@ export class OpenCodeAdapter extends LlmAdapter {
     try {
       const tools = options.sessionId === undefined ? withCompatibilityTools(options.tools ?? []) : options.tools ?? []
       const allowed = new Set(tools.filter(tool => !isCompatibilityTool(tool)).map(tool => tool.name))
-      const context = toPiContext({ ...options, tools, signal: watchdog.signal })
+      const context = await this.requestContext(entry, { ...options, tools, signal: watchdog.signal })
       const api = apis[entry.model.api]
       const models = createModels()
       models.setProvider(createProvider({

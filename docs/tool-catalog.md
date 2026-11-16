@@ -54,7 +54,7 @@ This table connects model-visible tool names to the plugin package and service s
 
 ### `image_gen`
 
-Generate one raster image from a prompt, or edit ordered PNG/JPEG/WebP workspace images (up to five for Codex/Grok and three for Antigravity). Choose one configured subscription provider (codex, grok, antigravity); omission uses codex. No provider fallback occurs.
+Generate raster images from a prompt, or edit ordered PNG/JPEG/WebP workspace images (up to five for Codex/Grok and three for Antigravity). Choose one configured subscription provider (codex, grok, antigravity); omission uses codex. No provider fallback occurs.
 
 ```json
 {
@@ -79,6 +79,34 @@ Generate one raster image from a prompt, or edit ordered PNG/JPEG/WebP workspace
       "items": {
         "type": "string"
       }
+    },
+    "size": {
+      "type": "string",
+      "description": "Optional output size in pixels. Codex accepts 1024x1024, 1536x1024, or 1024x1536. Grok and Antigravity accept every listed size and use its aspect ratio; Grok accepts it only without referenced_image_paths. Omit for the provider default.",
+      "enum": [
+        "1024x1024",
+        "1536x1024",
+        "1024x1536",
+        "1792x1024",
+        "1024x1792"
+      ]
+    },
+    "quality": {
+      "type": "string",
+      "description": "Optional higher-detail output. Grok accepts it only without referenced_image_paths. Omit for the provider default.",
+      "enum": [
+        "high"
+      ]
+    },
+    "count": {
+      "type": "integer",
+      "description": "Optional number of images to return. Omit for one.",
+      "enum": [
+        1,
+        2,
+        3,
+        4
+      ]
     }
   },
   "required": [

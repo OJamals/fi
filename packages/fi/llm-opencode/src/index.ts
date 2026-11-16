@@ -3,6 +3,9 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import type { Volatile } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/cordis-plugin-loader'
 import type {} from '@deepseek-ai/dsh-settings'
+import type {} from '@deepseek-ai/dsh-attachment'
+import type {} from '@deepseek-ai/dsh-fs'
+import { resolveImageAttachmentAccess } from '@deepseek-ai/dsh-llm'
 import type { AdapterRegistrationHandle } from '@deepseek-ai/dsh-llm'
 import z from '@deepseek-ai/schemastery'
 import { OpenCodeAdapter } from './adapter.ts'
@@ -17,6 +20,7 @@ import clientCapture from './client-capture.json' with { type: 'json' }
 const metadata = providerSettingsFor('opencodeConsole')
 
 export { OpenCodeAdapter } from './adapter.ts'
+export type { ConsoleImageServices } from './adapter.ts'
 export { OPENCODE_KEY, resolveConsoleGrant } from './oauth.ts'
 export type { ConsoleGrant, ConsoleOptions } from './protocol.ts'
 
@@ -66,7 +70,10 @@ export default class OpenCodeService extends Service {
     this.ctx.inject(['settings'], (child) => { child.effect(() => child.settings.configure({ auto: false }, this.ctx.fiber)) })
     const settingsNs = this.ctx.fiber.entry?.options.id ?? 'fi-opencode'
     const adapter = new OpenCodeAdapter(options, (settings, signal) => resolveConsoleGrant(this.ctx, settings, signal),
-      provider => config.providers.get()[provider], (message) => { this.ctx.logger.warn(message) })
+      provider => config.providers.get()[provider], (message) => { this.ctx.logger.warn(message) }, {
+        attachments: () => this.ctx.get('attachments'),
+        access: (attachments, ref) => resolveImageAttachmentAccess(attachments, hostPath => this.ctx.get('fs')?.processPathFromHostPath(hostPath), ref),
+      })
     this.ctx.on('system-prompt/assemble', async (_assembly, _context, next) => {
       const assembly = await next()
       const provider = assembly.variables.provider

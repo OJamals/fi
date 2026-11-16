@@ -1,16 +1,16 @@
-Usage: dsh [--profile] <name> [options] [app-args...]
-       dsh plugin --profile <name> <pnpm-args...>
+Usage: fi-cli [--profile] <name> [options] [app-args...]
+       fi-cli plugin --profile <name> <pnpm-args...>
 
-dsh: boot a DeepSeek Harness profile — an ordered stack of plugin-bundle patch
-layers under your own overrides.
+fi-cli: boot a fi profile — an ordered stack of plugin-bundle patch layers under
+your own overrides.
 
 Arguments:
   args                           arguments for the booted profile's app (see:
-                                 dsh --profile <name> --help)
+                                 fi-cli --profile <name> --help)
 
 Options:
   -V, --version                  output the version number
-  --profile <name>               the profile under $DSH_HOME/profiles to boot
+  --profile <name>               the profile under $FI_HOME/profiles to boot
   --from-default-profile <name>  initialize a new custom profile from a shipped
                                  profile template
   --patch <path>                 extra patch-list overlay applied after the
@@ -22,11 +22,14 @@ Options:
                                  or --patch overlays and exit
 
 Examples:
-  dsh web                                   boot the web profile (same as: dsh --profile web)
-  dsh rescue --from-default-profile web
+  fi-cli web                                boot the web profile (same as: fi-cli --profile web)
+  fi-cli rescue --from-default-profile web
                                             create rescue from the shipped web template, then boot it
-  dsh headless "run the tests"              answer one task, print the result, and exit
-  dsh tui --patch ./extra.yml               boot a custom profile with one extra overlay
-  dsh tui --resume <session>                arguments after the launcher flags reach the app
-  dsh web --help                            the web app's own flags and help
-  dsh plugin --profile tui add <package>    install a plugin into the tui profile
+  fi-cli headless "run the tests"           answer one task, print the result, and exit
+  fi-cli tui --patch ./extra.yml            boot a custom profile with one extra overlay
+  fi-cli tui --resume <session>             arguments after the launcher flags reach the app
+  fi-cli web --help                         the web app's own flags and help
+  fi-cli plugin --profile tui add <package> install a plugin into the tui profile
+
+Environment:
+  FI_HOME                                   fi data home (default: ~/.fi); documented FI_* variables configure the runtime

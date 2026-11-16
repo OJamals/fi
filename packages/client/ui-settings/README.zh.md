@@ -1,5 +1,5 @@
 ---
-description: "设置领域底座插件：共享配置表单、schema 服务，以及 dsh Web 客户端的规范设置 slot 类型约定。"
+description: "设置领域底座插件：共享配置表单、schema 服务，以及 fi Web 客户端的规范设置 slot 类型约定。"
 kind: "package-reference"
 ---
 

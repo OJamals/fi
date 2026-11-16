@@ -37,6 +37,14 @@ import {
 } from './macos-app-update-config.mjs'
 
 /**
+ * Electron Framework `.lproj` resources retained on macOS: the shipped English and Simplified Chinese locales
+ * plus the British English and Traditional Chinese locales Chromium resolves for related system languages, each
+ * with its grammatical-gender variants.
+ */
+export const MACOS_ELECTRON_LANGUAGES = ['en', 'en_GB', 'zh_CN', 'zh_TW']
+  .flatMap(locale => ['', '_FEMININE', '_MASCULINE', '_NEUTER'].map(variant => `${locale}${variant}`))
+
+/**
  * Create electron-builder configuration from one release environment.
  * @param {NodeJS.ProcessEnv} env - Packaging environment.
  * @param {NodeJS.Platform} hostPlatform - Build-host platform used when no explicit target is present.
@@ -157,6 +165,8 @@ export function createElectronBuilderConfig(
     mac: {
       icon: fileURLToPath(new URL('../resources/icon-macos.png', import.meta.url)),
       category: 'public.app-category.developer-tools',
+      // Electron Framework keeps only English and Chinese locale resources; electron-builder matches .lproj names exactly.
+      electronLanguages: MACOS_ELECTRON_LANGUAGES,
       // macOS matches the application locale against this bundle, not Electron Framework resources.
       extendInfo: {
         CFBundleLocalizations: ['en', 'zh_CN'],

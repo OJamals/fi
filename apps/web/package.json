@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-web-frontend",
-  "description": "Web application entry: vite build over the @deepseek-ai/dsh-client-web shell library; dist/ served by apps/cli's dsh web",
+  "description": "Web application entry: vite build over the @deepseek-ai/dsh-client-web shell library; dist/ served by apps/cli's fi-cli web",
   "version": "1.0.1",
   "publishConfig": {
     "access": "public"

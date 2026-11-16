@@ -119,7 +119,7 @@ git diff --check
 <a id="v4-corpus-trial"></a>
 ### 开发者 V4 日志集试迁移
 
-在已安装依赖、写入器为 V4 的贡献者工作区中使用这个一次性[迁移脚本](../../scripts/migrate-sessions-to-v4.ts)。开始前停止使用目标根目录的 DSH 进程，避免写入锁及变化中的子日志阻止迁移。在仓库根目录运行：
+在已安装依赖、写入器为 V4 的贡献者工作区中使用这个一次性[迁移脚本](../../scripts/migrate-sessions-to-v4.ts)。开始前停止使用目标根目录的 fi 进程，避免写入锁及变化中的子日志阻止迁移。在仓库根目录运行：
 
 ```sh
 pnpm run migrate:sessions-to-v4

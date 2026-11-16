@@ -75,7 +75,7 @@ Registration does not alter model requests. Provider-owned tools and guidance de
 
 The service limits registrations within its Cordis service instance.
 
-- **Shared desktop** — concurrent Sessions and separate DSH processes can operate the same desktop; callers coordinate whole computer-use workflows.
+- **Shared desktop** — concurrent Sessions and separate fi processes can operate the same desktop; callers coordinate whole computer-use workflows.
 - **Provider selection** — configuration selects the provider; the model cannot switch registered drivers at runtime.
 
 <a id="dev-note"></a>
