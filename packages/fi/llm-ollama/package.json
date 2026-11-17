@@ -1,6 +1,6 @@
 {
   "name": "@fi/llm-ollama",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "Ollama Cloud subscription device authorization and model transport for FI",
   "type": "module",

@@ -47,11 +47,11 @@ Each provider keeps its own models, credits, and quotas, and a successful sign-i
 
 ## Download
 
-| Platform | v1.0.1 download | Signing |
+| Platform | v1.0.2 download | Signing |
 |---|---|---|
-| macOS · Apple Silicon | [DMG](https://github.com/OJamals/fi/releases/download/v1.0.1/fi-1.0.1-mac-arm64.dmg) | Signed and notarized |
-| Windows · x64 | [Installer](https://github.com/OJamals/fi/releases/download/v1.0.1/fi-1.0.1-win-x64-unsigned.exe) | Unsigned |
-| Linux · x64 | [AppImage](https://github.com/OJamals/fi/releases/download/v1.0.1/fi-1.0.1-linux-x64.AppImage) | Unsigned |
+| macOS · Apple Silicon | [DMG](https://github.com/OJamals/fi/releases/download/v1.0.2/fi-1.0.2-mac-arm64.dmg) | Signed and notarized |
+| Windows · x64 | [Installer](https://github.com/OJamals/fi/releases/download/v1.0.2/fi-1.0.2-win-x64-unsigned.exe) | Unsigned |
+| Linux · x64 | [AppImage](https://github.com/OJamals/fi/releases/download/v1.0.2/fi-1.0.2-linux-x64.AppImage) | Unsigned |
 
 On macOS, drag fi from the DMG into Applications. On Linux, make the AppImage executable. Installed apps check [GitHub Releases](https://github.com/OJamals/fi/releases) for updates; use **Check for Updates** in the app menu.
 
